@@ -1,0 +1,131 @@
+{
+  "schema_version": "1.0",
+  "generated_at": "2026-05-26T17:41:35+08:00",
+  "repo": "researchMate",
+  "branch": "unknown",
+  "status": "dirty",
+  "confidence": "medium",
+  "objective": "Maintain ResearchMate as an agent-friendly HTML documentation set with Markdown sources migrated into HANDOFF.html and linked subpages.",
+  "next_actions": [
+    {
+      "priority": "P0",
+      "action": "Use docs/HANDOFF.html as the documentation entry point.",
+      "done_signal": "Agent can reach PRD, Architecture, API, DB, UI, Process, OpenAPI, and Plan from the header."
+    },
+    {
+      "priority": "P0",
+      "action": "Do not add new Markdown files under docs.",
+      "done_signal": "Get-ChildItem docs -Recurse -Filter *.md returns zero files."
+    },
+    {
+      "priority": "P1",
+      "action": "When API fields change, update infra/openapi/openapi.yaml and docs/openapi-spec.html together.",
+      "done_signal": "Contract tests and handoff validation pass."
+    }
+  ],
+  "blockers": [
+    {
+      "severity": "risky",
+      "item": "Current directory is not a git repository, so branch and dirty state are inferred.",
+      "owner": "human"
+    },
+    {
+      "severity": "unknown",
+      "item": "No real Supabase/R2/Qdrant/Redis credentials are configured.",
+      "owner": "future deployment agent"
+    }
+  ],
+  "changed_files": [
+    ".env.example",
+    ".gitignore",
+    "AGENTS.md",
+    "README.md",
+    "apps/api/src/researchmate_api/main.py",
+    "docs/api-spec.html",
+    "docs/db-schema.html",
+    "docs/execution-plan.html",
+    "docs/HANDOFF.html",
+    "docs/ui-page-spec.html",
+    "docs/handoff/assets/site.js",
+    "docs/handoff/index.html",
+    "docs/openapi-spec.html",
+    "infra/openapi/openapi.yaml and docs/openapi-spec.html",
+    "docs/project-development-process.html",
+    "docs/researchmate-architecture.html",
+    "docs/researchmate-prd.html",
+    "infra/openapi/openapi.yaml",
+    "infra/supabase/migrations/202605260001_initial_schema.sql",
+    "package.json",
+    "packages/shared/src/contracts.ts",
+    "requirements-dev.txt",
+    "scripts/repair_docs_html_encoding.py",
+    "skill/agent-context-html/SKILL.md",
+    "tests/test_project_scaffold.py"
+  ],
+  "important_files": [
+    "docs/HANDOFF.html",
+    "docs/handoff/index.html",
+    "docs/researchmate-prd.html",
+    "docs/researchmate-architecture.html",
+    "docs/project-development-process.html",
+    "docs/api-spec.html",
+    "docs/openapi-spec.html",
+    "docs/db-schema.html",
+    "docs/ui-page-spec.html",
+    "docs/execution-plan.html",
+    "infra/openapi/openapi.yaml"
+  ],
+  "tests_run": [
+    "D:\\software\\researchMate\\.venv\\Scripts\\python.exe -m pytest tests/test_project_scaffold.py -q -p no:cacheprovider passed with 7 tests",
+    "Garbled marker scan over docs HTML returned no matches",
+    "D:\\software\\researchMate\\.venv\\Scripts\\python.exe skill/agent-context-html/scripts/validate_context_dashboard.py docs/handoff passed",
+    "D:\\software\\researchMate\\.venv\\Scripts\\ruff.exe check apps/api workers/ai-worker tests scripts passed",
+    "FastAPI app import check loaded 21 routes including /api/v1/ask and /api/v1/dev/traces/{trace_id}",
+    "Get-ChildItem docs -Recurse -Filter *.md returned docs markdown count: 0"
+  ],
+  "tests_not_run": [
+    "Next.js build because dependencies are installed outside the project and module linking has not been configured."
+  ],
+  "risks": [
+    "Raw Markdown source is preserved inside migrated HTML pages, but future edits should be made directly in HTML.",
+    "OpenAPI machine-readable YAML moved to infra/openapi/openapi.yaml and mirrored in docs/openapi-spec.html.",
+    "Git metadata is unavailable in this folder."
+  ],
+  "decision_gates": [
+    "Stop before reintroducing Markdown under docs.",
+    "Stop before changing API field names without updating HTML docs, Pydantic schemas, TypeScript contracts, and OpenAPI.",
+    "Stop before splitting blocked modules across multiple agents when they share the same API, DB, state-machine, index-pipeline, prompt, or trace context.",
+    "Stop before deleting embedded raw Markdown backups from HTML pages unless a better lossless source exists.",
+    "Stop before removing docs/handoff/context-state.json or assets required by agent-context-html validation."
+  ],
+  "completion_status": {
+    "status": "DONE_WITH_CONCERNS",
+    "reason": "Markdown docs are migrated into HTML pages with raw source preserved; concern remains that Git metadata is unavailable and docs/handoff still requires JSON/CSS/JS support files."
+  },
+  "context_health": {
+    "freshness": "fresh",
+    "source_coverage": "high for docs and local skills, low for git metadata",
+    "missing_sources": 4,
+    "conflicts": 0
+  },
+  "sources_used": [
+    "docs/HANDOFF.html",
+    "docs/handoff/index.html",
+    "docs/researchmate-prd.html",
+    "docs/researchmate-architecture.html",
+    "docs/project-development-process.html",
+    "docs/api-spec.html",
+    "docs/openapi-spec.html",
+    "docs/db-schema.html",
+    "docs/ui-page-spec.html",
+    "docs/execution-plan.html",
+    "infra/openapi/openapi.yaml",
+    "skill/agent-context-html/SKILL.md"
+  ],
+  "sources_missing": [
+    ".git",
+    "TASK_STATE.md",
+    ".agent/context.json",
+    "memory-bank/activeContext.md"
+  ]
+}

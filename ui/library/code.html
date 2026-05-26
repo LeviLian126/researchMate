@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>ResearchMate - Library</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+  tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        "colors": {
+                "on-tertiary-fixed-variant": "rgb(var(--color-on-tertiary-fixed-variant) / <alpha-value>)",
+                "inverse-primary": "rgb(var(--color-inverse-primary) / <alpha-value>)",
+                "on-error": "rgb(var(--color-on-error) / <alpha-value>)",
+                "on-primary-fixed-variant": "rgb(var(--color-on-primary-fixed-variant) / <alpha-value>)",
+                "on-background": "rgb(var(--color-on-background) / <alpha-value>)",
+                "on-secondary": "rgb(var(--color-on-secondary) / <alpha-value>)",
+                "inverse-surface": "rgb(var(--color-inverse-surface) / <alpha-value>)",
+                "tertiary-fixed": "rgb(var(--color-tertiary-fixed) / <alpha-value>)",
+                "on-primary": "rgb(var(--color-on-primary) / <alpha-value>)",
+                "outline": "rgb(var(--color-outline) / <alpha-value>)",
+                "surface-container-low": "rgb(var(--color-surface-container-low) / <alpha-value>)",
+                "surface": "rgb(var(--color-surface) / <alpha-value>)",
+                "error": "rgb(var(--color-error) / <alpha-value>)",
+                "surface-bright": "rgb(var(--color-surface-bright) / <alpha-value>)",
+                "surface-container-lowest": "rgb(var(--color-surface-container-lowest) / <alpha-value>)",
+                "on-primary-fixed": "rgb(var(--color-on-primary-fixed) / <alpha-value>)",
+                "inverse-on-surface": "rgb(var(--color-inverse-on-surface) / <alpha-value>)",
+                "secondary-fixed-dim": "rgb(var(--color-secondary-fixed-dim) / <alpha-value>)",
+                "on-tertiary": "rgb(var(--color-on-tertiary) / <alpha-value>)",
+                "surface-container": "rgb(var(--color-surface-container) / <alpha-value>)",
+                "error-container": "rgb(var(--color-error-container) / <alpha-value>)",
+                "primary-fixed": "rgb(var(--color-primary-fixed) / <alpha-value>)",
+                "surface-container-highest": "rgb(var(--color-surface-container-highest) / <alpha-value>)",
+                "secondary-container": "rgb(var(--color-secondary-container) / <alpha-value>)",
+                "on-surface-variant": "rgb(var(--color-on-surface-variant) / <alpha-value>)",
+                "primary-container": "rgb(var(--color-primary-container) / <alpha-value>)",
+                "tertiary-fixed-dim": "rgb(var(--color-tertiary-fixed-dim) / <alpha-value>)",
+                "surface-dim": "rgb(var(--color-surface-dim) / <alpha-value>)",
+                "outline-variant": "rgb(var(--color-outline-variant) / <alpha-value>)",
+                "on-surface": "rgb(var(--color-on-surface) / <alpha-value>)",
+                "on-secondary-container": "rgb(var(--color-on-secondary-container) / <alpha-value>)",
+                "secondary-fixed": "rgb(var(--color-secondary-fixed) / <alpha-value>)",
+                "tertiary": "rgb(var(--color-tertiary) / <alpha-value>)",
+                "primary-fixed-dim": "rgb(var(--color-primary-fixed-dim) / <alpha-value>)",
+                "background": "rgb(var(--color-background) / <alpha-value>)",
+                "on-secondary-fixed-variant": "rgb(var(--color-on-secondary-fixed-variant) / <alpha-value>)",
+                "on-error-container": "rgb(var(--color-on-error-container) / <alpha-value>)",
+                "on-secondary-fixed": "rgb(var(--color-on-secondary-fixed) / <alpha-value>)",
+                "secondary": "rgb(var(--color-secondary) / <alpha-value>)",
+                "primary": "rgb(var(--color-primary) / <alpha-value>)",
+                "on-primary-container": "rgb(var(--color-on-primary-container) / <alpha-value>)",
+                "tertiary-container": "rgb(var(--color-tertiary-container) / <alpha-value>)",
+                "surface-tint": "rgb(var(--color-surface-tint) / <alpha-value>)",
+                "surface-container-high": "rgb(var(--color-surface-container-high) / <alpha-value>)",
+                "on-tertiary-container": "rgb(var(--color-on-tertiary-container) / <alpha-value>)",
+                "on-tertiary-fixed": "rgb(var(--color-on-tertiary-fixed) / <alpha-value>)",
+                "surface-variant": "rgb(var(--color-surface-variant) / <alpha-value>)"
+        },
+        "borderRadius": {
+                "DEFAULT": "0.5rem",
+                "lg": "1rem",
+                "xl": "1.5rem",
+                "full": "9999px"
+        },
+        "spacing": {},
+        "fontFamily": {
+                "headline": [
+                        "Inter"
+                ],
+                "display": [
+                        "Inter"
+                ],
+                "body": [
+                        "Inter"
+                ],
+                "label": [
+                        "Inter"
+                ]
+        },
+        "fontSize": {}
+},
+    },
+  }
+</script>
+<style>
+        :root {
+            --color-on-tertiary-fixed-variant: 77 42 115;
+            --color-inverse-primary: 10 76 110;
+            --color-on-error: 26 0 0;
+            --color-on-primary-fixed-variant: 0 77 115;
+            --color-on-background: 10 14 26;
+            --color-on-secondary: 0 31 46;
+            --color-inverse-surface: 10 14 26;
+            --color-tertiary-fixed: 232 208 255;
+            --color-on-primary: 255 255 255;
+            --color-outline: 74 96 112;
+            --color-surface-container-low: 240 244 248;
+            --color-surface: 255 255 255;
+            --color-error: 255 107 107;
+            --color-surface-bright: 255 255 255;
+            --color-surface-container-lowest: 255 255 255;
+            --color-on-primary-fixed: 0 31 46;
+            --color-inverse-on-surface: 224 232 240;
+            --color-secondary-fixed-dim: 136 180 204;
+            --color-on-tertiary: 26 0 46;
+            --color-surface-container: 224 232 240;
+            --color-error-container: 255 179 179;
+            --color-primary-fixed: 200 234 255;
+            --color-surface-container-highest: 208 220 228;
+            --color-secondary-container: 192 216 232;
+            --color-on-surface-variant: 74 96 112;
+            --color-primary-container: 200 234 255;
+            --color-tertiary-fixed-dim: 200 160 240;
+            --color-surface-dim: 224 232 240;
+            --color-outline-variant: 192 216 232;
+            --color-on-surface: 10 14 26;
+            --color-on-secondary-container: 13 31 43;
+            --color-secondary-fixed: 192 216 232;
+            --color-tertiary: 200 160 240;
+            --color-primary-fixed-dim: 125 211 252;
+            --color-background: 248 250 252;
+            --color-on-secondary-fixed-variant: 42 74 94;
+            --color-on-error-container: 61 20 20;
+            --color-on-secondary-fixed: 13 31 43;
+            --color-secondary: 136 180 204;
+            --color-primary: 14 77 110;
+            --color-on-primary-container: 0 31 46;
+            --color-tertiary-container: 232 208 255;
+            --color-surface-tint: 14 77 110;
+            --color-surface-container-high: 216 228 236;
+            --color-on-tertiary-container: 26 0 46;
+            --color-on-tertiary-fixed: 26 0 46;
+            --color-surface-variant: 224 232 240;
+        }
+        .dark {
+            --color-on-tertiary-fixed-variant: 77 42 115;
+            --color-inverse-primary: 10 76 110;
+            --color-on-error: 26 0 0;
+            --color-on-primary-fixed-variant: 0 77 115;
+            --color-on-background: 224 232 240;
+            --color-on-secondary: 0 31 46;
+            --color-inverse-surface: 224 232 240;
+            --color-tertiary-fixed: 232 208 255;
+            --color-on-primary: 0 31 46;
+            --color-outline: 74 96 112;
+            --color-surface-container-low: 17 24 40;
+            --color-surface: 15 21 36;
+            --color-error: 255 107 107;
+            --color-surface-bright: 26 36 56;
+            --color-surface-container-lowest: 10 14 26;
+            --color-on-primary-fixed: 0 31 46;
+            --color-inverse-on-surface: 10 14 26;
+            --color-secondary-fixed-dim: 136 180 204;
+            --color-on-tertiary: 26 0 46;
+            --color-surface-container: 20 28 46;
+            --color-error-container: 61 20 20;
+            --color-primary-fixed: 200 234 255;
+            --color-surface-container-highest: 32 44 66;
+            --color-secondary-container: 26 58 78;
+            --color-on-surface-variant: 160 180 196;
+            --color-primary-container: 14 77 110;
+            --color-tertiary-fixed-dim: 200 160 240;
+            --color-surface-dim: 15 21 36;
+            --color-outline-variant: 42 58 72;
+            --color-on-surface: 224 232 240;
+            --color-on-secondary-container: 192 216 232;
+            --color-secondary-fixed: 192 216 232;
+            --color-tertiary: 200 160 240;
+            --color-primary-fixed-dim: 125 211 252;
+            --color-background: 10 14 26;
+            --color-on-secondary-fixed-variant: 42 74 94;
+            --color-on-error-container: 255 179 179;
+            --color-on-secondary-fixed: 13 31 43;
+            --color-secondary: 136 180 204;
+            --color-primary: 125 211 252;
+            --color-on-primary-container: 200 234 255;
+            --color-tertiary-container: 61 32 96;
+            --color-surface-tint: 125 211 252;
+            --color-surface-container-high: 26 36 56;
+            --color-on-tertiary-container: 232 208 255;
+            --color-on-tertiary-fixed: 26 0 46;
+            --color-surface-variant: 26 36 56;
+        }
+
+body { font-family: 'Inter', sans-serif; background-color: #f8fafc; color: #0a0e1a; transition: background-color 0.3s, color 0.3s; }
+        .dark body { background-color: #0a0e1a; color: #e0e8f0; }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.6);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(14, 77, 110, 0.1);
+        }
+        .dark .glass-panel {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(125, 211, 252, 0.1);
+        }
+        .glass-panel-elevated {
+            background: rgba(255, 255, 255, 0.75);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid rgba(14, 77, 110, 0.15);
+            box-shadow: 0 4px 20px rgba(14, 77, 110, 0.05);
+        }
+        .dark .glass-panel-elevated {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(125, 211, 252, 0.15);
+            box-shadow: 0 0 30px rgba(125, 211, 252, 0.05);
+        }
+        .glow-hover:hover {
+            box-shadow: 0 0 30px rgba(125, 211, 252, 0.15);
+            border-color: rgba(125, 211, 252, 0.3);
+        }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(160, 180, 196, 0.4); border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(160, 180, 196, 0.6); }
+    </style>
+</head>
+<body class="bg-background text-on-background h-screen overflow-hidden flex font-body selection:bg-primary-container selection:text-on-primary-container">
+<!-- SideNavBar -->
+<nav class="fixed left-0 top-0 h-full z-40 h-screen w-64 flex flex-col border-r border-primary/10 bg-surface/60 backdrop-blur-xl backdrop-blur-2xl shadow-[0_4px_30px_rgba(14,77,110,0.05)] dark:shadow-[0_0_30px_rgba(125,211,252,0.05)]">
+<div class="p-6 pb-2">
+<h1 class="text-xl font-headline font-semibold tracking-tight text-primary flex items-center gap-2 mb-6">
+<span class="material-symbols-outlined" style='font-variation-settings: "FILL" 1;'>science</span>
+                ResearchMate
+            </h1>
+<div class="flex items-center gap-1 text-on-surface font-headline font-semibold text-lg cursor-pointer hover:text-primary transition-colors">
+<span>Projects</span>
+<span class="material-symbols-outlined text-sm text-on-surface-variant">expand_more</span>
+</div>
+</div>
+<div class="flex-1 overflow-y-auto custom-scrollbar px-4 mt-2 flex flex-col gap-1">
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-on-surface hover:text-primary hover:bg-surface-variant/40 transition-all duration-300 hover:backdrop-blur-3xl font-body text-base tracking-wide" href="#">
+<span class="material-symbols-outlined font-light">create_new_folder</span>
+<span class="truncate">New project</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-on-surface hover:text-primary hover:bg-surface-variant/40 transition-all duration-300 hover:backdrop-blur-3xl font-body text-base tracking-wide" href="#">
+<span class="material-symbols-outlined font-light">folder</span>
+<span class="truncate">researchMate</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-surface-container/60 text-on-surface transition-all duration-300 hover:backdrop-blur-3xl font-body text-base tracking-wide mt-1" href="#">
+<span class="material-symbols-outlined font-light opacity-0 w-6">folder_open</span>
+<span class="truncate -ml-7 pl-1">PRD 修改与安全校验</span>
+</a>
+<div class="mt-auto pt-6 flex flex-col gap-1 pb-4">
+<div class="h-px bg-outline-variant/30 my-2 mx-3"></div>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-primary-container/30 text-primary border-l-2 border-primary transition-all duration-300 hover:backdrop-blur-3xl font-body text-base tracking-wide" href="#">
+<span class="material-symbols-outlined font-light">menu_book</span>
+<span class="">Library</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/40 transition-all duration-300 hover:backdrop-blur-3xl font-body text-base tracking-wide" href="#">
+<span class="material-symbols-outlined font-light">quiz</span>
+<span class="">Quiz</span>
+</a>
+</div>
+</div>
+<div class="p-4 border-t border-primary/10 flex flex-col gap-1">
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/40 transition-all duration-300 font-body text-sm font-medium tracking-wide" href="#">
+<span class="material-symbols-outlined font-light">settings</span>
+<span class="">Settings</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/40 transition-all duration-300 font-body text-sm font-medium tracking-wide" href="#">
+<span class="material-symbols-outlined font-light">help</span>
+<span class="">Support</span>
+</a>
+</div>
+</nav>
+<!-- TopNavBar -->
+<header class="fixed docked full-width top-0 bg-surface/60 backdrop-blur-xl backdrop-blur-2xl border-b border-primary/10 shadow-[0_4px_30px_rgba(14,77,110,0.05)] dark:shadow-[0_0_30px_rgba(125,211,252,0.05)] flex justify-between items-center w-full px-6 py-3 ml-64 max-w-[calc(100%-16rem)] z-30">
+<div class="flex items-center gap-8">
+</div>
+<div class="flex items-center gap-4">
+<div class="relative">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-sm">search</span>
+<input class="bg-surface-container-high/50 border border-primary/10 rounded-full pl-10 pr-4 py-1.5 text-sm focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all text-on-surface placeholder-on-surface-variant/50 w-64" placeholder="Search materials..." type="text"/>
+</div>
+<button class="text-on-surface-variant hover:text-primary transition-colors p-2 rounded-full hover:bg-primary-container/20" onclick="document.documentElement.classList.toggle('dark')">
+<span class="material-symbols-outlined">light_mode</span>
+</button>
+<button class="text-on-surface-variant hover:text-primary transition-colors p-2 rounded-full hover:bg-primary-container/20">
+<span class="material-symbols-outlined">account_circle</span>
+</button>
+</div>
+</header>
+<!-- Main Content -->
+<main class="ml-64 mt-[60px] flex-1 h-[calc(100vh-60px)] overflow-y-auto custom-scrollbar p-6">
+<div class="max-w-7xl mx-auto">
+<!-- Page Header -->
+<div class="mb-8 flex justify-between items-end">
+<div>
+<div class="flex items-center gap-2 text-on-surface-variant text-sm font-medium mb-2">
+<span class="material-symbols-outlined text-[18px]">folder</span>
+<span class="">Project: Quantum Computing Ethics</span>
+</div>
+<h2 class="text-3xl font-headline font-bold text-on-surface">Library</h2>
+<p class="text-on-surface-variant mt-1">Manage and parse your source materials for this project.</p>
+</div>
+<div class="flex gap-3">
+<button class="glass-panel px-4 py-2 rounded-lg text-primary text-sm font-medium hover:bg-primary/10 transition-colors flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px]">filter_list</span>
+                    Filter
+                </button>
+</div>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+<!-- Upload Zone -->
+<div class="lg:col-span-1">
+<div class="glass-panel-elevated rounded-xl p-8 border-dashed border-2 border-primary/20 hover:border-primary/50 transition-colors duration-300 flex flex-col items-center justify-center text-center h-[300px] cursor-pointer group">
+<div class="w-16 h-16 rounded-full bg-primary-container/30 flex items-center justify-center text-primary mb-4 group-hover:scale-110 transition-transform duration-300">
+<span class="material-symbols-outlined text-3xl">cloud_upload</span>
+</div>
+<h3 class="text-lg font-semibold text-on-surface mb-2">Upload Materials</h3>
+<p class="text-sm text-on-surface-variant mb-6 px-4">Drag and drop PDFs, DOCX, or PPTX files here, or click to browse.</p>
+<button class="bg-primary/10 border border-primary/30 text-primary px-6 py-2 rounded-lg text-sm font-medium hover:bg-primary/20 transition-colors">
+                        Browse Files
+                    </button>
+</div>
+<!-- Storage Info -->
+<div class="mt-6 glass-panel rounded-xl p-5">
+<div class="flex justify-between items-center mb-2">
+<span class="text-sm font-medium text-on-surface-variant">Storage</span>
+<span class="text-sm font-medium text-primary">2.4 GB / 5.0 GB</span>
+</div>
+<div class="w-full bg-surface-container-high rounded-full h-1.5 mb-2 overflow-hidden">
+<div class="bg-primary h-1.5 rounded-full" style="width: 48%"></div>
+</div>
+<p class="text-xs text-on-surface-variant">45 documents currently indexed.</p>
+</div>
+</div>
+<!-- Document List -->
+<div class="lg:col-span-2 space-y-4">
+<!-- Item 1 (Ready) -->
+<div class="glass-panel rounded-xl p-4 flex items-center gap-4 group hover:bg-surface-container/50 transition-all glow-hover">
+<div class="w-12 h-12 rounded-lg bg-red-500/10 flex items-center justify-center text-red-400 border border-red-500/20 shrink-0">
+<span class="material-symbols-outlined">picture_as_pdf</span>
+</div>
+<div class="flex-1 min-w-0">
+<h4 class="text-base font-medium text-on-surface truncate">Q-Ethics_Stanford_2023_Review.pdf</h4>
+<div class="flex items-center gap-4 mt-1 text-xs text-on-surface-variant">
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">sd_card</span> 4.2 MB</span>
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">calendar_today</span> Oct 12, 2023</span>
+</div>
+</div>
+<div class="flex items-center gap-6">
+<span class="px-2.5 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium border border-primary/20 flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
+                            Ready
+                        </span>
+<div class="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+<button class="p-2 rounded-lg text-on-surface-variant hover:text-primary hover:bg-primary/10 transition-colors">
+<span class="material-symbols-outlined text-[20px]">visibility</span>
+</button>
+<button class="p-2 rounded-lg text-on-surface-variant hover:text-error hover:bg-error/10 transition-colors">
+<span class="material-symbols-outlined text-[20px]">delete</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Item 2 (Parsing) -->
+<div class="glass-panel rounded-xl p-4 flex items-center gap-4 group hover:bg-surface-container/50 transition-all glow-hover">
+<div class="w-12 h-12 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-400 border border-blue-500/20 shrink-0">
+<span class="material-symbols-outlined">description</span>
+</div>
+<div class="flex-1 min-w-0">
+<h4 class="text-base font-medium text-on-surface truncate">Interview_Transcripts_Dr_Chen.docx</h4>
+<div class="flex items-center gap-4 mt-1 text-xs text-on-surface-variant">
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">sd_card</span> 1.1 MB</span>
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">calendar_today</span> Today, 09:41 AM</span>
+</div>
+</div>
+<div class="flex items-center gap-6">
+<span class="px-2.5 py-1 rounded-full bg-tertiary/10 text-tertiary text-xs font-medium border border-tertiary/20 flex items-center gap-1">
+<span class="material-symbols-outlined text-[12px] animate-spin">autorenew</span>
+                            Parsing
+                        </span>
+<div class="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+<button class="p-2 rounded-lg text-on-surface-variant hover:text-primary hover:bg-primary/10 transition-colors cursor-not-allowed opacity-50">
+<span class="material-symbols-outlined text-[20px]">visibility</span>
+</button>
+<button class="p-2 rounded-lg text-on-surface-variant hover:text-error hover:bg-error/10 transition-colors">
+<span class="material-symbols-outlined text-[20px]">delete</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Item 3 (Failed) -->
+<div class="glass-panel rounded-xl p-4 flex items-center gap-4 group hover:bg-surface-container/50 transition-all glow-hover border-error/20">
+<div class="w-12 h-12 rounded-lg bg-orange-500/10 flex items-center justify-center text-orange-400 border border-orange-500/20 shrink-0">
+<span class="material-symbols-outlined">present_to_all</span>
+</div>
+<div class="flex-1 min-w-0">
+<h4 class="text-base font-medium text-on-surface truncate">Symposium_Deck_vFinal.pptx</h4>
+<div class="flex items-center gap-4 mt-1 text-xs text-on-surface-variant">
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">sd_card</span> 18.5 MB</span>
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">calendar_today</span> Yesterday</span>
+</div>
+</div>
+<div class="flex items-center gap-6">
+<span class="px-2.5 py-1 rounded-full bg-error/10 text-error text-xs font-medium border border-error/20 flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">error</span>
+                            Failed
+                        </span>
+<div class="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+<button class="p-2 rounded-lg text-on-surface-variant hover:text-primary hover:bg-primary/10 transition-colors" title="Retry">
+<span class="material-symbols-outlined text-[20px]">refresh</span>
+</button>
+<button class="p-2 rounded-lg text-on-surface-variant hover:text-error hover:bg-error/10 transition-colors">
+<span class="material-symbols-outlined text-[20px]">delete</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Item 4 (Ready) -->
+<div class="glass-panel rounded-xl p-4 flex items-center gap-4 group hover:bg-surface-container/50 transition-all glow-hover">
+<div class="w-12 h-12 rounded-lg bg-red-500/10 flex items-center justify-center text-red-400 border border-red-500/20 shrink-0">
+<span class="material-symbols-outlined">picture_as_pdf</span>
+</div>
+<div class="flex-1 min-w-0">
+<h4 class="text-base font-medium text-on-surface truncate">IBM_Q_System_One_Architecture.pdf</h4>
+<div class="flex items-center gap-4 mt-1 text-xs text-on-surface-variant">
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">sd_card</span> 8.9 MB</span>
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">calendar_today</span> Oct 10, 2023</span>
+</div>
+</div>
+<div class="flex items-center gap-6">
+<span class="px-2.5 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium border border-primary/20 flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
+                            Ready
+                        </span>
+<div class="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+<button class="p-2 rounded-lg text-on-surface-variant hover:text-primary hover:bg-primary/10 transition-colors">
+<span class="material-symbols-outlined text-[20px]">visibility</span>
+</button>
+<button class="p-2 rounded-lg text-on-surface-variant hover:text-error hover:bg-error/10 transition-colors">
+<span class="material-symbols-outlined text-[20px]">delete</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+</body></html>

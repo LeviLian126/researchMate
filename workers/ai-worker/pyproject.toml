@@ -1,0 +1,9 @@
+[project]
+name = "researchmate-ai-worker"
+version = "0.1.0"
+description = "Worker contract shell for document parsing, indexing, crawl, eval, and deletion jobs"
+requires-python = ">=3.13"
+dependencies = [
+  "pydantic>=2.12.0",
+]
+

@@ -1,0 +1,19 @@
+{
+  "collection": "researchmate_chunks",
+  "vector_size": 1024,
+  "distance": "Cosine",
+  "payload_schema": {
+    "user_id": "keyword",
+    "project_id": "keyword",
+    "document_id": "keyword",
+    "chunk_id": "keyword",
+    "source_type": "keyword",
+    "page_no": "integer",
+    "slide_no": "integer",
+    "title": "text",
+    "url": "keyword",
+    "expires_at": "datetime"
+  },
+  "required_filters": ["user_id", "project_id", "source_type"]
+}
+

@@ -1,0 +1,2 @@
+"""ResearchMate worker package."""
+

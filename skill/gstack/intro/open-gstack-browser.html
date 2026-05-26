@@ -1,0 +1,23 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>open-gstack-browser - gstack</title>
+  <link rel="stylesheet" href="assets/site.css">
+</head>
+<body class="theme-pink">
+  <header class="site-header"><a class="brand" href="index.html" aria-label="gstack 首页"><span class="brand-mark">g</span><span>gstack</span></a><nav aria-label="主要导航"><a href="index.html#overview">总览</a><a href="index.html#skills">Skills</a><a href="index.html#architecture">交付链路</a><a href="index.html#faq">FAQ</a></nav><div class="header-actions"><button class="theme-toggle" type="button" aria-label="切换深浅主题" aria-pressed="false"><span class="theme-toggle-text">暗色</span></button><a class="btn" href="index.html#skills">Skill 索引</a><a class="btn primary" href="index.html#start">开始阅读</a></div></header>
+  <main>
+    <section class="doc-hero"><a class="back-link" href="index.html#skills">← 返回 gstack Skill 索引</a><div class="doc-hero-grid"><div><span class="eyebrow">浏览器</span><h1>open-gstack-browser</h1><p class="lead">启动可见 GStack Browser，让用户能实时看 agent 操作，并使用 sidebar agent 和 cookie import。</p><div class="skill-meta"><span class="pill">headed</span><span class="pill">sidebar</span></div></div><aside class="doc-aside"><small>来源文件</small><code>open-gstack-browser/SKILL.md</code><small>核心边界</small><p>可见浏览器仍受安全策略约束，不暴露完整本地 daemon。</p></aside></div></section>
+    <section><div class="section-head reveal"><div><span class="eyebrow">定位</span><h2>这个 skill 负责什么</h2></div><p>浏览器类能力给 agent 真实眼睛和手。它们通过持久 Chromium 会话完成点击、截图、登录态测试和跨 agent 协作。</p></div><div class="doc-card reveal"><p>启动可见 GStack Browser，让用户能实时看 agent 操作，并使用 sidebar agent 和 cookie import。 它在 gstack 中的角色不是“万能提示词”，而是一个清晰的工作边界：什么时候触发、先检查什么、产出什么、哪些事情必须交给其他能力处理。</p></div></section>
+    <section><div class="grid cols-3"><article class="doc-card reveal"><h3>适用场景</h3><ul><li>想亲眼看浏览器操作</li><li>需要处理登录/CAPTCHA</li><li>要用 sidebar 助手</li></ul></article><article class="doc-card reveal"><h3>工作流程</h3><ul><li><strong>Step 1.</strong> 启动 headed browser</li><li><strong>Step 2.</strong> 连接 sidebar</li><li><strong>Step 3.</strong> 导入或保持 cookie</li><li><strong>Step 4.</strong> 执行可见操作</li></ul></article><article class="doc-card reveal"><h3>输出结果</h3><ul><li>可见浏览器窗口</li><li>活动流</li><li>用户可接管状态</li></ul></article></div></section>
+    <section><div class="section-head reveal"><div><span class="eyebrow">边界</span><h2>避免误用的规则</h2></div><p>真实产品文档要讲清楚能力边界。这个页面把 skill 的适用范围和不适用范围放在显眼位置，方便用户判断是否应该调用它。</p></div><div class="quote reveal"><p>可见浏览器仍受安全策略约束，不暴露完整本地 daemon。</p></div></section>
+    <section><div class="grid cols-2"><article class="doc-card reveal"><h3>与其他能力的关系</h3><p>同类能力包括 browse、devex-review、hackernews-frontpage、pair-agent。实际使用时，先由 landing page 或上游 workflow 判断意图，再把任务交给最贴近目标的 skill。</p></article><article class="doc-card reveal"><h3>示例触发</h3><div class="terminal"><code>/open-gstack-browser 帮我处理当前项目中最相关的工作流，并在输出里列出证据、风险和下一步。</code></div></article></div></section>
+    <section><div class="doc-card reveal"><h3>阅读建议</h3><p>先从本页理解 open-gstack-browser 的职责，再回到索引查看同分类 skill。若要修改这个能力，应优先阅读来源文件 <code>open-gstack-browser/SKILL.md</code>，确认触发条件、流程和反模式是否仍然一致。</p></div></section>
+  </main>
+  <footer><div class="footer-inner"><span>gstack intro site</span><span>基于 README.md、ARCHITECTURE.md 与各 SKILL.md 整理</span></div></footer>
+  <script src="assets/site.js"></script>
+</body>
+</html>
+

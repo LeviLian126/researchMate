@@ -1,0 +1,2026 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Project Development Process - ResearchMate Docs</title>
+  <style>
+:root{--bg:#f8fafc;--surface:#fff;--text:#0f172a;--muted:#475569;--line:#dbe3ef;--brand:#0f766e;--brand-soft:#ccfbf1;--code:#0f172a;--warn:#92400e}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.65}.top{position:sticky;top:0;z-index:5;border-bottom:1px solid var(--line);background:rgba(255,255,255,.94);backdrop-filter:blur(12px)}.top-inner{width:min(1180px,calc(100% - 32px));margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 0}.brand{font-weight:800;color:var(--text);text-decoration:none}.nav{display:flex;flex-wrap:wrap;gap:8px}.nav a{border:1px solid var(--line);border-radius:6px;padding:6px 9px;color:var(--brand);text-decoration:none;font-size:13px;background:var(--surface)}.nav a[aria-current="page"]{background:var(--brand-soft);color:#134e4a}.wrap{width:min(1180px,calc(100% - 32px));margin:0 auto}.hero{padding:28px 0 16px}.eyebrow{color:var(--brand);font-weight:800;text-transform:uppercase;font-size:12px;letter-spacing:.08em}h1{font-size:38px;line-height:1.1;margin:8px 0 12px}h2{font-size:26px;margin:32px 0 10px;border-top:1px solid var(--line);padding-top:24px}h3{font-size:20px;margin:24px 0 8px}h4{font-size:16px;margin:18px 0 6px}.lead{font-size:18px;color:var(--muted);max-width:860px}.layout{display:grid;grid-template-columns:280px minmax(0,1fr);gap:20px;align-items:start}.toc{position:sticky;top:68px;border:1px solid var(--line);border-radius:8px;background:var(--surface);padding:14px;max-height:calc(100vh - 96px);overflow:auto}.toc strong{display:block;margin-bottom:8px}.toc a{display:block;color:var(--muted);text-decoration:none;padding:5px 0;font-size:13px}.toc a:hover{color:var(--brand)}.doc{border:1px solid var(--line);border-radius:8px;background:var(--surface);padding:22px;overflow:hidden}.doc p{color:#26364f}.doc a{color:var(--brand)}blockquote{border-left:4px solid var(--brand);margin:14px 0;padding:8px 14px;background:#f0fdfa;color:#334155}pre{overflow:auto;border:1px solid var(--line);border-radius:8px;background:#0b1220;color:#dbeafe;padding:14px;line-height:1.5}code{font-family:"Cascadia Code",Consolas,monospace;background:#eef2f7;border-radius:4px;padding:1px 4px;color:var(--code)}pre code{background:transparent;padding:0;color:inherit}table{width:100%;border-collapse:collapse;margin:12px 0;display:block;overflow:auto}th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}th{background:#f1f5f9}ul,ol{padding-left:24px}.cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.card{border:1px solid var(--line);border-radius:8px;background:var(--surface);padding:14px}.card h3{margin-top:0}.chip{display:inline-flex;border:1px solid var(--line);border-radius:999px;padding:4px 9px;margin:4px;color:var(--muted);font-size:13px}.warn{color:var(--warn)}details{border:1px solid var(--line);border-radius:8px;padding:12px;margin:20px 0;background:#fbfdff}summary{font-weight:800;cursor:pointer}.source-note{color:var(--muted);font-size:13px;margin-top:22px}@media(max-width:900px){.layout{grid-template-columns:1fr}.toc{position:relative;top:auto}.cards{grid-template-columns:1fr}.top-inner{align-items:flex-start;flex-direction:column}h1{font-size:30px}}
+</style>
+</head>
+<body>
+  <header class="top"><div class="top-inner"><a class="brand" href="HANDOFF.html">ResearchMate Docs</a><nav class="nav" aria-label="Project documentation"><a href="HANDOFF.html">总览</a><a href="handoff/index.html">Agent Dashboard</a><a href="researchmate-prd.html">PRD</a><a href="researchmate-architecture.html">Architecture</a><a href="project-development-process.html" aria-current="page">Process</a><a href="api-spec.html">API</a><a href="openapi-spec.html">OpenAPI</a><a href="db-schema.html">DB</a><a href="ui-page-spec.html">UI</a><a href="execution-plan.html">Plan</a></nav></div></header>
+  <main class="wrap">
+    <section class="hero">
+      <span class="eyebrow">Project Documentation</span>
+      <h1>Project Development Process</h1>
+      <p class="lead">定义从需求冻结到上线复盘的项目开发流程。</p>
+      <p class="source-note">Migrated from <code>PROJECT_DEVELOPMENT_PROCESS.md</code>. The original Markdown is preserved at the bottom of this HTML page for lossless handoff.</p>
+    </section>
+    <div class="layout">
+      <aside class="toc"><strong>目录</strong><a href="#0-总原则">0. 总原则</a><a href="#1-标准流程总览">1. 标准流程总览</a><a href="#2-阶段-0-需求与范围冻结">2. 阶段 0：需求与范围冻结</a><a href="#目标">&nbsp;&nbsp;目标</a><a href="#主要产物">&nbsp;&nbsp;主要产物</a><a href="#researchmate-当前已定范围">&nbsp;&nbsp;ResearchMate 当前已定范围</a><a href="#tips">&nbsp;&nbsp;Tips</a><a href="#验收标准">&nbsp;&nbsp;验收标准</a><a href="#3-阶段-1-架构与技术方案冻结">3. 阶段 1：架构与技术方案冻结</a><a href="#目标">&nbsp;&nbsp;目标</a><a href="#主要产物">&nbsp;&nbsp;主要产物</a><a href="#推荐技术栈">&nbsp;&nbsp;推荐技术栈</a><a href="#tips">&nbsp;&nbsp;Tips</a><a href="#验收标准">&nbsp;&nbsp;验收标准</a><a href="#4-阶段-2-api-contract">4. 阶段 2：API Contract</a><a href="#目标">&nbsp;&nbsp;目标</a><a href="#主要产物">&nbsp;&nbsp;主要产物</a><a href="#必须定义的-api">&nbsp;&nbsp;必须定义的 API</a><a href="#api-设计原则">&nbsp;&nbsp;API 设计原则</a><a href="#统一错误响应">&nbsp;&nbsp;统一错误响应</a><a href="#tips">&nbsp;&nbsp;Tips</a><a href="#验收标准">&nbsp;&nbsp;验收标准</a><a href="#5-阶段-3-数据模型与权限设计">5. 阶段 3：数据模型与权限设计</a><a href="#目标">&nbsp;&nbsp;目标</a><a href="#主要产物">&nbsp;&nbsp;主要产物</a><a href="#核心表">&nbsp;&nbsp;核心表</a><a href="#关键字段">&nbsp;&nbsp;关键字段</a><a href="#权限原则">&nbsp;&nbsp;权限原则</a><a href="#qdrant-payload">&nbsp;&nbsp;Qdrant payload</a><a href="#tips">&nbsp;&nbsp;Tips</a><a href="#验收标准">&nbsp;&nbsp;验收标准</a><a href="#6-阶段-4-ui-页面与交互规范">6. 阶段 4：UI 页面与交互规范</a><a href="#目标">&nbsp;&nbsp;目标</a><a href="#主要产物">&nbsp;&nbsp;主要产物</a><a href="#mvp-页面">&nbsp;&nbsp;MVP 页面</a><a href="#ask-页面核心组件">&nbsp;&nbsp;Ask 页面核心组件</a><a href="#tips">&nbsp;&nbsp;Tips</a><a href="#验收标准">&nbsp;&nbsp;验收标准</a><a href="#7-阶段-5-工程脚手架与-ci-基线">7. 阶段 5：工程脚手架与 CI 基线</a><a href="#目标">&nbsp;&nbsp;目标</a><a href="#推荐目录">&nbsp;&nbsp;推荐目录</a><a href="#基础-ci">&nbsp;&nbsp;基础 CI</a><a href="#tips">&nbsp;&nbsp;Tips</a><a href="#验收标准">&nbsp;&nbsp;验收标准</a><a href="#8-阶段-6-认证-项目-文件上传基础设施">8. 阶段 6：认证、项目、文件上传基础设施</a><a href="#目标">&nbsp;&nbsp;目标</a><a href="#功能">&nbsp;&nbsp;功能</a><a href="#tips">&nbsp;&nbsp;Tips</a><a href="#验收标准">&nbsp;&nbsp;验收标准</a><a href="#9-阶段-7-文档解析与向量化管线">9. 阶段 7：文档解析与向量化管线</a><a href="#目标">&nbsp;&nbsp;目标</a><a href="#流程">&nbsp;&nbsp;流程</a><a href="#tips">&nbsp;&nbsp;Tips</a><a href="#验收标准">&nbsp;&nbsp;验收标准</a><a href="#10-阶段-8-local-ask-纵向闭环">10. 阶段 8：Local Ask 纵向闭环</a><a href="#目标">&nbsp;&nbsp;目标</a><a href="#流程">&nbsp;&nbsp;流程</a><a href="#tips">&nbsp;&nbsp;Tips</a><a href="#验收标准">&nbsp;&nbsp;验收标准</a><a href="#11-阶段-9-source-mode-与-hybrid-local-first">11. 阶段 9：Source Mode 与 Hybrid Local-first</a><a href="#目标">&nbsp;&nbsp;目标</a><a href="#source-policy-优先级">&nbsp;&nbsp;Source Policy 优先级</a><a href="#hybrid-v1">&nbsp;&nbsp;Hybrid v1</a><a href="#tips">&nbsp;&nbsp;Tips</a><a href="#验收标准">&nbsp;&nbsp;验收标准</a><a href="#12-阶段-10-web-search-crawl">12. 阶段 10：Web Search / Crawl</a><a href="#目标">&nbsp;&nbsp;目标</a><a href="#流程">&nbsp;&nbsp;流程</a><a href="#tips">&nbsp;&nbsp;Tips</a><a href="#验收标准">&nbsp;&nbsp;验收标准</a><a href="#13-阶段-11-quiz">13. 阶段 11：Quiz</a><a href="#目标">&nbsp;&nbsp;目标</a><a href="#quiz-schema">&nbsp;&nbsp;Quiz Schema</a><a href="#tips">&nbsp;&nbsp;Tips</a><a href="#验收标准">&nbsp;&nbsp;验收标准</a><a href="#14-阶段-12-developer-trace-与-rag-eval">14. 阶段 12：Developer Trace 与 RAG Eval</a><a href="#目标">&nbsp;&nbsp;目标</a><a href="#developer-trace-内容">&nbsp;&nbsp;Developer Trace 内容</a><a href="#rag-eval-指标">&nbsp;&nbsp;RAG Eval 指标</a><a href="#tips">&nbsp;&nbsp;Tips</a><a href="#验收标准">&nbsp;&nbsp;验收标准</a><a href="#15-阶段-13-安全加固与数据生命周期">15. 阶段 13：安全加固与数据生命周期</a><a href="#目标">&nbsp;&nbsp;目标</a><a href="#安全清单">&nbsp;&nbsp;安全清单</a><a href="#删除策略">&nbsp;&nbsp;删除策略</a><a href="#tips">&nbsp;&nbsp;Tips</a><a href="#验收标准">&nbsp;&nbsp;验收标准</a><a href="#16-阶段-14-staging-部署">16. 阶段 14：Staging 部署</a><a href="#目标">&nbsp;&nbsp;目标</a><a href="#staging-环境">&nbsp;&nbsp;Staging 环境</a><a href="#smoke-test">&nbsp;&nbsp;Smoke Test</a><a href="#tips">&nbsp;&nbsp;Tips</a><a href="#验收标准">&nbsp;&nbsp;验收标准</a><a href="#17-阶段-15-production-launch">17. 阶段 15：Production Launch</a><a href="#目标">&nbsp;&nbsp;目标</a><a href="#launch-checklist">&nbsp;&nbsp;Launch Checklist</a><a href="#tips">&nbsp;&nbsp;Tips</a><a href="#验收标准">&nbsp;&nbsp;验收标准</a><a href="#18-阶段-16-运维-监控-复盘与简历包装">18. 阶段 16：运维、监控、复盘与简历包装</a><a href="#目标">&nbsp;&nbsp;目标</a><a href="#运维指标">&nbsp;&nbsp;运维指标</a><a href="#简历包装点">&nbsp;&nbsp;简历包装点</a><a href="#tips">&nbsp;&nbsp;Tips</a><a href="#验收标准">&nbsp;&nbsp;验收标准</a><a href="#19-推荐时间线">19. 推荐时间线</a><a href="#12-周正式版">&nbsp;&nbsp;12 周正式版</a><a href="#6-周压缩版">&nbsp;&nbsp;6 周压缩版</a><a href="#个人建议">&nbsp;&nbsp;个人建议</a><a href="#20-每周工作节奏">20. 每周工作节奏</a><a href="#每周必须回答">&nbsp;&nbsp;每周必须回答</a><a href="#21-代码合并规范">21. 代码合并规范</a><a href="#分支">&nbsp;&nbsp;分支</a><a href="#pr-要求">&nbsp;&nbsp;PR 要求</a><a href="#commit-风格">&nbsp;&nbsp;Commit 风格</a><a href="#验收标准">&nbsp;&nbsp;验收标准</a><a href="#22-关键反模式">22. 关键反模式</a><a href="#23-下一步行动清单">23. 下一步行动清单</a><a href="#24-references">24. References</a></aside>
+      <article class="doc"><h1 id="researchmate-项目开发流程规范">ResearchMate 项目开发流程规范</h1>
+<blockquote>适用项目：ResearchMate</blockquote>
+<blockquote>适用目标：个人开发但按大厂级流程推进，最终可正式上线、可写进简历、可面试展示</blockquote>
+<blockquote>版本：v1.0</blockquote>
+<blockquote>生成日期：2026-05-25</blockquote>
+<p>---</p>
+<h3 id="0-总原则">0. 总原则</h3>
+<p>ResearchMate 不是一次性 Demo，而是一个需要正式上线的 AI 应用项目。开发流程应遵循：</p>
+<ol>
+<li><strong>先契约，后实现</strong>：先定 API、数据模型、页面行为，再写前后端代码。</li>
+<li><strong>先纵向闭环，后横向扩展</strong>：先跑通“上传文件 → 解析 → 向量化 → 提问 → 引用回答”这一条链，再扩展 Web、Hybrid、Quiz。</li>
+<li><strong>先可靠，后酷炫</strong>：Agent、RAG、MCP、Trace 都要服务于用户任务，不为了显摆而堆技术。</li>
+<li><strong>默认安全</strong>：用户文件、API Key、OAuth、对象存储、向量库、Trace 全部按正式上线标准设计。</li>
+<li><strong>每阶段有验收标准</strong>：没有验收标准的任务不进入开发。</li>
+<li><strong>每周必须有可演示结果</strong>：避免长期只写底层代码，最后无法展示。</li>
+<li><strong>成本可控</strong>：默认 Local-first，Web-on-demand，所有外部 API 做限流、缓存和降级。</li>
+</ol>
+<p>参考依据：</p>
+<ul>
+<li>DevOps 生命周期通常包含 plan、code、build、test、release、deploy、operate、monitor 等阶段。</li>
+<li>OpenAPI 用于在看源码前明确 HTTP API 的能力和语义。</li>
+<li>GitHub Actions 可用于自动化 build/test/CI。</li>
+<li>OWASP ASVS 可作为 Web 应用安全控制和测试要求的参考。</li>
+<li>Twelve-Factor App 建议将配置存储在环境变量中，避免把环境配置写死在代码仓库。</li>
+</ul>
+<p>---</p>
+<h3 id="1-标准流程总览">1. 标准流程总览</h3>
+<pre><code class="language-text">阶段 0：需求与范围冻结
+阶段 1：架构与技术方案冻结
+阶段 2：API Contract
+阶段 3：数据模型与权限设计
+阶段 4：UI 页面与交互规范
+阶段 5：工程脚手架与 CI 基线
+阶段 6：认证、项目、文件上传基础设施
+阶段 7：文档解析与向量化管线
+阶段 8：Local Ask 纵向闭环
+阶段 9：Source Mode 与 Hybrid local-first
+阶段 10：Web Search / Crawl
+阶段 11：Quiz
+阶段 12：Developer Trace 与 RAG Eval
+阶段 13：安全加固与数据生命周期
+阶段 14：Staging 部署
+阶段 15：Production Launch
+阶段 16：运维、监控、复盘与简历包装</code></pre>
+<p>---</p>
+<h3 id="2-阶段-0-需求与范围冻结">2. 阶段 0：需求与范围冻结</h3>
+<h4 id="目标">目标</h4>
+<p>确认 ResearchMate 的产品边界，不在开发中途无限加功能。</p>
+<h4 id="主要产物">主要产物</h4>
+<ul>
+<li><code>ResearchMate_PRD.md</code></li>
+<li>MVP 功能清单</li>
+<li>非目标清单</li>
+<li>用户场景</li>
+<li>Demo 脚本</li>
+<li>验收标准</li>
+</ul>
+<h4 id="researchmate-当前已定范围">ResearchMate 当前已定范围</h4>
+<table><thead><tr><th>模块</th><th>结论</th></tr></thead><tbody>
+<tr><td>产品名</td><td>ResearchMate</td></tr>
+<tr><td>主入口</td><td>统一 Ask 输入框</td></tr>
+<tr><td>Mode</td><td>Auto / Local / Web / Hybrid</td></tr>
+<tr><td>Slash</td><td><code>/study</code> <code>/search</code> <code>/hybrid</code> <code>/quiz</code></td></tr>
+<tr><td>MVP 输出</td><td>问答 + 引用 + Quiz</td></tr>
+<tr><td>Quiz</td><td>选择题 + 简答题，不做批改闭环</td></tr>
+<tr><td>默认联网策略</td><td>Auto 默认不联网，Local-first</td></tr>
+<tr><td>可溯源</td><td>回答顶部显示 Mode + Sources，Sources 可展开</td></tr>
+<tr><td>用户隔离</td><td>Google + GitHub OAuth</td></tr>
+<tr><td>正式上线</td><td>是</td></tr>
+</tbody></table>
+<h4 id="tips">Tips</h4>
+<ul>
+<li>不要把 Report、错题本、Flashcards、Study Plan 放进 MVP。</li>
+<li>不要把 Quiz 放进右下角 Mode selector，Mode 只控制信息来源。</li>
+<li>不要让 Auto 模式随便联网，否则 API 成本和延迟会失控。</li>
+<li>不要在 PRD 里写“智能”“强大”这种无法验收的词，要写可验证行为。</li>
+<li>每个功能都写“触发条件、用户可见结果、失败时怎么提示”。</li>
+</ul>
+<h4 id="验收标准">验收标准</h4>
+<ul>
+<li>[ ] PRD 中有明确的一句话定位。</li>
+<li>[ ] PRD 中列出目标用户和非目标用户。</li>
+<li>[ ] MVP 功能与非目标功能分开。</li>
+<li>[ ] 每个核心功能都有用户故事和验收标准。</li>
+<li>[ ] 明确 <code>/study</code> <code>/search</code> <code>/hybrid</code> <code>/quiz</code> 的行为。</li>
+<li>[ ] 明确 Mode 只控制 source，slash 控制 task。</li>
+<li>[ ] 明确不做哪些功能，防止 scope creep。</li>
+</ul>
+<p>---</p>
+<h3 id="3-阶段-1-架构与技术方案冻结">3. 阶段 1：架构与技术方案冻结</h3>
+<h4 id="目标">目标</h4>
+<p>确定系统整体架构、服务边界、云资源、核心技术栈。</p>
+<h4 id="主要产物">主要产物</h4>
+<ul>
+<li><code>ResearchMate_Architecture.md</code></li>
+<li>架构图</li>
+<li>技术选型表</li>
+<li>数据流图</li>
+<li>风险清单</li>
+<li>ADR 记录</li>
+</ul>
+<h4 id="推荐技术栈">推荐技术栈</h4>
+<table><thead><tr><th>层</th><th>技术</th></tr></thead><tbody>
+<tr><td>Frontend</td><td>Next.js + shadcn/ui + Tailwind</td></tr>
+<tr><td>Auth</td><td>Supabase Auth，Google + GitHub OAuth</td></tr>
+<tr><td>Database</td><td>Supabase Postgres</td></tr>
+<tr><td>Object Storage</td><td>Cloudflare R2</td></tr>
+<tr><td>Backend</td><td>FastAPI</td></tr>
+<tr><td>Worker</td><td>Python worker</td></tr>
+<tr><td>Agent Workflow</td><td>LangGraph</td></tr>
+<tr><td>RAG Glue</td><td>LangChain</td></tr>
+<tr><td>Vector DB</td><td>Qdrant Cloud</td></tr>
+<tr><td>Queue / Cache / Rate Limit</td><td>Upstash Redis 或后端限流中间件</td></tr>
+<tr><td>Parser</td><td>PDF 用 Docling，DOCX/PPTX 用 MarkItDown</td></tr>
+<tr><td>Search</td><td>Serper 主力 + Tavily fallback</td></tr>
+<tr><td>Reader / Crawler</td><td>Jina Reader + Firecrawl fallback</td></tr>
+<tr><td>Eval</td><td>Ragas / LangSmith</td></tr>
+<tr><td>CI/CD</td><td>GitHub Actions</td></tr>
+</tbody></table>
+<h4 id="tips">Tips</h4>
+<ul>
+<li>Vercel/Cloudflare 适合前端，不适合 PDF 解析、embedding、crawler、worker。</li>
+<li>后端 API 与 worker 要拆开，避免长任务阻塞请求。</li>
+<li>Supabase service role key、R2 secret、Qdrant key、LLM key 全部只能在后端。</li>
+<li>不要把所有服务都放进一个 serverless function。</li>
+<li>大模型 provider、embedding provider、search provider 都要做 abstraction，方便换便宜方案。</li>
+</ul>
+<h4 id="验收标准">验收标准</h4>
+<ul>
+<li>[ ] 架构图能说明 frontend、backend、worker、DB、R2、Qdrant、Redis 的关系。</li>
+<li>[ ] 文档解释为什么不把重任务放到 Vercel/Cloudflare Functions。</li>
+<li>[ ] 明确 API key 和 secret 的存放位置。</li>
+<li>[ ] 明确登录、上传、解析、问答、删除的完整数据流。</li>
+<li>[ ] 明确哪些组件可以替换，例如 search provider、embedding provider。</li>
+<li>[ ] 明确 MVP 与 Phase 2 的技术边界。</li>
+</ul>
+<p>---</p>
+<h3 id="4-阶段-2-api-contract">4. 阶段 2：API Contract</h3>
+<h4 id="目标">目标</h4>
+<p>在写前端和后端前，冻结接口契约。前端、后端、worker、测试都围绕同一份 API Spec 开发。</p>
+<h4 id="主要产物">主要产物</h4>
+<ul>
+<li><code>API_SPEC.md</code></li>
+<li><code>openapi.yaml</code></li>
+<li>错误码表</li>
+<li>API 权限表</li>
+<li>请求/响应 schema</li>
+</ul>
+<h4 id="必须定义的-api">必须定义的 API</h4>
+<table><thead><tr><th>模块</th><th>API</th></tr></thead><tbody>
+<tr><td>Auth</td><td><code>GET /me</code></td></tr>
+<tr><td>Project</td><td><code>POST /projects</code>, <code>GET /projects</code>, <code>GET /projects/{id}</code>, <code>DELETE /projects/{id}</code></td></tr>
+<tr><td>Upload</td><td><code>POST /documents/upload-url</code></td></tr>
+<tr><td>Document</td><td><code>POST /documents</code>, <code>GET /projects/{id}/documents</code>, <code>GET /documents/{id}</code>, <code>DELETE /documents/{id}</code></td></tr>
+<tr><td>Job</td><td><code>GET /jobs/{id}</code></td></tr>
+<tr><td>Ask</td><td><code>POST /ask</code></td></tr>
+<tr><td>Quiz</td><td><code>POST /quiz</code></td></tr>
+<tr><td>Sources</td><td><code>GET /runs/{id}/sources</code></td></tr>
+<tr><td>Trace</td><td><code>GET /dev/traces/{trace_id}</code></td></tr>
+<tr><td>Health</td><td><code>GET /healthz</code></td></tr>
+</tbody></table>
+<h4 id="api-设计原则">API 设计原则</h4>
+<ol>
+<li>所有业务 API 必须带认证。</li>
+<li>所有 project/document/run 查询必须校验 <code>user_id</code>。</li>
+<li>长任务只返回 <code>job_id</code>，不在请求里同步等完。</li>
+<li>Ask 响应必须包含 <code>mode</code> 和 <code>sources</code>。</li>
+<li>Quiz 响应必须包含题目、答案、解析、引用来源。</li>
+<li>错误响应必须统一格式。</li>
+<li>API 版本从 <code>/api/v1</code> 开始。</li>
+</ol>
+<h4 id="统一错误响应">统一错误响应</h4>
+<pre><code class="language-json">{
+  &quot;error&quot;: {
+    &quot;code&quot;: &quot;DOCUMENT_NOT_INDEXED&quot;,
+    &quot;message&quot;: &quot;Document is still being processed.&quot;,
+    &quot;request_id&quot;: &quot;req_...&quot;
+  }
+}</code></pre>
+<h4 id="tips">Tips</h4>
+<ul>
+<li>API Spec 不要只写 endpoint，要写状态码、错误码、权限和示例。</li>
+<li>文件上传不要让前端拿 R2 secret，要让后端生成 signed upload URL。</li>
+<li>Ask 不要直接返回一堆模型文本，要返回结构化字段。</li>
+<li>Developer Trace API 必须只允许开发者或管理员访问。</li>
+<li>OpenAPI 生成后，可以用它生成前端类型或 API client。</li>
+</ul>
+<h4 id="验收标准">验收标准</h4>
+<ul>
+<li>[ ] 所有 MVP API 都在 <code>openapi.yaml</code> 里定义。</li>
+<li>[ ] 每个 API 有 request、response、error examples。</li>
+<li>[ ] 所有需要认证的 API 都标记 auth requirement。</li>
+<li>[ ] Ask / Quiz schema 可被前端直接渲染。</li>
+<li>[ ] API 错误码覆盖上传失败、解析中、检索为空、外部 API 超额、权限失败。</li>
+<li>[ ] 前后端可以基于 mock API 并行开发。</li>
+</ul>
+<p>---</p>
+<h3 id="5-阶段-3-数据模型与权限设计">5. 阶段 3：数据模型与权限设计</h3>
+<h4 id="目标">目标</h4>
+<p>确定数据库表、索引、权限隔离、删除策略、Qdrant payload 映射。</p>
+<h4 id="主要产物">主要产物</h4>
+<ul>
+<li><code>DB_SCHEMA.md</code></li>
+<li>ERD</li>
+<li>Supabase migration SQL</li>
+<li>RLS policy 草案</li>
+<li>Qdrant collection schema</li>
+</ul>
+<h4 id="核心表">核心表</h4>
+<table><thead><tr><th>表</th><th>作用</th></tr></thead><tbody>
+<tr><td><code>profiles</code></td><td>用户资料</td></tr>
+<tr><td><code>projects</code></td><td>项目</td></tr>
+<tr><td><code>documents</code></td><td>文件元数据</td></tr>
+<tr><td><code>document_pages</code></td><td>PDF 页 / PPT slide / DOCX section</td></tr>
+<tr><td><code>chunks</code></td><td>chunk 元数据</td></tr>
+<tr><td><code>messages</code></td><td>对话消息</td></tr>
+<tr><td><code>ask_runs</code></td><td>一次 Ask 执行</td></tr>
+<tr><td><code>tool_calls</code></td><td>工具调用记录</td></tr>
+<tr><td><code>citations</code></td><td>引用关系</td></tr>
+<tr><td><code>quiz_sets</code></td><td>Quiz 批次</td></tr>
+<tr><td><code>quiz_questions</code></td><td>Quiz 题目</td></tr>
+<tr><td><code>jobs</code></td><td>异步任务</td></tr>
+<tr><td><code>deletion_jobs</code></td><td>删除任务</td></tr>
+<tr><td><code>api_usage</code></td><td>用户 API 使用量 / 限流统计</td></tr>
+</tbody></table>
+<h4 id="关键字段">关键字段</h4>
+<p>所有用户数据表至少要有：</p>
+<pre><code class="language-sql">user_id uuid not null
+created_at timestamptz not null
+updated_at timestamptz
+deleted_at timestamptz</code></pre>
+<h4 id="权限原则">权限原则</h4>
+<ul>
+<li>用户只能访问自己的 project。</li>
+<li>document、chunk、quiz、trace 都通过 project 绑定 user。</li>
+<li>后端每次查询都带 user_id。</li>
+<li>Supabase RLS 能开则开，但后端也要做强校验。</li>
+<li>service role key 只在后端/worker。</li>
+</ul>
+<h4 id="qdrant-payload">Qdrant payload</h4>
+<pre><code class="language-json">{
+  &quot;user_id&quot;: &quot;...&quot;,
+  &quot;project_id&quot;: &quot;...&quot;,
+  &quot;document_id&quot;: &quot;...&quot;,
+  &quot;chunk_id&quot;: &quot;...&quot;,
+  &quot;source_type&quot;: &quot;local_doc&quot;,
+  &quot;page_no&quot;: 12,
+  &quot;slide_no&quot;: null,
+  &quot;title&quot;: &quot;Lecture 5&quot;,
+  &quot;expires_at&quot;: &quot;2026-06-01T00:00:00Z&quot;
+}</code></pre>
+<h4 id="tips">Tips</h4>
+<ul>
+<li>不要只把向量存在 Qdrant，Postgres 也要保存 chunk metadata 和 citation mapping。</li>
+<li>删除项目时要清 DB、R2、Qdrant，不能只删一边。</li>
+<li>给 <code>project_id</code>、<code>document_id</code>、<code>user_id</code> 建索引。</li>
+<li>给 <code>expires_at</code> 建索引，方便 7 天自动清理。</li>
+<li>不要在 messages 里塞所有运行信息，trace 要独立表。</li>
+</ul>
+<h4 id="验收标准">验收标准</h4>
+<ul>
+<li>[ ] 数据模型能支持 Ask、Quiz、Sources、Trace、Deletion。</li>
+<li>[ ] 所有用户数据可按 user_id 隔离。</li>
+<li>[ ] 删除项目可以找到所有相关 DB/R2/Qdrant 数据。</li>
+<li>[ ] Qdrant payload 足以做 metadata filter。</li>
+<li>[ ] 有 migration 文件。</li>
+<li>[ ] 有基础 seed/mock 数据。</li>
+<li>[ ] 有 7 天过期清理字段和 job 设计。</li>
+</ul>
+<p>---</p>
+<h3 id="6-阶段-4-ui-页面与交互规范">6. 阶段 4：UI 页面与交互规范</h3>
+<h4 id="目标">目标</h4>
+<p>让前端开发不靠临场发挥，提前定义页面、组件、状态和错误提示。</p>
+<h4 id="主要产物">主要产物</h4>
+<ul>
+<li><code>UI_PAGE_SPEC.md</code></li>
+<li>页面结构图</li>
+<li>组件清单</li>
+<li>empty/loading/error states</li>
+<li>slash command 交互定义</li>
+</ul>
+<h4 id="mvp-页面">MVP 页面</h4>
+<table><thead><tr><th>页面</th><th>作用</th></tr></thead><tbody>
+<tr><td><code>/</code></td><td>Landing / 登录入口</td></tr>
+<tr><td><code>/app</code></td><td>Project list</td></tr>
+<tr><td><code>/app/projects/:id</code></td><td>Ask 主页面</td></tr>
+<tr><td><code>/app/projects/:id/library</code></td><td>文件库</td></tr>
+<tr><td><code>/app/projects/:id/quiz</code></td><td>Quiz 历史</td></tr>
+<tr><td><code>/dev/traces/:trace_id</code></td><td>Developer Trace</td></tr>
+</tbody></table>
+<h4 id="ask-页面核心组件">Ask 页面核心组件</h4>
+<ul>
+<li>Chat message list</li>
+<li>Ask input</li>
+<li>Mode selector：Auto / Local / Web / Hybrid</li>
+<li>Slash command parser</li>
+<li>Sources header：Mode + Sources</li>
+<li>Sources drawer</li>
+<li>Upload shortcut</li>
+<li>Error banner</li>
+<li>Job progress indicator</li>
+</ul>
+<h4 id="tips">Tips</h4>
+<ul>
+<li>Mode selector 不要放 Quiz，Quiz 是 task，不是 source。</li>
+<li>回答顶部只放 Mode + Sources，不要把 debug 信息塞进普通 UI。</li>
+<li>Sources drawer 要能显示 local page/slide/snippet 和 web URL。</li>
+<li>Trace 页面是开发者视图，不给普通用户入口。</li>
+<li>所有 loading 和失败状态都要提前设计，尤其是“文档还在解析”。</li>
+</ul>
+<h4 id="验收标准">验收标准</h4>
+<ul>
+<li>[ ] 每个页面有 empty/loading/error/success 状态。</li>
+<li>[ ] Mode selector 行为清楚。</li>
+<li>[ ] <code>/study</code> <code>/search</code> <code>/hybrid</code> <code>/quiz</code> 行为清楚。</li>
+<li>[ ] Sources drawer 能追溯到 chunk/page/slide/url。</li>
+<li>[ ] Quiz 页面能展示选择题和简答题。</li>
+<li>[ ] 用户看到的状态不会暴露内部 secret 或 debug 信息。</li>
+<li>[ ] Developer Trace 与普通用户界面隔离。</li>
+</ul>
+<p>---</p>
+<h3 id="7-阶段-5-工程脚手架与-ci-基线">7. 阶段 5：工程脚手架与 CI 基线</h3>
+<h4 id="目标">目标</h4>
+<p>建立可持续开发环境，确保每次提交都能自动检查。</p>
+<h4 id="推荐目录">推荐目录</h4>
+<pre><code class="language-text">researchmate/
+  apps/
+    web/
+    api/
+  workers/
+    ai-worker/
+  packages/
+    shared/
+  docs/
+  infra/
+  .github/
+    workflows/</code></pre>
+<h4 id="基础-ci">基础 CI</h4>
+<table><thead><tr><th>Job</th><th>检查内容</th></tr></thead><tbody>
+<tr><td>web-check</td><td>install、lint、typecheck、build</td></tr>
+<tr><td>api-check</td><td>install、format、lint、pytest</td></tr>
+<tr><td>worker-check</td><td>parser/embedding 相关测试</td></tr>
+<tr><td>api-contract-check</td><td>OpenAPI schema 校验</td></tr>
+<tr><td>security-check</td><td>secret scan、dependency audit</td></tr>
+<tr><td>e2e-smoke</td><td>最小端到端测试</td></tr>
+</tbody></table>
+<h4 id="tips">Tips</h4>
+<ul>
+<li>第一周就加 CI，不要等功能写完。</li>
+<li><code>.env.example</code> 要完整，但不能包含真实 key。</li>
+<li>本地开发要能一键启动依赖服务。</li>
+<li>前端和后端使用共享 schema，避免字段漂移。</li>
+<li>所有外部 provider 都要能 mock。</li>
+</ul>
+<h4 id="验收标准">验收标准</h4>
+<ul>
+<li>[ ] 新 repo 可 clone 后按 README 启动。</li>
+<li>[ ] CI 能在 PR 上自动跑。</li>
+<li>[ ] 无真实 secret 进入仓库。</li>
+<li>[ ] 前端 build 通过。</li>
+<li>[ ] 后端测试通过。</li>
+<li>[ ] OpenAPI schema 校验通过。</li>
+<li>[ ] <code>env.example</code> 覆盖所有必需环境变量。</li>
+</ul>
+<p>---</p>
+<h3 id="8-阶段-6-认证-项目-文件上传基础设施">8. 阶段 6：认证、项目、文件上传基础设施</h3>
+<h4 id="目标">目标</h4>
+<p>跑通正式上线的基础能力：登录、项目创建、文件上传到云存储。</p>
+<h4 id="功能">功能</h4>
+<ul>
+<li>Google OAuth</li>
+<li>GitHub OAuth</li>
+<li>创建 project</li>
+<li>获取 R2 signed upload URL</li>
+<li>上传文件</li>
+<li>保存 document metadata</li>
+<li>文件大小限制</li>
+<li>文件类型校验</li>
+</ul>
+<h4 id="tips">Tips</h4>
+<ul>
+<li>不要先做 AI，先把登录和文件上传打牢。</li>
+<li>signed URL 有效期要短。</li>
+<li>R2 object key 不要可预测。</li>
+<li>上传完成后再创建 parse job。</li>
+<li>前端不能直接访问私有文件，必须通过 signed read URL 或后端代理。</li>
+</ul>
+<h4 id="验收标准">验收标准</h4>
+<ul>
+<li>[ ] Google/GitHub 登录可用。</li>
+<li>[ ] 用户只能看到自己的 projects。</li>
+<li>[ ] 文件能上传到 R2。</li>
+<li>[ ] document metadata 写入数据库。</li>
+<li>[ ] 超过大小限制的文件被拒绝。</li>
+<li>[ ] 非 PDF/DOCX/PPTX 文件被拒绝。</li>
+<li>[ ] 前端无任何 R2 secret。</li>
+</ul>
+<p>---</p>
+<h3 id="9-阶段-7-文档解析与向量化管线">9. 阶段 7：文档解析与向量化管线</h3>
+<h4 id="目标">目标</h4>
+<p>将上传文件转成可检索的 chunks，并写入 Qdrant。</p>
+<h4 id="流程">流程</h4>
+<pre><code class="language-text">document uploaded
+→ create parse job
+→ worker downloads from R2
+→ parse document
+→ extract page/slide/section
+→ chunking
+→ embedding
+→ upsert Qdrant
+→ update document status indexed</code></pre>
+<h4 id="tips">Tips</h4>
+<ul>
+<li>PDF 用 Docling，DOCX/PPTX 用 MarkItDown。</li>
+<li>解析失败要记录 error message，不要只显示“失败”。</li>
+<li>chunk 要保留 page/slide/section metadata。</li>
+<li>embedding 要批处理，避免一次请求过大。</li>
+<li>upsert Qdrant 前先写 Postgres chunk metadata。</li>
+<li>每个 job 要可重试。</li>
+</ul>
+<h4 id="验收标准">验收标准</h4>
+<ul>
+<li>[ ] PDF/DOCX/PPTX 至少各有一个样例解析成功。</li>
+<li>[ ] document status 能从 uploaded → parsing → indexing → indexed。</li>
+<li>[ ] chunk 写入 Postgres。</li>
+<li>[ ] vector 写入 Qdrant。</li>
+<li>[ ] page/slide/section 可追溯。</li>
+<li>[ ] 解析失败时用户能看到可理解错误。</li>
+<li>[ ] worker 重启后 job 不丢失或可恢复。</li>
+</ul>
+<p>---</p>
+<h3 id="10-阶段-8-local-ask-纵向闭环">10. 阶段 8：Local Ask 纵向闭环</h3>
+<h4 id="目标">目标</h4>
+<p>先跑通最核心功能：本地资料问答。</p>
+<h4 id="流程">流程</h4>
+<pre><code class="language-text">user asks
+→ resolve mode local_only
+→ retrieve Qdrant chunks
+→ generate grounded answer
+→ validate citations
+→ save ask_run
+→ return Mode + Sources</code></pre>
+<h4 id="tips">Tips</h4>
+<ul>
+<li>先不要做 Web，不要做 Hybrid。</li>
+<li>如果没有 indexed documents，必须拒绝回答。</li>
+<li>如果 retrieval 结果低置信度，回答要提示“资料中未找到足够依据”。</li>
+<li>回答生成必须使用 structured output。</li>
+<li>citation 必须来自真实 retrieved chunks。</li>
+</ul>
+<h4 id="验收标准">验收标准</h4>
+<ul>
+<li>[ ] 用户可基于上传文件提问。</li>
+<li>[ ] 回答顶部显示 <code>Mode: Local</code> 和 <code>Sources</code>。</li>
+<li>[ ] Sources drawer 能打开对应文件片段。</li>
+<li>[ ] 检索为空时不编造答案。</li>
+<li>[ ] citation validator 通过。</li>
+<li>[ ] ask_run、tool_calls、citations 被记录。</li>
+</ul>
+<p>---</p>
+<h3 id="11-阶段-9-source-mode-与-hybrid-local-first">11. 阶段 9：Source Mode 与 Hybrid Local-first</h3>
+<h4 id="目标">目标</h4>
+<p>实现 Auto / Local / Web / Hybrid 的策略控制。</p>
+<h4 id="source-policy-优先级">Source Policy 优先级</h4>
+<pre><code class="language-text">slash command
+→ UI selected mode
+→ strong prompt signal
+→ auto router
+→ default no-web</code></pre>
+<h4 id="hybrid-v1">Hybrid v1</h4>
+<pre><code class="language-text">先查 local
+local evidence 足够则不联网
+用户明确要求最新/联网/补充资料时才 web</code></pre>
+<h4 id="tips">Tips</h4>
+<ul>
+<li>Auto v1 先用规则，不要一开始做复杂 LLM router。</li>
+<li>Local Only 禁止调用 Web。</li>
+<li>Hybrid 必须区分 local evidence 和 web evidence。</li>
+<li>Web API 调用前先检查 quota。</li>
+<li>Mode 决策要记录在 trace 中，但普通用户只看到 Mode + Sources。</li>
+</ul>
+<h4 id="验收标准">验收标准</h4>
+<ul>
+<li>[ ] <code>/study</code> 强制 local_only。</li>
+<li>[ ] <code>/search</code> 强制 web_only。</li>
+<li>[ ] <code>/hybrid</code> 强制 hybrid。</li>
+<li>[ ] UI Mode 选择能覆盖 Auto。</li>
+<li>[ ] Auto 默认不联网。</li>
+<li>[ ] Hybrid local-first 生效。</li>
+<li>[ ] source policy validator 能防止越权调用工具。</li>
+</ul>
+<p>---</p>
+<h3 id="12-阶段-10-web-search-crawl">12. 阶段 10：Web Search / Crawl</h3>
+<h4 id="目标">目标</h4>
+<p>实现可控、可引用、可缓存的联网搜索。</p>
+<h4 id="流程">流程</h4>
+<pre><code class="language-text">/search query
+→ Serper search
+→ select top urls
+→ Jina Reader extract
+→ Firecrawl fallback
+→ cache content
+→ web retrieval
+→ generate answer
+→ cite web sources</code></pre>
+<h4 id="tips">Tips</h4>
+<ul>
+<li>Serper + Tavily 做 provider abstraction。</li>
+<li>Jina Reader 失败再 Firecrawl，避免成本过高。</li>
+<li>Web 内容要缓存，避免同 URL 重复抓取。</li>
+<li>不要引用抓取失败的网页。</li>
+<li>Web sources 要记录 retrieved_at。</li>
+<li>外部网页内容要做 prompt injection 防护。</li>
+</ul>
+<h4 id="验收标准">验收标准</h4>
+<ul>
+<li>[ ] <code>/search</code> 能返回 Web 引用。</li>
+<li>[ ] Web API 有 per-user 限流。</li>
+<li>[ ] 相同 query / URL 有缓存。</li>
+<li>[ ] 抓取失败不进入 citations。</li>
+<li>[ ] Sources drawer 可打开 web URL 和摘要。</li>
+<li>[ ] API 超额时能优雅降级。</li>
+</ul>
+<p>---</p>
+<h3 id="13-阶段-11-quiz">13. 阶段 11：Quiz</h3>
+<h4 id="目标">目标</h4>
+<p>实现 <code>/quiz</code>，基于本地资料生成选择题和简答题。</p>
+<h4 id="quiz-schema">Quiz Schema</h4>
+<pre><code class="language-json">{
+  &quot;mode&quot;: &quot;local_only&quot;,
+  &quot;questions&quot;: [
+    {
+      &quot;type&quot;: &quot;single_choice&quot;,
+      &quot;question&quot;: &quot;...&quot;,
+      &quot;options&quot;: [&quot;A&quot;, &quot;B&quot;, &quot;C&quot;, &quot;D&quot;],
+      &quot;answer&quot;: &quot;B&quot;,
+      &quot;explanation&quot;: &quot;...&quot;,
+      &quot;difficulty&quot;: &quot;medium&quot;,
+      &quot;citations&quot;: []
+    },
+    {
+      &quot;type&quot;: &quot;short_answer&quot;,
+      &quot;question&quot;: &quot;...&quot;,
+      &quot;answer&quot;: &quot;...&quot;,
+      &quot;explanation&quot;: &quot;...&quot;,
+      &quot;difficulty&quot;: &quot;medium&quot;,
+      &quot;citations&quot;: []
+    }
+  ]
+}</code></pre>
+<h4 id="tips">Tips</h4>
+<ul>
+<li><code>/quiz</code> 默认 Local Only。</li>
+<li>不做答题批改，不做错题本。</li>
+<li>每题必须绑定 source chunk。</li>
+<li>选择题必须 4 个选项。</li>
+<li>简答题必须有标准答案和解析。</li>
+<li>如果本地资料不足，少生成题或拒绝生成，不要编。</li>
+</ul>
+<h4 id="验收标准">验收标准</h4>
+<ul>
+<li>[ ] <code>/quiz</code> 可生成选择题和简答题。</li>
+<li>[ ] 每题有答案、解析、难度、citations。</li>
+<li>[ ] 每题 citations 都来自本地 chunks。</li>
+<li>[ ] 没有本地资料时拒绝生成。</li>
+<li>[ ] QuizSet 通过 schema validation。</li>
+<li>[ ] Quiz history 可查看。</li>
+</ul>
+<p>---</p>
+<h3 id="14-阶段-12-developer-trace-与-rag-eval">14. 阶段 12：Developer Trace 与 RAG Eval</h3>
+<h4 id="目标">目标</h4>
+<p>让系统可调试、可评测、可证明不是黑盒。</p>
+<h4 id="developer-trace-内容">Developer Trace 内容</h4>
+<table><thead><tr><th>字段</th><th>用途</th></tr></thead><tbody>
+<tr><td>trace_id</td><td>请求链路</td></tr>
+<tr><td>user_id</td><td>权限隔离</td></tr>
+<tr><td>resolved_mode</td><td>最终模式</td></tr>
+<tr><td>task_type</td><td>answer / quiz</td></tr>
+<tr><td>retrieved_chunks</td><td>检索结果</td></tr>
+<tr><td>tool_calls</td><td>search / crawl / LLM / embedding</td></tr>
+<tr><td>validation_result</td><td>schema / citation / source policy</td></tr>
+<tr><td>latency_ms</td><td>性能</td></tr>
+<tr><td>cost_estimate</td><td>成本</td></tr>
+<tr><td>errors</td><td>调试信息</td></tr>
+</tbody></table>
+<h4 id="rag-eval-指标">RAG Eval 指标</h4>
+<table><thead><tr><th>指标</th><th>用途</th></tr></thead><tbody>
+<tr><td>retrieval hit rate</td><td>检索是否找对资料</td></tr>
+<tr><td>citation coverage</td><td>结论是否都有引用</td></tr>
+<tr><td>source policy correctness</td><td>Mode 是否遵守工具边界</td></tr>
+<tr><td>answer grounding</td><td>回答是否被资料支持</td></tr>
+<tr><td>quiz grounding</td><td>题目是否来自本地资料</td></tr>
+<tr><td>empty retrieval refusal</td><td>找不到时是否拒答</td></tr>
+</tbody></table>
+<h4 id="tips">Tips</h4>
+<ul>
+<li>先做 20 条手写 eval cases。</li>
+<li>Eval 不要求一开始完全自动化，但要可重复运行。</li>
+<li>Trace 不给普通用户看，只给开发者。</li>
+<li>Trace 不能泄露 API key、OAuth token、R2 signed secret。</li>
+<li>每次 prompt/schema 改动后跑 eval。</li>
+</ul>
+<h4 id="验收标准">验收标准</h4>
+<ul>
+<li>[ ] Developer Trace 页面可查看一次请求的完整链路。</li>
+<li>[ ] Trace 仅开发者可访问。</li>
+<li>[ ] 至少 20 条 eval cases。</li>
+<li>[ ] Eval 可在 CI 或本地命令运行。</li>
+<li>[ ] citation coverage 有统计。</li>
+<li>[ ] source policy correctness 有统计。</li>
+<li>[ ] Trace 不包含 secret。</li>
+</ul>
+<p>---</p>
+<h3 id="15-阶段-13-安全加固与数据生命周期">15. 阶段 13：安全加固与数据生命周期</h3>
+<h4 id="目标">目标</h4>
+<p>满足正式上线最低安全要求。</p>
+<h4 id="安全清单">安全清单</h4>
+<ul>
+<li>[ ] 前端无 LLM/Search/R2/Qdrant secret。</li>
+<li>[ ] Supabase service role key 只在后端。</li>
+<li>[ ] OAuth 登录校验有效。</li>
+<li>[ ] 所有资源查询带 user_id。</li>
+<li>[ ] R2 signed URL 有过期时间。</li>
+<li>[ ] 上传文件大小限制。</li>
+<li>[ ] MIME/type 校验。</li>
+<li>[ ] CORS 限制。</li>
+<li>[ ] CSRF 风险评估。</li>
+<li>[ ] API rate limit。</li>
+<li>[ ] Prompt injection 防护。</li>
+<li>[ ] Developer Trace 访问控制。</li>
+<li>[ ] 删除项目清理 DB/R2/Qdrant。</li>
+<li>[ ] 7 天自动过期删除。</li>
+</ul>
+<h4 id="删除策略">删除策略</h4>
+<pre><code class="language-text">用户手动删除 project
+→ mark deleting
+→ delete DB rows
+→ delete Qdrant vectors
+→ delete R2 objects
+→ mark deleted
+
+每日清理任务
+→ find expired projects/documents
+→ create deletion_jobs
+→ retry failed cleanup</code></pre>
+<h4 id="tips">Tips</h4>
+<ul>
+<li>删除不要只软删。用户文件最终必须从 R2 和 Qdrant 清理。</li>
+<li>删除任务要可重试。</li>
+<li>R2 object key 不要暴露 user email。</li>
+<li>对外部网页内容做隔离，不能让网页文本改写 tool policy。</li>
+<li>所有 env secrets 按环境分开：dev/staging/prod。</li>
+</ul>
+<h4 id="验收标准">验收标准</h4>
+<ul>
+<li>[ ] 用户能手动删除项目。</li>
+<li>[ ] 删除后 DB/R2/Qdrant 数据都被清理。</li>
+<li>[ ] 7 天过期清理任务可运行。</li>
+<li>[ ] 限流生效。</li>
+<li>[ ] secret scan 无泄露。</li>
+<li>[ ] 普通用户无法访问 <code>/dev/traces</code>。</li>
+<li>[ ] 上传恶意类型文件会被拒绝。</li>
+</ul>
+<p>---</p>
+<h3 id="16-阶段-14-staging-部署">16. 阶段 14：Staging 部署</h3>
+<h4 id="目标">目标</h4>
+<p>上线前在 staging 环境完整验证。</p>
+<h4 id="staging-环境">Staging 环境</h4>
+<ul>
+<li>独立 Supabase project 或 schema</li>
+<li>独立 R2 bucket</li>
+<li>独立 Qdrant collection</li>
+<li>独立 API keys</li>
+<li>独立 domain/subdomain</li>
+</ul>
+<h4 id="smoke-test">Smoke Test</h4>
+<ul>
+<li>[ ] OAuth 登录。</li>
+<li>[ ] 创建项目。</li>
+<li>[ ] 上传 PDF/DOCX/PPTX。</li>
+<li>[ ] 解析入库。</li>
+<li>[ ] Local Ask。</li>
+<li>[ ] Web Ask。</li>
+<li>[ ] Hybrid Ask。</li>
+<li>[ ] <code>/quiz</code>。</li>
+<li>[ ] Sources panel。</li>
+<li>[ ] Developer Trace。</li>
+<li>[ ] 删除项目。</li>
+<li>[ ] 7 天清理任务 dry-run。</li>
+</ul>
+<h4 id="tips">Tips</h4>
+<ul>
+<li>不要直接把第一个可跑版本发 production。</li>
+<li>Staging 和 prod 的环境变量必须分开。</li>
+<li>Staging 中故意测试 API 超额、解析失败、上传非法文件。</li>
+<li>上线前备份 schema 和 migration。</li>
+</ul>
+<h4 id="验收标准">验收标准</h4>
+<ul>
+<li>[ ] Staging 全链路可跑。</li>
+<li>[ ] smoke test 通过。</li>
+<li>[ ] 关键错误路径测试通过。</li>
+<li>[ ] 成本/限流策略可观测。</li>
+<li>[ ] 没有 P0/P1 bug。</li>
+<li>[ ] README 部署步骤可复现。</li>
+</ul>
+<p>---</p>
+<h3 id="17-阶段-15-production-launch">17. 阶段 15：Production Launch</h3>
+<h4 id="目标">目标</h4>
+<p>正式上线，同时保证可回滚、可监控、可排错。</p>
+<h4 id="launch-checklist">Launch Checklist</h4>
+<ul>
+<li>[ ] Production env vars 配置完成。</li>
+<li>[ ] OAuth callback URL 配置 production domain。</li>
+<li>[ ] R2 bucket 权限正确。</li>
+<li>[ ] Qdrant collection 创建完成。</li>
+<li>[ ] Supabase migrations 已运行。</li>
+<li>[ ] GitHub Actions production deploy 通过。</li>
+<li>[ ] Production smoke test 通过。</li>
+<li>[ ] 错误日志可查。</li>
+<li>[ ] 限流开启。</li>
+<li>[ ] 删除任务开启。</li>
+<li>[ ] README 更新 production URL。</li>
+<li>[ ] Demo 视频录制完成。</li>
+</ul>
+<h4 id="tips">Tips</h4>
+<ul>
+<li>首次上线只邀请少量人试用。</li>
+<li>保留 maintenance mode 或 feature flag。</li>
+<li>保留 provider fallback，防止某个 API 挂掉。</li>
+<li>先上线核心链路，不要等所有 Phase 2 功能。</li>
+</ul>
+<h4 id="验收标准">验收标准</h4>
+<ul>
+<li>[ ] 新用户能完成登录到提问的完整流程。</li>
+<li>[ ] 上传、Ask、Quiz、Sources、删除都可用。</li>
+<li>[ ] 生产环境无 secret 泄露。</li>
+<li>[ ] 日志能定位请求失败原因。</li>
+<li>[ ] API 成本可监控。</li>
+<li>[ ] 出现 provider 故障时能降级。</li>
+</ul>
+<p>---</p>
+<h3 id="18-阶段-16-运维-监控-复盘与简历包装">18. 阶段 16：运维、监控、复盘与简历包装</h3>
+<h4 id="目标">目标</h4>
+<p>项目上线后可维护，并能作为校招作品展示。</p>
+<h4 id="运维指标">运维指标</h4>
+<table><thead><tr><th>指标</th><th>目标</th></tr></thead><tbody>
+<tr><td>Ask 成功率</td><td>&gt; 95%</td></tr>
+<tr><td>Document parse 成功率</td><td>&gt; 90%</td></tr>
+<tr><td>Citation coverage</td><td>&gt; 90%</td></tr>
+<tr><td>Empty retrieval refusal</td><td>&gt; 90%</td></tr>
+<tr><td>P95 Ask latency</td><td>可接受范围内</td></tr>
+<tr><td>Web API 日消耗</td><td>不超过预算</td></tr>
+<tr><td>Upload failure rate</td><td>可观测</td></tr>
+<tr><td>Deletion job failure</td><td>可重试</td></tr>
+</tbody></table>
+<h4 id="简历包装点">简历包装点</h4>
+<ul>
+<li>LangGraph 实现 SourcePolicyResolver 和多模式问答工作流。</li>
+<li>Qdrant 实现 local/web/hybrid RAG 检索。</li>
+<li>Supabase OAuth 实现 Google/GitHub 登录和用户隔离。</li>
+<li>Cloudflare R2 + signed URL 实现安全文件上传。</li>
+<li>Serper/Tavily/Jina/Firecrawl 实现可缓存联网检索。</li>
+<li>Pydantic/structured output 实现答案和 Quiz schema 校验。</li>
+<li>Developer Trace 和 RAG Eval 实现可观测和可评测。</li>
+<li>GitHub Actions 实现 CI/CD 和上线检查。</li>
+</ul>
+<h4 id="tips">Tips</h4>
+<ul>
+<li>写一篇技术复盘文章，比只贴 GitHub 链接更有说服力。</li>
+<li>README 要有架构图、Demo GIF、部署步骤、技术难点。</li>
+<li>面试时重点讲“为什么这么设计”，不是只讲“用了什么库”。</li>
+<li>准备 3 分钟 Demo 路线：登录 → 上传 → Local Ask → Hybrid → Quiz → Trace。</li>
+</ul>
+<h4 id="验收标准">验收标准</h4>
+<ul>
+<li>[ ] README 完整。</li>
+<li>[ ] Demo 视频可播放。</li>
+<li>[ ] 架构图清晰。</li>
+<li>[ ] 简历描述有数据和技术亮点。</li>
+<li>[ ] 项目有线上链接。</li>
+<li>[ ] 项目有测试和 CI badge。</li>
+<li>[ ] 项目能解释失败路径和安全设计。</li>
+</ul>
+<p>---</p>
+<h3 id="19-推荐时间线">19. 推荐时间线</h3>
+<h4 id="12-周正式版">12 周正式版</h4>
+<table><thead><tr><th>周</th><th>目标</th><th>产物</th></tr></thead><tbody>
+<tr><td>Week 0</td><td>文档冻结</td><td>PRD / Architecture</td></tr>
+<tr><td>Week 1</td><td>Contract</td><td>API_SPEC / DB_SCHEMA / UI_SPEC</td></tr>
+<tr><td>Week 2</td><td>Scaffold</td><td>repo / CI / env / skeleton</td></tr>
+<tr><td>Week 3</td><td>Auth + Storage</td><td>OAuth / projects / R2 upload</td></tr>
+<tr><td>Week 4</td><td>Document Pipeline</td><td>parse / chunk / embed / Qdrant</td></tr>
+<tr><td>Week 5</td><td>Local Ask</td><td>local RAG vertical slice</td></tr>
+<tr><td>Week 6</td><td>Source Mode</td><td>Auto / Local / Web / Hybrid router</td></tr>
+<tr><td>Week 7</td><td>Web Search</td><td>Serper / Jina / Firecrawl</td></tr>
+<tr><td>Week 8</td><td>Quiz</td><td><code>/quiz</code> generation</td></tr>
+<tr><td>Week 9</td><td>Trace + Eval</td><td>Developer Trace / RAG eval</td></tr>
+<tr><td>Week 10</td><td>Security</td><td>deletion / expiry / rate limit</td></tr>
+<tr><td>Week 11</td><td>Staging</td><td>staging deploy / smoke test</td></tr>
+<tr><td>Week 12</td><td>Launch</td><td>production / README / demo</td></tr>
+</tbody></table>
+<h4 id="6-周压缩版">6 周压缩版</h4>
+<table><thead><tr><th>周</th><th>目标</th></tr></thead><tbody>
+<tr><td>Week 1</td><td>API + DB + UI + Scaffold</td></tr>
+<tr><td>Week 2</td><td>Auth + R2 + document metadata</td></tr>
+<tr><td>Week 3</td><td>Parser + embedding + Qdrant</td></tr>
+<tr><td>Week 4</td><td>Local Ask + Sources</td></tr>
+<tr><td>Week 5</td><td>Web/Hybrid + Quiz</td></tr>
+<tr><td>Week 6</td><td>Security + Eval + Deploy</td></tr>
+</tbody></table>
+<h4 id="个人建议">个人建议</h4>
+<p>如果你是为了校招作品，建议用 <strong>8-10 周</strong>：</p>
+<ul>
+<li>不至于粗糙。</li>
+<li>有时间做安全和 eval。</li>
+<li>不会陷入过度工程化。</li>
+<li>能做出线上可访问版本。</li>
+</ul>
+<p>---</p>
+<h3 id="20-每周工作节奏">20. 每周工作节奏</h3>
+<p>每周固定做四件事：</p>
+<ol>
+<li><strong>周初定目标</strong>：只定 1-2 个可演示结果。</li>
+<li><strong>中间做实现</strong>：不要中途大改范围。</li>
+<li><strong>周末跑验收</strong>：按 checklist 勾。</li>
+<li><strong>写开发日志</strong>：记录问题、取舍、下周计划。</li>
+</ol>
+<h4 id="每周必须回答">每周必须回答</h4>
+<ul>
+<li>本周用户能看到什么新能力？</li>
+<li>本周打通了哪条链路？</li>
+<li>哪个外部依赖最容易挂？</li>
+<li>有没有新增安全风险？</li>
+<li>有没有更新 API/DB/UI 文档？</li>
+<li>有没有可复现测试？</li>
+</ul>
+<p>---</p>
+<h3 id="21-代码合并规范">21. 代码合并规范</h3>
+<h4 id="分支">分支</h4>
+<pre><code class="language-text">main        production
+develop     staging
+feature/*   功能开发
+fix/*       bug fix
+docs/*      文档</code></pre>
+<h4 id="pr-要求">PR 要求</h4>
+<p>每个 PR 必须包含：</p>
+<ul>
+<li>变更说明</li>
+<li>关联 issue</li>
+<li>测试结果</li>
+<li>截图或录屏，如果改 UI</li>
+<li>migration 说明，如果改 DB</li>
+<li>env 说明，如果加环境变量</li>
+<li>rollback 方案，如果影响部署</li>
+</ul>
+<h4 id="commit-风格">Commit 风格</h4>
+<pre><code class="language-text">feat: add local ask endpoint
+fix: prevent web tools in local-only mode
+docs: add API spec for quiz
+test: add citation validator tests
+chore: configure github actions</code></pre>
+<h4 id="验收标准">验收标准</h4>
+<ul>
+<li>[ ] PR 通过 CI。</li>
+<li>[ ] 至少自测核心路径。</li>
+<li>[ ] 没有把 secret 写入代码。</li>
+<li>[ ] API/DB/UI 变更同步文档。</li>
+<li>[ ] 大功能有截图或录屏。</li>
+</ul>
+<p>---</p>
+<h3 id="22-关键反模式">22. 关键反模式</h3>
+<p>避免这些坑：</p>
+<ol>
+<li><strong>先写 UI，后想 API</strong>：最后前后端字段对不上。</li>
+<li><strong>先做 Report</strong>：输出复杂，MVP 会拖慢。</li>
+<li><strong>所有任务都用 Agent</strong>：Local Ask 和 Quiz 更适合 workflow。</li>
+<li><strong>Auto 默认联网</strong>：成本、延迟、噪声都会上升。</li>
+<li><strong>只存向量不存 chunk metadata</strong>：Sources 无法追溯。</li>
+<li><strong>只做功能不做删除</strong>：正式上线处理用户文件很危险。</li>
+<li><strong>Trace 给普通用户看</strong>：增加认知负担，还可能泄露内部信息。</li>
+<li><strong>API key 放前端</strong>：严重安全问题。</li>
+<li><strong>没有 eval 就改 prompt</strong>：无法知道质量是变好还是变坏。</li>
+<li><strong>等最后才做 CI/CD</strong>：集成风险集中爆炸。</li>
+</ol>
+<p>---</p>
+<h3 id="23-下一步行动清单">23. 下一步行动清单</h3>
+<p>按顺序执行：</p>
+<ol>
+<li>创建 <code>docs/api-spec.html</code></li>
+<li>创建 <code>docs/db-schema.html</code></li>
+<li>创建 <code>docs/ui-page-spec.html</code></li>
+<li>创建 <code>docs/execution-plan.html</code></li>
+<li>初始化 monorepo</li>
+<li>配置 GitHub Actions</li>
+<li>接 Supabase Auth</li>
+<li>接 R2 signed upload</li>
+<li>写 Document Pipeline</li>
+<li>跑 Local Ask vertical slice</li>
+</ol>
+<p>推荐下一份文档：<strong><code>API_SPEC.md</code></strong>。</p>
+<p>原因：</p>
+<ul>
+<li>它是前后端协作契约。</li>
+<li>它决定后端 schema。</li>
+<li>它决定 UI 能显示什么。</li>
+<li>它决定测试和 mock。</li>
+<li>它能防止你边写边改，越做越乱。</li>
+</ul>
+<p>---</p>
+<h3 id="24-references">24. References</h3>
+<ul>
+<li>IBM, DevOps lifecycle: https://www.ibm.com/think/topics/devops-lifecycle</li>
+<li>OpenAPI Specification 3.1.0: https://spec.openapis.org/oas/v3.1.0.html</li>
+<li>GitHub Actions continuous integration: https://docs.github.com/en/actions/get-started/continuous-integration</li>
+<li>OWASP ASVS: https://owasp.org/www-project-application-security-verification-standard/</li>
+<li>Twelve-Factor App config: https://12factor.net/config</li>
+</ul><details><summary>原始 Markdown 备份</summary><pre><code># ResearchMate 项目开发流程规范
+
+&gt; 适用项目：ResearchMate  
+&gt; 适用目标：个人开发但按大厂级流程推进，最终可正式上线、可写进简历、可面试展示  
+&gt; 版本：v1.0  
+&gt; 生成日期：2026-05-25
+
+---
+
+## 0. 总原则
+
+ResearchMate 不是一次性 Demo，而是一个需要正式上线的 AI 应用项目。开发流程应遵循：
+
+1. **先契约，后实现**：先定 API、数据模型、页面行为，再写前后端代码。
+2. **先纵向闭环，后横向扩展**：先跑通“上传文件 → 解析 → 向量化 → 提问 → 引用回答”这一条链，再扩展 Web、Hybrid、Quiz。
+3. **先可靠，后酷炫**：Agent、RAG、MCP、Trace 都要服务于用户任务，不为了显摆而堆技术。
+4. **默认安全**：用户文件、API Key、OAuth、对象存储、向量库、Trace 全部按正式上线标准设计。
+5. **每阶段有验收标准**：没有验收标准的任务不进入开发。
+6. **每周必须有可演示结果**：避免长期只写底层代码，最后无法展示。
+7. **成本可控**：默认 Local-first，Web-on-demand，所有外部 API 做限流、缓存和降级。
+
+参考依据：
+
+- DevOps 生命周期通常包含 plan、code、build、test、release、deploy、operate、monitor 等阶段。
+- OpenAPI 用于在看源码前明确 HTTP API 的能力和语义。
+- GitHub Actions 可用于自动化 build/test/CI。
+- OWASP ASVS 可作为 Web 应用安全控制和测试要求的参考。
+- Twelve-Factor App 建议将配置存储在环境变量中，避免把环境配置写死在代码仓库。
+
+---
+
+## 1. 标准流程总览
+
+```text
+阶段 0：需求与范围冻结
+阶段 1：架构与技术方案冻结
+阶段 2：API Contract
+阶段 3：数据模型与权限设计
+阶段 4：UI 页面与交互规范
+阶段 5：工程脚手架与 CI 基线
+阶段 6：认证、项目、文件上传基础设施
+阶段 7：文档解析与向量化管线
+阶段 8：Local Ask 纵向闭环
+阶段 9：Source Mode 与 Hybrid local-first
+阶段 10：Web Search / Crawl
+阶段 11：Quiz
+阶段 12：Developer Trace 与 RAG Eval
+阶段 13：安全加固与数据生命周期
+阶段 14：Staging 部署
+阶段 15：Production Launch
+阶段 16：运维、监控、复盘与简历包装
+```
+
+---
+
+## 2. 阶段 0：需求与范围冻结
+
+### 目标
+
+确认 ResearchMate 的产品边界，不在开发中途无限加功能。
+
+### 主要产物
+
+- `ResearchMate_PRD.md`
+- MVP 功能清单
+- 非目标清单
+- 用户场景
+- Demo 脚本
+- 验收标准
+
+### ResearchMate 当前已定范围
+
+| 模块 | 结论 |
+|---|---|
+| 产品名 | ResearchMate |
+| 主入口 | 统一 Ask 输入框 |
+| Mode | Auto / Local / Web / Hybrid |
+| Slash | `/study` `/search` `/hybrid` `/quiz` |
+| MVP 输出 | 问答 + 引用 + Quiz |
+| Quiz | 选择题 + 简答题，不做批改闭环 |
+| 默认联网策略 | Auto 默认不联网，Local-first |
+| 可溯源 | 回答顶部显示 Mode + Sources，Sources 可展开 |
+| 用户隔离 | Google + GitHub OAuth |
+| 正式上线 | 是 |
+
+### Tips
+
+- 不要把 Report、错题本、Flashcards、Study Plan 放进 MVP。
+- 不要把 Quiz 放进右下角 Mode selector，Mode 只控制信息来源。
+- 不要让 Auto 模式随便联网，否则 API 成本和延迟会失控。
+- 不要在 PRD 里写“智能”“强大”这种无法验收的词，要写可验证行为。
+- 每个功能都写“触发条件、用户可见结果、失败时怎么提示”。
+
+### 验收标准
+
+- [ ] PRD 中有明确的一句话定位。
+- [ ] PRD 中列出目标用户和非目标用户。
+- [ ] MVP 功能与非目标功能分开。
+- [ ] 每个核心功能都有用户故事和验收标准。
+- [ ] 明确 `/study` `/search` `/hybrid` `/quiz` 的行为。
+- [ ] 明确 Mode 只控制 source，slash 控制 task。
+- [ ] 明确不做哪些功能，防止 scope creep。
+
+---
+
+## 3. 阶段 1：架构与技术方案冻结
+
+### 目标
+
+确定系统整体架构、服务边界、云资源、核心技术栈。
+
+### 主要产物
+
+- `ResearchMate_Architecture.md`
+- 架构图
+- 技术选型表
+- 数据流图
+- 风险清单
+- ADR 记录
+
+### 推荐技术栈
+
+| 层 | 技术 |
+|---|---|
+| Frontend | Next.js + shadcn/ui + Tailwind |
+| Auth | Supabase Auth，Google + GitHub OAuth |
+| Database | Supabase Postgres |
+| Object Storage | Cloudflare R2 |
+| Backend | FastAPI |
+| Worker | Python worker |
+| Agent Workflow | LangGraph |
+| RAG Glue | LangChain |
+| Vector DB | Qdrant Cloud |
+| Queue / Cache / Rate Limit | Upstash Redis 或后端限流中间件 |
+| Parser | PDF 用 Docling，DOCX/PPTX 用 MarkItDown |
+| Search | Serper 主力 + Tavily fallback |
+| Reader / Crawler | Jina Reader + Firecrawl fallback |
+| Eval | Ragas / LangSmith |
+| CI/CD | GitHub Actions |
+
+### Tips
+
+- Vercel/Cloudflare 适合前端，不适合 PDF 解析、embedding、crawler、worker。
+- 后端 API 与 worker 要拆开，避免长任务阻塞请求。
+- Supabase service role key、R2 secret、Qdrant key、LLM key 全部只能在后端。
+- 不要把所有服务都放进一个 serverless function。
+- 大模型 provider、embedding provider、search provider 都要做 abstraction，方便换便宜方案。
+
+### 验收标准
+
+- [ ] 架构图能说明 frontend、backend、worker、DB、R2、Qdrant、Redis 的关系。
+- [ ] 文档解释为什么不把重任务放到 Vercel/Cloudflare Functions。
+- [ ] 明确 API key 和 secret 的存放位置。
+- [ ] 明确登录、上传、解析、问答、删除的完整数据流。
+- [ ] 明确哪些组件可以替换，例如 search provider、embedding provider。
+- [ ] 明确 MVP 与 Phase 2 的技术边界。
+
+---
+
+## 4. 阶段 2：API Contract
+
+### 目标
+
+在写前端和后端前，冻结接口契约。前端、后端、worker、测试都围绕同一份 API Spec 开发。
+
+### 主要产物
+
+- `API_SPEC.md`
+- `openapi.yaml`
+- 错误码表
+- API 权限表
+- 请求/响应 schema
+
+### 必须定义的 API
+
+| 模块 | API |
+|---|---|
+| Auth | `GET /me` |
+| Project | `POST /projects`, `GET /projects`, `GET /projects/{id}`, `DELETE /projects/{id}` |
+| Upload | `POST /documents/upload-url` |
+| Document | `POST /documents`, `GET /projects/{id}/documents`, `GET /documents/{id}`, `DELETE /documents/{id}` |
+| Job | `GET /jobs/{id}` |
+| Ask | `POST /ask` |
+| Quiz | `POST /quiz` |
+| Sources | `GET /runs/{id}/sources` |
+| Trace | `GET /dev/traces/{trace_id}` |
+| Health | `GET /healthz` |
+
+### API 设计原则
+
+1. 所有业务 API 必须带认证。
+2. 所有 project/document/run 查询必须校验 `user_id`。
+3. 长任务只返回 `job_id`，不在请求里同步等完。
+4. Ask 响应必须包含 `mode` 和 `sources`。
+5. Quiz 响应必须包含题目、答案、解析、引用来源。
+6. 错误响应必须统一格式。
+7. API 版本从 `/api/v1` 开始。
+
+### 统一错误响应
+
+```json
+{
+  &quot;error&quot;: {
+    &quot;code&quot;: &quot;DOCUMENT_NOT_INDEXED&quot;,
+    &quot;message&quot;: &quot;Document is still being processed.&quot;,
+    &quot;request_id&quot;: &quot;req_...&quot;
+  }
+}
+```
+
+### Tips
+
+- API Spec 不要只写 endpoint，要写状态码、错误码、权限和示例。
+- 文件上传不要让前端拿 R2 secret，要让后端生成 signed upload URL。
+- Ask 不要直接返回一堆模型文本，要返回结构化字段。
+- Developer Trace API 必须只允许开发者或管理员访问。
+- OpenAPI 生成后，可以用它生成前端类型或 API client。
+
+### 验收标准
+
+- [ ] 所有 MVP API 都在 `openapi.yaml` 里定义。
+- [ ] 每个 API 有 request、response、error examples。
+- [ ] 所有需要认证的 API 都标记 auth requirement。
+- [ ] Ask / Quiz schema 可被前端直接渲染。
+- [ ] API 错误码覆盖上传失败、解析中、检索为空、外部 API 超额、权限失败。
+- [ ] 前后端可以基于 mock API 并行开发。
+
+---
+
+## 5. 阶段 3：数据模型与权限设计
+
+### 目标
+
+确定数据库表、索引、权限隔离、删除策略、Qdrant payload 映射。
+
+### 主要产物
+
+- `DB_SCHEMA.md`
+- ERD
+- Supabase migration SQL
+- RLS policy 草案
+- Qdrant collection schema
+
+### 核心表
+
+| 表 | 作用 |
+|---|---|
+| `profiles` | 用户资料 |
+| `projects` | 项目 |
+| `documents` | 文件元数据 |
+| `document_pages` | PDF 页 / PPT slide / DOCX section |
+| `chunks` | chunk 元数据 |
+| `messages` | 对话消息 |
+| `ask_runs` | 一次 Ask 执行 |
+| `tool_calls` | 工具调用记录 |
+| `citations` | 引用关系 |
+| `quiz_sets` | Quiz 批次 |
+| `quiz_questions` | Quiz 题目 |
+| `jobs` | 异步任务 |
+| `deletion_jobs` | 删除任务 |
+| `api_usage` | 用户 API 使用量 / 限流统计 |
+
+### 关键字段
+
+所有用户数据表至少要有：
+
+```sql
+user_id uuid not null
+created_at timestamptz not null
+updated_at timestamptz
+deleted_at timestamptz
+```
+
+### 权限原则
+
+- 用户只能访问自己的 project。
+- document、chunk、quiz、trace 都通过 project 绑定 user。
+- 后端每次查询都带 user_id。
+- Supabase RLS 能开则开，但后端也要做强校验。
+- service role key 只在后端/worker。
+
+### Qdrant payload
+
+```json
+{
+  &quot;user_id&quot;: &quot;...&quot;,
+  &quot;project_id&quot;: &quot;...&quot;,
+  &quot;document_id&quot;: &quot;...&quot;,
+  &quot;chunk_id&quot;: &quot;...&quot;,
+  &quot;source_type&quot;: &quot;local_doc&quot;,
+  &quot;page_no&quot;: 12,
+  &quot;slide_no&quot;: null,
+  &quot;title&quot;: &quot;Lecture 5&quot;,
+  &quot;expires_at&quot;: &quot;2026-06-01T00:00:00Z&quot;
+}
+```
+
+### Tips
+
+- 不要只把向量存在 Qdrant，Postgres 也要保存 chunk metadata 和 citation mapping。
+- 删除项目时要清 DB、R2、Qdrant，不能只删一边。
+- 给 `project_id`、`document_id`、`user_id` 建索引。
+- 给 `expires_at` 建索引，方便 7 天自动清理。
+- 不要在 messages 里塞所有运行信息，trace 要独立表。
+
+### 验收标准
+
+- [ ] 数据模型能支持 Ask、Quiz、Sources、Trace、Deletion。
+- [ ] 所有用户数据可按 user_id 隔离。
+- [ ] 删除项目可以找到所有相关 DB/R2/Qdrant 数据。
+- [ ] Qdrant payload 足以做 metadata filter。
+- [ ] 有 migration 文件。
+- [ ] 有基础 seed/mock 数据。
+- [ ] 有 7 天过期清理字段和 job 设计。
+
+---
+
+## 6. 阶段 4：UI 页面与交互规范
+
+### 目标
+
+让前端开发不靠临场发挥，提前定义页面、组件、状态和错误提示。
+
+### 主要产物
+
+- `UI_PAGE_SPEC.md`
+- 页面结构图
+- 组件清单
+- empty/loading/error states
+- slash command 交互定义
+
+### MVP 页面
+
+| 页面 | 作用 |
+|---|---|
+| `/` | Landing / 登录入口 |
+| `/app` | Project list |
+| `/app/projects/:id` | Ask 主页面 |
+| `/app/projects/:id/library` | 文件库 |
+| `/app/projects/:id/quiz` | Quiz 历史 |
+| `/dev/traces/:trace_id` | Developer Trace |
+
+### Ask 页面核心组件
+
+- Chat message list
+- Ask input
+- Mode selector：Auto / Local / Web / Hybrid
+- Slash command parser
+- Sources header：Mode + Sources
+- Sources drawer
+- Upload shortcut
+- Error banner
+- Job progress indicator
+
+### Tips
+
+- Mode selector 不要放 Quiz，Quiz 是 task，不是 source。
+- 回答顶部只放 Mode + Sources，不要把 debug 信息塞进普通 UI。
+- Sources drawer 要能显示 local page/slide/snippet 和 web URL。
+- Trace 页面是开发者视图，不给普通用户入口。
+- 所有 loading 和失败状态都要提前设计，尤其是“文档还在解析”。
+
+### 验收标准
+
+- [ ] 每个页面有 empty/loading/error/success 状态。
+- [ ] Mode selector 行为清楚。
+- [ ] `/study` `/search` `/hybrid` `/quiz` 行为清楚。
+- [ ] Sources drawer 能追溯到 chunk/page/slide/url。
+- [ ] Quiz 页面能展示选择题和简答题。
+- [ ] 用户看到的状态不会暴露内部 secret 或 debug 信息。
+- [ ] Developer Trace 与普通用户界面隔离。
+
+---
+
+## 7. 阶段 5：工程脚手架与 CI 基线
+
+### 目标
+
+建立可持续开发环境，确保每次提交都能自动检查。
+
+### 推荐目录
+
+```text
+researchmate/
+  apps/
+    web/
+    api/
+  workers/
+    ai-worker/
+  packages/
+    shared/
+  docs/
+  infra/
+  .github/
+    workflows/
+```
+
+### 基础 CI
+
+| Job | 检查内容 |
+|---|---|
+| web-check | install、lint、typecheck、build |
+| api-check | install、format、lint、pytest |
+| worker-check | parser/embedding 相关测试 |
+| api-contract-check | OpenAPI schema 校验 |
+| security-check | secret scan、dependency audit |
+| e2e-smoke | 最小端到端测试 |
+
+### Tips
+
+- 第一周就加 CI，不要等功能写完。
+- `.env.example` 要完整，但不能包含真实 key。
+- 本地开发要能一键启动依赖服务。
+- 前端和后端使用共享 schema，避免字段漂移。
+- 所有外部 provider 都要能 mock。
+
+### 验收标准
+
+- [ ] 新 repo 可 clone 后按 README 启动。
+- [ ] CI 能在 PR 上自动跑。
+- [ ] 无真实 secret 进入仓库。
+- [ ] 前端 build 通过。
+- [ ] 后端测试通过。
+- [ ] OpenAPI schema 校验通过。
+- [ ] `env.example` 覆盖所有必需环境变量。
+
+---
+
+## 8. 阶段 6：认证、项目、文件上传基础设施
+
+### 目标
+
+跑通正式上线的基础能力：登录、项目创建、文件上传到云存储。
+
+### 功能
+
+- Google OAuth
+- GitHub OAuth
+- 创建 project
+- 获取 R2 signed upload URL
+- 上传文件
+- 保存 document metadata
+- 文件大小限制
+- 文件类型校验
+
+### Tips
+
+- 不要先做 AI，先把登录和文件上传打牢。
+- signed URL 有效期要短。
+- R2 object key 不要可预测。
+- 上传完成后再创建 parse job。
+- 前端不能直接访问私有文件，必须通过 signed read URL 或后端代理。
+
+### 验收标准
+
+- [ ] Google/GitHub 登录可用。
+- [ ] 用户只能看到自己的 projects。
+- [ ] 文件能上传到 R2。
+- [ ] document metadata 写入数据库。
+- [ ] 超过大小限制的文件被拒绝。
+- [ ] 非 PDF/DOCX/PPTX 文件被拒绝。
+- [ ] 前端无任何 R2 secret。
+
+---
+
+## 9. 阶段 7：文档解析与向量化管线
+
+### 目标
+
+将上传文件转成可检索的 chunks，并写入 Qdrant。
+
+### 流程
+
+```text
+document uploaded
+→ create parse job
+→ worker downloads from R2
+→ parse document
+→ extract page/slide/section
+→ chunking
+→ embedding
+→ upsert Qdrant
+→ update document status indexed
+```
+
+### Tips
+
+- PDF 用 Docling，DOCX/PPTX 用 MarkItDown。
+- 解析失败要记录 error message，不要只显示“失败”。
+- chunk 要保留 page/slide/section metadata。
+- embedding 要批处理，避免一次请求过大。
+- upsert Qdrant 前先写 Postgres chunk metadata。
+- 每个 job 要可重试。
+
+### 验收标准
+
+- [ ] PDF/DOCX/PPTX 至少各有一个样例解析成功。
+- [ ] document status 能从 uploaded → parsing → indexing → indexed。
+- [ ] chunk 写入 Postgres。
+- [ ] vector 写入 Qdrant。
+- [ ] page/slide/section 可追溯。
+- [ ] 解析失败时用户能看到可理解错误。
+- [ ] worker 重启后 job 不丢失或可恢复。
+
+---
+
+## 10. 阶段 8：Local Ask 纵向闭环
+
+### 目标
+
+先跑通最核心功能：本地资料问答。
+
+### 流程
+
+```text
+user asks
+→ resolve mode local_only
+→ retrieve Qdrant chunks
+→ generate grounded answer
+→ validate citations
+→ save ask_run
+→ return Mode + Sources
+```
+
+### Tips
+
+- 先不要做 Web，不要做 Hybrid。
+- 如果没有 indexed documents，必须拒绝回答。
+- 如果 retrieval 结果低置信度，回答要提示“资料中未找到足够依据”。
+- 回答生成必须使用 structured output。
+- citation 必须来自真实 retrieved chunks。
+
+### 验收标准
+
+- [ ] 用户可基于上传文件提问。
+- [ ] 回答顶部显示 `Mode: Local` 和 `Sources`。
+- [ ] Sources drawer 能打开对应文件片段。
+- [ ] 检索为空时不编造答案。
+- [ ] citation validator 通过。
+- [ ] ask_run、tool_calls、citations 被记录。
+
+---
+
+## 11. 阶段 9：Source Mode 与 Hybrid Local-first
+
+### 目标
+
+实现 Auto / Local / Web / Hybrid 的策略控制。
+
+### Source Policy 优先级
+
+```text
+slash command
+→ UI selected mode
+→ strong prompt signal
+→ auto router
+→ default no-web
+```
+
+### Hybrid v1
+
+```text
+先查 local
+local evidence 足够则不联网
+用户明确要求最新/联网/补充资料时才 web
+```
+
+### Tips
+
+- Auto v1 先用规则，不要一开始做复杂 LLM router。
+- Local Only 禁止调用 Web。
+- Hybrid 必须区分 local evidence 和 web evidence。
+- Web API 调用前先检查 quota。
+- Mode 决策要记录在 trace 中，但普通用户只看到 Mode + Sources。
+
+### 验收标准
+
+- [ ] `/study` 强制 local_only。
+- [ ] `/search` 强制 web_only。
+- [ ] `/hybrid` 强制 hybrid。
+- [ ] UI Mode 选择能覆盖 Auto。
+- [ ] Auto 默认不联网。
+- [ ] Hybrid local-first 生效。
+- [ ] source policy validator 能防止越权调用工具。
+
+---
+
+## 12. 阶段 10：Web Search / Crawl
+
+### 目标
+
+实现可控、可引用、可缓存的联网搜索。
+
+### 流程
+
+```text
+/search query
+→ Serper search
+→ select top urls
+→ Jina Reader extract
+→ Firecrawl fallback
+→ cache content
+→ web retrieval
+→ generate answer
+→ cite web sources
+```
+
+### Tips
+
+- Serper + Tavily 做 provider abstraction。
+- Jina Reader 失败再 Firecrawl，避免成本过高。
+- Web 内容要缓存，避免同 URL 重复抓取。
+- 不要引用抓取失败的网页。
+- Web sources 要记录 retrieved_at。
+- 外部网页内容要做 prompt injection 防护。
+
+### 验收标准
+
+- [ ] `/search` 能返回 Web 引用。
+- [ ] Web API 有 per-user 限流。
+- [ ] 相同 query / URL 有缓存。
+- [ ] 抓取失败不进入 citations。
+- [ ] Sources drawer 可打开 web URL 和摘要。
+- [ ] API 超额时能优雅降级。
+
+---
+
+## 13. 阶段 11：Quiz
+
+### 目标
+
+实现 `/quiz`，基于本地资料生成选择题和简答题。
+
+### Quiz Schema
+
+```json
+{
+  &quot;mode&quot;: &quot;local_only&quot;,
+  &quot;questions&quot;: [
+    {
+      &quot;type&quot;: &quot;single_choice&quot;,
+      &quot;question&quot;: &quot;...&quot;,
+      &quot;options&quot;: [&quot;A&quot;, &quot;B&quot;, &quot;C&quot;, &quot;D&quot;],
+      &quot;answer&quot;: &quot;B&quot;,
+      &quot;explanation&quot;: &quot;...&quot;,
+      &quot;difficulty&quot;: &quot;medium&quot;,
+      &quot;citations&quot;: []
+    },
+    {
+      &quot;type&quot;: &quot;short_answer&quot;,
+      &quot;question&quot;: &quot;...&quot;,
+      &quot;answer&quot;: &quot;...&quot;,
+      &quot;explanation&quot;: &quot;...&quot;,
+      &quot;difficulty&quot;: &quot;medium&quot;,
+      &quot;citations&quot;: []
+    }
+  ]
+}
+```
+
+### Tips
+
+- `/quiz` 默认 Local Only。
+- 不做答题批改，不做错题本。
+- 每题必须绑定 source chunk。
+- 选择题必须 4 个选项。
+- 简答题必须有标准答案和解析。
+- 如果本地资料不足，少生成题或拒绝生成，不要编。
+
+### 验收标准
+
+- [ ] `/quiz` 可生成选择题和简答题。
+- [ ] 每题有答案、解析、难度、citations。
+- [ ] 每题 citations 都来自本地 chunks。
+- [ ] 没有本地资料时拒绝生成。
+- [ ] QuizSet 通过 schema validation。
+- [ ] Quiz history 可查看。
+
+---
+
+## 14. 阶段 12：Developer Trace 与 RAG Eval
+
+### 目标
+
+让系统可调试、可评测、可证明不是黑盒。
+
+### Developer Trace 内容
+
+| 字段 | 用途 |
+|---|---|
+| trace_id | 请求链路 |
+| user_id | 权限隔离 |
+| resolved_mode | 最终模式 |
+| task_type | answer / quiz |
+| retrieved_chunks | 检索结果 |
+| tool_calls | search / crawl / LLM / embedding |
+| validation_result | schema / citation / source policy |
+| latency_ms | 性能 |
+| cost_estimate | 成本 |
+| errors | 调试信息 |
+
+### RAG Eval 指标
+
+| 指标 | 用途 |
+|---|---|
+| retrieval hit rate | 检索是否找对资料 |
+| citation coverage | 结论是否都有引用 |
+| source policy correctness | Mode 是否遵守工具边界 |
+| answer grounding | 回答是否被资料支持 |
+| quiz grounding | 题目是否来自本地资料 |
+| empty retrieval refusal | 找不到时是否拒答 |
+
+### Tips
+
+- 先做 20 条手写 eval cases。
+- Eval 不要求一开始完全自动化，但要可重复运行。
+- Trace 不给普通用户看，只给开发者。
+- Trace 不能泄露 API key、OAuth token、R2 signed secret。
+- 每次 prompt/schema 改动后跑 eval。
+
+### 验收标准
+
+- [ ] Developer Trace 页面可查看一次请求的完整链路。
+- [ ] Trace 仅开发者可访问。
+- [ ] 至少 20 条 eval cases。
+- [ ] Eval 可在 CI 或本地命令运行。
+- [ ] citation coverage 有统计。
+- [ ] source policy correctness 有统计。
+- [ ] Trace 不包含 secret。
+
+---
+
+## 15. 阶段 13：安全加固与数据生命周期
+
+### 目标
+
+满足正式上线最低安全要求。
+
+### 安全清单
+
+- [ ] 前端无 LLM/Search/R2/Qdrant secret。
+- [ ] Supabase service role key 只在后端。
+- [ ] OAuth 登录校验有效。
+- [ ] 所有资源查询带 user_id。
+- [ ] R2 signed URL 有过期时间。
+- [ ] 上传文件大小限制。
+- [ ] MIME/type 校验。
+- [ ] CORS 限制。
+- [ ] CSRF 风险评估。
+- [ ] API rate limit。
+- [ ] Prompt injection 防护。
+- [ ] Developer Trace 访问控制。
+- [ ] 删除项目清理 DB/R2/Qdrant。
+- [ ] 7 天自动过期删除。
+
+### 删除策略
+
+```text
+用户手动删除 project
+→ mark deleting
+→ delete DB rows
+→ delete Qdrant vectors
+→ delete R2 objects
+→ mark deleted
+
+每日清理任务
+→ find expired projects/documents
+→ create deletion_jobs
+→ retry failed cleanup
+```
+
+### Tips
+
+- 删除不要只软删。用户文件最终必须从 R2 和 Qdrant 清理。
+- 删除任务要可重试。
+- R2 object key 不要暴露 user email。
+- 对外部网页内容做隔离，不能让网页文本改写 tool policy。
+- 所有 env secrets 按环境分开：dev/staging/prod。
+
+### 验收标准
+
+- [ ] 用户能手动删除项目。
+- [ ] 删除后 DB/R2/Qdrant 数据都被清理。
+- [ ] 7 天过期清理任务可运行。
+- [ ] 限流生效。
+- [ ] secret scan 无泄露。
+- [ ] 普通用户无法访问 `/dev/traces`。
+- [ ] 上传恶意类型文件会被拒绝。
+
+---
+
+## 16. 阶段 14：Staging 部署
+
+### 目标
+
+上线前在 staging 环境完整验证。
+
+### Staging 环境
+
+- 独立 Supabase project 或 schema
+- 独立 R2 bucket
+- 独立 Qdrant collection
+- 独立 API keys
+- 独立 domain/subdomain
+
+### Smoke Test
+
+- [ ] OAuth 登录。
+- [ ] 创建项目。
+- [ ] 上传 PDF/DOCX/PPTX。
+- [ ] 解析入库。
+- [ ] Local Ask。
+- [ ] Web Ask。
+- [ ] Hybrid Ask。
+- [ ] `/quiz`。
+- [ ] Sources panel。
+- [ ] Developer Trace。
+- [ ] 删除项目。
+- [ ] 7 天清理任务 dry-run。
+
+### Tips
+
+- 不要直接把第一个可跑版本发 production。
+- Staging 和 prod 的环境变量必须分开。
+- Staging 中故意测试 API 超额、解析失败、上传非法文件。
+- 上线前备份 schema 和 migration。
+
+### 验收标准
+
+- [ ] Staging 全链路可跑。
+- [ ] smoke test 通过。
+- [ ] 关键错误路径测试通过。
+- [ ] 成本/限流策略可观测。
+- [ ] 没有 P0/P1 bug。
+- [ ] README 部署步骤可复现。
+
+---
+
+## 17. 阶段 15：Production Launch
+
+### 目标
+
+正式上线，同时保证可回滚、可监控、可排错。
+
+### Launch Checklist
+
+- [ ] Production env vars 配置完成。
+- [ ] OAuth callback URL 配置 production domain。
+- [ ] R2 bucket 权限正确。
+- [ ] Qdrant collection 创建完成。
+- [ ] Supabase migrations 已运行。
+- [ ] GitHub Actions production deploy 通过。
+- [ ] Production smoke test 通过。
+- [ ] 错误日志可查。
+- [ ] 限流开启。
+- [ ] 删除任务开启。
+- [ ] README 更新 production URL。
+- [ ] Demo 视频录制完成。
+
+### Tips
+
+- 首次上线只邀请少量人试用。
+- 保留 maintenance mode 或 feature flag。
+- 保留 provider fallback，防止某个 API 挂掉。
+- 先上线核心链路，不要等所有 Phase 2 功能。
+
+### 验收标准
+
+- [ ] 新用户能完成登录到提问的完整流程。
+- [ ] 上传、Ask、Quiz、Sources、删除都可用。
+- [ ] 生产环境无 secret 泄露。
+- [ ] 日志能定位请求失败原因。
+- [ ] API 成本可监控。
+- [ ] 出现 provider 故障时能降级。
+
+---
+
+## 18. 阶段 16：运维、监控、复盘与简历包装
+
+### 目标
+
+项目上线后可维护，并能作为校招作品展示。
+
+### 运维指标
+
+| 指标 | 目标 |
+|---|---|
+| Ask 成功率 | &gt; 95% |
+| Document parse 成功率 | &gt; 90% |
+| Citation coverage | &gt; 90% |
+| Empty retrieval refusal | &gt; 90% |
+| P95 Ask latency | 可接受范围内 |
+| Web API 日消耗 | 不超过预算 |
+| Upload failure rate | 可观测 |
+| Deletion job failure | 可重试 |
+
+### 简历包装点
+
+- LangGraph 实现 SourcePolicyResolver 和多模式问答工作流。
+- Qdrant 实现 local/web/hybrid RAG 检索。
+- Supabase OAuth 实现 Google/GitHub 登录和用户隔离。
+- Cloudflare R2 + signed URL 实现安全文件上传。
+- Serper/Tavily/Jina/Firecrawl 实现可缓存联网检索。
+- Pydantic/structured output 实现答案和 Quiz schema 校验。
+- Developer Trace 和 RAG Eval 实现可观测和可评测。
+- GitHub Actions 实现 CI/CD 和上线检查。
+
+### Tips
+
+- 写一篇技术复盘文章，比只贴 GitHub 链接更有说服力。
+- README 要有架构图、Demo GIF、部署步骤、技术难点。
+- 面试时重点讲“为什么这么设计”，不是只讲“用了什么库”。
+- 准备 3 分钟 Demo 路线：登录 → 上传 → Local Ask → Hybrid → Quiz → Trace。
+
+### 验收标准
+
+- [ ] README 完整。
+- [ ] Demo 视频可播放。
+- [ ] 架构图清晰。
+- [ ] 简历描述有数据和技术亮点。
+- [ ] 项目有线上链接。
+- [ ] 项目有测试和 CI badge。
+- [ ] 项目能解释失败路径和安全设计。
+
+---
+
+## 19. 推荐时间线
+
+### 12 周正式版
+
+| 周 | 目标 | 产物 |
+|---:|---|---|
+| Week 0 | 文档冻结 | PRD / Architecture |
+| Week 1 | Contract | API_SPEC / DB_SCHEMA / UI_SPEC |
+| Week 2 | Scaffold | repo / CI / env / skeleton |
+| Week 3 | Auth + Storage | OAuth / projects / R2 upload |
+| Week 4 | Document Pipeline | parse / chunk / embed / Qdrant |
+| Week 5 | Local Ask | local RAG vertical slice |
+| Week 6 | Source Mode | Auto / Local / Web / Hybrid router |
+| Week 7 | Web Search | Serper / Jina / Firecrawl |
+| Week 8 | Quiz | `/quiz` generation |
+| Week 9 | Trace + Eval | Developer Trace / RAG eval |
+| Week 10 | Security | deletion / expiry / rate limit |
+| Week 11 | Staging | staging deploy / smoke test |
+| Week 12 | Launch | production / README / demo |
+
+### 6 周压缩版
+
+| 周 | 目标 |
+|---:|---|
+| Week 1 | API + DB + UI + Scaffold |
+| Week 2 | Auth + R2 + document metadata |
+| Week 3 | Parser + embedding + Qdrant |
+| Week 4 | Local Ask + Sources |
+| Week 5 | Web/Hybrid + Quiz |
+| Week 6 | Security + Eval + Deploy |
+
+### 个人建议
+
+如果你是为了校招作品，建议用 **8-10 周**：
+
+- 不至于粗糙。
+- 有时间做安全和 eval。
+- 不会陷入过度工程化。
+- 能做出线上可访问版本。
+
+---
+
+## 20. 每周工作节奏
+
+每周固定做四件事：
+
+1. **周初定目标**：只定 1-2 个可演示结果。
+2. **中间做实现**：不要中途大改范围。
+3. **周末跑验收**：按 checklist 勾。
+4. **写开发日志**：记录问题、取舍、下周计划。
+
+### 每周必须回答
+
+- 本周用户能看到什么新能力？
+- 本周打通了哪条链路？
+- 哪个外部依赖最容易挂？
+- 有没有新增安全风险？
+- 有没有更新 API/DB/UI 文档？
+- 有没有可复现测试？
+
+---
+
+## 21. 代码合并规范
+
+### 分支
+
+```text
+main        production
+develop     staging
+feature/*   功能开发
+fix/*       bug fix
+docs/*      文档
+```
+
+### PR 要求
+
+每个 PR 必须包含：
+
+- 变更说明
+- 关联 issue
+- 测试结果
+- 截图或录屏，如果改 UI
+- migration 说明，如果改 DB
+- env 说明，如果加环境变量
+- rollback 方案，如果影响部署
+
+### Commit 风格
+
+```text
+feat: add local ask endpoint
+fix: prevent web tools in local-only mode
+docs: add API spec for quiz
+test: add citation validator tests
+chore: configure github actions
+```
+
+### 验收标准
+
+- [ ] PR 通过 CI。
+- [ ] 至少自测核心路径。
+- [ ] 没有把 secret 写入代码。
+- [ ] API/DB/UI 变更同步文档。
+- [ ] 大功能有截图或录屏。
+
+---
+
+## 22. 关键反模式
+
+避免这些坑：
+
+1. **先写 UI，后想 API**：最后前后端字段对不上。
+2. **先做 Report**：输出复杂，MVP 会拖慢。
+3. **所有任务都用 Agent**：Local Ask 和 Quiz 更适合 workflow。
+4. **Auto 默认联网**：成本、延迟、噪声都会上升。
+5. **只存向量不存 chunk metadata**：Sources 无法追溯。
+6. **只做功能不做删除**：正式上线处理用户文件很危险。
+7. **Trace 给普通用户看**：增加认知负担，还可能泄露内部信息。
+8. **API key 放前端**：严重安全问题。
+9. **没有 eval 就改 prompt**：无法知道质量是变好还是变坏。
+10. **等最后才做 CI/CD**：集成风险集中爆炸。
+
+---
+
+## 23. 下一步行动清单
+
+按顺序执行：
+
+1. 创建 `docs/api-spec.html`
+2. 创建 `docs/db-schema.html`
+3. 创建 `docs/ui-page-spec.html`
+4. 创建 `docs/execution-plan.html`
+5. 初始化 monorepo
+6. 配置 GitHub Actions
+7. 接 Supabase Auth
+8. 接 R2 signed upload
+9. 写 Document Pipeline
+10. 跑 Local Ask vertical slice
+
+推荐下一份文档：**`API_SPEC.md`**。
+
+原因：
+
+- 它是前后端协作契约。
+- 它决定后端 schema。
+- 它决定 UI 能显示什么。
+- 它决定测试和 mock。
+- 它能防止你边写边改，越做越乱。
+
+---
+
+## 24. References
+
+- IBM, DevOps lifecycle: https://www.ibm.com/think/topics/devops-lifecycle
+- OpenAPI Specification 3.1.0: https://spec.openapis.org/oas/v3.1.0.html
+- GitHub Actions continuous integration: https://docs.github.com/en/actions/get-started/continuous-integration
+- OWASP ASVS: https://owasp.org/www-project-application-security-verification-standard/
+- Twelve-Factor App config: https://12factor.net/config
+</code></pre></details></article>
+    </div>
+  </main>
+</body>
+</html>

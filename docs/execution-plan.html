@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Execution Plan - ResearchMate Docs</title>
+  <style>
+:root{--bg:#f8fafc;--surface:#fff;--text:#0f172a;--muted:#475569;--line:#dbe3ef;--brand:#0f766e;--brand-soft:#ccfbf1;--code:#0f172a;--warn:#92400e}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.65}.top{position:sticky;top:0;z-index:5;border-bottom:1px solid var(--line);background:rgba(255,255,255,.94);backdrop-filter:blur(12px)}.top-inner{width:min(1180px,calc(100% - 32px));margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 0}.brand{font-weight:800;color:var(--text);text-decoration:none}.nav{display:flex;flex-wrap:wrap;gap:8px}.nav a{border:1px solid var(--line);border-radius:6px;padding:6px 9px;color:var(--brand);text-decoration:none;font-size:13px;background:var(--surface)}.nav a[aria-current="page"]{background:var(--brand-soft);color:#134e4a}.wrap{width:min(1180px,calc(100% - 32px));margin:0 auto}.hero{padding:28px 0 16px}.eyebrow{color:var(--brand);font-weight:800;text-transform:uppercase;font-size:12px;letter-spacing:.08em}h1{font-size:38px;line-height:1.1;margin:8px 0 12px}h2{font-size:26px;margin:32px 0 10px;border-top:1px solid var(--line);padding-top:24px}h3{font-size:20px;margin:24px 0 8px}h4{font-size:16px;margin:18px 0 6px}.lead{font-size:18px;color:var(--muted);max-width:860px}.layout{display:grid;grid-template-columns:280px minmax(0,1fr);gap:20px;align-items:start}.toc{position:sticky;top:68px;border:1px solid var(--line);border-radius:8px;background:var(--surface);padding:14px;max-height:calc(100vh - 96px);overflow:auto}.toc strong{display:block;margin-bottom:8px}.toc a{display:block;color:var(--muted);text-decoration:none;padding:5px 0;font-size:13px}.toc a:hover{color:var(--brand)}.doc{border:1px solid var(--line);border-radius:8px;background:var(--surface);padding:22px;overflow:hidden}.doc p{color:#26364f}.doc a{color:var(--brand)}blockquote{border-left:4px solid var(--brand);margin:14px 0;padding:8px 14px;background:#f0fdfa;color:#334155}pre{overflow:auto;border:1px solid var(--line);border-radius:8px;background:#0b1220;color:#dbeafe;padding:14px;line-height:1.5}code{font-family:"Cascadia Code",Consolas,monospace;background:#eef2f7;border-radius:4px;padding:1px 4px;color:var(--code)}pre code{background:transparent;padding:0;color:inherit}table{width:100%;border-collapse:collapse;margin:12px 0;display:block;overflow:auto}th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}th{background:#f1f5f9}ul,ol{padding-left:24px}.cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.card{border:1px solid var(--line);border-radius:8px;background:var(--surface);padding:14px}.card h3{margin-top:0}.chip{display:inline-flex;border:1px solid var(--line);border-radius:999px;padding:4px 9px;margin:4px;color:var(--muted);font-size:13px}.warn{color:var(--warn)}details{border:1px solid var(--line);border-radius:8px;padding:12px;margin:20px 0;background:#fbfdff}summary{font-weight:800;cursor:pointer}.source-note{color:var(--muted);font-size:13px;margin-top:22px}@media(max-width:900px){.layout{grid-template-columns:1fr}.toc{position:relative;top:auto}.cards{grid-template-columns:1fr}.top-inner{align-items:flex-start;flex-direction:column}h1{font-size:30px}}
+</style>
+</head>
+<body>
+  <header class="top"><div class="top-inner"><a class="brand" href="HANDOFF.html">ResearchMate Docs</a><nav class="nav" aria-label="Project documentation"><a href="HANDOFF.html">总览</a><a href="handoff/index.html">Agent Dashboard</a><a href="researchmate-prd.html">PRD</a><a href="researchmate-architecture.html">Architecture</a><a href="project-development-process.html">Process</a><a href="api-spec.html">API</a><a href="openapi-spec.html">OpenAPI</a><a href="db-schema.html">DB</a><a href="ui-page-spec.html">UI</a><a href="execution-plan.html" aria-current="page">Plan</a></nav></div></header>
+  <main class="wrap">
+    <section class="hero">
+      <span class="eyebrow">Project Documentation</span>
+      <h1>Execution Plan</h1>
+      <p class="lead">multi-agent 模块拆分、边界、验收标准与并行策略。</p>
+      <p class="source-note">Migrated from <code>EXECUTION_PLAN.md</code>. The original Markdown is preserved at the bottom of this HTML page for lossless handoff.</p>
+    </section>
+    <div class="layout">
+      <aside class="toc"><strong>目录</strong><a href="#0-当前初始化验收">0. 当前初始化验收</a><a href="#1-协作拆分原则">1. 协作拆分原则</a><a href="#2-执行组计划">2. 执行组计划</a><a href="#agent-a-数据闭环主线">&nbsp;&nbsp;Agent A：数据闭环主线</a><a href="#agent-b-来源策略与-web-扩展">&nbsp;&nbsp;Agent B：来源策略与 Web 扩展</a><a href="#agent-c-quiz-输出链路">&nbsp;&nbsp;Agent C：Quiz 输出链路</a><a href="#agent-d-前端-mvp">&nbsp;&nbsp;Agent D：前端 MVP</a><a href="#agent-e-trace-与-eval">&nbsp;&nbsp;Agent E：Trace 与 Eval</a><a href="#agent-f-安全与生命周期收口">&nbsp;&nbsp;Agent F：安全与生命周期收口</a><a href="#3-调度策略">3. 调度策略</a><a href="#4-停止条件">4. 停止条件</a><a href="#5-每个-agent-的交付格式">5. 每个 agent 的交付格式</a></aside>
+      <article class="doc"><h1 id="researchmate-execution-plan">ResearchMate Execution Plan</h1>
+<blockquote><strong>For agentic workers:</strong> REQUIRED SUB-SKILL: use a task-by-task workflow. 每个 agent 只接一个模块，先读 <code>docs/handoff/index.html</code> 和 <code>docs/handoff/context-state.json</code>，再开始改代码。</blockquote>
+<p><strong>Goal:</strong> 在契约先行的基础上，把 ResearchMate 分模块实现成可上线、可演示、可评测的 AI 研究学习工作台。 <strong>Architecture:</strong> Next.js 负责用户界面，FastAPI 负责权限与 API，Python worker 负责长任务，Supabase/R2/Qdrant/Redis 存储各自边界清晰。 <strong>Tech Stack:</strong> Next.js、FastAPI、Supabase Postgres/Auth、Cloudflare R2、Qdrant、Redis、LangGraph、Docling、MarkItDown。</p>
+<p>---</p>
+<h3 id="0-当前初始化验收">0. 当前初始化验收</h3>
+<p>本次已完成的范围：</p>
+<ul>
+<li>[x] Monorepo 骨架</li>
+<li>[x] <code>.gitignore</code> 和 <code>.env.example</code></li>
+<li>[x] API Spec 和 OpenAPI</li>
+<li>[x] DB Schema 和 migration</li>
+<li>[x] FastAPI schema/router stub</li>
+<li>[x] 共享 TypeScript 契约</li>
+<li>[x] Handoff HTML 页面</li>
+<li>[x] 合同测试</li>
+</ul>
+<blockquote>后续 agent 不应把 <code>501 not implemented</code> 当作错误。它代表当前阶段只定义契约。</blockquote>
+<h3 id="1-协作拆分原则">1. 协作拆分原则</h3>
+<p>拆分原则与 <code>docs/handoff/index.html</code> 保持一致：先看上下文边界，再看人数。如果任务共享同一段阻塞上下文，就由同一个 agent 顺序完成，不为了并行而强拆。</p>
+<blockquote>同一 agent 应连续完成会共同修改同一批 API、表结构、状态机、索引管线或运行时上下文的任务；只有输入输出契约稳定、互不抢同一上下文时，才拆给不同 agent 并行。</blockquote>
+<h3 id="2-执行组计划">2. 执行组计划</h3>
+<table><thead><tr><th>执行组</th><th>负责范围</th><th>执行方式</th><th>依赖条件</th><th>验收标准</th></tr></thead><tbody>
+<tr><td>Agent A：数据闭环主线</td><td>Auth、Project、Storage、Upload、Parser、Index、Local Ask</td><td>顺序完成，不拆分。该链路共享用户隔离、文档状态机、R2 对象、chunk 元数据、Qdrant payload 和本地 RAG 运行上下文。</td><td>当前 API、DB、OpenAPI、TypeScript 契约稳定。</td><td>用户 A 不能读取用户 B 数据；25MB 与 MIME 校验生效；文档可完成上传、解析、切分、入库和本地问答；Local Ask 的 citations 必须来自本地检索 chunk。</td></tr>
+<tr><td>Agent B：来源策略与 Web 扩展</td><td>Source Policy、Hybrid、Web Search、Crawl、Web Evidence</td><td>顺序完成。Mode resolver、tool policy validator、web cache 与 citation 规则共享同一策略上下文，不能拆成多个 agent 抢改。</td><td>Agent A 已交付 Local Ask 闭环。</td><td>Local mode 阻止 web 工具；Hybrid 遵循 local-first；失败网页不得进入 citations；web evidence 有来源、时间和缓存状态。</td></tr>
+<tr><td>Agent C：Quiz 输出链路</td><td>Quiz generation、Quiz save、Quiz display contract</td><td>可在 Agent A 完成 Parser + Index 后独立进行；不依赖 Web 扩展。</td><td>文档 chunk、引用字段和项目归属校验稳定。</td><td>选择题正好 4 个选项；答案、解释、引用来源都通过 schema 校验；普通用户只能看到自己的 quiz set。</td></tr>
+<tr><td>Agent D：前端 MVP</td><td>Ask、Library、Quiz 页面与前端状态管理</td><td>可先基于契约开发壳层；最终联调必须等 Agent A 的认证、上传和本地问答接口稳定后顺序完成。</td><td>API contract、shared TypeScript contracts、核心接口返回形状稳定。</td><td>Ask、Library、Quiz 可完成主流程；普通用户界面没有 Trace 入口；错误态与加载态不泄露内部 trace 或 secret。</td></tr>
+<tr><td>Agent E：Trace 与 Eval</td><td>Developer Trace、RAG Eval、admin-only 观测入口</td><td>顺序完成。Trace schema、run_id、tool_calls、citations 和 eval 指标共享同一观测上下文。</td><td>Agent A/B/C 的 run、sources、quiz 输出稳定。</td><td>Trace 仅管理员可见；所有 prompt、token、provider secret、用户隐私字段已脱敏；eval 指标可追溯到 run 与 citation。</td></tr>
+<tr><td>Agent F：安全与生命周期收口</td><td>删除、过期、限流、secret scan、发布前安全清单</td><td>最后收口，不提前并行改核心链路。该组横跨 DB、R2、Qdrant、Redis、API 和前端权限。</td><td>Agent A-E 的主要数据路径已经稳定。</td><td>删除 project 会清理 DB、R2、Qdrant、Redis；限流与 quota guard 生效；公开仓库不包含真实密钥、本地数据或缓存产物。</td></tr>
+</tbody></table>
+<h4 id="agent-a-数据闭环主线">Agent A：数据闭环主线</h4>
+<p><strong>边界：</strong> 认证、项目、上传、解析、索引和本地问答共享用户隔离、文档状态机和检索上下文，因此由同一个 agent 顺序完成。</p>
+<h4 id="agent-b-来源策略与-web-扩展">Agent B：来源策略与 Web 扩展</h4>
+<p><strong>边界：</strong> 只在 Local Ask 闭环稳定后接入 source policy、hybrid、web search/crawl 和 web evidence。</p>
+<h4 id="agent-c-quiz-输出链路">Agent C：Quiz 输出链路</h4>
+<p><strong>边界：</strong> 依赖 Parser + Index 的 chunk 与 citation 字段，但不依赖 Web 扩展。</p>
+<h4 id="agent-d-前端-mvp">Agent D：前端 MVP</h4>
+<p><strong>边界：</strong> 可先做契约壳层，真实联调等待 Agent A 的核心接口稳定后顺序完成。</p>
+<h4 id="agent-e-trace-与-eval">Agent E：Trace 与 Eval</h4>
+<p><strong>边界：</strong> Trace schema、run、tool_calls、citations 和 eval 指标共享观测上下文，应顺序完成。</p>
+<h4 id="agent-f-安全与生命周期收口">Agent F：安全与生命周期收口</h4>
+<p><strong>边界：</strong> 横跨全部数据路径，必须在主要业务链路稳定后最后收口。</p>
+<h3 id="3-调度策略">3. 调度策略</h3>
+<ul>
+<li><strong>禁止强拆：</strong>同一个状态机、同一组表、同一条数据闭环、同一套 prompt 或 trace schema 被多个任务共同依赖时，默认给同一个 agent 顺序完成。</li>
+<li><strong>允许并行：</strong>Agent A 完成 Parser + Index 后，Agent C 可启动 Quiz；Agent A 完成本地问答接口后，Agent D 可进入真实联调；Agent B 可在 Local Ask 稳定后接入 Web 扩展。</li>
+<li><strong>交接要求：</strong>每个 agent 完成后必须更新相关 HTML 文档、记录测试命令、说明未实现逻辑和下一位 agent 的输入契约。</li>
+</ul>
+<h3 id="4-停止条件">4. 停止条件</h3>
+<p>任何 agent 遇到以下情况必须停下来问：</p>
+<ul>
+<li>需要修改 API 字段名称。</li>
+<li>需要修改数据库主键或 owner 字段。</li>
+<li>需要引入真实 secret。</li>
+<li>需要删除用户数据或迁移不可逆。</li>
+<li>需要让 Auto 默认联网。</li>
+<li>需要把 Trace 暴露给普通用户。</li>
+<li>需要把共享阻塞上下文拆给多个 agent。</li>
+</ul>
+<h3 id="5-每个-agent-的交付格式">5. 每个 agent 的交付格式</h3>
+<p>每个 agent 完成后必须更新：</p>
+<ol>
+<li>相关代码和测试。</li>
+<li><code>docs/handoff/index.html</code>。</li>
+<li><code>docs/handoff/context-state.json</code>。</li>
+<li><code>docs/execution-plan.html</code> 中本模块勾选项。</li>
+</ol>
+<p>每次结束前运行：</p>
+<pre><code class="language-powershell">pytest tests/test_project_scaffold.py -q
+python skill/agent-context-html/scripts/validate_context_dashboard.py docs/handoff</code></pre><details><summary>原始 Markdown 备份</summary><pre><code># ResearchMate Execution Plan
+
+&gt; **For agentic workers:** REQUIRED SUB-SKILL: use a task-by-task workflow. 每个 agent 只接一个模块，先读 `docs/handoff/index.html` 和 `docs/handoff/context-state.json`，再开始改代码。
+
+**Goal:** 在契约先行的基础上，把 ResearchMate 分模块实现成可上线、可演示、可评测的 AI 研究学习工作台。  
+**Architecture:** Next.js 负责用户界面，FastAPI 负责权限与 API，Python worker 负责长任务，Supabase/R2/Qdrant/Redis 存储各自边界清晰。  
+**Tech Stack:** Next.js、FastAPI、Supabase Postgres/Auth、Cloudflare R2、Qdrant、Redis、LangGraph、Docling、MarkItDown。
+
+---
+
+## 0. 当前初始化验收
+
+本次已完成的范围：
+
+- [x] Monorepo 骨架
+- [x] `.gitignore` 和 `.env.example`
+- [x] API Spec 和 OpenAPI
+- [x] DB Schema 和 migration
+- [x] FastAPI schema/router stub
+- [x] 共享 TypeScript 契约
+- [x] Handoff HTML 页面
+- [x] 合同测试
+
+&gt; 后续 agent 不应把 `501 not implemented` 当作错误。它代表当前阶段只定义契约。
+
+## 1. 协作拆分原则
+
+拆分原则与 `docs/handoff/index.html` 保持一致：先看上下文边界，再看人数。如果任务共享同一段阻塞上下文，就由同一个 agent 顺序完成，不为了并行而强拆。
+
+同一 agent 应连续完成会共同修改同一批 API、表结构、状态机、索引管线或运行时上下文的任务；只有输入输出契约稳定、互不抢同一上下文时，才拆给不同 agent 并行。
+
+## 2. 执行组计划
+
+| 执行组 | 负责范围 | 执行方式 | 依赖条件 | 验收标准 |
+|---|---|---|---|---|
+| Agent A：数据闭环主线 | Auth、Project、Storage、Upload、Parser、Index、Local Ask | 顺序完成，不拆分。该链路共享用户隔离、文档状态机、R2 对象、chunk 元数据、Qdrant payload 和本地 RAG 运行上下文。 | 当前 API、DB、OpenAPI、TypeScript 契约稳定。 | 用户 A 不能读取用户 B 数据；25MB 与 MIME 校验生效；文档可完成上传、解析、切分、入库和本地问答；Local Ask 的 citations 必须来自本地检索 chunk。 |
+| Agent B：来源策略与 Web 扩展 | Source Policy、Hybrid、Web Search、Crawl、Web Evidence | 顺序完成。Mode resolver、tool policy validator、web cache 与 citation 规则共享同一策略上下文，不能拆成多个 agent 抢改。 | Agent A 已交付 Local Ask 闭环。 | Local mode 阻止 web 工具；Hybrid 遵循 local-first；失败网页不得进入 citations；web evidence 有来源、时间和缓存状态。 |
+| Agent C：Quiz 输出链路 | Quiz generation、Quiz save、Quiz display contract | 可在 Agent A 完成 Parser + Index 后独立进行；不依赖 Web 扩展。 | 文档 chunk、引用字段和项目归属校验稳定。 | 选择题正好 4 个选项；答案、解释、引用来源都通过 schema 校验；普通用户只能看到自己的 quiz set。 |
+| Agent D：前端 MVP | Ask、Library、Quiz 页面与前端状态管理 | 可先基于契约开发壳层；最终联调必须等 Agent A 的认证、上传和本地问答接口稳定后顺序完成。 | API contract、shared TypeScript contracts、核心接口返回形状稳定。 | Ask、Library、Quiz 可完成主流程；普通用户界面没有 Trace 入口；错误态与加载态不泄露内部 trace 或 secret。 |
+| Agent E：Trace 与 Eval | Developer Trace、RAG Eval、admin-only 观测入口 | 顺序完成。Trace schema、run_id、tool_calls、citations 和 eval 指标共享同一观测上下文。 | Agent A/B/C 的 run、sources、quiz 输出稳定。 | Trace 仅管理员可见；所有 prompt、token、provider secret、用户隐私字段已脱敏；eval 指标可追溯到 run 与 citation。 |
+| Agent F：安全与生命周期收口 | 删除、过期、限流、secret scan、发布前安全清单 | 最后收口，不提前并行改核心链路。该组横跨 DB、R2、Qdrant、Redis、API 和前端权限。 | Agent A-E 的主要数据路径已经稳定。 | 删除 project 会清理 DB、R2、Qdrant、Redis；限流与 quota guard 生效；公开仓库不包含真实密钥、本地数据或缓存产物。 |
+
+### Agent A：数据闭环主线
+
+**边界：** 认证、项目、上传、解析、索引和本地问答共享用户隔离、文档状态机和检索上下文，因此由同一个 agent 顺序完成。
+
+### Agent B：来源策略与 Web 扩展
+
+**边界：** 只在 Local Ask 闭环稳定后接入 source policy、hybrid、web search/crawl 和 web evidence。
+
+### Agent C：Quiz 输出链路
+
+**边界：** 依赖 Parser + Index 的 chunk 与 citation 字段，但不依赖 Web 扩展。
+
+### Agent D：前端 MVP
+
+**边界：** 可先做契约壳层，真实联调等待 Agent A 的核心接口稳定后顺序完成。
+
+### Agent E：Trace 与 Eval
+
+**边界：** Trace schema、run、tool_calls、citations 和 eval 指标共享观测上下文，应顺序完成。
+
+### Agent F：安全与生命周期收口
+
+**边界：** 横跨全部数据路径，必须在主要业务链路稳定后最后收口。
+
+## 3. 调度策略
+
+- **禁止强拆：** 同一个状态机、同一组表、同一条数据闭环、同一套 prompt 或 trace schema 被多个任务共同依赖时，默认给同一个 agent 顺序完成。
+- **允许并行：** Agent A 完成 Parser + Index 后，Agent C 可启动 Quiz；Agent A 完成本地问答接口后，Agent D 可进入真实联调；Agent B 可在 Local Ask 稳定后接入 Web 扩展。
+- **交接要求：** 每个 agent 完成后必须更新相关 HTML 文档、记录测试命令、说明未实现逻辑和下一位 agent 的输入契约。
+
+## 4. 停止条件
+
+任何 agent 遇到以下情况必须停下来问：
+
+- 需要修改 API 字段名称。
+- 需要修改数据库主键或 owner 字段。
+- 需要引入真实 secret。
+- 需要删除用户数据或迁移不可逆。
+- 需要让 Auto 默认联网。
+- 需要把 Trace 暴露给普通用户。
+- 需要把共享阻塞上下文拆给多个 agent。
+
+## 5. 每个 agent 的交付格式
+
+每个 agent 完成后必须更新：
+
+1. 相关代码和测试。
+2. `docs/handoff/index.html`。
+3. `docs/handoff/context-state.json`。
+4. `docs/execution-plan.html` 中本模块勾选项。
+
+每次结束前运行：
+
+```powershell
+pytest tests/test_project_scaffold.py -q
+python skill/agent-context-html/scripts/validate_context_dashboard.py docs/handoff
+```
+
+</code></pre></details></article>
+    </div>
+  </main>
+</body>
+</html>

@@ -1,0 +1,58 @@
+# Environment and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*service-account*.json
+*secret*.json
+
+# Local data and generated private assets
+data/
+uploads/
+storage/
+tmp/
+logs/
+*.log
+*.sqlite
+*.sqlite3
+*.db
+*.r2
+
+# Node and frontend outputs
+node_modules/
+.next/
+out/
+dist/
+build/
+.turbo/
+coverage/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Python outputs and virtual environments
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.venv/
+venv/
+env/
+
+# Tooling and editor state
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Local service state
+.supabase/
+.qdrant/
+.redis/
+.docker/
+

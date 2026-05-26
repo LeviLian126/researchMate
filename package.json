@@ -1,0 +1,17 @@
+{
+  "name": "researchmate",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "npm@11.6.0",
+  "workspaces": [
+    "apps/web",
+    "packages/shared"
+  ],
+  "scripts": {
+    "check:contracts": "pytest tests/test_project_scaffold.py -q",
+    "check:handoff": "python skill/agent-context-html/scripts/validate_context_dashboard.py docs/handoff",
+    "api:dev": "python -m uvicorn researchmate_api.main:app --app-dir apps/api/src --reload --host 127.0.0.1 --port 8000",
+    "web:dev": "npm --workspace @researchmate/web run dev"
+  }
+}
+

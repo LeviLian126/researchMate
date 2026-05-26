@@ -1,0 +1,791 @@
+openapi: 3.1.0
+info:
+  title: ResearchMate API
+  version: 0.1.0
+  summary: Contract-first API for a local-first AI research workspace.
+servers:
+  - url: http://localhost:8000/api/v1
+    description: Local FastAPI server
+security:
+  - bearerAuth: []
+tags:
+  - name: health
+  - name: auth
+  - name: projects
+  - name: documents
+  - name: jobs
+  - name: ask
+  - name: quiz
+  - name: sources
+  - name: developer-trace
+paths:
+  /api/v1/healthz:
+    get:
+      tags: [health]
+      summary: Health check
+      security: []
+      responses:
+        "200":
+          description: API is alive.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status:
+                    type: string
+                    enum: [ok]
+  /api/v1/me:
+    get:
+      tags: [auth]
+      summary: Get current user
+      responses:
+        "200":
+          description: Current authenticated user.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CurrentUser"
+        "401":
+          $ref: "#/components/responses/AuthRequired"
+  /api/v1/projects:
+    post:
+      tags: [projects]
+      summary: Create project
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProjectCreate"
+      responses:
+        "201":
+          description: Project created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+        "401":
+          $ref: "#/components/responses/AuthRequired"
+    get:
+      tags: [projects]
+      summary: List projects owned by current user
+      responses:
+        "200":
+          description: User-owned projects.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Project"
+        "401":
+          $ref: "#/components/responses/AuthRequired"
+  /api/v1/projects/{project_id}:
+    parameters:
+      - $ref: "#/components/parameters/ProjectId"
+    get:
+      tags: [projects]
+      summary: Get project
+      responses:
+        "200":
+          description: Project visible to current user.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      tags: [projects]
+      summary: Delete project and create cleanup job
+      responses:
+        "202":
+          description: Deletion job accepted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JobAccepted"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /api/v1/documents/upload-url:
+    post:
+      tags: [documents]
+      summary: Create signed upload URL
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UploadUrlRequest"
+      responses:
+        "200":
+          description: Short-lived R2 signed upload URL.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadUrlResponse"
+        "413":
+          $ref: "#/components/responses/FileTooLarge"
+        "415":
+          $ref: "#/components/responses/UnsupportedFileType"
+  /api/v1/documents:
+    post:
+      tags: [documents]
+      summary: Create document metadata
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UploadUrlRequest"
+      responses:
+        "201":
+          description: Document metadata created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Document"
+  /api/v1/projects/{project_id}/documents:
+    parameters:
+      - $ref: "#/components/parameters/ProjectId"
+    get:
+      tags: [documents]
+      summary: List project documents
+      responses:
+        "200":
+          description: Documents in this project.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Document"
+  /api/v1/documents/{document_id}:
+    parameters:
+      - $ref: "#/components/parameters/DocumentId"
+    get:
+      tags: [documents]
+      summary: Get document metadata
+      responses:
+        "200":
+          description: Document visible to current user.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Document"
+    delete:
+      tags: [documents]
+      summary: Delete document and cleanup linked data
+      responses:
+        "202":
+          description: Deletion job accepted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JobAccepted"
+  /api/v1/documents/{document_id}/complete:
+    parameters:
+      - $ref: "#/components/parameters/DocumentId"
+    post:
+      tags: [documents]
+      summary: Mark upload complete and enqueue parse job
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UploadCompleteRequest"
+      responses:
+        "202":
+          description: Parse job accepted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JobAccepted"
+  /api/v1/jobs/{job_id}:
+    parameters:
+      - $ref: "#/components/parameters/JobId"
+    get:
+      tags: [jobs]
+      summary: Get async job status
+      responses:
+        "200":
+          description: Job status.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Job"
+  /api/v1/ask:
+    post:
+      tags: [ask]
+      summary: Ask a grounded question
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AskRequest"
+            examples:
+              localStudy:
+                value:
+                  project_id: "00000000-0000-4000-8000-000000000001"
+                  message: "/study 根据课件解释 RAG"
+                  selected_mode: "auto"
+      responses:
+        "200":
+          description: Structured grounded answer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AskResponse"
+        "409":
+          $ref: "#/components/responses/DocumentNotReady"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+  /api/v1/quiz:
+    post:
+      tags: [quiz]
+      summary: Generate a local-first quiz
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/QuizRequest"
+      responses:
+        "200":
+          description: Structured quiz set.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QuizResponse"
+        "409":
+          $ref: "#/components/responses/DocumentNotReady"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+  /api/v1/runs/{run_id}/sources:
+    parameters:
+      - $ref: "#/components/parameters/RunId"
+    get:
+      tags: [sources]
+      summary: Get Sources panel data
+      responses:
+        "200":
+          description: Source summary and citations.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RunSourcesResponse"
+  /api/v1/dev/traces/{trace_id}:
+    parameters:
+      - $ref: "#/components/parameters/TraceId"
+    get:
+      tags: [developer-trace]
+      summary: Get admin-only developer trace
+      description: Must only be visible to developer or admin users.
+      responses:
+        "200":
+          description: Sanitized developer trace.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeveloperTrace"
+        "403":
+          $ref: "#/components/responses/AdminRequired"
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    ProjectId:
+      name: project_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    DocumentId:
+      name: document_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    JobId:
+      name: job_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    RunId:
+      name: run_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    TraceId:
+      name: trace_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  responses:
+    AuthRequired:
+      description: Missing or invalid authentication.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    AdminRequired:
+      description: Current user is not allowed to view developer trace.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Forbidden:
+      description: Resource does not belong to current user.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    NotFound:
+      description: Resource was not found or is not visible.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    DocumentNotReady:
+      description: Required local documents are not indexed yet.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    FileTooLarge:
+      description: Uploaded file is larger than configured limit.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    UnsupportedFileType:
+      description: File type or MIME type is not allowed.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    RateLimited:
+      description: Per-user or per-IP quota exceeded.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    ValidationFailed:
+      description: Request or generated output failed schema validation.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+  schemas:
+    SourceMode:
+      type: string
+      enum: [auto, local_only, web_only, hybrid]
+    CurrentUser:
+      type: object
+      required: [id, role]
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          nullable: true
+        role:
+          type: string
+          enum: [user, developer, admin]
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message, request_id]
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            request_id:
+              type: string
+    ProjectCreate:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+    Project:
+      type: object
+      required: [id, user_id, name, status, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        status:
+          type: string
+          enum: [active, deleting, deleted, expired]
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    UploadUrlRequest:
+      type: object
+      required: [project_id, filename, file_type, mime_type, size_bytes]
+      properties:
+        project_id:
+          type: string
+          format: uuid
+        filename:
+          type: string
+          maxLength: 240
+        file_type:
+          type: string
+          enum: [pdf, docx, pptx]
+        mime_type:
+          type: string
+        size_bytes:
+          type: integer
+          minimum: 1
+          maximum: 26214400
+    UploadUrlResponse:
+      type: object
+      required: [document_id, upload_url, r2_object_key, expires_in_seconds]
+      properties:
+        document_id:
+          type: string
+          format: uuid
+        upload_url:
+          type: string
+        r2_object_key:
+          type: string
+        expires_in_seconds:
+          type: integer
+          minimum: 60
+          maximum: 900
+    UploadCompleteRequest:
+      type: object
+      properties:
+        checksum_sha256:
+          type: string
+          nullable: true
+    Document:
+      type: object
+      required: [id, user_id, project_id, filename, file_type, mime_type, size_bytes, status]
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        project_id:
+          type: string
+          format: uuid
+        filename:
+          type: string
+        file_type:
+          type: string
+          enum: [pdf, docx, pptx]
+        mime_type:
+          type: string
+        size_bytes:
+          type: integer
+        status:
+          type: string
+          enum: [uploaded, parsing, parsed, indexing, ready, failed, expired, deleted]
+        error_message:
+          type: string
+          nullable: true
+    JobAccepted:
+      type: object
+      required: [job_id, status]
+      properties:
+        job_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [pending, running]
+    Job:
+      type: object
+      required: [id, user_id, type, status, progress, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        project_id:
+          type: string
+          format: uuid
+          nullable: true
+        document_id:
+          type: string
+          format: uuid
+          nullable: true
+        type:
+          type: string
+        status:
+          type: string
+          enum: [pending, running, succeeded, failed, cancelled]
+        progress:
+          type: integer
+          minimum: 0
+          maximum: 100
+        error_message:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    AskRequest:
+      type: object
+      required: [project_id, message]
+      properties:
+        project_id:
+          type: string
+          format: uuid
+        message:
+          type: string
+          minLength: 1
+          maxLength: 8000
+        selected_mode:
+          $ref: "#/components/schemas/SourceMode"
+    AskResponse:
+      type: object
+      required: [run_id, answer, mode, sources, citations, trace_id, validation_status]
+      properties:
+        run_id:
+          type: string
+          format: uuid
+        answer:
+          type: string
+        mode:
+          $ref: "#/components/schemas/SourceMode"
+        sources:
+          $ref: "#/components/schemas/SourceSummary"
+        citations:
+          type: array
+          items:
+            $ref: "#/components/schemas/Citation"
+        trace_id:
+          type: string
+          format: uuid
+        validation_status:
+          type: string
+          enum: [passed, failed, retrying]
+    QuizRequest:
+      type: object
+      required: [project_id]
+      properties:
+        project_id:
+          type: string
+          format: uuid
+        prompt:
+          type: string
+          maxLength: 4000
+        selected_mode:
+          $ref: "#/components/schemas/SourceMode"
+        single_choice_count:
+          type: integer
+          minimum: 0
+          maximum: 20
+        short_answer_count:
+          type: integer
+          minimum: 0
+          maximum: 20
+    QuizResponse:
+      type: object
+      required: [quiz_set, run_id, trace_id, validation_status]
+      properties:
+        quiz_set:
+          $ref: "#/components/schemas/QuizSet"
+        run_id:
+          type: string
+          format: uuid
+        trace_id:
+          type: string
+          format: uuid
+        validation_status:
+          type: string
+          enum: [passed, failed, retrying]
+    QuizSet:
+      type: object
+      required: [id, mode, sources, questions]
+      properties:
+        id:
+          type: string
+          format: uuid
+        mode:
+          $ref: "#/components/schemas/SourceMode"
+        sources:
+          $ref: "#/components/schemas/SourceSummary"
+        questions:
+          type: array
+          minItems: 1
+          maxItems: 40
+          items:
+            $ref: "#/components/schemas/QuizQuestion"
+    QuizQuestion:
+      type: object
+      required: [id, type, question, answer, explanation, difficulty]
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum: [single_choice, short_answer]
+        question:
+          type: string
+        options:
+          type: array
+          minItems: 4
+          maxItems: 4
+          items:
+            type: string
+        answer:
+          type: string
+        explanation:
+          type: string
+        difficulty:
+          type: string
+          enum: [easy, medium, hard]
+        source_citations:
+          type: array
+          items:
+            $ref: "#/components/schemas/Citation"
+    SourceSummary:
+      type: object
+      required: [local_chunks, web_pages]
+      properties:
+        local_chunks:
+          type: integer
+          minimum: 0
+        web_pages:
+          type: integer
+          minimum: 0
+    Citation:
+      type: object
+      required: [id, source_type, quote]
+      properties:
+        id:
+          type: string
+          format: uuid
+        source_type:
+          type: string
+          enum: [local_doc, web_page]
+        document_id:
+          type: string
+          format: uuid
+          nullable: true
+        chunk_id:
+          type: string
+          format: uuid
+          nullable: true
+        page_no:
+          type: integer
+          nullable: true
+        slide_no:
+          type: integer
+          nullable: true
+        url:
+          type: string
+          nullable: true
+        quote:
+          type: string
+        claim_id:
+          type: string
+          nullable: true
+    RunSourcesResponse:
+      type: object
+      required: [run_id, summary, citations]
+      properties:
+        run_id:
+          type: string
+          format: uuid
+        summary:
+          $ref: "#/components/schemas/SourceSummary"
+        citations:
+          type: array
+          items:
+            $ref: "#/components/schemas/Citation"
+    DeveloperTrace:
+      type: object
+      required: [trace_id, user_id, project_id, run_id, execution_plan, validation_result, created_at]
+      properties:
+        trace_id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        project_id:
+          type: string
+          format: uuid
+        run_id:
+          type: string
+          format: uuid
+        execution_plan:
+          type: object
+        router_reason:
+          type: string
+        retrieved_chunks:
+          type: array
+          items:
+            type: object
+        tool_calls:
+          type: array
+          items:
+            type: object
+        validation_result:
+          type: object
+        latency_ms:
+          type: integer
+          nullable: true
+        token_usage:
+          type: object
+          nullable: true
+        errors:
+          type: array
+          items:
+            type: string
+        created_at:
+          type: string
+          format: date-time
+

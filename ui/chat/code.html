@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>ResearchMate - Chat</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+        "colors": {
+                "on-tertiary-fixed-variant": "rgb(var(--color-on-tertiary-fixed-variant) / <alpha-value>)",
+                "inverse-primary": "rgb(var(--color-inverse-primary) / <alpha-value>)",
+                "on-error": "rgb(var(--color-on-error) / <alpha-value>)",
+                "on-primary-fixed-variant": "rgb(var(--color-on-primary-fixed-variant) / <alpha-value>)",
+                "on-background": "rgb(var(--color-on-background) / <alpha-value>)",
+                "on-secondary": "rgb(var(--color-on-secondary) / <alpha-value>)",
+                "inverse-surface": "rgb(var(--color-inverse-surface) / <alpha-value>)",
+                "tertiary-fixed": "rgb(var(--color-tertiary-fixed) / <alpha-value>)",
+                "on-primary": "rgb(var(--color-on-primary) / <alpha-value>)",
+                "outline": "rgb(var(--color-outline) / <alpha-value>)",
+                "surface-container-low": "rgb(var(--color-surface-container-low) / <alpha-value>)",
+                "surface": "rgb(var(--color-surface) / <alpha-value>)",
+                "error": "rgb(var(--color-error) / <alpha-value>)",
+                "surface-bright": "rgb(var(--color-surface-bright) / <alpha-value>)",
+                "surface-container-lowest": "rgb(var(--color-surface-container-lowest) / <alpha-value>)",
+                "on-primary-fixed": "rgb(var(--color-on-primary-fixed) / <alpha-value>)",
+                "inverse-on-surface": "rgb(var(--color-inverse-on-surface) / <alpha-value>)",
+                "secondary-fixed-dim": "rgb(var(--color-secondary-fixed-dim) / <alpha-value>)",
+                "on-tertiary": "rgb(var(--color-on-tertiary) / <alpha-value>)",
+                "surface-container": "rgb(var(--color-surface-container) / <alpha-value>)",
+                "error-container": "rgb(var(--color-error-container) / <alpha-value>)",
+                "primary-fixed": "rgb(var(--color-primary-fixed) / <alpha-value>)",
+                "surface-container-highest": "rgb(var(--color-surface-container-highest) / <alpha-value>)",
+                "secondary-container": "rgb(var(--color-secondary-container) / <alpha-value>)",
+                "on-surface-variant": "rgb(var(--color-on-surface-variant) / <alpha-value>)",
+                "primary-container": "rgb(var(--color-primary-container) / <alpha-value>)",
+                "tertiary-fixed-dim": "rgb(var(--color-tertiary-fixed-dim) / <alpha-value>)",
+                "surface-dim": "rgb(var(--color-surface-dim) / <alpha-value>)",
+                "outline-variant": "rgb(var(--color-outline-variant) / <alpha-value>)",
+                "on-surface": "rgb(var(--color-on-surface) / <alpha-value>)",
+                "on-secondary-container": "rgb(var(--color-on-secondary-container) / <alpha-value>)",
+                "secondary-fixed": "rgb(var(--color-secondary-fixed) / <alpha-value>)",
+                "tertiary": "rgb(var(--color-tertiary) / <alpha-value>)",
+                "primary-fixed-dim": "rgb(var(--color-primary-fixed-dim) / <alpha-value>)",
+                "background": "rgb(var(--color-background) / <alpha-value>)",
+                "on-secondary-fixed-variant": "rgb(var(--color-on-secondary-fixed-variant) / <alpha-value>)",
+                "on-error-container": "rgb(var(--color-on-error-container) / <alpha-value>)",
+                "on-secondary-fixed": "rgb(var(--color-on-secondary-fixed) / <alpha-value>)",
+                "secondary": "rgb(var(--color-secondary) / <alpha-value>)",
+                "primary": "rgb(var(--color-primary) / <alpha-value>)",
+                "on-primary-container": "rgb(var(--color-on-primary-container) / <alpha-value>)",
+                "tertiary-container": "rgb(var(--color-tertiary-container) / <alpha-value>)",
+                "surface-tint": "rgb(var(--color-surface-tint) / <alpha-value>)",
+                "surface-container-high": "rgb(var(--color-surface-container-high) / <alpha-value>)",
+                "on-tertiary-container": "rgb(var(--color-on-tertiary-container) / <alpha-value>)",
+                "on-tertiary-fixed": "rgb(var(--color-on-tertiary-fixed) / <alpha-value>)",
+                "surface-variant": "rgb(var(--color-surface-variant) / <alpha-value>)"
+        },
+                    "borderRadius": {
+                        "DEFAULT": "0.5rem",
+                        "lg": "1rem",
+                        "xl": "1.5rem",
+                        "full": "9999px"
+                    },
+                    "fontFamily": {
+                        "headline": ["Inter", "sans-serif"],
+                        "display": ["Inter", "sans-serif"],
+                        "body": ["Inter", "sans-serif"],
+                        "label": ["Inter", "sans-serif"]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        :root {
+            --color-on-tertiary-fixed-variant: 77 42 115;
+            --color-inverse-primary: 10 76 110;
+            --color-on-error: 26 0 0;
+            --color-on-primary-fixed-variant: 0 77 115;
+            --color-on-background: 10 14 26;
+            --color-on-secondary: 0 31 46;
+            --color-inverse-surface: 10 14 26;
+            --color-tertiary-fixed: 232 208 255;
+            --color-on-primary: 255 255 255;
+            --color-outline: 74 96 112;
+            --color-surface-container-low: 240 244 248;
+            --color-surface: 255 255 255;
+            --color-error: 255 107 107;
+            --color-surface-bright: 255 255 255;
+            --color-surface-container-lowest: 255 255 255;
+            --color-on-primary-fixed: 0 31 46;
+            --color-inverse-on-surface: 224 232 240;
+            --color-secondary-fixed-dim: 136 180 204;
+            --color-on-tertiary: 26 0 46;
+            --color-surface-container: 224 232 240;
+            --color-error-container: 255 179 179;
+            --color-primary-fixed: 200 234 255;
+            --color-surface-container-highest: 208 220 228;
+            --color-secondary-container: 192 216 232;
+            --color-on-surface-variant: 74 96 112;
+            --color-primary-container: 200 234 255;
+            --color-tertiary-fixed-dim: 200 160 240;
+            --color-surface-dim: 224 232 240;
+            --color-outline-variant: 192 216 232;
+            --color-on-surface: 10 14 26;
+            --color-on-secondary-container: 13 31 43;
+            --color-secondary-fixed: 192 216 232;
+            --color-tertiary: 200 160 240;
+            --color-primary-fixed-dim: 125 211 252;
+            --color-background: 248 250 252;
+            --color-on-secondary-fixed-variant: 42 74 94;
+            --color-on-error-container: 61 20 20;
+            --color-on-secondary-fixed: 13 31 43;
+            --color-secondary: 136 180 204;
+            --color-primary: 14 77 110;
+            --color-on-primary-container: 0 31 46;
+            --color-tertiary-container: 232 208 255;
+            --color-surface-tint: 14 77 110;
+            --color-surface-container-high: 216 228 236;
+            --color-on-tertiary-container: 26 0 46;
+            --color-on-tertiary-fixed: 26 0 46;
+            --color-surface-variant: 224 232 240;
+        }
+        .dark {
+            --color-on-tertiary-fixed-variant: 77 42 115;
+            --color-inverse-primary: 10 76 110;
+            --color-on-error: 26 0 0;
+            --color-on-primary-fixed-variant: 0 77 115;
+            --color-on-background: 224 232 240;
+            --color-on-secondary: 0 31 46;
+            --color-inverse-surface: 224 232 240;
+            --color-tertiary-fixed: 232 208 255;
+            --color-on-primary: 0 31 46;
+            --color-outline: 74 96 112;
+            --color-surface-container-low: 17 24 40;
+            --color-surface: 15 21 36;
+            --color-error: 255 107 107;
+            --color-surface-bright: 26 36 56;
+            --color-surface-container-lowest: 10 14 26;
+            --color-on-primary-fixed: 0 31 46;
+            --color-inverse-on-surface: 10 14 26;
+            --color-secondary-fixed-dim: 136 180 204;
+            --color-on-tertiary: 26 0 46;
+            --color-surface-container: 20 28 46;
+            --color-error-container: 61 20 20;
+            --color-primary-fixed: 200 234 255;
+            --color-surface-container-highest: 32 44 66;
+            --color-secondary-container: 26 58 78;
+            --color-on-surface-variant: 160 180 196;
+            --color-primary-container: 14 77 110;
+            --color-tertiary-fixed-dim: 200 160 240;
+            --color-surface-dim: 15 21 36;
+            --color-outline-variant: 42 58 72;
+            --color-on-surface: 224 232 240;
+            --color-on-secondary-container: 192 216 232;
+            --color-secondary-fixed: 192 216 232;
+            --color-tertiary: 200 160 240;
+            --color-primary-fixed-dim: 125 211 252;
+            --color-background: 10 14 26;
+            --color-on-secondary-fixed-variant: 42 74 94;
+            --color-on-error-container: 255 179 179;
+            --color-on-secondary-fixed: 13 31 43;
+            --color-secondary: 136 180 204;
+            --color-primary: 125 211 252;
+            --color-on-primary-container: 200 234 255;
+            --color-tertiary-container: 61 32 96;
+            --color-surface-tint: 125 211 252;
+            --color-surface-container-high: 26 36 56;
+            --color-on-tertiary-container: 232 208 255;
+            --color-on-tertiary-fixed: 26 0 46;
+            --color-surface-variant: 26 36 56;
+        }
+
+body { font-family: 'Inter', sans-serif; background-color: #f8fafc; color: #0a0e1a; transition: background-color 0.3s, color 0.3s; }
+        .dark body { background-color: #0a0e1a; color: #e0e8f0; }
+        
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.6);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(14, 77, 110, 0.1);
+        }
+        .dark .glass-panel {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(125, 211, 252, 0.1);
+        }
+
+        .glass-elevated {
+            background: rgba(255, 255, 255, 0.75);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid rgba(14, 77, 110, 0.15);
+            box-shadow: 0 4px 20px rgba(14, 77, 110, 0.05);
+        }
+        .dark .glass-elevated {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(125, 211, 252, 0.15);
+            box-shadow: 0 0 30px rgba(125, 211, 252, 0.05);
+        }
+
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(160, 180, 196, 0.4); border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(160, 180, 196, 0.6); }
+        .dark .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(160, 180, 196, 0.2); }
+        .dark .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(160, 180, 196, 0.4); }
+    </style>
+</head>
+<body class="bg-background text-on-background h-screen overflow-hidden flex font-body">
+<!-- SideNavBar -->
+<nav class="fixed left-0 top-0 h-full z-40 h-screen w-64 flex flex-col border-r border-primary/10 bg-surface/60 backdrop-blur-xl backdrop-blur-2xl border-r border-primary/10 shadow-[0_4px_30px_rgba(14,77,110,0.05)] dark:shadow-[0_0_30px_rgba(125,211,252,0.05)]">
+<div class="p-6 pb-2">
+<h1 class="text-xl font-headline font-semibold tracking-tight text-primary flex items-center gap-2 mb-6">
+<span class="material-symbols-outlined" style='font-variation-settings: "FILL" 1;'>science</span>
+                ResearchMate
+            </h1>
+<div class="flex items-center gap-1 text-on-surface font-headline font-semibold text-lg cursor-pointer hover:text-primary transition-colors">
+<span>Projects</span>
+<span class="material-symbols-outlined text-sm text-on-surface-variant">expand_more</span>
+</div>
+</div>
+<div class="flex-1 overflow-y-auto custom-scrollbar px-4 mt-2 flex flex-col gap-1">
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-on-surface hover:text-primary hover:bg-surface-variant/40 transition-all duration-300 hover:backdrop-blur-3xl font-body text-base tracking-wide" href="#">
+<span class="material-symbols-outlined font-light">create_new_folder</span>
+<span class="truncate">New project</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-on-surface hover:text-primary hover:bg-surface-variant/40 transition-all duration-300 hover:backdrop-blur-3xl font-body text-base tracking-wide" href="#">
+<span class="material-symbols-outlined font-light">folder</span>
+<span class="truncate">researchMate</span>
+</a>
+<!-- Active Nav Item -->
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-surface-container/60 text-on-surface transition-all duration-300 hover:backdrop-blur-3xl font-body text-base tracking-wide mt-1" href="#">
+<span class="material-symbols-outlined font-light opacity-0 w-6">folder_open</span>
+<span class="truncate -ml-7 pl-1">PRD 修改与安全校验</span>
+</a>
+<div class="mt-auto pt-6 flex flex-col gap-1 pb-4">
+<div class="h-px bg-outline-variant/30 my-2 mx-3"></div>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/40 transition-all duration-300 hover:backdrop-blur-3xl font-body text-base tracking-wide" href="#">
+<span class="material-symbols-outlined font-light">menu_book</span>
+<span class="">Library</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/40 transition-all duration-300 hover:backdrop-blur-3xl font-body text-base tracking-wide" href="#">
+<span class="material-symbols-outlined font-light">quiz</span>
+<span class="">Quiz</span>
+</a>
+</div>
+</div>
+<div class="p-4 border-t border-primary/10 flex flex-col gap-1">
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/40 transition-all duration-300 font-body text-sm font-medium tracking-wide" href="#">
+<span class="material-symbols-outlined font-light">settings</span>
+<span class="">Settings</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/40 transition-all duration-300 font-body text-sm font-medium tracking-wide" href="#">
+<span class="material-symbols-outlined font-light">help</span>
+<span class="">Support</span>
+</a>
+</div>
+</nav>
+<!-- TopNavBar (from JSON) -->
+<header class="fixed docked full-width top-0 flex justify-end items-center w-full px-6 py-3 ml-64 max-w-[calc(100%-16rem)] bg-surface/60 backdrop-blur-xl backdrop-blur-2xl border-b border-primary/10 shadow-[0_4px_30px_rgba(14,77,110,0.05)] dark:shadow-[0_0_30px_rgba(125,211,252,0.05)] z-30">
+<div class="flex items-center gap-4">
+<button class="text-on-surface-variant hover:text-primary transition-colors" onclick="document.documentElement.classList.toggle('dark')">
+<span class="material-symbols-outlined dark:hidden">light_mode</span>
+<span class="material-symbols-outlined hidden dark:block">dark_mode</span>
+</button>
+<button class="text-on-surface-variant hover:text-primary transition-colors flex items-center justify-center w-8 h-8 rounded-full bg-surface-container overflow-hidden border border-outline-variant/30">
+<!-- Placeholder for user avatar -->
+<span class="material-symbols-outlined text-xl" style='font-variation-settings: "FILL" 1;'>person</span>
+</button>
+</div>
+</header>
+<!-- Main Content Area -->
+<main class="ml-64 mt-[60px] flex-1 flex flex-col h-[calc(100vh-60px)] relative">
+<!-- Chat History -->
+<div class="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-8 pb-32">
+<!-- Intro / Empty State suggestion -->
+<div class="flex flex-col items-center justify-center h-40 opacity-70">
+<div class="glass-elevated p-4 rounded-full mb-4">
+<span class="material-symbols-outlined text-4xl text-primary">auto_awesome</span>
+</div>
+<h2 class="text-xl font-headline font-semibold text-on-surface">Start a new research session</h2>
+<p class="text-on-surface-variant mt-2">Ask about your documents or search the web.</p>
+</div>
+<!-- User Message -->
+<div class="flex justify-end">
+<div class="glass-elevated bg-primary-container/40 rounded-2xl rounded-tr-sm px-5 py-4 max-w-[80%] border-primary/20">
+<p class="text-on-surface font-body leading-relaxed">Can you summarize the findings from the Q3 clinical trial reports and cross-reference them with recent publications on mRNA stability?</p>
+</div>
+</div>
+<!-- AI Response -->
+<div class="flex justify-start">
+<div class="glass-panel rounded-2xl rounded-tl-sm p-6 max-w-[85%]">
+<!-- Sources Header -->
+<div class="mb-4 bg-surface-container-highest/30 rounded-lg p-3 border border-outline-variant/30 text-sm">
+<div class="flex items-center justify-between cursor-pointer group" onclick="document.getElementById('sources-detail').classList.toggle('hidden')">
+<div class="flex items-center gap-2 text-primary">
+<span class="material-symbols-outlined text-sm">hub</span>
+<span class="font-medium">Mode: Hybrid | Sources: 2 local, 3 web</span>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant group-hover:text-primary transition-colors">expand_more</span>
+</div>
+<!-- Collapsible Sources Detail -->
+<div class="hidden mt-3 pt-3 border-t border-outline-variant/50 space-y-2" id="sources-detail">
+<div class="flex items-start gap-2">
+<span class="material-symbols-outlined text-secondary text-xs mt-0.5">description</span>
+<div>
+<span class="text-on-surface font-medium text-xs">Q3_Trial_Results_v2.pdf</span>
+<span class="text-on-surface-variant text-xs ml-2">Pages 14-16, 22</span>
+</div>
+</div>
+<div class="flex items-start gap-2">
+<span class="material-symbols-outlined text-secondary text-xs mt-0.5">public</span>
+<div>
+<span class="text-on-surface font-medium text-xs">Nature Biotech: "Lipid Nanoparticle Efficacy in Sub-zero conditions"</span>
+<span class="text-primary text-xs ml-2 hover:underline cursor-pointer">View Link</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Answer Content -->
+<div class="prose prose-p:text-on-surface prose-p:leading-relaxed prose-headings:text-primary max-w-none dark:prose-invert">
+<p class="">Based on the hybrid analysis, the Q3 clinical trial reports indicate a 14% improvement in overall structural integrity when stored at -80°C compared to previous iterations [1]. This aligns closely with recent findings from the web.</p>
+<p class="">However, the internal reports note a faster degradation rate during the thawing process (noted on pg 15 of Q3_Trial_Results_v2.pdf), which external literature suggests might be mitigated by adjusting the lipid molar ratios [2].</p>
+</div>
+<!-- Action Bar -->
+<div class="mt-4 pt-4 border-t border-outline-variant/30 flex gap-3">
+<button class="text-on-surface-variant hover:text-primary transition-colors" title="Copy">
+<span class="material-symbols-outlined text-sm">content_copy</span>
+</button>
+<button class="text-on-surface-variant hover:text-primary transition-colors" title="Save Insight">
+<span class="material-symbols-outlined text-sm">bookmark_add</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Input Area (Fixed Bottom) -->
+<div class="absolute bottom-0 w-full p-6 bg-gradient-to-t from-background via-background/95 to-transparent pt-12">
+<div class="max-w-4xl mx-auto">
+<div class="glass-elevated rounded-xl p-2 focus-within:border-primary/40 focus-within:shadow-[0_4px_20px_rgba(14,77,110,0.15)] dark:focus-within:shadow-[0_0_20px_rgba(125,211,252,0.15)] transition-all duration-300">
+<!-- Top Toolbar -->
+<div class="flex items-center gap-2 px-2 pb-2 mb-2 border-b border-outline-variant/30">
+<div class="relative group">
+<button class="flex items-center gap-1 text-xs text-on-surface-variant hover:text-primary bg-surface-container/50 px-2 py-1 rounded-md transition-colors">
+<span class="material-symbols-outlined text-sm">tune</span>
+<span class="">Hybrid</span>
+<span class="material-symbols-outlined text-xs">arrow_drop_down</span>
+</button>
+</div>
+<div class="h-4 w-px bg-outline-variant/50"></div>
+<button class="text-on-surface-variant hover:text-primary transition-colors flex items-center gap-1 text-xs px-2 py-1">
+<span class="material-symbols-outlined text-sm">attach_file</span>
+<span class="">Add files</span>
+</button>
+<div class="ml-auto flex items-center gap-2 text-xs text-on-surface-variant opacity-80">
+<span class="">Type <kbd class="bg-surface-container px-1 rounded text-primary border border-outline-variant/30">/ </kbd> for commands</span>
+</div>
+</div>
+<!-- Input Field -->
+<div class="flex items-end gap-2 px-2 pb-1">
+<textarea class="flex-1 bg-transparent border-none text-on-surface focus:ring-0 resize-none max-h-40 min-h-[44px] py-2 custom-scrollbar text-sm placeholder:text-on-surface-variant/70" placeholder="Ask anything about your research..." rows="1" style="height:44px;overflow-y:hidden;"></textarea>
+<button class="bg-primary-container hover:bg-primary-container/80 text-primary p-2 rounded-lg transition-colors border border-primary/20 flex-shrink-0 mb-1">
+<span class="material-symbols-outlined">send</span>
+</button>
+</div>
+</div>
+<div class="text-center mt-2 text-[10px] text-on-surface-variant/70 font-label">
+                    ResearchMate can make mistakes. Verify critical sources.
+                </div>
+</div>
+</div>
+</main>
+<script>
+        // Simple auto-resize for textarea
+        const tx = document.getElementsByTagName("textarea");
+        for (let i = 0; i < tx.length; i++) {
+            tx[i].setAttribute("style", "height:" + (tx[i].scrollHeight) + "px;overflow-y:hidden;");
+            tx[i].addEventListener("input", OnInput, false);
+        }
+        function OnInput() {
+            this.style.height = "auto";
+            this.style.height = (this.scrollHeight) + "px";
+        }
+    </script>
+</body></html>

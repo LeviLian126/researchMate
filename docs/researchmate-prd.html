@@ -1,0 +1,1436 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ResearchMate PRD - ResearchMate Docs</title>
+  <style>
+:root{--bg:#f8fafc;--surface:#fff;--text:#0f172a;--muted:#475569;--line:#dbe3ef;--brand:#0f766e;--brand-soft:#ccfbf1;--code:#0f172a;--warn:#92400e}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.65}.top{position:sticky;top:0;z-index:5;border-bottom:1px solid var(--line);background:rgba(255,255,255,.94);backdrop-filter:blur(12px)}.top-inner{width:min(1180px,calc(100% - 32px));margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 0}.brand{font-weight:800;color:var(--text);text-decoration:none}.nav{display:flex;flex-wrap:wrap;gap:8px}.nav a{border:1px solid var(--line);border-radius:6px;padding:6px 9px;color:var(--brand);text-decoration:none;font-size:13px;background:var(--surface)}.nav a[aria-current="page"]{background:var(--brand-soft);color:#134e4a}.wrap{width:min(1180px,calc(100% - 32px));margin:0 auto}.hero{padding:28px 0 16px}.eyebrow{color:var(--brand);font-weight:800;text-transform:uppercase;font-size:12px;letter-spacing:.08em}h1{font-size:38px;line-height:1.1;margin:8px 0 12px}h2{font-size:26px;margin:32px 0 10px;border-top:1px solid var(--line);padding-top:24px}h3{font-size:20px;margin:24px 0 8px}h4{font-size:16px;margin:18px 0 6px}.lead{font-size:18px;color:var(--muted);max-width:860px}.layout{display:grid;grid-template-columns:280px minmax(0,1fr);gap:20px;align-items:start}.toc{position:sticky;top:68px;border:1px solid var(--line);border-radius:8px;background:var(--surface);padding:14px;max-height:calc(100vh - 96px);overflow:auto}.toc strong{display:block;margin-bottom:8px}.toc a{display:block;color:var(--muted);text-decoration:none;padding:5px 0;font-size:13px}.toc a:hover{color:var(--brand)}.doc{border:1px solid var(--line);border-radius:8px;background:var(--surface);padding:22px;overflow:hidden}.doc p{color:#26364f}.doc a{color:var(--brand)}blockquote{border-left:4px solid var(--brand);margin:14px 0;padding:8px 14px;background:#f0fdfa;color:#334155}pre{overflow:auto;border:1px solid var(--line);border-radius:8px;background:#0b1220;color:#dbeafe;padding:14px;line-height:1.5}code{font-family:"Cascadia Code",Consolas,monospace;background:#eef2f7;border-radius:4px;padding:1px 4px;color:var(--code)}pre code{background:transparent;padding:0;color:inherit}table{width:100%;border-collapse:collapse;margin:12px 0;display:block;overflow:auto}th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}th{background:#f1f5f9}ul,ol{padding-left:24px}.cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.card{border:1px solid var(--line);border-radius:8px;background:var(--surface);padding:14px}.card h3{margin-top:0}.chip{display:inline-flex;border:1px solid var(--line);border-radius:999px;padding:4px 9px;margin:4px;color:var(--muted);font-size:13px}.warn{color:var(--warn)}details{border:1px solid var(--line);border-radius:8px;padding:12px;margin:20px 0;background:#fbfdff}summary{font-weight:800;cursor:pointer}.source-note{color:var(--muted);font-size:13px;margin-top:22px}@media(max-width:900px){.layout{grid-template-columns:1fr}.toc{position:relative;top:auto}.cards{grid-template-columns:1fr}.top-inner{align-items:flex-start;flex-direction:column}h1{font-size:30px}}
+</style>
+</head>
+<body>
+  <header class="top"><div class="top-inner"><a class="brand" href="HANDOFF.html">ResearchMate Docs</a><nav class="nav" aria-label="Project documentation"><a href="HANDOFF.html">总览</a><a href="handoff/index.html">Agent Dashboard</a><a href="researchmate-prd.html" aria-current="page">PRD</a><a href="researchmate-architecture.html">Architecture</a><a href="project-development-process.html">Process</a><a href="api-spec.html">API</a><a href="openapi-spec.html">OpenAPI</a><a href="db-schema.html">DB</a><a href="ui-page-spec.html">UI</a><a href="execution-plan.html">Plan</a></nav></div></header>
+  <main class="wrap">
+    <section class="hero">
+      <span class="eyebrow">Project Documentation</span>
+      <h1>ResearchMate PRD</h1>
+      <p class="lead">定义产品目标、用户范围、MVP 边界与验收标准。</p>
+      <p class="source-note">Migrated from <code>ResearchMate_PRD.md</code>. The original Markdown is preserved at the bottom of this HTML page for lossless handoff.</p>
+    </section>
+    <div class="layout">
+      <aside class="toc"><strong>目录</strong><a href="#1-产品概述">1. 产品概述</a><a href="#1-1-产品名称">&nbsp;&nbsp;1.1 产品名称</a><a href="#1-2-一句话定位">&nbsp;&nbsp;1.2 一句话定位</a><a href="#1-3-产品目标">&nbsp;&nbsp;1.3 产品目标</a><a href="#1-4-项目目的">&nbsp;&nbsp;1.4 项目目的</a><a href="#2-问题定义">2. 问题定义</a><a href="#2-1-学生与自学者的痛点">&nbsp;&nbsp;2.1 学生与自学者的痛点</a><a href="#2-2-知识工作者的痛点">&nbsp;&nbsp;2.2 知识工作者的痛点</a><a href="#2-3-现有工具不足">&nbsp;&nbsp;2.3 现有工具不足</a><a href="#2-4-researchmate-的切入点">&nbsp;&nbsp;2.4 ResearchMate 的切入点</a><a href="#3-目标用户">3. 目标用户</a><a href="#3-1-核心用户">&nbsp;&nbsp;3.1 核心用户</a><a href="#大学生-自学者">&nbsp;&nbsp;&nbsp;&nbsp;大学生 / 自学者</a><a href="#普通知识工作者">&nbsp;&nbsp;&nbsp;&nbsp;普通知识工作者</a><a href="#校招面试官-技术评审者">&nbsp;&nbsp;&nbsp;&nbsp;校招面试官 / 技术评审者</a><a href="#3-2-非目标用户">&nbsp;&nbsp;3.2 非目标用户</a><a href="#4-产品原则">4. 产品原则</a><a href="#4-1-local-first-web-on-demand">&nbsp;&nbsp;4.1 Local-first, Web-on-demand</a><a href="#4-2-mode-决定资料来源">&nbsp;&nbsp;4.2 Mode 决定资料来源</a><a href="#4-3-slash-command-决定任务类型">&nbsp;&nbsp;4.3 Slash command 决定任务类型</a><a href="#4-4-回答必须可溯源">&nbsp;&nbsp;4.4 回答必须可溯源</a><a href="#4-5-普通用户界面简单-管理员视图可追踪">&nbsp;&nbsp;4.5 普通用户界面简单，管理员视图可追踪</a><a href="#4-6-默认节省-api-fee">&nbsp;&nbsp;4.6 默认节省 API fee</a><a href="#5-核心产品形态">5. 核心产品形态</a><a href="#5-1-主要页面">&nbsp;&nbsp;5.1 主要页面</a><a href="#5-2-ask-页面">&nbsp;&nbsp;5.2 Ask 页面</a><a href="#6-source-mode">6. Source Mode</a><a href="#6-1-mode-列表">&nbsp;&nbsp;6.1 Mode 列表</a><a href="#6-2-mode-优先级">&nbsp;&nbsp;6.2 Mode 优先级</a><a href="#6-3-auto-router-规则">&nbsp;&nbsp;6.3 Auto Router 规则</a><a href="#local-信号">&nbsp;&nbsp;&nbsp;&nbsp;Local 信号</a><a href="#web-信号">&nbsp;&nbsp;&nbsp;&nbsp;Web 信号</a><a href="#hybrid-信号">&nbsp;&nbsp;&nbsp;&nbsp;Hybrid 信号</a><a href="#6-4-hybrid-local-first-策略">&nbsp;&nbsp;6.4 Hybrid local-first 策略</a><a href="#7-slash-commands">7. Slash Commands</a><a href="#7-1-study">&nbsp;&nbsp;7.1 `/study`</a><a href="#7-2-search">&nbsp;&nbsp;7.2 `/search`</a><a href="#7-3-hybrid">&nbsp;&nbsp;7.3 `/hybrid`</a><a href="#7-4-quiz">&nbsp;&nbsp;7.4 `/quiz`</a><a href="#8-quiz-功能需求">8. Quiz 功能需求</a><a href="#8-1-mvp-支持题型">&nbsp;&nbsp;8.1 MVP 支持题型</a><a href="#8-2-quiz-输出字段">&nbsp;&nbsp;8.2 Quiz 输出字段</a><a href="#8-3-quiz-验收标准">&nbsp;&nbsp;8.3 Quiz 验收标准</a><a href="#9-sources-与可溯源">9. Sources 与可溯源</a><a href="#9-1-回答顶部">&nbsp;&nbsp;9.1 回答顶部</a><a href="#9-2-sources-panel">&nbsp;&nbsp;9.2 Sources panel</a><a href="#local-sources">&nbsp;&nbsp;&nbsp;&nbsp;Local sources</a><a href="#web-sources">&nbsp;&nbsp;&nbsp;&nbsp;Web sources</a><a href="#9-3-admin-only-developer-trace">&nbsp;&nbsp;9.3 Admin-only Developer Trace</a><a href="#10-library-功能需求">10. Library 功能需求</a><a href="#10-1-支持文件类型">&nbsp;&nbsp;10.1 支持文件类型</a><a href="#10-2-上传限制">&nbsp;&nbsp;10.2 上传限制</a><a href="#10-3-文件状态">&nbsp;&nbsp;10.3 文件状态</a><a href="#10-4-文件删除">&nbsp;&nbsp;10.4 文件删除</a><a href="#11-登录与用户隔离">11. 登录与用户隔离</a><a href="#11-1-登录方式">&nbsp;&nbsp;11.1 登录方式</a><a href="#11-2-用户隔离">&nbsp;&nbsp;11.2 用户隔离</a><a href="#11-3-安全原则">&nbsp;&nbsp;11.3 安全原则</a><a href="#12-安全校验与防护要求">12. 安全校验与防护要求</a><a href="#12-1-输入与-api-校验">&nbsp;&nbsp;12.1 输入与 API 校验</a><a href="#12-2-sql-注入防护">&nbsp;&nbsp;12.2 SQL 注入防护</a><a href="#12-3-prompt-injection-防护">&nbsp;&nbsp;12.3 Prompt Injection 防护</a><a href="#12-4-登录-session-与-oauth-防护">&nbsp;&nbsp;12.4 登录、Session 与 OAuth 防护</a><a href="#12-5-文件与网页内容安全">&nbsp;&nbsp;12.5 文件与网页内容安全</a><a href="#12-6-安全验收标准">&nbsp;&nbsp;12.6 安全验收标准</a><a href="#13-非目标">13. 非目标</a><a href="#14-成功标准">14. 成功标准</a><a href="#14-1-产品成功标准">&nbsp;&nbsp;14.1 产品成功标准</a><a href="#14-2-工程成功标准">&nbsp;&nbsp;14.2 工程成功标准</a><a href="#15-mvp-范围">15. MVP 范围</a><a href="#15-1-必做">&nbsp;&nbsp;15.1 必做</a><a href="#15-2-可选">&nbsp;&nbsp;15.2 可选</a><a href="#15-3-phase-2">&nbsp;&nbsp;15.3 Phase 2</a><a href="#16-面试-demo-脚本">16. 面试 Demo 脚本</a><a href="#16-1-demo-1-本地资料学习">&nbsp;&nbsp;16.1 Demo 1：本地资料学习</a><a href="#16-2-demo-2-quiz-生成">&nbsp;&nbsp;16.2 Demo 2：Quiz 生成</a><a href="#16-3-demo-3-hybrid">&nbsp;&nbsp;16.3 Demo 3：Hybrid</a><a href="#16-4-demo-4-admin-only-developer-trace">&nbsp;&nbsp;16.4 Demo 4：Admin-only Developer Trace</a><a href="#17-参考资料">17. 参考资料</a></aside>
+      <article class="doc"><h1 id="researchmate-产品需求文档-prd">ResearchMate 产品需求文档 PRD</h1>
+<p>版本：v1.0 状态：MVP 需求定稿 目标周期：8-10 周 文档类型：产品需求文档</p>
+<p>---</p>
+<h3 id="1-产品概述">1. 产品概述</h3>
+<h4 id="1-1-产品名称">1.1 产品名称</h4>
+<p><strong>ResearchMate</strong></p>
+<h4 id="1-2-一句话定位">1.2 一句话定位</h4>
+<p>ResearchMate 是一个支持本地资料与联网资料融合的 AI 研究学习工作台，帮助学生、自学者和知识工作者基于可信来源生成可溯源回答与测验。</p>
+<h4 id="1-3-产品目标">1.3 产品目标</h4>
+<p>ResearchMate 的目标不是做一个普通 ChatPDF，也不是做一个泛化 AI Search，而是做一个可上线、可演示、可解释的 Agent + RAG 应用：</p>
+<ul>
+<li>支持用户上传 PDF / DOCX / PPTX。</li>
+<li>支持本地资料问答，并展示来源。</li>
+<li>支持联网搜索，但默认不开联网以节省 API 成本。</li>
+<li>支持 Hybrid 模式，将本地资料与网络资料综合。</li>
+<li>支持 <code>/quiz</code> 生成选择题与简答题。</li>
+<li>支持管理员/开发者在受控后台查看 Agent trace、工具调用、检索与校验结果，普通用户界面不暴露 Trace。</li>
+<li>支持正式登录和用户数据隔离。</li>
+</ul>
+<h4 id="1-4-项目目的">1.4 项目目的</h4>
+<p>ResearchMate 同时服务两个目标：</p>
+<ol>
+<li><strong>真实产品目标</strong>：为学生、自学者和知识工作者提供一个轻量、可信、可溯源的 AI 学习/研究工具。</li>
+<li><strong>校招展示目标</strong>：展示 Agent 开发、RAG 工程、云端部署、API 安全、异步任务、可观测性、输出校验与评测能力。</li>
+</ol>
+<p>---</p>
+<h3 id="2-问题定义">2. 问题定义</h3>
+<h4 id="2-1-学生与自学者的痛点">2.1 学生与自学者的痛点</h4>
+<p>学生在期末复习、论文阅读、自学课程时常见问题：</p>
+<ul>
+<li>课程 PDF、PPT、Word 笔记分散，难以快速定位知识点。</li>
+<li>大模型能解释概念，但无法稳定基于上传资料回答。</li>
+<li>普通 ChatPDF 只能问答，缺少测验、题目、来源追踪。</li>
+<li>复习时需要知道答案来自哪一页、哪一张 slide，而不是只得到模型总结。</li>
+<li>有时本地材料不够，需要联网补充案例或最新资料。</li>
+</ul>
+<h4 id="2-2-知识工作者的痛点">2.2 知识工作者的痛点</h4>
+<p>知识工作者做研究、竞品分析、资料学习时常见问题：</p>
+<ul>
+<li>需要同时阅读本地材料和互联网信息。</li>
+<li>联网 AI 搜索容易引用不透明，难以判断来源质量。</li>
+<li>普通搜索需要手动打开多个网页、整理信息、交叉验证。</li>
+<li>研究结果需要可溯源，尤其是区分本地资料和网络资料。</li>
+</ul>
+<h4 id="2-3-现有工具不足">2.3 现有工具不足</h4>
+<table><thead><tr><th>工具类型</th><th>问题</th></tr></thead><tbody>
+<tr><td>普通 ChatGPT</td><td>可以上传文件和联网，但项目不可控，不适合作为可展示工程系统</td></tr>
+<tr><td>ChatPDF 类工具</td><td>通常只做单一文档问答，缺少联网和 Agent trace</td></tr>
+<tr><td>NotebookLM 类工具</td><td>产品成熟，但不是自研项目，难以展示后端工程细节</td></tr>
+<tr><td>Perplexity 类工具</td><td>联网强，但本地资料融合和学习测验不是核心</td></tr>
+<tr><td>自制 RAG Demo</td><td>很多只做上传文档问答，缺少产品闭环、校验和部署</td></tr>
+</tbody></table>
+<h4 id="2-4-researchmate-的切入点">2.4 ResearchMate 的切入点</h4>
+<p>ResearchMate 选择一个明确而不过度膨胀的切入点：</p>
+<blockquote>一个统一 Ask 入口，通过 Source Mode 控制资料来源，通过 slash command 控制任务类型，并对所有回答和测验提供可溯源证据。</blockquote>
+<p>---</p>
+<h3 id="3-目标用户">3. 目标用户</h3>
+<h4 id="3-1-核心用户">3.1 核心用户</h4>
+<h5 id="大学生-自学者">大学生 / 自学者</h5>
+<p>使用场景：</p>
+<ul>
+<li>上传课件 PDF / PPT。</li>
+<li>让 AI 解释某个知识点。</li>
+<li>生成选择题和简答题。</li>
+<li>根据上传资料复习 final。</li>
+<li>在本地资料不足时联网补充例子。</li>
+</ul>
+<h5 id="普通知识工作者">普通知识工作者</h5>
+<p>使用场景：</p>
+<ul>
+<li>上传内部资料或研究文档。</li>
+<li>联网检索外部信息。</li>
+<li>对比本地资料与网络资料。</li>
+<li>得到带来源的综合回答。</li>
+</ul>
+<h5 id="校招面试官-技术评审者">校招面试官 / 技术评审者</h5>
+<p>关注点：</p>
+<ul>
+<li>Agent routing 是否清晰。</li>
+<li>RAG 是否可溯源。</li>
+<li>工具调用是否有边界。</li>
+<li>是否处理 API key 安全。</li>
+<li>是否有异步任务、限流和错误路径。</li>
+<li>是否可正式上线，而不是只在本地跑通。</li>
+</ul>
+<h4 id="3-2-非目标用户">3.2 非目标用户</h4>
+<p>MVP 不服务以下用户：</p>
+<ul>
+<li>企业级多人知识库管理者。</li>
+<li>需要复杂权限管理的团队。</li>
+<li>需要在线考试系统的老师。</li>
+<li>需要自动批改和错题本的完整学习平台用户。</li>
+<li>需要浏览器自动操作的 Agent 用户。</li>
+</ul>
+<p>---</p>
+<h3 id="4-产品原则">4. 产品原则</h3>
+<h4 id="4-1-local-first-web-on-demand">4.1 Local-first, Web-on-demand</h4>
+<p>默认优先使用本地资料和已有上下文，不主动联网。只有以下情况才联网：</p>
+<ul>
+<li>用户选择 Web mode。</li>
+<li>用户选择 Hybrid mode。</li>
+<li>用户输入 <code>/search</code> 或 <code>/hybrid</code>。</li>
+<li>用户明确要求“联网”“最新”“搜索”“查官网”“查新闻”等。</li>
+<li>Hybrid 模式下本地证据不足，且用户允许联网。</li>
+</ul>
+<h4 id="4-2-mode-决定资料来源">4.2 Mode 决定资料来源</h4>
+<p>Mode 只回答一个问题：<strong>从哪里取证据？</strong></p>
+<p>支持：</p>
+<ul>
+<li>Auto</li>
+<li>Local</li>
+<li>Web</li>
+<li>Hybrid</li>
+</ul>
+<h4 id="4-3-slash-command-决定任务类型">4.3 Slash command 决定任务类型</h4>
+<p>Slash command 回答另一个问题：<strong>要做什么任务？</strong></p>
+<p>MVP 支持：</p>
+<ul>
+<li><code>/study</code></li>
+<li><code>/search</code></li>
+<li><code>/hybrid</code></li>
+<li><code>/quiz</code></li>
+</ul>
+<h4 id="4-4-回答必须可溯源">4.4 回答必须可溯源</h4>
+<p>每次回答顶部只展示：</p>
+<pre><code class="language-text">Mode: Hybrid
+Sources: 5 local chunks · 3 web pages</code></pre>
+<p>详细来源放在 Sources panel 中展开。</p>
+<h4 id="4-5-普通用户界面简单-管理员视图可追踪">4.5 普通用户界面简单，管理员视图可追踪</h4>
+<p>普通用户只看到 Mode、Sources、答案和引用，不看到 Developer Trace、tool raw payload、prompt、token/cost 明细或内部错误栈。</p>
+<p>管理员/开发者只能通过受控 Admin 页面查看 Trace，且必须经过管理员权限校验：</p>
+<ul>
+<li>routing decision</li>
+<li>tool calls</li>
+<li>retrieved chunks</li>
+<li>validation result</li>
+<li>latency</li>
+<li>token/cost estimate</li>
+</ul>
+<p>Trace 内容必须做脱敏处理，不展示 API key、OAuth token、R2 signed secret、完整系统 prompt 或可能泄露用户隐私的原始敏感字段。</p>
+<p>Trace 视图不得出现在普通用户侧边栏、普通页面导航或公开路由入口中。</p>
+<h4 id="4-6-默认节省-api-fee">4.6 默认节省 API fee</h4>
+<p>系统默认不联网，避免每次请求都消耗 Search/Crawl API。Hybrid 采用 local-first 策略。</p>
+<p>---</p>
+<h3 id="5-核心产品形态">5. 核心产品形态</h3>
+<h4 id="5-1-主要页面">5.1 主要页面</h4>
+<p>普通用户 MVP 页面：</p>
+<table><thead><tr><th>页面</th><th>说明</th></tr></thead><tbody>
+<tr><td>Ask</td><td>统一问答入口，采用成熟 AI 对话产品的双栏布局</td></tr>
+<tr><td>Library</td><td>文件上传、解析状态、文件列表</td></tr>
+<tr><td>Quiz</td><td>查看 <code>/quiz</code> 生成的测验</td></tr>
+</tbody></table>
+<p>管理员/开发者页面：</p>
+<table><thead><tr><th>页面</th><th>说明</th><th>可见性</th></tr></thead><tbody>
+<tr><td>Admin Trace Viewer</td><td>查看检索、工具调用、校验结果和错误信息</td><td>仅管理员/开发者</td></tr>
+</tbody></table>
+<p>说明：Developer Trace 不属于普通用户主要页面，不能出现在普通用户导航、侧边栏或公开入口中。MVP 只做最小 Admin Trace Viewer，不做完整 Admin Console。</p>
+<p>暂不做：</p>
+<ul>
+<li>Billing</li>
+<li>Team workspace</li>
+<li>Full settings</li>
+<li>完整 Admin console</li>
+<li>Flashcards</li>
+<li>Study plan</li>
+<li>Report editor</li>
+</ul>
+<h4 id="5-2-ask-页面">5.2 Ask 页面</h4>
+<p>Ask 页面参考 ChatGPT、Claude、Gemini 等成熟对话产品的信息架构，采用左侧 session 切换 + 右侧对话主区域的布局。</p>
+<p>页面结构：</p>
+<table><thead><tr><th>区域</th><th>说明</th></tr></thead><tbody>
+<tr><td>左侧边栏</td><td>Project / session / conversation 切换；可新建、重命名、删除会话</td></tr>
+<tr><td>右侧主区域</td><td>当前会话消息列表、回答区、Sources 展开面板</td></tr>
+<tr><td>底部输入区</td><td>Ask input、slash command、Mode selector、上传快捷入口</td></tr>
+</tbody></table>
+<p>Ask 页面包含：</p>
+<ul>
+<li>左侧 session 切换侧边栏</li>
+<li>右侧 chat message list</li>
+<li>输入框</li>
+<li>Mode selector</li>
+<li>Slash command 支持</li>
+<li>当前 project/document context</li>
+<li>回答区</li>
+<li>Sources panel</li>
+</ul>
+<p>右下角 Mode selector 只包含：</p>
+<pre><code class="language-text">Auto / Local / Web / Hybrid</code></pre>
+<p>不包含：</p>
+<ul>
+<li>Quiz</li>
+<li>Report</li>
+<li>Summary</li>
+<li>Flashcards</li>
+</ul>
+<p>这些属于任务类型，不属于资料来源。</p>
+<p>---</p>
+<h3 id="6-source-mode">6. Source Mode</h3>
+<h4 id="6-1-mode-列表">6.1 Mode 列表</h4>
+<table><thead><tr><th>Mode</th><th>说明</th><th>默认是否联网</th></tr></thead><tbody>
+<tr><td>Auto</td><td>系统判断资料来源，默认不联网</td><td>否</td></tr>
+<tr><td>Local</td><td>只使用上传资料</td><td>否</td></tr>
+<tr><td>Web</td><td>只使用联网搜索结果</td><td>是</td></tr>
+<tr><td>Hybrid</td><td>本地资料优先，必要时联网补充</td><td>条件触发</td></tr>
+</tbody></table>
+<h4 id="6-2-mode-优先级">6.2 Mode 优先级</h4>
+<p>Source Mode 解析优先级：</p>
+<ol>
+<li>Slash command</li>
+<li>用户手动选择的 Mode</li>
+<li>用户自然语言中的强信号</li>
+<li>Auto Router</li>
+<li>默认策略：不联网</li>
+</ol>
+<h4 id="6-3-auto-router-规则">6.3 Auto Router 规则</h4>
+<h5 id="local-信号">Local 信号</h5>
+<ul>
+<li>“根据我上传的文件”</li>
+<li>“根据课件”</li>
+<li>“从这份 PDF 里”</li>
+<li>“复习 final”</li>
+<li>“只看本地资料”</li>
+<li><code>/study</code></li>
+</ul>
+<h5 id="web-信号">Web 信号</h5>
+<ul>
+<li>“联网查”</li>
+<li>“搜索一下”</li>
+<li>“最新”</li>
+<li>“现在”</li>
+<li>“今年/今天/本周”</li>
+<li>“官网/新闻/价格/融资/榜单”</li>
+<li><code>/search</code></li>
+</ul>
+<h5 id="hybrid-信号">Hybrid 信号</h5>
+<ul>
+<li>“结合我上传的资料和网上资料”</li>
+<li>“根据论文和最新进展”</li>
+<li>“课件不够的话联网补充”</li>
+<li><code>/hybrid</code></li>
+</ul>
+<h4 id="6-4-hybrid-local-first-策略">6.4 Hybrid local-first 策略</h4>
+<p>Hybrid 第一版采用 local-first：</p>
+<ol>
+<li>先检索本地资料。</li>
+<li>如果本地证据足够，则不联网。</li>
+<li>如果用户明确要求最新资料，则联网补充。</li>
+<li>如果本地证据不足但用户未授权联网，提示是否开启 Web。</li>
+<li>Web evidence 作为补充，不覆盖本地课程资料。</li>
+</ol>
+<p>---</p>
+<h3 id="7-slash-commands">7. Slash Commands</h3>
+<h4 id="7-1-study">7.1 <code>/study</code></h4>
+<p>作用：强制使用 Local mode，并采用学习问答风格。</p>
+<p>示例：</p>
+<pre><code class="language-text">/study 根据这份 PPT 解释 SVM 的核心思想</code></pre>
+<p>行为：</p>
+<ul>
+<li>只查询本地资料。</li>
+<li>不联网。</li>
+<li>回答必须引用本地 page/slide/chunk。</li>
+<li>如果资料中没有答案，明确说明未找到。</li>
+</ul>
+<h4 id="7-2-search">7.2 <code>/search</code></h4>
+<p>作用：强制使用 Web mode。</p>
+<p>示例：</p>
+<pre><code class="language-text">/search 查一下 NotebookLM 最新功能</code></pre>
+<p>行为：</p>
+<ul>
+<li>调用 Search provider。</li>
+<li>抓取/读取候选网页。</li>
+<li>生成带 Web citation 的回答。</li>
+<li>不默认使用本地资料。</li>
+</ul>
+<h4 id="7-3-hybrid">7.3 <code>/hybrid</code></h4>
+<p>作用：强制使用 Hybrid mode。</p>
+<p>示例：</p>
+<pre><code class="language-text">/hybrid 根据我上传的论文，结合最新资料解释 RAG 的发展方向</code></pre>
+<p>行为：</p>
+<ul>
+<li>本地资料优先。</li>
+<li>需要时调用 Web。</li>
+<li>回答区分 local evidence 与 web evidence。</li>
+</ul>
+<h4 id="7-4-quiz">7.4 <code>/quiz</code></h4>
+<p>作用：基于当前项目资料生成测验。</p>
+<p>示例：</p>
+<pre><code class="language-text">/quiz 根据这份课件生成 5 道选择题和 3 道简答题</code></pre>
+<p>行为：</p>
+<ul>
+<li>默认 Local only。</li>
+<li>支持选择题和简答题。</li>
+<li>每题必须有答案和解析；不要求逐题绑定 source citation。</li>
+<li>不做在线答题、自动批改、错题本。</li>
+</ul>
+<p>---</p>
+<h3 id="8-quiz-功能需求">8. Quiz 功能需求</h3>
+<h4 id="8-1-mvp-支持题型">8.1 MVP 支持题型</h4>
+<table><thead><tr><th>题型</th><th>支持</th><th>说明</th></tr></thead><tbody>
+<tr><td>选择题</td><td>是</td><td>4 个选项，1 个正确答案</td></tr>
+<tr><td>简答题</td><td>是</td><td>标准答案 + 解析</td></tr>
+<tr><td>判断题</td><td>否</td><td>Phase 2 可加</td></tr>
+<tr><td>自适应题库</td><td>否</td><td>Phase 2 可加</td></tr>
+</tbody></table>
+<h4 id="8-2-quiz-输出字段">8.2 Quiz 输出字段</h4>
+<p>每道题包含：</p>
+<ul>
+<li>question</li>
+<li>type</li>
+<li>options，选择题必填</li>
+<li>answer</li>
+<li>explanation</li>
+<li>difficulty</li>
+</ul>
+<p>Quiz 输出不要求在每道题字段内包含 source citations。可在 QuizSet 层保留整体 sources summary，供用户知道本次测验基于哪些本地资料生成。</p>
+<h4 id="8-3-quiz-验收标准">8.3 Quiz 验收标准</h4>
+<ul>
+<li><code>/quiz</code> 必须生成结构化题目。</li>
+<li>选择题必须有 4 个选项。</li>
+<li>每题必须有标准答案。</li>
+<li>每题必须有解析。</li>
+<li>不要求每题绑定 source citation。</li>
+<li>如果项目没有本地资料，应提示用户先上传文件。</li>
+<li>Quiz 不出现在右下角 Mode selector 中。</li>
+</ul>
+<p>---</p>
+<h3 id="9-sources-与可溯源">9. Sources 与可溯源</h3>
+<h4 id="9-1-回答顶部">9.1 回答顶部</h4>
+<p>回答顶部只显示：</p>
+<pre><code class="language-text">Mode: Local
+Sources: 6 local chunks</code></pre>
+<p>或：</p>
+<pre><code class="language-text">Mode: Hybrid
+Sources: 5 local chunks · 3 web pages</code></pre>
+<h4 id="9-2-sources-panel">9.2 Sources panel</h4>
+<p>点击 Sources 后展开：</p>
+<h5 id="local-sources">Local sources</h5>
+<ul>
+<li>document name</li>
+<li>page number</li>
+<li>slide number</li>
+<li>chunk snippet</li>
+<li>used for which claim，Quiz 场景可只展示本次 QuizSet 使用的整体资料范围</li>
+</ul>
+<h5 id="web-sources">Web sources</h5>
+<ul>
+<li>title</li>
+<li>URL</li>
+<li>retrieved_at</li>
+<li>snippet</li>
+<li>used for which claim</li>
+</ul>
+<h4 id="9-3-admin-only-developer-trace">9.3 Admin-only Developer Trace</h4>
+<p>普通用户不看 trace。Developer Trace 只能通过 Admin 页面进入，并要求管理员/开发者权限。管理员/开发者可以查看：</p>
+<ul>
+<li>trace_id</li>
+<li>source_mode</li>
+<li>task_type</li>
+<li>router decision</li>
+<li>tool calls</li>
+<li>retrieved chunks</li>
+<li>validation result</li>
+<li>error logs</li>
+<li>latency</li>
+<li>token/cost estimate</li>
+</ul>
+<p>Trace 内容必须做脱敏处理，不展示 API key、OAuth token、R2 signed secret、完整系统 prompt 或可能泄露用户隐私的原始敏感字段。</p>
+<p>---</p>
+<h3 id="10-library-功能需求">10. Library 功能需求</h3>
+<h4 id="10-1-支持文件类型">10.1 支持文件类型</h4>
+<p>MVP 支持：</p>
+<ul>
+<li>PDF</li>
+<li>DOCX</li>
+<li>PPTX</li>
+</ul>
+<h4 id="10-2-上传限制">10.2 上传限制</h4>
+<p>MVP 默认：</p>
+<ul>
+<li>单文件 25MB</li>
+<li>限制可配置</li>
+<li>文件类型白名单</li>
+<li>MIME/type 校验</li>
+</ul>
+<h4 id="10-3-文件状态">10.3 文件状态</h4>
+<p>文件状态包括：</p>
+<ul>
+<li>uploaded</li>
+<li>parsing</li>
+<li>parsed</li>
+<li>indexing</li>
+<li>ready</li>
+<li>failed</li>
+<li>expired</li>
+<li>deleted</li>
+</ul>
+<h4 id="10-4-文件删除">10.4 文件删除</h4>
+<p>支持：</p>
+<ul>
+<li>用户手动删除项目。</li>
+<li>用户手动删除文件。</li>
+<li>默认 7 天自动过期删除。</li>
+</ul>
+<p>删除必须清理：</p>
+<ul>
+<li>Supabase Postgres metadata</li>
+<li>R2 objects</li>
+<li>Qdrant vectors</li>
+<li>Redis cache/job status</li>
+</ul>
+<p>---</p>
+<h3 id="11-登录与用户隔离">11. 登录与用户隔离</h3>
+<h4 id="11-1-登录方式">11.1 登录方式</h4>
+<p>MVP 使用 OAuth 登录：</p>
+<ul>
+<li>Google</li>
+<li>GitHub</li>
+</ul>
+<h4 id="11-2-用户隔离">11.2 用户隔离</h4>
+<p>每个用户只能访问自己的：</p>
+<ul>
+<li>projects</li>
+<li>documents</li>
+<li>chunks metadata</li>
+<li>messages</li>
+<li>quiz sets</li>
+<li>traces</li>
+</ul>
+<p>所有后端接口必须校验 user_id。</p>
+<h4 id="11-3-安全原则">11.3 安全原则</h4>
+<ul>
+<li>文件默认私有。</li>
+<li>前端不能直接访问 R2 secret。</li>
+<li>用户只能通过 signed URL 上传。</li>
+<li>访问文件预览必须经过后端权限校验或短时效 signed URL。</li>
+<li>Supabase service role key 只能放后端。</li>
+<li>所有数据库查询使用参数化查询或 ORM 安全接口，禁止字符串拼接 SQL。</li>
+<li>所有登录、OAuth callback、API 请求必须校验 token、issuer、audience、过期时间和用户状态。</li>
+<li>所有 project/document/run/quiz/trace 请求必须做 resource owner 校验。</li>
+<li>所有用户输入、文件内容、网页内容都视为 untrusted input。</li>
+<li>Retrieved content 不能覆盖 system prompt、tool policy、source policy 或权限策略。</li>
+</ul>
+<p>---</p>
+<h3 id="12-安全校验与防护要求">12. 安全校验与防护要求</h3>
+<h4 id="12-1-输入与-api-校验">12.1 输入与 API 校验</h4>
+<p>所有后端 API 必须执行统一校验：</p>
+<ul>
+<li>认证校验：拒绝无效、过期、issuer/audience 不匹配的 token。</li>
+<li>授权校验：所有资源访问都必须验证 <code>request.user_id == resource.owner_user_id</code>。</li>
+<li>Schema 校验：请求体、query 参数、path 参数必须通过 Pydantic/Zod schema。</li>
+<li>类型与范围校验：限制字符串长度、数组长度、文件大小、分页大小、mode 枚举值。</li>
+<li>速率限制：Ask、Quiz、Upload、Search、Crawl、Trace API 都需要 per-user / per-IP rate limit。</li>
+<li>错误脱敏：错误响应不返回 SQL、stack trace、secret、provider raw error。</li>
+</ul>
+<h4 id="12-2-sql-注入防护">12.2 SQL 注入防护</h4>
+<p>数据库访问必须遵守：</p>
+<ul>
+<li>禁止使用字符串拼接构造 SQL。</li>
+<li>使用参数化查询、prepared statement 或 ORM 安全 query builder。</li>
+<li>动态排序字段、filter 字段必须用 allowlist。</li>
+<li>所有多租户查询必须包含 <code>user_id</code> / <code>project_id</code> 条件。</li>
+<li>管理员接口也必须经过权限校验和审计日志。</li>
+</ul>
+<h4 id="12-3-prompt-injection-防护">12.3 Prompt Injection 防护</h4>
+<p>ResearchMate 必须默认把以下内容视为不可信：</p>
+<ul>
+<li>用户消息。</li>
+<li>上传文件内容。</li>
+<li>PDF / DOCX / PPTX 中隐藏文本。</li>
+<li>网页正文、网页标题、搜索结果 snippet。</li>
+<li>历史会话内容。</li>
+</ul>
+<p>防护要求：</p>
+<ul>
+<li>Retrieved content 只能作为 evidence，不得作为 instruction。</li>
+<li>Tool calls 只能由后端 graph / policy 节点决定，不能由网页或文档文本直接触发。</li>
+<li>Local mode 不得调用 Web tools，即使文档或用户内容要求联网。</li>
+<li>Web content 不得修改 source policy、tool policy、system prompt、权限规则或输出 schema。</li>
+<li>生成前后都要经过 SourcePolicyValidator、Schema Validator、Citation Validator。</li>
+<li>检测到提示词注入或越权指令时，应忽略该内容并记录安全事件。</li>
+</ul>
+<h4 id="12-4-登录-session-与-oauth-防护">12.4 登录、Session 与 OAuth 防护</h4>
+<ul>
+<li>OAuth callback 必须校验 state / nonce。</li>
+<li>Session token 必须校验 issuer、audience、signature、expiry。</li>
+<li>Cookie 模式需要 CSRF 防护；Bearer token 模式需要严格 CORS 和 token 存储策略。</li>
+<li>登录失败、异常 token、越权访问要记录审计日志。</li>
+<li>普通用户不能访问 Admin Trace Viewer 或 <code>/api/dev/*</code>。</li>
+</ul>
+<h4 id="12-5-文件与网页内容安全">12.5 文件与网页内容安全</h4>
+<ul>
+<li>上传文件必须做扩展名、MIME、大小三重校验。</li>
+<li>R2 object key 必须随机化，不能包含邮箱、文件原名中的敏感信息或可预测路径。</li>
+<li>不执行用户上传文件中的脚本、宏或嵌入对象。</li>
+<li>Web reader/crawler 必须限制协议、重定向、内网地址访问，防止 SSRF。</li>
+<li>外部网页抓取失败不得进入 citations 或 sources。</li>
+</ul>
+<h4 id="12-6-安全验收标准">12.6 安全验收标准</h4>
+<ul>
+<li>[ ] 普通用户无法访问 Admin Trace Viewer 和 <code>/api/dev/*</code>。</li>
+<li>[ ] 用户 A 无法访问用户 B 的 project/document/run/quiz/trace。</li>
+<li>[ ] Local mode 越权联网测试失败即阻断。</li>
+<li>[ ] SQL 注入 payload 不会改变查询语义。</li>
+<li>[ ] Prompt injection 样例不会改变 tool policy / source policy。</li>
+<li>[ ] OAuth callback 缺少或伪造 state/nonce 时被拒绝。</li>
+<li>[ ] 前端 bundle 不包含 provider secret。</li>
+<li>[ ] 错误响应不泄露 stack trace、SQL、secret。</li>
+</ul>
+<p>---</p>
+<h3 id="13-非目标">13. 非目标</h3>
+<p>MVP 不做：</p>
+<ul>
+<li>报告生成器。</li>
+<li>错题本。</li>
+<li>自动批改。</li>
+<li>自适应学习计划。</li>
+<li>Flashcards。</li>
+<li>浏览器自动操作 Agent。</li>
+<li>多 Agent 群聊。</li>
+<li>企业多租户权限。</li>
+<li>计费系统。</li>
+<li>完美 OCR。</li>
+<li>移动端 App。</li>
+</ul>
+<p>---</p>
+<h3 id="14-成功标准">14. 成功标准</h3>
+<h4 id="14-1-产品成功标准">14.1 产品成功标准</h4>
+<ul>
+<li>用户能通过 Google/GitHub 登录。</li>
+<li>用户能上传 PDF/DOCX/PPTX。</li>
+<li>文件能进入解析和索引流程。</li>
+<li>Local mode 能基于本地资料回答。</li>
+<li>Web mode 能联网检索并给出来源。</li>
+<li>Hybrid mode 能 local-first，必要时联网。</li>
+<li><code>/quiz</code> 能生成选择题和简答题。</li>
+<li>每个回答都有可展开 Sources；Quiz 可展示 QuizSet 级别 Sources，不要求逐题 source citation。</li>
+<li>用户可以手动删除项目。</li>
+<li>系统默认 7 天自动过期删除匿名/临时项目或用户项目数据，具体可配置。</li>
+</ul>
+<h4 id="14-2-工程成功标准">14.2 工程成功标准</h4>
+<ul>
+<li>前端不暴露任何 LLM/Search/Embedding/Qdrant/R2 secret。</li>
+<li>所有用户数据请求都做 user_id 校验。</li>
+<li>所有 LLM 输出经过 schema 校验。</li>
+<li>问答引用都能追溯到 chunk/page/slide/url；Quiz 保留整体资料来源 summary，不强制逐题 citation。</li>
+<li>Search/Crawl 有限流和缓存。</li>
+<li>RAG eval 可以运行。</li>
+<li>Admin-only Developer Trace 能展示 routing、retrieval、tool calls、validation，普通用户不可访问。</li>
+</ul>
+<p>---</p>
+<h3 id="15-mvp-范围">15. MVP 范围</h3>
+<h4 id="15-1-必做">15.1 必做</h4>
+<ul>
+<li>OAuth 登录：Google + GitHub。</li>
+<li>Ask 页面。</li>
+<li>Mode selector。</li>
+<li>Slash commands。</li>
+<li>Library 上传。</li>
+<li>PDF/DOCX/PPTX 解析。</li>
+<li>Qdrant 向量索引。</li>
+<li>Local/Web/Hybrid 问答。</li>
+<li><code>/quiz</code>。</li>
+<li>Sources panel。</li>
+<li>Admin-only Developer Trace。</li>
+<li>删除项目。</li>
+<li>7 天自动过期删除。</li>
+<li>API key 后端隔离。</li>
+</ul>
+<h4 id="15-2-可选">15.2 可选</h4>
+<ul>
+<li>简单 Dashboard。</li>
+<li>Cost estimate。</li>
+<li>Web crawl fallback。</li>
+<li>Eval 页面。</li>
+</ul>
+<h4 id="15-3-phase-2">15.3 Phase 2</h4>
+<ul>
+<li><code>/report</code>。</li>
+<li>Flashcards。</li>
+<li>Study plan。</li>
+<li>Answer grading。</li>
+<li>Wrong question book。</li>
+<li>独立 MCP server。</li>
+<li>Browser extension。</li>
+</ul>
+<p>---</p>
+<h3 id="16-面试-demo-脚本">16. 面试 Demo 脚本</h3>
+<h4 id="16-1-demo-1-本地资料学习">16.1 Demo 1：本地资料学习</h4>
+<ol>
+<li>登录。</li>
+<li>上传课程 PPT。</li>
+<li>等待解析完成。</li>
+<li>输入：<code>/study 根据这份 PPT 解释 RAG</code>。</li>
+<li>展示 Mode 和 Sources。</li>
+<li>展开 Sources，定位到 slide/page。</li>
+</ol>
+<h4 id="16-2-demo-2-quiz-生成">16.2 Demo 2：Quiz 生成</h4>
+<ol>
+<li>输入：<code>/quiz 生成 5 道选择题和 2 道简答题</code>。</li>
+<li>展示每题答案和解析，并展示 QuizSet 级别资料来源。</li>
+<li>展示结构化输出 schema。</li>
+</ol>
+<h4 id="16-3-demo-3-hybrid">16.3 Demo 3：Hybrid</h4>
+<ol>
+<li>上传一篇论文或课件。</li>
+<li>输入：<code>/hybrid 结合这份资料和最新网络资料解释这个方向</code>。</li>
+<li>展示 local-first 策略。</li>
+<li>展示 Sources 中 local 和 web 的区别。</li>
+</ol>
+<h4 id="16-4-demo-4-admin-only-developer-trace">16.4 Demo 4：Admin-only Developer Trace</h4>
+<ol>
+<li>使用管理员/开发者账号打开 Admin Trace Viewer。</li>
+<li>展示 SourcePolicyResolver 输出。</li>
+<li>展示 Qdrant retrieval。</li>
+<li>展示 tool calls。</li>
+<li>展示 validation result。</li>
+<li>说明普通用户无法从 Ask 页面、侧边栏或普通导航进入 Trace。</li>
+</ol>
+<p>---</p>
+<h3 id="17-参考资料">17. 参考资料</h3>
+<ul>
+<li>Supabase Auth: https://supabase.com/docs/guides/auth</li>
+<li>Supabase Google OAuth: https://supabase.com/docs/guides/auth/social-login/auth-google</li>
+<li>Supabase GitHub OAuth: https://supabase.com/docs/guides/auth/social-login/auth-github</li>
+<li>Cloudflare R2 pricing: https://developers.cloudflare.com/r2/pricing/</li>
+<li>Next.js environment variables: https://nextjs.org/docs/pages/guides/environment-variables</li>
+<li>Qdrant pricing: https://qdrant.tech/pricing/</li>
+<li>LangGraph workflow/agent docs: https://docs.langchain.com/oss/python/langgraph/workflows-agents</li>
+<li>LangChain structured output: https://docs.langchain.com/oss/javascript/langchain/structured-output</li>
+<li>Ragas metrics: https://docs.ragas.io/en/latest/concepts/metrics/</li>
+<li>OWASP Top 10 for LLM Applications: https://owasp.org/www-project-top-10-for-large-language-model-applications/</li>
+<li>OWASP Query Parameterization Cheat Sheet: https://cheatsheetseries.owasp.org/cheatsheets/Query_Parameterization_Cheat_Sheet.html</li>
+<li>OWASP ASVS / Cheat Sheet Index: https://cheatsheetseries.owasp.org/IndexASVS.html</li>
+</ul><details><summary>原始 Markdown 备份</summary><pre><code># ResearchMate 产品需求文档 PRD
+
+版本：v1.0  
+状态：MVP 需求定稿  
+目标周期：8-10 周  
+文档类型：产品需求文档  
+
+---
+
+## 1. 产品概述
+
+### 1.1 产品名称
+
+**ResearchMate**
+
+### 1.2 一句话定位
+
+ResearchMate 是一个支持本地资料与联网资料融合的 AI 研究学习工作台，帮助学生、自学者和知识工作者基于可信来源生成可溯源回答与测验。
+
+### 1.3 产品目标
+
+ResearchMate 的目标不是做一个普通 ChatPDF，也不是做一个泛化 AI Search，而是做一个可上线、可演示、可解释的 Agent + RAG 应用：
+
+- 支持用户上传 PDF / DOCX / PPTX。
+- 支持本地资料问答，并展示来源。
+- 支持联网搜索，但默认不开联网以节省 API 成本。
+- 支持 Hybrid 模式，将本地资料与网络资料综合。
+- 支持 `/quiz` 生成选择题与简答题。
+- 支持管理员/开发者在受控后台查看 Agent trace、工具调用、检索与校验结果，普通用户界面不暴露 Trace。
+- 支持正式登录和用户数据隔离。
+
+### 1.4 项目目的
+
+ResearchMate 同时服务两个目标：
+
+1. **真实产品目标**：为学生、自学者和知识工作者提供一个轻量、可信、可溯源的 AI 学习/研究工具。
+2. **校招展示目标**：展示 Agent 开发、RAG 工程、云端部署、API 安全、异步任务、可观测性、输出校验与评测能力。
+
+---
+
+## 2. 问题定义
+
+### 2.1 学生与自学者的痛点
+
+学生在期末复习、论文阅读、自学课程时常见问题：
+
+- 课程 PDF、PPT、Word 笔记分散，难以快速定位知识点。
+- 大模型能解释概念，但无法稳定基于上传资料回答。
+- 普通 ChatPDF 只能问答，缺少测验、题目、来源追踪。
+- 复习时需要知道答案来自哪一页、哪一张 slide，而不是只得到模型总结。
+- 有时本地材料不够，需要联网补充案例或最新资料。
+
+### 2.2 知识工作者的痛点
+
+知识工作者做研究、竞品分析、资料学习时常见问题：
+
+- 需要同时阅读本地材料和互联网信息。
+- 联网 AI 搜索容易引用不透明，难以判断来源质量。
+- 普通搜索需要手动打开多个网页、整理信息、交叉验证。
+- 研究结果需要可溯源，尤其是区分本地资料和网络资料。
+
+### 2.3 现有工具不足
+
+| 工具类型 | 问题 |
+|---|---|
+| 普通 ChatGPT | 可以上传文件和联网，但项目不可控，不适合作为可展示工程系统 |
+| ChatPDF 类工具 | 通常只做单一文档问答，缺少联网和 Agent trace |
+| NotebookLM 类工具 | 产品成熟，但不是自研项目，难以展示后端工程细节 |
+| Perplexity 类工具 | 联网强，但本地资料融合和学习测验不是核心 |
+| 自制 RAG Demo | 很多只做上传文档问答，缺少产品闭环、校验和部署 |
+
+### 2.4 ResearchMate 的切入点
+
+ResearchMate 选择一个明确而不过度膨胀的切入点：
+
+&gt; 一个统一 Ask 入口，通过 Source Mode 控制资料来源，通过 slash command 控制任务类型，并对所有回答和测验提供可溯源证据。
+
+---
+
+## 3. 目标用户
+
+### 3.1 核心用户
+
+#### 大学生 / 自学者
+
+使用场景：
+
+- 上传课件 PDF / PPT。
+- 让 AI 解释某个知识点。
+- 生成选择题和简答题。
+- 根据上传资料复习 final。
+- 在本地资料不足时联网补充例子。
+
+#### 普通知识工作者
+
+使用场景：
+
+- 上传内部资料或研究文档。
+- 联网检索外部信息。
+- 对比本地资料与网络资料。
+- 得到带来源的综合回答。
+
+#### 校招面试官 / 技术评审者
+
+关注点：
+
+- Agent routing 是否清晰。
+- RAG 是否可溯源。
+- 工具调用是否有边界。
+- 是否处理 API key 安全。
+- 是否有异步任务、限流和错误路径。
+- 是否可正式上线，而不是只在本地跑通。
+
+### 3.2 非目标用户
+
+MVP 不服务以下用户：
+
+- 企业级多人知识库管理者。
+- 需要复杂权限管理的团队。
+- 需要在线考试系统的老师。
+- 需要自动批改和错题本的完整学习平台用户。
+- 需要浏览器自动操作的 Agent 用户。
+
+---
+
+## 4. 产品原则
+
+### 4.1 Local-first, Web-on-demand
+
+默认优先使用本地资料和已有上下文，不主动联网。只有以下情况才联网：
+
+- 用户选择 Web mode。
+- 用户选择 Hybrid mode。
+- 用户输入 `/search` 或 `/hybrid`。
+- 用户明确要求“联网”“最新”“搜索”“查官网”“查新闻”等。
+- Hybrid 模式下本地证据不足，且用户允许联网。
+
+### 4.2 Mode 决定资料来源
+
+Mode 只回答一个问题：**从哪里取证据？**
+
+支持：
+
+- Auto
+- Local
+- Web
+- Hybrid
+
+### 4.3 Slash command 决定任务类型
+
+Slash command 回答另一个问题：**要做什么任务？**
+
+MVP 支持：
+
+- `/study`
+- `/search`
+- `/hybrid`
+- `/quiz`
+
+### 4.4 回答必须可溯源
+
+每次回答顶部只展示：
+
+```text
+Mode: Hybrid
+Sources: 5 local chunks · 3 web pages
+```
+
+详细来源放在 Sources panel 中展开。
+
+### 4.5 普通用户界面简单，管理员视图可追踪
+
+普通用户只看到 Mode、Sources、答案和引用，不看到 Developer Trace、tool raw payload、prompt、token/cost 明细或内部错误栈。
+
+管理员/开发者只能通过受控 Admin 页面查看 Trace，且必须经过管理员权限校验：
+
+- routing decision
+- tool calls
+- retrieved chunks
+- validation result
+- latency
+- token/cost estimate
+
+Trace 内容必须做脱敏处理，不展示 API key、OAuth token、R2 signed secret、完整系统 prompt 或可能泄露用户隐私的原始敏感字段。
+
+Trace 视图不得出现在普通用户侧边栏、普通页面导航或公开路由入口中。
+
+### 4.6 默认节省 API fee
+
+系统默认不联网，避免每次请求都消耗 Search/Crawl API。Hybrid 采用 local-first 策略。
+
+---
+
+## 5. 核心产品形态
+
+### 5.1 主要页面
+
+普通用户 MVP 页面：
+
+| 页面 | 说明 |
+|---|---|
+| Ask | 统一问答入口，采用成熟 AI 对话产品的双栏布局 |
+| Library | 文件上传、解析状态、文件列表 |
+| Quiz | 查看 `/quiz` 生成的测验 |
+
+管理员/开发者页面：
+
+| 页面 | 说明 | 可见性 |
+|---|---|---|
+| Admin Trace Viewer | 查看检索、工具调用、校验结果和错误信息 | 仅管理员/开发者 |
+
+说明：Developer Trace 不属于普通用户主要页面，不能出现在普通用户导航、侧边栏或公开入口中。MVP 只做最小 Admin Trace Viewer，不做完整 Admin Console。
+
+暂不做：
+
+- Billing
+- Team workspace
+- Full settings
+- 完整 Admin console
+- Flashcards
+- Study plan
+- Report editor
+
+### 5.2 Ask 页面
+
+Ask 页面参考 ChatGPT、Claude、Gemini 等成熟对话产品的信息架构，采用左侧 session 切换 + 右侧对话主区域的布局。
+
+页面结构：
+
+| 区域 | 说明 |
+|---|---|
+| 左侧边栏 | Project / session / conversation 切换；可新建、重命名、删除会话 |
+| 右侧主区域 | 当前会话消息列表、回答区、Sources 展开面板 |
+| 底部输入区 | Ask input、slash command、Mode selector、上传快捷入口 |
+
+Ask 页面包含：
+
+- 左侧 session 切换侧边栏
+- 右侧 chat message list
+- 输入框
+- Mode selector
+- Slash command 支持
+- 当前 project/document context
+- 回答区
+- Sources panel
+
+右下角 Mode selector 只包含：
+
+```text
+Auto / Local / Web / Hybrid
+```
+
+不包含：
+
+- Quiz
+- Report
+- Summary
+- Flashcards
+
+这些属于任务类型，不属于资料来源。
+
+---
+
+## 6. Source Mode
+
+### 6.1 Mode 列表
+
+| Mode | 说明 | 默认是否联网 |
+|---|---|---:|
+| Auto | 系统判断资料来源，默认不联网 | 否 |
+| Local | 只使用上传资料 | 否 |
+| Web | 只使用联网搜索结果 | 是 |
+| Hybrid | 本地资料优先，必要时联网补充 | 条件触发 |
+
+### 6.2 Mode 优先级
+
+Source Mode 解析优先级：
+
+1. Slash command
+2. 用户手动选择的 Mode
+3. 用户自然语言中的强信号
+4. Auto Router
+5. 默认策略：不联网
+
+### 6.3 Auto Router 规则
+
+#### Local 信号
+
+- “根据我上传的文件”
+- “根据课件”
+- “从这份 PDF 里”
+- “复习 final”
+- “只看本地资料”
+- `/study`
+
+#### Web 信号
+
+- “联网查”
+- “搜索一下”
+- “最新”
+- “现在”
+- “今年/今天/本周”
+- “官网/新闻/价格/融资/榜单”
+- `/search`
+
+#### Hybrid 信号
+
+- “结合我上传的资料和网上资料”
+- “根据论文和最新进展”
+- “课件不够的话联网补充”
+- `/hybrid`
+
+### 6.4 Hybrid local-first 策略
+
+Hybrid 第一版采用 local-first：
+
+1. 先检索本地资料。
+2. 如果本地证据足够，则不联网。
+3. 如果用户明确要求最新资料，则联网补充。
+4. 如果本地证据不足但用户未授权联网，提示是否开启 Web。
+5. Web evidence 作为补充，不覆盖本地课程资料。
+
+---
+
+## 7. Slash Commands
+
+### 7.1 `/study`
+
+作用：强制使用 Local mode，并采用学习问答风格。
+
+示例：
+
+```text
+/study 根据这份 PPT 解释 SVM 的核心思想
+```
+
+行为：
+
+- 只查询本地资料。
+- 不联网。
+- 回答必须引用本地 page/slide/chunk。
+- 如果资料中没有答案，明确说明未找到。
+
+### 7.2 `/search`
+
+作用：强制使用 Web mode。
+
+示例：
+
+```text
+/search 查一下 NotebookLM 最新功能
+```
+
+行为：
+
+- 调用 Search provider。
+- 抓取/读取候选网页。
+- 生成带 Web citation 的回答。
+- 不默认使用本地资料。
+
+### 7.3 `/hybrid`
+
+作用：强制使用 Hybrid mode。
+
+示例：
+
+```text
+/hybrid 根据我上传的论文，结合最新资料解释 RAG 的发展方向
+```
+
+行为：
+
+- 本地资料优先。
+- 需要时调用 Web。
+- 回答区分 local evidence 与 web evidence。
+
+### 7.4 `/quiz`
+
+作用：基于当前项目资料生成测验。
+
+示例：
+
+```text
+/quiz 根据这份课件生成 5 道选择题和 3 道简答题
+```
+
+行为：
+
+- 默认 Local only。
+- 支持选择题和简答题。
+- 每题必须有答案和解析；不要求逐题绑定 source citation。
+- 不做在线答题、自动批改、错题本。
+
+---
+
+## 8. Quiz 功能需求
+
+### 8.1 MVP 支持题型
+
+| 题型 | 支持 | 说明 |
+|---|---:|---|
+| 选择题 | 是 | 4 个选项，1 个正确答案 |
+| 简答题 | 是 | 标准答案 + 解析 |
+| 判断题 | 否 | Phase 2 可加 |
+| 自适应题库 | 否 | Phase 2 可加 |
+
+### 8.2 Quiz 输出字段
+
+每道题包含：
+
+- question
+- type
+- options，选择题必填
+- answer
+- explanation
+- difficulty
+
+Quiz 输出不要求在每道题字段内包含 source citations。可在 QuizSet 层保留整体 sources summary，供用户知道本次测验基于哪些本地资料生成。
+
+### 8.3 Quiz 验收标准
+
+- `/quiz` 必须生成结构化题目。
+- 选择题必须有 4 个选项。
+- 每题必须有标准答案。
+- 每题必须有解析。
+- 不要求每题绑定 source citation。
+- 如果项目没有本地资料，应提示用户先上传文件。
+- Quiz 不出现在右下角 Mode selector 中。
+
+---
+
+## 9. Sources 与可溯源
+
+### 9.1 回答顶部
+
+回答顶部只显示：
+
+```text
+Mode: Local
+Sources: 6 local chunks
+```
+
+或：
+
+```text
+Mode: Hybrid
+Sources: 5 local chunks · 3 web pages
+```
+
+### 9.2 Sources panel
+
+点击 Sources 后展开：
+
+#### Local sources
+
+- document name
+- page number
+- slide number
+- chunk snippet
+- used for which claim，Quiz 场景可只展示本次 QuizSet 使用的整体资料范围
+
+#### Web sources
+
+- title
+- URL
+- retrieved_at
+- snippet
+- used for which claim
+
+### 9.3 Admin-only Developer Trace
+
+普通用户不看 trace。Developer Trace 只能通过 Admin 页面进入，并要求管理员/开发者权限。管理员/开发者可以查看：
+
+- trace_id
+- source_mode
+- task_type
+- router decision
+- tool calls
+- retrieved chunks
+- validation result
+- error logs
+- latency
+- token/cost estimate
+
+Trace 内容必须做脱敏处理，不展示 API key、OAuth token、R2 signed secret、完整系统 prompt 或可能泄露用户隐私的原始敏感字段。
+
+---
+
+## 10. Library 功能需求
+
+### 10.1 支持文件类型
+
+MVP 支持：
+
+- PDF
+- DOCX
+- PPTX
+
+### 10.2 上传限制
+
+MVP 默认：
+
+- 单文件 25MB
+- 限制可配置
+- 文件类型白名单
+- MIME/type 校验
+
+### 10.3 文件状态
+
+文件状态包括：
+
+- uploaded
+- parsing
+- parsed
+- indexing
+- ready
+- failed
+- expired
+- deleted
+
+### 10.4 文件删除
+
+支持：
+
+- 用户手动删除项目。
+- 用户手动删除文件。
+- 默认 7 天自动过期删除。
+
+删除必须清理：
+
+- Supabase Postgres metadata
+- R2 objects
+- Qdrant vectors
+- Redis cache/job status
+
+---
+
+## 11. 登录与用户隔离
+
+### 11.1 登录方式
+
+MVP 使用 OAuth 登录：
+
+- Google
+- GitHub
+
+### 11.2 用户隔离
+
+每个用户只能访问自己的：
+
+- projects
+- documents
+- chunks metadata
+- messages
+- quiz sets
+- traces
+
+所有后端接口必须校验 user_id。
+
+### 11.3 安全原则
+
+- 文件默认私有。
+- 前端不能直接访问 R2 secret。
+- 用户只能通过 signed URL 上传。
+- 访问文件预览必须经过后端权限校验或短时效 signed URL。
+- Supabase service role key 只能放后端。
+- 所有数据库查询使用参数化查询或 ORM 安全接口，禁止字符串拼接 SQL。
+- 所有登录、OAuth callback、API 请求必须校验 token、issuer、audience、过期时间和用户状态。
+- 所有 project/document/run/quiz/trace 请求必须做 resource owner 校验。
+- 所有用户输入、文件内容、网页内容都视为 untrusted input。
+- Retrieved content 不能覆盖 system prompt、tool policy、source policy 或权限策略。
+
+---
+
+## 12. 安全校验与防护要求
+
+### 12.1 输入与 API 校验
+
+所有后端 API 必须执行统一校验：
+
+- 认证校验：拒绝无效、过期、issuer/audience 不匹配的 token。
+- 授权校验：所有资源访问都必须验证 `request.user_id == resource.owner_user_id`。
+- Schema 校验：请求体、query 参数、path 参数必须通过 Pydantic/Zod schema。
+- 类型与范围校验：限制字符串长度、数组长度、文件大小、分页大小、mode 枚举值。
+- 速率限制：Ask、Quiz、Upload、Search、Crawl、Trace API 都需要 per-user / per-IP rate limit。
+- 错误脱敏：错误响应不返回 SQL、stack trace、secret、provider raw error。
+
+### 12.2 SQL 注入防护
+
+数据库访问必须遵守：
+
+- 禁止使用字符串拼接构造 SQL。
+- 使用参数化查询、prepared statement 或 ORM 安全 query builder。
+- 动态排序字段、filter 字段必须用 allowlist。
+- 所有多租户查询必须包含 `user_id` / `project_id` 条件。
+- 管理员接口也必须经过权限校验和审计日志。
+
+### 12.3 Prompt Injection 防护
+
+ResearchMate 必须默认把以下内容视为不可信：
+
+- 用户消息。
+- 上传文件内容。
+- PDF / DOCX / PPTX 中隐藏文本。
+- 网页正文、网页标题、搜索结果 snippet。
+- 历史会话内容。
+
+防护要求：
+
+- Retrieved content 只能作为 evidence，不得作为 instruction。
+- Tool calls 只能由后端 graph / policy 节点决定，不能由网页或文档文本直接触发。
+- Local mode 不得调用 Web tools，即使文档或用户内容要求联网。
+- Web content 不得修改 source policy、tool policy、system prompt、权限规则或输出 schema。
+- 生成前后都要经过 SourcePolicyValidator、Schema Validator、Citation Validator。
+- 检测到提示词注入或越权指令时，应忽略该内容并记录安全事件。
+
+### 12.4 登录、Session 与 OAuth 防护
+
+- OAuth callback 必须校验 state / nonce。
+- Session token 必须校验 issuer、audience、signature、expiry。
+- Cookie 模式需要 CSRF 防护；Bearer token 模式需要严格 CORS 和 token 存储策略。
+- 登录失败、异常 token、越权访问要记录审计日志。
+- 普通用户不能访问 Admin Trace Viewer 或 `/api/dev/*`。
+
+### 12.5 文件与网页内容安全
+
+- 上传文件必须做扩展名、MIME、大小三重校验。
+- R2 object key 必须随机化，不能包含邮箱、文件原名中的敏感信息或可预测路径。
+- 不执行用户上传文件中的脚本、宏或嵌入对象。
+- Web reader/crawler 必须限制协议、重定向、内网地址访问，防止 SSRF。
+- 外部网页抓取失败不得进入 citations 或 sources。
+
+### 12.6 安全验收标准
+
+- [ ] 普通用户无法访问 Admin Trace Viewer 和 `/api/dev/*`。
+- [ ] 用户 A 无法访问用户 B 的 project/document/run/quiz/trace。
+- [ ] Local mode 越权联网测试失败即阻断。
+- [ ] SQL 注入 payload 不会改变查询语义。
+- [ ] Prompt injection 样例不会改变 tool policy / source policy。
+- [ ] OAuth callback 缺少或伪造 state/nonce 时被拒绝。
+- [ ] 前端 bundle 不包含 provider secret。
+- [ ] 错误响应不泄露 stack trace、SQL、secret。
+
+---
+
+## 13. 非目标
+
+MVP 不做：
+
+- 报告生成器。
+- 错题本。
+- 自动批改。
+- 自适应学习计划。
+- Flashcards。
+- 浏览器自动操作 Agent。
+- 多 Agent 群聊。
+- 企业多租户权限。
+- 计费系统。
+- 完美 OCR。
+- 移动端 App。
+
+---
+
+## 14. 成功标准
+
+### 14.1 产品成功标准
+
+- 用户能通过 Google/GitHub 登录。
+- 用户能上传 PDF/DOCX/PPTX。
+- 文件能进入解析和索引流程。
+- Local mode 能基于本地资料回答。
+- Web mode 能联网检索并给出来源。
+- Hybrid mode 能 local-first，必要时联网。
+- `/quiz` 能生成选择题和简答题。
+- 每个回答都有可展开 Sources；Quiz 可展示 QuizSet 级别 Sources，不要求逐题 source citation。
+- 用户可以手动删除项目。
+- 系统默认 7 天自动过期删除匿名/临时项目或用户项目数据，具体可配置。
+
+### 14.2 工程成功标准
+
+- 前端不暴露任何 LLM/Search/Embedding/Qdrant/R2 secret。
+- 所有用户数据请求都做 user_id 校验。
+- 所有 LLM 输出经过 schema 校验。
+- 问答引用都能追溯到 chunk/page/slide/url；Quiz 保留整体资料来源 summary，不强制逐题 citation。
+- Search/Crawl 有限流和缓存。
+- RAG eval 可以运行。
+- Admin-only Developer Trace 能展示 routing、retrieval、tool calls、validation，普通用户不可访问。
+
+---
+
+## 15. MVP 范围
+
+### 15.1 必做
+
+- OAuth 登录：Google + GitHub。
+- Ask 页面。
+- Mode selector。
+- Slash commands。
+- Library 上传。
+- PDF/DOCX/PPTX 解析。
+- Qdrant 向量索引。
+- Local/Web/Hybrid 问答。
+- `/quiz`。
+- Sources panel。
+- Admin-only Developer Trace。
+- 删除项目。
+- 7 天自动过期删除。
+- API key 后端隔离。
+
+### 15.2 可选
+
+- 简单 Dashboard。
+- Cost estimate。
+- Web crawl fallback。
+- Eval 页面。
+
+### 15.3 Phase 2
+
+- `/report`。
+- Flashcards。
+- Study plan。
+- Answer grading。
+- Wrong question book。
+- 独立 MCP server。
+- Browser extension。
+
+---
+
+## 16. 面试 Demo 脚本
+
+### 16.1 Demo 1：本地资料学习
+
+1. 登录。
+2. 上传课程 PPT。
+3. 等待解析完成。
+4. 输入：`/study 根据这份 PPT 解释 RAG`。
+5. 展示 Mode 和 Sources。
+6. 展开 Sources，定位到 slide/page。
+
+### 16.2 Demo 2：Quiz 生成
+
+1. 输入：`/quiz 生成 5 道选择题和 2 道简答题`。
+2. 展示每题答案和解析，并展示 QuizSet 级别资料来源。
+3. 展示结构化输出 schema。
+
+### 16.3 Demo 3：Hybrid
+
+1. 上传一篇论文或课件。
+2. 输入：`/hybrid 结合这份资料和最新网络资料解释这个方向`。
+3. 展示 local-first 策略。
+4. 展示 Sources 中 local 和 web 的区别。
+
+### 16.4 Demo 4：Admin-only Developer Trace
+
+1. 使用管理员/开发者账号打开 Admin Trace Viewer。
+2. 展示 SourcePolicyResolver 输出。
+3. 展示 Qdrant retrieval。
+4. 展示 tool calls。
+5. 展示 validation result。
+6. 说明普通用户无法从 Ask 页面、侧边栏或普通导航进入 Trace。
+
+---
+
+## 17. 参考资料
+
+- Supabase Auth: https://supabase.com/docs/guides/auth
+- Supabase Google OAuth: https://supabase.com/docs/guides/auth/social-login/auth-google
+- Supabase GitHub OAuth: https://supabase.com/docs/guides/auth/social-login/auth-github
+- Cloudflare R2 pricing: https://developers.cloudflare.com/r2/pricing/
+- Next.js environment variables: https://nextjs.org/docs/pages/guides/environment-variables
+- Qdrant pricing: https://qdrant.tech/pricing/
+- LangGraph workflow/agent docs: https://docs.langchain.com/oss/python/langgraph/workflows-agents
+- LangChain structured output: https://docs.langchain.com/oss/javascript/langchain/structured-output
+- Ragas metrics: https://docs.ragas.io/en/latest/concepts/metrics/
+- OWASP Top 10 for LLM Applications: https://owasp.org/www-project-top-10-for-large-language-model-applications/
+- OWASP Query Parameterization Cheat Sheet: https://cheatsheetseries.owasp.org/cheatsheets/Query_Parameterization_Cheat_Sheet.html
+- OWASP ASVS / Cheat Sheet Index: https://cheatsheetseries.owasp.org/IndexASVS.html
+</code></pre></details></article>
+    </div>
+  </main>
+</body>
+</html>
