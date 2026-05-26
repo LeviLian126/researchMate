@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="zh-CN" data-mode="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ResearchMate 项目主入口</title>
+  <link rel="stylesheet" href="handoff/assets/site.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">跳到正文</a>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">ResearchMate Docs</p>
+      <h1>ResearchMate 项目主入口</h1>
+    </div>
+    <nav aria-label="章节">
+      <a href="#resume">总览</a>
+      <a href="#validation">校验</a>
+      <a href="#next-step">Next Step</a>
+      <a href="#sources">Source audit</a>
+      <button type="button" id="mode-toggle">切换主题</button>
+    </nav>
+  </header>
+
+  <main id="main">
+    <section id="resume" class="hero panel">
+      <div>
+        <p class="eyebrow">恢复摘要</p>
+        <h2>本地 MVP 质量门通过，生产上线仍需接入真实云服务</h2>
+        <p class="lead">本页合并旧版总览与 <code>docs/handoff/index.html</code> agent dashboard。后续项目文档以本页为唯一主入口，其他 HTML 作为子页面维护。</p>
+      </div>
+      <div class="status-grid" aria-label="状态摘要">
+        <div><span>分支</span><strong>main</strong></div>
+        <div><span>质量门</span><strong>PASS</strong></div>
+        <div><span>安全审计</span><strong>PASS_WITH_CONCERNS</strong></div>
+        <div><span>Completion status</span><strong>DONE_WITH_CONCERNS</strong></div>
+      </div>
+    </section>
+
+    <section id="start-here" class="panel">
+      <div class="section-head"><p class="eyebrow">Agent start-here</p><h2>继续开发前先读这里</h2></div>
+      <div class="copy-box"><pre><code id="resume-prompt">先阅读 docs/index.html、docs/handoff/context-state.json。继续开发前运行 npm run check:all，检查 git diff，不要提交真实 secret；上线前把 dev token、in-memory store、demo provider 替换为 Supabase/R2/Qdrant/Redis/真实 LLM 与搜索服务。</code></pre><button type="button" data-copy="resume-prompt">复制提示词</button></div>
+      <ul class="inline-list">
+        <li>gstack 07 Test Plan：通过</li>
+        <li>gstack 08 Security Checklist：通过但有上线替换项</li>
+        <li>gstack 09 CI/CD Plan：已升级质量门</li>
+        <li>gstack 10 Runbook：见 Next Step</li>
+      </ul>
+    </section>
+
+    <section id="next-actions" class="panel">
+      <div class="section-head"><p class="eyebrow">按上线解锁价值排序</p><h2>Next actions</h2></div>
+      <ol>
+        <li>在 GitHub Secrets / 部署平台 Secret Manager 填入真实 Supabase、R2、Qdrant、Redis、LLM、Search/Crawl API。</li>
+        <li>把 API 的 dev token、in-memory store、demo web evidence、deterministic answer/quiz fallback 替换为真实 adapter。</li>
+        <li>保留当前 CI 质量门，并按选定平台新增 deploy job 或连接托管平台自动部署。</li>
+        <li>上线后运行 <code>/api/v1/healthz</code>、登录/上传/解析/Ask/Quiz/Trace 冒烟测试，再进入 canary 观察。</li>
+      </ol>
+    </section>
+
+    <section id="blockers" class="panel">
+      <div class="section-head"><p class="eyebrow">上线阻塞</p><h2>阻塞项与外部依赖</h2></div>
+      <ul class="risk-list">
+        <li>生产 secrets 尚未配置，这是上线前必须由仓库 owner 在 GitHub / 部署平台中填写的内容。</li>
+        <li>生产数据层尚未从本地 adapter 切到 Supabase/R2/Qdrant/Redis。</li>
+        <li>真实搜索与网页读取 provider 尚未接入；Auto 默认仍应保持 local-first。</li>
+      </ul>
+    </section>
+
+    <section id="files" class="panel">
+      <div class="section-head"><p class="eyebrow">文档入口</p><h2>子页面索引</h2></div>
+      <div class="table-wrap"><table><thead><tr><th>页面</th><th>用途</th></tr></thead><tbody>
+        <tr><td><a href="researchmate-prd.html">PRD</a></td><td>产品范围、目标用户、MVP 边界。</td></tr>
+        <tr><td><a href="researchmate-architecture.html">Architecture</a></td><td>模块边界、数据流、运行时组件和安全模型。</td></tr>
+        <tr><td><a href="api-spec.html">API Spec</a> / <a href="openapi-spec.html">OpenAPI</a></td><td>前后端契约、错误模型、鉴权和机器可读 OpenAPI。</td></tr>
+        <tr><td><a href="db-schema.html">DB Schema</a></td><td>Supabase 表结构、RLS、索引和迁移边界。</td></tr>
+        <tr><td><a href="ui-page-spec.html">UI Page Spec</a></td><td>Ask、Library、Quiz、Trace 页面行为。</td></tr>
+        <tr><td><a href="test-plan.html">Test Plan</a></td><td>自动化测试、手动冒烟、回归与上线补测。</td></tr>
+        <tr><td><a href="security-checklist.html">Security Checklist</a></td><td>密钥、权限、依赖、LLM 安全和上线冻结条件。</td></tr>
+        <tr><td><a href="execution-plan.html">Execution Plan</a></td><td>模块拆分、验收标准和 multi-agent 执行边界。</td></tr>
+        <tr><td><a href="handoff/index.html">Agent Handoff 子页面</a></td><td>保留给 agent-context-html 校验和兼容工具读取。</td></tr>
+      </tbody></table></div>
+    </section>
+
+    <section id="repo-map" class="panel split">
+      <div>
+        <div class="section-head"><p class="eyebrow">Repo map</p><h2>项目结构</h2></div>
+        <pre class="tree"><code>researchMate/
+  apps/api/          FastAPI API、routers、schemas、local services
+  apps/web/          Next.js App Router 前端
+  workers/ai-worker/ worker 抽象与本地 fallback
+  packages/shared/   前后端共享契约
+  infra/             OpenAPI、Supabase migration、Qdrant schema
+  docs/              HTML-only 项目文档，index.html 为主入口
+  tests/             scaffold、API workflow、frontend contract 测试</code></pre>
+      </div>
+      <div>
+        <div class="section-head"><p class="eyebrow">质量门</p><h2>当前结论</h2></div>
+        <ul>
+          <li><strong>完整性：</strong>通过。API、前端页面、测试、OpenAPI、docs 入口齐全。</li>
+          <li><strong>安全性：</strong>本地阶段通过；生产仍需真实 auth/RLS/secret manager。</li>
+          <li><strong>docs 要求：</strong>通过。docs 保持 HTML-only，主入口合并为 <code>docs/index.html</code>。</li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="handoff" class="panel">
+      <div class="section-head"><p class="eyebrow">Handoff ledger</p><h2>本轮校验与修复</h2></div>
+      <ul>
+        <li>同步最新项目副本到 Git 工作区，保留远端历史。</li>
+        <li>补充 <code>httpx</code> 测试依赖，修复 ruff 导入问题。</li>
+        <li>升级 Next 到 <code>16.3.0-canary.29</code> 并固定 PostCSS 安全版本，npm audit 归零。</li>
+        <li>增强 GitHub Actions：Python 3.13 + Node 22，运行完整 <code>npm run check:all</code>。</li>
+        <li>合并文档主入口，删除旧主入口歧义。</li>
+      </ul>
+    </section>
+
+    <section id="validation" class="panel">
+      <div class="section-head"><p class="eyebrow">Validation and commands</p><h2>gstack 07-10 校验结果</h2></div>
+      <h3>已运行并通过</h3>
+      <ul>
+        <li><code>npm run check:all</code> -&gt; 18 passed、handoff validation passed、ruff passed、Next build passed、npm audit 0 vulnerabilities。</li>
+        <li><code>python skill/agent-context-html/scripts/validate_context_dashboard.py docs/handoff</code> -&gt; passed。</li>
+        <li>OpenAPI/API coverage smoke -&gt; passed。</li>
+        <li>docs HTML-only scan -&gt; passed。</li>
+        <li>secret 粗筛 -&gt; 仅命中 <code>.env.example</code> 占位值。</li>
+      </ul>
+      <h3>生产未运行项</h3>
+      <ul>
+        <li>真实 Supabase/R2/Qdrant/Redis/provider 集成测试：等待 secrets 和云服务。</li>
+        <li>真实浏览器登录态与生产域名 canary：等待部署 URL。</li>
+      </ul>
+    </section>
+
+    <section id="risks" class="panel">
+      <div class="section-head"><p class="eyebrow">Risks</p><h2>风险与假设</h2></div>
+      <ul class="risk-list">
+        <li>Next 使用 canary 版本是为了规避当前 stable 依赖的 PostCSS 漏洞；后续 stable 发布修复后应切回稳定版。</li>
+        <li>本地 deterministic answer/quiz 是可测试 fallback，不代表真实 LLM 质量。</li>
+        <li>in-memory store 只适合本地测试，不适合生产。</li>
+        <li>真实 search/crawl provider 需要 source policy、失败隔离、成本限制和引用校验。</li>
+      </ul>
+    </section>
+
+    <section id="decision-gates" class="panel">
+      <div class="section-head"><p class="eyebrow">Decision gates</p><h2>停止条件</h2></div>
+      <ul class="risk-list">
+        <li>任何真实 secret 要进入仓库时，必须停止，改用 GitHub Secrets 或部署平台 Secret Manager。</li>
+        <li>Auto 默认要改成联网时，必须先做隐私、成本和安全评审。</li>
+        <li>普通用户需要访问 Developer Trace 时，必须先重做权限设计与测试。</li>
+        <li>修改 owner isolation、RLS、signed URL 或删除逻辑时，必须先补隔离和清理测试。</li>
+        <li>CI 任一质量门失败时，不允许部署到生产。</li>
+      </ul>
+    </section>
+
+    <section id="next-step" class="panel">
+      <div class="section-head"><p class="eyebrow">Next Step</p><h2>如何用 GitHub Actions 提交并部署上线</h2></div>
+      <h3>提交与 CI</h3>
+      <ol>
+        <li>本地创建分支并提交：<code>git checkout -b feature/your-change</code>，修改后运行 <code>npm run check:all</code>。</li>
+        <li>推送分支：<code>git push -u origin feature/your-change</code>。</li>
+        <li>在 GitHub 打开 Pull Request，进入 <strong>Actions</strong> 标签查看 <code>quality-gate</code>。</li>
+        <li>只有 quality-gate 通过后再合并到 <code>main</code>。</li>
+      </ol>
+      <h3>部署方式</h3>
+      <p>当前仓库已有 CI 质量门，还没有绑定真实生产平台。建议先用托管平台接入 GitHub，再把部署密钥放到 GitHub Secrets 或平台 Secret Manager。</p>
+      <div class="table-wrap"><table><thead><tr><th>组件</th><th>建议部署</th><th>启动命令 / 配置</th></tr></thead><tbody>
+        <tr><td>Frontend</td><td>Vercel / Netlify / Cloudflare Pages</td><td><code>npm install</code>，<code>npm --workspace @researchmate/web run build</code>，环境变量 <code>NEXT_PUBLIC_API_BASE_URL</code></td></tr>
+        <tr><td>API</td><td>Render / Fly.io / Railway / Azure Container Apps</td><td><code>python -m uvicorn researchmate_api.main:app --app-dir apps/api/src --host 0.0.0.0 --port $PORT</code></td></tr>
+        <tr><td>AI Worker</td><td>同 API 平台的 worker service / container</td><td>接收 parse/index/crawl/eval/delete jobs，生产读取 R2 并写 Supabase/Qdrant/Redis。</td></tr>
+        <tr><td>Database/Auth</td><td>Supabase</td><td>执行 <code>infra/supabase/migrations/202605260001_initial_schema.sql</code>，开启 RLS 与 Auth。</td></tr>
+        <tr><td>Vector DB</td><td>Qdrant Cloud / self-hosted</td><td>创建 <code>researchmate_chunks</code> collection，查询必须带 <code>user_id</code> / <code>project_id</code> filter。</td></tr>
+        <tr><td>Cache/Queue</td><td>Upstash Redis / Redis Cloud</td><td>保存 job 状态、短期 cache、限流和幂等键。</td></tr>
+        <tr><td>Object Storage</td><td>Cloudflare R2</td><td>创建私有 bucket，后端签发 upload/download URL。</td></tr>
+      </tbody></table></div>
+      <h3>需要填写的 API / Secrets</h3>
+      <div class="table-wrap"><table><thead><tr><th>类别</th><th>变量名</th><th>说明</th></tr></thead><tbody>
+        <tr><td>Supabase</td><td><code>SUPABASE_URL</code>, <code>SUPABASE_ANON_KEY</code>, <code>SUPABASE_SERVICE_ROLE_KEY</code>, <code>SUPABASE_JWT_ISSUER</code>, <code>SUPABASE_JWT_AUDIENCE</code></td><td>Auth、Postgres、RLS 与后端服务角色。</td></tr>
+        <tr><td>R2</td><td><code>R2_ACCOUNT_ID</code>, <code>R2_BUCKET</code>, <code>R2_ACCESS_KEY_ID</code>, <code>R2_SECRET_ACCESS_KEY</code>, <code>R2_ENDPOINT</code></td><td>文件上传、解析输入和对象生命周期。</td></tr>
+        <tr><td>Qdrant</td><td><code>QDRANT_URL</code>, <code>QDRANT_API_KEY</code>, <code>QDRANT_COLLECTION</code></td><td>向量检索和项目隔离 filter。</td></tr>
+        <tr><td>Redis</td><td><code>REDIS_URL</code></td><td>job state、cache、rate limit。</td></tr>
+        <tr><td>LLM</td><td><code>OPENAI_API_KEY</code>, <code>OPENAI_BASE_URL</code>, <code>LLM_MODEL</code>, <code>EMBEDDING_MODEL</code></td><td>回答、quiz、embedding；也可替换为兼容 OpenAI API 的 provider。</td></tr>
+        <tr><td>Search/Crawl</td><td><code>SERPER_API_KEY</code> 或 <code>TAVILY_API_KEY</code>, <code>JINA_API_KEY</code> 或 <code>FIRECRAWL_API_KEY</code></td><td>Web search/read provider；Auto 默认仍保持 local-first。</td></tr>
+        <tr><td>Frontend</td><td><code>NEXT_PUBLIC_API_BASE_URL</code></td><td>前端访问 API 的公开 base URL。</td></tr>
+        <tr><td>部署平台</td><td><code>VERCEL_TOKEN</code> / <code>RENDER_API_KEY</code> / 对应平台 token</td><td>如果用 GitHub Actions 主动部署，需要填对应平台 token。</td></tr>
+      </tbody></table></div>
+      <h3>上线后健康检查</h3>
+      <ol>
+        <li>打开 <code>GET /api/v1/healthz</code> 确认 API 存活。</li>
+        <li>用真实账号登录，创建 project，上传文件，等待 parse/index job 成功。</li>
+        <li>运行 Local Ask，确认 citations 全部来自当前用户项目。</li>
+        <li>运行 Hybrid Ask，确认 web evidence 只有通过 source policy 的内容进入 citations。</li>
+        <li>生成 Quiz，确认题目、答案、解释和引用完整。</li>
+        <li>用普通用户访问 Developer Trace，应返回 403；developer/admin 才能访问。</li>
+      </ol>
+    </section>
+
+    <section id="context-health" class="panel">
+      <div class="section-head"><p class="eyebrow">Context health</p><h2>上下文健康度</h2></div>
+      <div class="status-grid">
+        <div><span>confidence</span><strong>high</strong></div>
+        <div><span>freshness</span><strong>post-quality-gate</strong></div>
+        <div><span>source coverage</span><strong>docs/code/tests/CI</strong></div>
+        <div><span>dirty tree</span><strong>true</strong></div>
+      </div>
+      <p>缺失来源：真实 .env secrets、真实部署日志、生产 provider 集成测试。缺失原因是这些内容应由 owner 在上线阶段填写，不能进入仓库。</p>
+    </section>
+
+    <section id="completion-status" class="panel">
+      <div class="section-head"><p class="eyebrow">Completion status</p><h2>DONE_WITH_CONCERNS</h2></div>
+      <p>本地完整性、安全粗筛、docs 合规和 CI 质量门已通过；生产上线仍依赖真实云服务、secret 配置和部署平台选择。</p>
+    </section>
+
+    <section id="sources" class="panel">
+      <div class="section-head"><p class="eyebrow">Source audit</p><h2>来源审计</h2></div>
+      <ul>
+        <li><code>skill/gstack/intro/index.html</code>：确认 07-10 为 Test Plan、Security Checklist、CI/CD Plan、Runbook。</li>
+        <li><code>skill/agent-context-html/SKILL.md</code> 与 references：确认 HTML dashboard 和 source audit 要求。</li>
+        <li><code>README.md</code>、<code>AGENTS.md</code>、<code>docs/*.html</code>：确认项目边界、上线替换点和 HTML-only 规则。</li>
+        <li><code>package.json</code>、<code>.github/workflows/ci.yml</code>、<code>requirements-dev.txt</code>：确认质量门和依赖。</li>
+        <li><code>tests/</code>、<code>apps/api/</code>、<code>apps/web/</code>、<code>infra/openapi/openapi.yaml</code>：确认代码与契约覆盖。</li>
+      </ul>
+    </section>
+  </main>
+  <script src="handoff/assets/site.js"></script>
+</body>
+</html>

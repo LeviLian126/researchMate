@@ -1,7 +1,7 @@
 [project]
 name = "researchmate-api"
 version = "0.1.0"
-description = "FastAPI contract shell for ResearchMate"
+description = "FastAPI local MVP API for ResearchMate with swappable provider adapters"
 requires-python = ">=3.13"
 dependencies = [
   "fastapi>=0.128.0",

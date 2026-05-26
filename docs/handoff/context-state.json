@@ -1,131 +1,178 @@
 {
-  "schema_version": "1.0",
-  "generated_at": "2026-05-26T17:41:35+08:00",
+  "schema_version": "1.1",
+  "generated_at": "2026-05-26T15:08:10.869Z",
   "repo": "researchMate",
-  "branch": "unknown",
+  "repo_path": "D:\\project\\researchMate\\scratch",
+  "branch": "main",
   "status": "dirty",
-  "confidence": "medium",
-  "objective": "Maintain ResearchMate as an agent-friendly HTML documentation set with Markdown sources migrated into HANDOFF.html and linked subpages.",
+  "confidence": "high",
+  "objective": "完成 ResearchMate 最新改动的 gstack 07-10 校验，合并 docs 主入口，保留 agent-context-html 兼容子页面，并记录 GitHub Actions 上线 next step。",
   "next_actions": [
-    {
-      "priority": "P0",
-      "action": "Use docs/HANDOFF.html as the documentation entry point.",
-      "done_signal": "Agent can reach PRD, Architecture, API, DB, UI, Process, OpenAPI, and Plan from the header."
-    },
-    {
-      "priority": "P0",
-      "action": "Do not add new Markdown files under docs.",
-      "done_signal": "Get-ChildItem docs -Recurse -Filter *.md returns zero files."
-    },
-    {
-      "priority": "P1",
-      "action": "When API fields change, update infra/openapi/openapi.yaml and docs/openapi-spec.html together.",
-      "done_signal": "Contract tests and handoff validation pass."
-    }
+    "在 GitHub Secrets / 部署平台 Secret Manager 填入 Supabase、R2、Qdrant、Redis、LLM、Search/Crawl API。",
+    "把 API dev token、in-memory store、demo web evidence、deterministic answer/quiz fallback 替换为生产 adapter。",
+    "按 docs/index.html 的 Next Step 选择部署平台并补充 deploy job 或托管平台自动部署。",
+    "部署后运行 healthz、登录、上传、解析、Ask、Hybrid、Quiz、Trace 权限冒烟测试。"
   ],
   "blockers": [
-    {
-      "severity": "risky",
-      "item": "Current directory is not a git repository, so branch and dirty state are inferred.",
-      "owner": "human"
-    },
-    {
-      "severity": "unknown",
-      "item": "No real Supabase/R2/Qdrant/Redis credentials are configured.",
-      "owner": "future deployment agent"
-    }
+    "真实 Supabase/R2/Qdrant/Redis/provider secrets 未配置，不能进入仓库。",
+    "生产数据层尚未从本地 adapter 切换到云端服务。",
+    "真实部署日志和生产域名 canary 测试尚未产生。"
   ],
   "changed_files": [
-    ".env.example",
-    ".gitignore",
+    ".github/workflows/ci.yml",
     "AGENTS.md",
     "README.md",
+    "apps/api/src/researchmate_api/dependencies.py",
     "apps/api/src/researchmate_api/main.py",
-    "docs/api-spec.html",
-    "docs/db-schema.html",
-    "docs/execution-plan.html",
-    "docs/HANDOFF.html",
-    "docs/ui-page-spec.html",
-    "docs/handoff/assets/site.js",
+    "apps/api/src/researchmate_api/routers/ask.py",
+    "apps/api/src/researchmate_api/routers/documents.py",
+    "apps/api/src/researchmate_api/routers/projects.py",
+    "apps/api/src/researchmate_api/routers/quiz.py",
+    "apps/api/src/researchmate_api/services/answering.py",
+    "apps/api/src/researchmate_api/services/quiz_generation.py",
+    "apps/api/src/researchmate_api/services/retrieval.py",
+    "apps/api/src/researchmate_api/services/source_policy.py",
+    "apps/api/src/researchmate_api/services/store.py",
+    "apps/web/app/app/page.tsx",
+    "apps/web/app/app/projects/[projectId]/page.tsx",
+    "apps/web/app/dev/traces/[traceId]/page.tsx",
+    "apps/web/app/lib/api.ts",
+    "apps/web/package.json",
+    "docs/index.html",
     "docs/handoff/index.html",
-    "docs/openapi-spec.html",
-    "infra/openapi/openapi.yaml and docs/openapi-spec.html",
-    "docs/project-development-process.html",
-    "docs/researchmate-architecture.html",
-    "docs/researchmate-prd.html",
+    "docs/handoff/context-state.json",
+    "docs/security-checklist.html",
+    "docs/test-plan.html",
     "infra/openapi/openapi.yaml",
-    "infra/supabase/migrations/202605260001_initial_schema.sql",
     "package.json",
+    "package-lock.json",
     "packages/shared/src/contracts.ts",
     "requirements-dev.txt",
     "scripts/repair_docs_html_encoding.py",
-    "skill/agent-context-html/SKILL.md",
-    "tests/test_project_scaffold.py"
+    "tests/conftest.py",
+    "tests/test_api_workflow.py",
+    "tests/test_frontend_contracts.py"
   ],
   "important_files": [
-    "docs/HANDOFF.html",
-    "docs/handoff/index.html",
-    "docs/researchmate-prd.html",
-    "docs/researchmate-architecture.html",
-    "docs/project-development-process.html",
-    "docs/api-spec.html",
-    "docs/openapi-spec.html",
-    "docs/db-schema.html",
-    "docs/ui-page-spec.html",
-    "docs/execution-plan.html",
-    "infra/openapi/openapi.yaml"
+    "README.md",
+    "AGENTS.md",
+    "apps/api/src/researchmate_api/main.py",
+    "apps/api/src/researchmate_api/dependencies.py",
+    "apps/api/src/researchmate_api/services/store.py",
+    "apps/api/src/researchmate_api/services/source_policy.py",
+    "apps/api/src/researchmate_api/routers/ask.py",
+    "apps/api/src/researchmate_api/routers/quiz.py",
+    "apps/web/app/app/page.tsx",
+    "apps/web/app/app/projects/[projectId]/page.tsx",
+    "infra/openapi/openapi.yaml",
+    "docs/index.html",
+    "docs/test-plan.html",
+    "docs/security-checklist.html",
+    "tests/test_api_workflow.py",
+    "tests/test_frontend_contracts.py",
+    ".github/workflows/ci.yml",
+    "package.json",
+    "package-lock.json",
+    "requirements-dev.txt",
+    "tests/conftest.py"
   ],
   "tests_run": [
-    "D:\\software\\researchMate\\.venv\\Scripts\\python.exe -m pytest tests/test_project_scaffold.py -q -p no:cacheprovider passed with 7 tests",
-    "Garbled marker scan over docs HTML returned no matches",
-    "D:\\software\\researchMate\\.venv\\Scripts\\python.exe skill/agent-context-html/scripts/validate_context_dashboard.py docs/handoff passed",
-    "D:\\software\\researchMate\\.venv\\Scripts\\ruff.exe check apps/api workers/ai-worker tests scripts passed",
-    "FastAPI app import check loaded 21 routes including /api/v1/ask and /api/v1/dev/traces/{trace_id}",
-    "Get-ChildItem docs -Recurse -Filter *.md returned docs markdown count: 0"
+    "npm run check:all -> 18 passed, handoff validation passed, ruff passed, Next build passed, npm audit 0 vulnerabilities",
+    "python skill/agent-context-html/scripts/validate_context_dashboard.py docs/handoff -> passed",
+    "OpenAPI/API coverage smoke -> passed",
+    "docs HTML-only scan -> passed",
+    "secret coarse scan -> only .env.example placeholder values matched"
   ],
   "tests_not_run": [
-    "Next.js build because dependencies are installed outside the project and module linking has not been configured."
+    "真实 Supabase/R2/Qdrant/Redis/provider 集成测试：等待 secrets 和云服务。",
+    "生产域名登录态、浏览器几何和 canary 测试：等待部署 URL。"
+  ],
+  "commands": [
+    "pytest tests/test_project_scaffold.py tests/test_api_workflow.py tests/test_frontend_contracts.py -q",
+    "python skill/agent-context-html/scripts/validate_context_dashboard.py docs/handoff",
+    "python -m uvicorn researchmate_api.main:app --app-dir apps/api/src --reload --host 127.0.0.1 --port 8000",
+    "npm --workspace @researchmate/web run dev"
   ],
   "risks": [
-    "Raw Markdown source is preserved inside migrated HTML pages, but future edits should be made directly in HTML.",
-    "OpenAPI machine-readable YAML moved to infra/openapi/openapi.yaml and mirrored in docs/openapi-spec.html.",
-    "Git metadata is unavailable in this folder."
+    "Next 使用 canary 版本是为了规避当前 stable 依赖的 PostCSS 漏洞；后续 stable 发布修复后应切回稳定版。",
+    "本地 deterministic answer/quiz 是可测试 fallback，不代表真实 LLM 质量。",
+    "in-memory store 只适合本地测试，不适合生产。",
+    "真实 search/crawl provider 需要 source policy、失败隔离、成本限制和引用校验。"
   ],
   "decision_gates": [
-    "Stop before reintroducing Markdown under docs.",
-    "Stop before changing API field names without updating HTML docs, Pydantic schemas, TypeScript contracts, and OpenAPI.",
-    "Stop before splitting blocked modules across multiple agents when they share the same API, DB, state-machine, index-pipeline, prompt, or trace context.",
-    "Stop before deleting embedded raw Markdown backups from HTML pages unless a better lossless source exists.",
-    "Stop before removing docs/handoff/context-state.json or assets required by agent-context-html validation."
+    "需要把 Auto 默认改为联网时，必须先做隐私、成本和安全评审。",
+    "需要让普通用户看到 Developer Trace 时，必须停止并修改安全设计与测试。",
+    "需要提交真实 API key、OAuth token、R2 secret 或 provider secret 时，必须停止并改用 env/secret manager。",
+    "需要改 owner_user_id、resource ownership 或 RLS 边界时，必须先更新隔离测试。",
+    "测试或 handoff dashboard validation 失败时，不要声称完成。"
   ],
   "completion_status": {
     "status": "DONE_WITH_CONCERNS",
-    "reason": "Markdown docs are migrated into HTML pages with raw source preserved; concern remains that Git metadata is unavailable and docs/handoff still requires JSON/CSS/JS support files."
+    "reason": "本地完整性、安全粗筛、docs 合规和 CI 质量门已通过；生产上线仍依赖真实云服务、secret 配置和部署平台选择。",
+    "attempted": [
+      "同步最新项目副本到 Git 工作区",
+      "修复 Python 测试依赖和 ruff 问题",
+      "升级 Next canary 并固定 PostCSS 安全版本",
+      "增强 GitHub Actions quality-gate",
+      "合并 docs 主入口为 docs/index.html",
+      "运行完整 check:all 质量门"
+    ],
+    "recommendation": "上线前按 docs/index.html 的 Next Step、docs/security-checklist.html 和 docs/test-plan.html 执行真实 provider 与部署验证。"
   },
   "context_health": {
-    "freshness": "fresh",
-    "source_coverage": "high for docs and local skills, low for git metadata",
-    "missing_sources": 4,
-    "conflicts": 0
+    "confidence": "high",
+    "freshness": "post-quality-gate-and-docs-entry-merge",
+    "source_coverage": "docs, code, tests, CI, OpenAPI",
+    "missing_sources": [
+      "真实 .env secrets 按安全策略不进入仓库",
+      "真实部署日志尚未产生",
+      "生产 provider 集成测试尚未运行",
+      "TASK_STATE.md 不存在"
+    ],
+    "dirty_tree": true
   },
   "sources_used": [
-    "docs/HANDOFF.html",
-    "docs/handoff/index.html",
-    "docs/researchmate-prd.html",
-    "docs/researchmate-architecture.html",
-    "docs/project-development-process.html",
+    "skill/karpathySKILL.md",
+    "skill/gstack/intro/index.html",
+    "skill/gstack/intro/design-consultation.html",
+    "skill/gstack/intro/design-html.html",
+    "skill/gstack/intro/design-review.html",
+    "skill/gstack/intro/autoplan.html",
+    "skill/gstack/intro/plan-eng-review.html",
+    "skill/gstack/intro/plan-design-review.html",
+    "skill/gstack/intro/plan-devex-review.html",
+    "skill/gstack/intro/qa.html",
+    "skill/gstack/intro/qa-only.html",
+    "skill/gstack/intro/benchmark.html",
+    "skill/gstack/intro/cso.html",
+    "skill/gstack/intro/guard.html",
+    "skill/gstack/intro/careful.html",
+    "skill/gstack/intro/freeze.html",
+    "docs/index.html",
     "docs/api-spec.html",
     "docs/openapi-spec.html",
     "docs/db-schema.html",
     "docs/ui-page-spec.html",
     "docs/execution-plan.html",
-    "infra/openapi/openapi.yaml",
-    "skill/agent-context-html/SKILL.md"
+    "docs/test-plan.html",
+    "docs/security-checklist.html",
+    "apps/api/src/researchmate_api",
+    "apps/web/app",
+    "workers/ai-worker/src/researchmate_worker/jobs.py",
+    "packages/shared/src/contracts.ts",
+    "tests/test_project_scaffold.py",
+    "tests/test_api_workflow.py",
+    "tests/test_frontend_contracts.py",
+    ".github/workflows/ci.yml",
+    "package.json",
+    "package-lock.json",
+    "requirements-dev.txt",
+    "tests/conftest.py"
   ],
   "sources_missing": [
-    ".git",
-    "TASK_STATE.md",
-    ".agent/context.json",
-    "memory-bank/activeContext.md"
+    "真实 .env secrets：按安全策略不进入仓库。",
+    "node_modules：按交付策略不打包依赖目录。",
+    "真实部署日志：尚未上线。",
+    "浏览器截图/几何测试：当前未运行。"
   ]
 }

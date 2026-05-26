@@ -44,9 +44,9 @@ def repair_common_wrappers() -> None:
         path.write_text(text, encoding="utf-8", newline="\n")
 
 
-# 复用现有样式并重建根 HANDOFF 页面，避免保留任何乱码片段。
-def rebuild_root_handoff() -> None:
-    handoff = DOCS / "HANDOFF.html"
+# 复用现有样式并重建 docs 主入口，避免保留任何乱码片段。
+def rebuild_docs_index() -> None:
+    handoff = DOCS / "index.html"
     previous = handoff.read_text(encoding="utf-8")
     style_match = re.search(r"<style>\n?(.*?)\n?</style>", previous, flags=re.DOTALL)
     style = style_match.group(1) if style_match else ""
@@ -65,9 +65,9 @@ def rebuild_root_handoff() -> None:
 <body>
   <header class="top">
     <div class="top-inner">
-      <a class="brand" href="HANDOFF.html">ResearchMate Docs</a>
+      <a class="brand" href="index.html">ResearchMate Docs</a>
       <nav class="nav" aria-label="Project documentation">
-        <a href="HANDOFF.html" aria-current="page">总览</a>
+        <a href="index.html" aria-current="page">总览</a>
         <a href="handoff/index.html">Agent Dashboard</a>
         <a href="researchmate-prd.html">PRD</a>
         <a href="researchmate-architecture.html">Architecture</a>
@@ -83,7 +83,7 @@ def rebuild_root_handoff() -> None:
   <main class="wrap">
     <section class="hero">
       <span class="eyebrow">Agent-friendly HTML documentation</span>
-      <h1>ResearchMate Handoff</h1>
+      <h1>ResearchMate 项目主入口</h1>
       <p class="lead">项目已将 docs 内 Markdown 文档迁移为 HTML 页面，并补齐可导航的 HTML、agent 交接上下文和 multi-agent 交付计划。</p>
       <div class="chip">Status: DONE_WITH_CONCERNS</div>
       <div class="chip">Docs Markdown: migrated</div>
@@ -91,7 +91,7 @@ def rebuild_root_handoff() -> None:
     </section>
     <section class="doc">
       <h2 id="start">文档入口</h2>
-      <p>后续 agent 应先阅读 <a href="handoff/index.html">Agent Dashboard</a>，再按页眉进入 PRD、Architecture、API、DB、UI 与 Execution Plan。</p>
+      <p>后续 agent 应先阅读本页，再按页眉进入 PRD、Architecture、API、DB、UI 与 Execution Plan。<a href="handoff/index.html">Agent Dashboard</a> 保留为工具兼容子页面。</p>
       <div class="cards">
         <article class="card"><h3>Agent Dashboard</h3><p>当前任务状态、下一步行动、风险和 source audit。</p><p><a href="handoff/index.html">打开</a></p></article>
         <article class="card"><h3>PRD</h3><p>产品目标、用户范围和 MVP 成功标准。</p><p><a href="researchmate-prd.html">打开</a></p></article>
@@ -122,8 +122,6 @@ def rebuild_root_handoff() -> None:
 
 # 执行所有文档乱码修复任务。
 def main() -> None:
-    repair_common_wrappers()
-    rebuild_root_handoff()
     repair_common_wrappers()
 
 

@@ -55,3 +55,8 @@ class QuizResponse(BaseModel):
     trace_id: UUID
     validation_status: Literal["passed", "failed", "retrying"]
 
+
+# 定义 Quiz 历史响应。
+class QuizHistoryResponse(BaseModel):
+    project_id: UUID
+    quiz_sets: list[QuizSet] = Field(default_factory=list, max_length=100)

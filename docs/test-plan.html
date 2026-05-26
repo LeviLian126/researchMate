@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test Plan - ResearchMate Docs</title>
+  <style>:root{--bg:#f8fafc;--surface:#fff;--text:#0f172a;--muted:#475569;--line:#dbe3ef;--brand:#0f766e;--brand-soft:#ccfbf1;--code:#0f172a;--warn:#92400e;--ok:#047857}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.65}.top{position:sticky;top:0;z-index:5;border-bottom:1px solid var(--line);background:rgba(255,255,255,.94);backdrop-filter:blur(12px)}.top-inner{width:min(1180px,calc(100% - 32px));margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 0}.brand{font-weight:800;color:var(--text);text-decoration:none}.nav{display:flex;flex-wrap:wrap;gap:8px}.nav a{border:1px solid var(--line);border-radius:6px;padding:6px 9px;color:var(--brand);text-decoration:none;font-size:13px;background:var(--surface)}.nav a[aria-current="page"]{background:var(--brand-soft);color:#134e4a}.wrap{width:min(1180px,calc(100% - 32px));margin:0 auto}.hero{padding:28px 0 16px}.eyebrow{color:var(--brand);font-weight:800;text-transform:uppercase;font-size:12px;letter-spacing:.08em}h1{font-size:38px;line-height:1.1;margin:8px 0 12px}h2{font-size:26px;margin:32px 0 10px;border-top:1px solid var(--line);padding-top:24px}h3{font-size:20px;margin:24px 0 8px}.lead{font-size:18px;color:var(--muted);max-width:900px}.doc{border:1px solid var(--line);border-radius:8px;background:var(--surface);padding:22px;margin-bottom:32px}.doc p{color:#26364f}.doc a{color:var(--brand)}blockquote{border-left:4px solid var(--brand);margin:14px 0;padding:8px 14px;background:#f0fdfa;color:#334155}pre{overflow:auto;border:1px solid var(--line);border-radius:8px;background:#0b1220;color:#dbeafe;padding:14px;line-height:1.5}code{font-family:"Cascadia Code",Consolas,monospace;background:#eef2f7;border-radius:4px;padding:1px 4px;color:var(--code)}pre code{background:transparent;padding:0;color:inherit}table{width:100%;border-collapse:collapse;margin:12px 0;display:table}th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}th{background:#f1f5f9}ul,ol{padding-left:24px}.cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.card{border:1px solid var(--line);border-radius:8px;background:var(--surface);padding:14px}.card h3{margin-top:0}.chip{display:inline-flex;border:1px solid var(--line);border-radius:999px;padding:4px 9px;margin:4px;color:var(--muted);font-size:13px;background:#fff}.ok{color:var(--ok);font-weight:800}.warn{color:var(--warn);font-weight:800}.source-note{color:var(--muted);font-size:13px;margin-top:22px}@media(max-width:900px){.cards{grid-template-columns:1fr}.top-inner{align-items:flex-start;flex-direction:column}h1{font-size:30px}table{display:block;overflow:auto}}</style>
+</head>
+<body>
+  <header class="top"><div class="top-inner"><a class="brand" href="index.html">ResearchMate Docs</a><nav class="nav" aria-label="Project documentation"><a href="index.html">总览</a><a href="handoff/index.html">Agent Dashboard</a><a href="researchmate-prd.html">PRD</a><a href="researchmate-architecture.html">Architecture</a><a href="project-development-process.html">Process</a><a href="api-spec.html">API</a><a href="openapi-spec.html">OpenAPI</a><a href="db-schema.html">DB</a><a href="ui-page-spec.html">UI</a><a href="test-plan.html" aria-current="page">Test Plan</a><a href="security-checklist.html">Security</a><a href="execution-plan.html">Plan</a></nav></div></header>
+  <main class="wrap">
+    <section class="hero">
+      <span class="eyebrow">Project Documentation</span>
+      <h1>Test Plan</h1>
+      <p class="lead">定义当前本地 MVP 的测试范围、验收命令、已覆盖场景和上线前补充检查。</p>
+    </section>
+    <article class="doc">
+<blockquote><strong>TLDR:</strong> 当前验收以 pytest 为事实源，覆盖仓库契约、API 业务闭环、用户隔离、Quiz、Trace 权限、MIME 安全和前端页面契约；Node 依赖未安装时不声称通过 Next build。</blockquote>
+<h2 id="commands">验收命令</h2>
+<table><thead><tr><th>命令</th><th>目的</th><th>通过标准</th></tr></thead><tbody>
+<tr><td><code>pytest tests/test_project_scaffold.py tests/test_api_workflow.py tests/test_frontend_contracts.py -q</code></td><td>主测试套件</td><td>全部通过。</td></tr>
+<tr><td><code>python skill/agent-context-html/scripts/validate_context_dashboard.py docs/handoff</code></td><td>验证 Agent Dashboard</td><td>输出 <code>PASS</code>。</td></tr>
+<tr><td><code>ruff check apps/api/src workers/ai-worker/src tests</code></td><td>Python lint</td><td>环境安装 ruff 后应通过；当前容器若缺 ruff，不把它记为通过。</td></tr>
+<tr><td><code>npm --workspace @researchmate/web run build</code></td><td>Next.js 构建</td><td>安装 node_modules 后应通过；当前交付不包含依赖目录。</td></tr>
+</tbody></table>
+<h2 id="coverage">已覆盖场景</h2>
+<ul>
+<li>Project 创建、读取、列表、删除按 user_id 隔离。</li>
+<li>Document 上传地址生成、MIME 类型校验、上传完成、解析切片和 job 状态。</li>
+<li>Local Ask 在无 ready chunks 时返回 <code>DOCUMENT_NOT_INDEXED</code>，不编造答案。</li>
+<li>Local Ask 返回 citations、Sources panel 与 Developer Trace。</li>
+<li>普通用户无法读取 Developer Trace；developer/admin 可读取脱敏 trace。</li>
+<li>Quiz 生成、历史列表、引用绑定、选择题四选项约束。</li>
+<li>Source Policy validator 阻止 local-only 调用 web 工具。</li>
+<li>前端存在 Project、Ask、Library、Quiz、Trace 页面，且不携带后端密钥名。</li>
+</ul>
+<h2 id="manual-smoke">手动冒烟脚本</h2>
+<ol>
+<li>启动 API 与 Web。</li>
+<li>使用 <code>dev-user-a</code> 创建项目并上传 PDF/DOCX/PPTX 文件，在 textarea 中填写可解析文本。</li>
+<li>在 Ask 页面使用 <code>/study explain RAG</code>，检查 answer、citations、sources panel。</li>
+<li>切换 <code>dev-user-b</code>，确认看不到用户 A 的项目或文档。</li>
+<li>生成 Quiz，确认选择题恰好 4 个选项且有 source citation。</li>
+<li>用普通 user token 打开 trace 链接应失败；用 <code>dev</code> 或 <code>dev-admin</code> 可查看脱敏 trace。</li>
+</ol>
+<h2 id="benchmark">轻量基准</h2>
+<table><thead><tr><th>指标</th><th>本地目标</th><th>说明</th></tr></thead><tbody>
+<tr><td>Local Ask latency</td><td>&lt; 500 ms</td><td>in-memory 检索和 deterministic answer，无真实 LLM。</td></tr>
+<tr><td>Document complete</td><td>&lt; 1 s / 200 KB text</td><td>同步切片 fallback；生产改异步 worker。</td></tr>
+<tr><td>Trace fetch</td><td>&lt; 200 ms</td><td>本地 store 读取。</td></tr>
+</tbody></table>
+<h2 id="上线前补测">上线前补测</h2>
+<ul>
+<li>Supabase JWT issuer/audience/signature/expiry 校验。</li>
+<li>R2 signed URL 生命周期、对象 key 归属和删除清理。</li>
+<li>Qdrant payload filter 只允许 user_id + project_id 范围。</li>
+<li>真实 web provider 的 robots、缓存、引用时间戳和失败重试。</li>
+<li>Next.js build、端到端浏览器测试和移动端响应式检查。</li>
+</ul>
+    </article>
+  </main>
+</body>
+</html>

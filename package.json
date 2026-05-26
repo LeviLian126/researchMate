@@ -7,11 +7,20 @@
     "apps/web",
     "packages/shared"
   ],
+  "overrides": {
+    "postcss": "8.5.10"
+  },
   "scripts": {
-    "check:contracts": "pytest tests/test_project_scaffold.py -q",
+    "check:contracts": "python -m pytest tests/test_project_scaffold.py tests/test_api_workflow.py tests/test_frontend_contracts.py -q",
     "check:handoff": "python skill/agent-context-html/scripts/validate_context_dashboard.py docs/handoff",
     "api:dev": "python -m uvicorn researchmate_api.main:app --app-dir apps/api/src --reload --host 127.0.0.1 --port 8000",
-    "web:dev": "npm --workspace @researchmate/web run dev"
+    "web:dev": "npm --workspace @researchmate/web run dev",
+    "test": "python -m pytest tests/test_project_scaffold.py tests/test_api_workflow.py tests/test_frontend_contracts.py -q",
+    "check:api": "python -m pytest tests/test_api_workflow.py -q",
+    "check:frontend-contracts": "python -m pytest tests/test_frontend_contracts.py -q",
+    "check:lint": "python -m ruff check apps/api/src workers/ai-worker/src tests",
+    "check:web": "npm --workspace @researchmate/web run build",
+    "check:audit": "npm audit --omit=dev --audit-level=moderate",
+    "check:all": "npm run check:contracts && npm run check:handoff && npm run check:lint && npm run check:web && npm run check:audit"
   }
 }
-

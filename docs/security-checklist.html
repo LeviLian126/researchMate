@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Security Checklist - ResearchMate Docs</title>
+  <style>:root{--bg:#f8fafc;--surface:#fff;--text:#0f172a;--muted:#475569;--line:#dbe3ef;--brand:#0f766e;--brand-soft:#ccfbf1;--code:#0f172a;--warn:#92400e;--ok:#047857}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.65}.top{position:sticky;top:0;z-index:5;border-bottom:1px solid var(--line);background:rgba(255,255,255,.94);backdrop-filter:blur(12px)}.top-inner{width:min(1180px,calc(100% - 32px));margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 0}.brand{font-weight:800;color:var(--text);text-decoration:none}.nav{display:flex;flex-wrap:wrap;gap:8px}.nav a{border:1px solid var(--line);border-radius:6px;padding:6px 9px;color:var(--brand);text-decoration:none;font-size:13px;background:var(--surface)}.nav a[aria-current="page"]{background:var(--brand-soft);color:#134e4a}.wrap{width:min(1180px,calc(100% - 32px));margin:0 auto}.hero{padding:28px 0 16px}.eyebrow{color:var(--brand);font-weight:800;text-transform:uppercase;font-size:12px;letter-spacing:.08em}h1{font-size:38px;line-height:1.1;margin:8px 0 12px}h2{font-size:26px;margin:32px 0 10px;border-top:1px solid var(--line);padding-top:24px}h3{font-size:20px;margin:24px 0 8px}.lead{font-size:18px;color:var(--muted);max-width:900px}.doc{border:1px solid var(--line);border-radius:8px;background:var(--surface);padding:22px;margin-bottom:32px}.doc p{color:#26364f}.doc a{color:var(--brand)}blockquote{border-left:4px solid var(--brand);margin:14px 0;padding:8px 14px;background:#f0fdfa;color:#334155}pre{overflow:auto;border:1px solid var(--line);border-radius:8px;background:#0b1220;color:#dbeafe;padding:14px;line-height:1.5}code{font-family:"Cascadia Code",Consolas,monospace;background:#eef2f7;border-radius:4px;padding:1px 4px;color:var(--code)}pre code{background:transparent;padding:0;color:inherit}table{width:100%;border-collapse:collapse;margin:12px 0;display:table}th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}th{background:#f1f5f9}ul,ol{padding-left:24px}.cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.card{border:1px solid var(--line);border-radius:8px;background:var(--surface);padding:14px}.card h3{margin-top:0}.chip{display:inline-flex;border:1px solid var(--line);border-radius:999px;padding:4px 9px;margin:4px;color:var(--muted);font-size:13px;background:#fff}.ok{color:var(--ok);font-weight:800}.warn{color:var(--warn);font-weight:800}.source-note{color:var(--muted);font-size:13px;margin-top:22px}@media(max-width:900px){.cards{grid-template-columns:1fr}.top-inner{align-items:flex-start;flex-direction:column}h1{font-size:30px}table{display:block;overflow:auto}}</style>
+</head>
+<body>
+  <header class="top"><div class="top-inner"><a class="brand" href="index.html">ResearchMate Docs</a><nav class="nav" aria-label="Project documentation"><a href="index.html">总览</a><a href="handoff/index.html">Agent Dashboard</a><a href="researchmate-prd.html">PRD</a><a href="researchmate-architecture.html">Architecture</a><a href="project-development-process.html">Process</a><a href="api-spec.html">API</a><a href="openapi-spec.html">OpenAPI</a><a href="db-schema.html">DB</a><a href="ui-page-spec.html">UI</a><a href="test-plan.html">Test Plan</a><a href="security-checklist.html" aria-current="page">Security</a><a href="execution-plan.html">Plan</a></nav></div></header>
+  <main class="wrap">
+    <section class="hero">
+      <span class="eyebrow">Project Documentation</span>
+      <h1>Security Checklist</h1>
+      <p class="lead">上线前安全边界、已落地控制、剩余 secret/provider adapter 检查和冻结条件。</p>
+    </section>
+    <article class="doc">
+<blockquote><strong>TLDR:</strong> 当前仓库不包含真实密钥；本地 API 已实现用户隔离、MIME 校验、错误脱敏、quota guard、source-policy guard 和 admin-only Developer Trace。上线前必须把本地 adapter 替换为云端安全实现。</blockquote>
+<h2 id="implemented">已落地控制</h2>
+<table><thead><tr><th>控制项</th><th>状态</th><th>实现位置</th></tr></thead><tbody>
+<tr><td>Bearer 认证入口</td><td><span class="ok">已实现本地 dev token</span></td><td><code>apps/api/src/researchmate_api/dependencies.py</code></td></tr>
+<tr><td>Owner isolation</td><td><span class="ok">已实现并测试</span></td><td><code>services/store.py</code>、<code>tests/test_api_workflow.py</code></td></tr>
+<tr><td>文件类型与大小</td><td><span class="ok">已实现</span></td><td><code>schemas/document.py</code> 限制 PDF/DOCX/PPTX 和 25MB。</td></tr>
+<tr><td>Local-only source guard</td><td><span class="ok">已实现</span></td><td><code>services/source_policy.py</code> 阻止越权 web tool。</td></tr>
+<tr><td>Trace 权限</td><td><span class="ok">已实现</span></td><td><code>routers/dev_traces.py</code> 仅 developer/admin 可见。</td></tr>
+<tr><td>错误脱敏</td><td><span class="ok">已实现</span></td><td><code>main.py</code> 统一包装 HTTP 与 validation error。</td></tr>
+<tr><td>Quota guard</td><td><span class="ok">已实现本地计数</span></td><td><code>store.increment_usage</code>。</td></tr>
+<tr><td>前端密钥隔离</td><td><span class="ok">已扫描</span></td><td>前端只使用 public API base 和 dev token。</td></tr>
+</tbody></table>
+<h2 id="secret-rules">Secret 规则</h2>
+<ul>
+<li>真实 <code>SUPABASE_SERVICE_ROLE_KEY</code>、<code>R2_SECRET_ACCESS_KEY</code>、<code>NVIDIA_API_KEY</code>、<code>SERPER_API_KEY</code>、<code>JINA_API_KEY</code>、<code>FIRECRAWL_API_KEY</code> 只能进入本地 <code>.env</code> 或部署平台 secret manager。</li>
+<li>前端只能使用 <code>NEXT_PUBLIC_*</code> 配置，不读取 service role、provider key 或 R2 secret。</li>
+<li>日志、错误响应、Trace、Sources panel 不得显示 token、signed secret、raw provider payload。</li>
+</ul>
+<h2 id="data-lifecycle">数据生命周期</h2>
+<ul>
+<li>Project delete 当前会在本地 store 标记删除并清理关联 chunks。</li>
+<li>Document delete 当前会标记删除并清理关联 chunks。</li>
+<li>上线时必须把删除动作扩展到 Supabase、R2、Qdrant、Redis cache 和 job queue。</li>
+<li>过期策略以 <code>expires_at</code> 为统一字段；worker 应执行定期清理。</li>
+</ul>
+<h2 id="provider-safety">Provider 安全</h2>
+<table><thead><tr><th>Provider</th><th>上线前要求</th></tr></thead><tbody>
+<tr><td>LLM</td><td>强制 JSON/schema validation；失败重试不得扩大来源权限；prompt 不记录 secret。</td></tr>
+<tr><td>Embedding</td><td>只发送必要 chunk text；payload filter 必须包含 user_id/project_id。</td></tr>
+<tr><td>Search/Crawl</td><td>记录 URL、时间戳、缓存状态；失败网页不得进入 citation。</td></tr>
+<tr><td>Storage</td><td>R2 key 必须带 user_id/project_id/document_id；signed URL 短时有效。</td></tr>
+</tbody></table>
+<h2 id="freeze-gates">冻结条件</h2>
+<ul>
+<li>测试未通过、handoff dashboard validation 未通过，不进入上线。</li>
+<li>发现真实 secret、私有缓存、node_modules、.venv、__pycache__ 被打包，立即停止。</li>
+<li>任何普通用户可见 Trace、stack trace、raw provider error 或其他用户数据，立即停止。</li>
+<li>Auto 默认联网、Local Ask 调用 web 工具或 citation 无来源，立即停止。</li>
+</ul>
+    </article>
+  </main>
+</body>
+</html>

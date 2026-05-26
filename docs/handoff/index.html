@@ -1,374 +1,193 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN" data-mode="light">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ResearchMate Agent 交接文档</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>researchMate agent 交接仪表盘</title>
   <link rel="stylesheet" href="assets/site.css">
 </head>
 <body>
-  <div class="top">
-    <div class="wrap top-inner">
-      <strong>ResearchMate 交接文档</strong>
-      <nav class="nav" aria-label="上下文导航">
-        <a href="../HANDOFF.html">总览</a>
-        <a href="../handoff/index.html">交接仪表盘</a>
-        <a href="../researchmate-prd.html">产品需求</a>
-        <a href="../researchmate-architecture.html">架构</a>
-        <a href="../project-development-process.html">流程</a>
-        <a href="../api-spec.html">接口</a>
-        <a href="../openapi-spec.html">OpenAPI</a>
-        <a href="../db-schema.html">数据库</a>
-        <a href="../ui-page-spec.html">界面</a>
-        <a href="../execution-plan.html">计划</a>
-      </nav>
+  <a class="skip-link" href="#main">跳到正文</a>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">agent 交接仪表盘</p>
+      <h1>researchMate</h1>
     </div>
-  </div>
-
-  <header class="wrap">
-    <h1>ResearchMate Agent 交接文档</h1>
-    <p>本页用于让后续 agent 在两分钟内理解项目状态、当前边界、下一步动作、风险、验证命令和协作拆分方式。</p>
-    <div class="chips">
-      <span class="chip">完成状态：<strong class="warn">DONE_WITH_CONCERNS</strong></span>
-      <span class="chip">分支：<strong>未知</strong></span>
-      <span class="chip">Git：<strong class="warn">未检测到</strong></span>
-      <span class="chip">置信度：<strong>中等</strong></span>
-      <span class="chip">更新时间：<strong>2026-05-26</strong></span>
-    </div>
+    <nav aria-label="章节">
+      <a href="#start-here">起步</a>
+      <a href="#next-actions">Next actions</a>
+      <a href="#decision-gates">Decision gates</a>
+      <a href="#sources">Source audit</a>
+      <button type="button" id="mode-toggle">切换主题</button>
+    </nav>
   </header>
-
-  <main class="wrap">
-    <section id="resume">
-      <h2>恢复摘要</h2>
-      <div class="grid cols-3">
-        <article class="card">
-          <h3>当前目标</h3>
-          <p>ResearchMate 已完成 contract-first 初始化。后续 agent 应基于稳定的 API、库表、校验和 UI 行为契约继续实现业务逻辑。</p>
-        </article>
-        <article class="card">
-          <h3>当前状态</h3>
-          <p>项目脚手架、接口 schema、数据库迁移、共享类型和 HTML 文档已建立。API 路由目前刻意返回 <code>501</code>，表示业务逻辑留给后续模块实现。</p>
-        </article>
-        <article class="card">
-          <h3>主要注意点</h3>
-          <p>当前目录尚未初始化为 Git 仓库，因此分支、提交和工作区状态只能推断，不能从 Git 元数据验证。</p>
-        </article>
+  <main id="main">
+    <section id="resume" class="hero panel">
+      <div>
+        <p class="eyebrow">恢复摘要</p>
+        <h2>ResearchMate 本地 MVP 已实现</h2>
+        <p class="lead">目标：前后端完整、本地测试通过、docs HTML 完善；剩余仅为填入真实 API/provider、替换本地 adapter 并部署。</p>
+      </div>
+      <div class="status-grid" aria-label="状态摘要">
+        <div><span>分支</span><strong>main</strong></div>
+        <div><span>工作区</span><strong>dirty</strong></div>
+        <div><span>置信度</span><strong>high</strong></div>
+        <div><span>Completion status</span><strong>DONE_WITH_CONCERNS</strong></div>
       </div>
     </section>
 
-    <section id="start-here">
-      <h2>Agent 起步说明</h2>
-      <p>开始编辑前，先读本页和 <a href="context-state.json">context-state.json</a>。实现时只进入自己负责的模块边界，不要顺手改动其他模块。</p>
-      <pre data-resume-prompt>先阅读 docs/handoff/index.html 和 docs/handoff/context-state.json，再从 docs/execution-plan.html 继续。动手前确认 blockers；实现时保持 API、数据库、Pydantic schema、TypeScript contracts 与 HTML 文档同步；完成前运行 pytest tests/test_project_scaffold.py -q 和 python skill/agent-context-html/scripts/validate_context_dashboard.py docs/handoff。</pre>
-      <button type="button" data-copy-prompt>复制提示词</button>
+    <section id="start-here" class="panel">
+      <div class="section-head"><p class="eyebrow">Agent start-here</p><h2>恢复指令</h2></div>
+      <div class="copy-box"><pre><code id="resume-prompt">先阅读 docs/index.html、docs/handoff/index.html、docs/handoff/context-state.json。继续开发前运行测试并检查 git diff。不要提交真实 secret；上线前替换 Supabase/R2/Qdrant/Redis/provider adapter。</code></pre><button type="button" data-copy="resume-prompt">复制提示词</button></div>
+      <ul class="inline-list"><li>已读 karpathySKILL 总纲</li><li>已按 gstack 07-10 阶段收口</li><li>已完成 check:all 质量门</li><li>已更新 HTML 文档</li></ul>
     </section>
 
-    <section id="next-actions">
-      <h2>下一步行动 <span class="sr">Next actions</span></h2>
-      <table>
-        <thead>
-          <tr><th>优先级</th><th>行动</th><th>原因</th><th>依据</th><th>风险</th><th>完成信号</th></tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>P0</td>
-            <td>运行脚手架测试和 handoff 校验。</td>
-            <td>确认契约壳层、HTML 文档和交接仪表盘仍然可读。</td>
-            <td>agent-context-html</td>
-            <td>低</td>
-            <td>测试命令和交接校验都通过。</td>
-          </tr>
-          <tr>
-            <td>P0</td>
-            <td>按“共享上下文不强拆”的规则分配任务。</td>
-            <td>Auth、上传、解析、索引、本地问答共享同一条数据闭环，强拆会造成接口和状态机互相覆盖。</td>
-            <td>交接协作计划</td>
-            <td>中</td>
-            <td>每个 agent 只修改自己负责的上下文，阻塞链路由同一 agent 顺序完成。</td>
-          </tr>
-          <tr>
-            <td>P1</td>
-            <td>接口字段变化时同步更新 OpenAPI、Pydantic、SQL、TypeScript 和 HTML 文档。</td>
-            <td>避免前后端字段漂移，也避免后续 agent 按旧契约实现。</td>
-            <td>gstack API Spec 阶段</td>
-            <td>中</td>
-            <td>契约测试和 handoff 校验继续通过。</td>
-          </tr>
-        </tbody>
-      </table>
+    <section id="next-actions" class="panel">
+      <div class="section-head"><p class="eyebrow">按上线解锁价值排序</p><h2>Next actions</h2></div>
+      <ol><li>填入 Supabase/R2/Qdrant/Redis/provider secrets，并用云端 adapter 替换本地 dev token 与 in-memory store。</li><li>部署前把 demo web evidence 替换为 SERPER/Tavily + JINA/Firecrawl provider，并保留 source-policy guard。</li><li>在生产环境运行登录、上传、解析、Ask、Hybrid、Quiz、Trace 权限冒烟测试。</li><li>根据托管平台补充 deploy job；当前 CI 已覆盖质量门，不直接持有生产 secret。</li></ol>
     </section>
 
-    <section id="blockers">
-      <h2>阻塞项与开放问题</h2>
-      <table>
-        <thead>
-          <tr><th>级别</th><th>事项</th><th>负责人</th><th>影响</th></tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td class="warn">有风险</td>
-            <td>当前目录不是 Git 仓库。</td>
-            <td>用户</td>
-            <td>无法验证分支、提交、远端和脏工作区状态。</td>
-          </tr>
-          <tr>
-            <td>未知</td>
-            <td>真实 Supabase、R2、Qdrant、Redis 凭据尚未配置。</td>
-            <td>部署 agent</td>
-            <td>本地契约可测试，但真实服务集成尚未验证。</td>
-          </tr>
-          <tr>
-            <td>说明</td>
-            <td>业务逻辑尚未实现。</td>
-            <td>后续模块 agent</td>
-            <td>路由返回 <code>501</code> 是预期边界，不是缺陷。</td>
-          </tr>
-        </tbody>
-      </table>
+    <section id="blockers" class="panel">
+      <div class="section-head"><p class="eyebrow">开放问题</p><h2>阻塞项与外部依赖</h2></div>
+      <ul class="risk-list"><li>真实 Supabase/R2/Qdrant/Redis/provider API key 未配置，这是上线前必需但不应进入仓库。</li><li>生产数据层尚未从本地 adapter 切换到 Supabase/R2/Qdrant/Redis。</li><li>真实 Search/Crawl provider 尚未接入；Auto 默认仍应保持 local-first。</li></ul>
     </section>
 
-    <section id="files">
-      <h2>已变更与重要文件</h2>
-      <details open>
-        <summary>本轮初始化和文档迁移涉及的文件</summary>
-        <pre>.gitignore
-.env.example
-AGENTS.md
+    <section id="decision-gates" class="panel">
+      <div class="section-head"><p class="eyebrow">停止条件</p><h2>Decision gates</h2></div>
+      <ul class="risk-list"><li>需要把 Auto 默认改为联网时，必须先做隐私、成本和安全评审。</li><li>需要让普通用户看到 Developer Trace 时，必须停止并修改安全设计与测试。</li><li>需要提交真实 API key、OAuth token、R2 secret 或 provider secret 时，必须停止并改用 env/secret manager。</li><li>需要改 owner_user_id、resource ownership 或 RLS 边界时，必须先更新隔离测试。</li><li>测试或 handoff dashboard validation 失败时，不要声称完成。</li></ul>
+    </section>
+
+    <section id="files" class="panel">
+      <div class="section-head"><p class="eyebrow">改动表面</p><h2>已变更与重要文件</h2></div>
+      <h3>重要文件</h3>
+      <div class="table-wrap"><table><thead><tr><th>路径</th><th>为什么重要</th></tr></thead><tbody><tr><td><code>README.md</code></td><td>本地 MVP、文档或测试的事实源</td></tr><tr><td><code>AGENTS.md</code></td><td>本地 MVP、文档或测试的事实源</td></tr><tr><td><code>apps/api/src/researchmate_api/main.py</code></td><td>本地 MVP、文档或测试的事实源</td></tr><tr><td><code>apps/api/src/researchmate_api/dependencies.py</code></td><td>本地 MVP、文档或测试的事实源</td></tr><tr><td><code>apps/api/src/researchmate_api/services/store.py</code></td><td>本地 MVP、文档或测试的事实源</td></tr><tr><td><code>apps/api/src/researchmate_api/services/source_policy.py</code></td><td>本地 MVP、文档或测试的事实源</td></tr><tr><td><code>apps/api/src/researchmate_api/routers/ask.py</code></td><td>本地 MVP、文档或测试的事实源</td></tr><tr><td><code>apps/api/src/researchmate_api/routers/quiz.py</code></td><td>本地 MVP、文档或测试的事实源</td></tr><tr><td><code>apps/web/app/app/page.tsx</code></td><td>本地 MVP、文档或测试的事实源</td></tr><tr><td><code>apps/web/app/app/projects/[projectId]/page.tsx</code></td><td>本地 MVP、文档或测试的事实源</td></tr><tr><td><code>infra/openapi/openapi.yaml</code></td><td>本地 MVP、文档或测试的事实源</td></tr><tr><td><code>docs/index.html</code></td><td>本地 MVP、文档或测试的事实源</td></tr><tr><td><code>docs/test-plan.html</code></td><td>本地 MVP、文档或测试的事实源</td></tr><tr><td><code>docs/security-checklist.html</code></td><td>本地 MVP、文档或测试的事实源</td></tr><tr><td><code>tests/test_api_workflow.py</code></td><td>本地 MVP、文档或测试的事实源</td></tr><tr><td><code>tests/test_frontend_contracts.py</code></td><td>本地 MVP、文档或测试的事实源</td></tr></tbody></table></div>
+      <h3>当前变更文件</h3>
+      <pre><code>AGENTS.md
 README.md
-package.json
-requirements-dev.txt
+apps/api/pyproject.toml
+apps/api/src/researchmate_api/dependencies.py
 apps/api/src/researchmate_api/main.py
-packages/shared/src/contracts.ts
-infra/supabase/migrations/202605260001_initial_schema.sql
+apps/api/src/researchmate_api/routers/ask.py
+apps/api/src/researchmate_api/routers/dev_traces.py
+apps/api/src/researchmate_api/routers/documents.py
+apps/api/src/researchmate_api/routers/jobs.py
+apps/api/src/researchmate_api/routers/projects.py
+apps/api/src/researchmate_api/routers/quiz.py
+apps/api/src/researchmate_api/routers/runs.py
+apps/api/src/researchmate_api/schemas/document.py
+apps/api/src/researchmate_api/schemas/quiz.py
+apps/web/app/globals.css
+apps/web/app/page.tsx
+docs/index.html
 docs/api-spec.html
 docs/db-schema.html
-docs/ui-page-spec.html
 docs/execution-plan.html
-infra/openapi/openapi.yaml and docs/openapi-spec.html
+docs/handoff/assets/site.css
+docs/handoff/assets/site.js
+docs/handoff/context-state.json
 docs/handoff/index.html
-scripts/repair_docs_html_encoding.py
-tests/test_project_scaffold.py</pre>
-      </details>
-      <details>
-        <summary>后续 agent 应优先阅读的事实源</summary>
-        <ul>
-          <li><a href="../api-spec.html">docs/api-spec.html</a>：接口和前后端契约。</li>
-          <li><a href="../db-schema.html">docs/db-schema.html</a>：库表、RLS 和 Qdrant payload。</li>
-          <li><a href="../ui-page-spec.html">docs/ui-page-spec.html</a>：Ask、Library、Quiz、Trace 页面约定。</li>
-          <li><a href="../execution-plan.html">docs/execution-plan.html</a>：模块边界、验收标准和协作计划。</li>
-          <li><a href="../openapi-spec.html">docs/openapi-spec.html</a> 与 <code>infra/openapi/openapi.yaml</code>：机器可读接口契约。</li>
-        </ul>
-      </details>
+docs/openapi-spec.html
+docs/project-development-process.html
+docs/researchmate-architecture.html
+docs/researchmate-prd.html
+docs/ui-page-spec.html
+infra/openapi/openapi.yaml
+package.json
+packages/shared/src/contracts.ts
+workers/ai-worker/pyproject.toml
+workers/ai-worker/src/researchmate_worker/jobs.py
+apps/api/src/researchmate_api/services/answering.py
+apps/api/src/researchmate_api/services/quiz_generation.py
+apps/api/src/researchmate_api/services/retrieval.py
+apps/api/src/researchmate_api/services/source_policy.py
+apps/api/src/researchmate_api/services/store.py
+apps/web/app/app/
+apps/web/app/dev/
+apps/web/app/lib/
+docs/index.html
+docs/security-checklist.html
+docs/test-plan.html
+package-lock.json
+tests/conftest.py
+tests/test_api_workflow.py
+tests/test_frontend_contracts.py</code></pre>
     </section>
 
-    <section id="repo-map">
-      <h2>项目结构树</h2>
-      <pre>researchMate/
-  AGENTS.md
-  README.md
-  .env.example
-  .gitignore
-  apps/
-    api/
-      src/researchmate_api/
-        routers/
-        schemas/
-        services/
-        main.py
-    web/
-      app/
-      package.json
-  docs/
-    HANDOFF.html
-    api-spec.html
-    db-schema.html
-    execution-plan.html
-    openapi-spec.html
-    project-development-process.html
-    researchmate-architecture.html
-    researchmate-prd.html
-    ui-page-spec.html
-    handoff/
-      index.html
-      context-state.json
-      assets/
-  infra/
-    openapi/openapi.yaml
-    qdrant/
-    supabase/migrations/
-  packages/
-    shared/src/contracts.ts
-  skill/
-    agent-context-html/
-    gstack/
-    karpathySKILL.md
-  scripts/
-    repair_docs_html_encoding.py
-  tests/
-    test_project_scaffold.py
-  workers/
-    ai-worker/</pre>
-    </section>
-
-    <section id="handoff">
-      <h2>交接记录与协作计划</h2>
-      <p>本计划结合 <strong>PROJECT_DEVELOPMENT_PROCESS</strong> 与 gstack 从 API Spec 到 Execution Plan 的交付链路。拆分原则是先看上下文边界，再看人数：如果任务共享同一段阻塞上下文，就由同一个 agent 顺序完成，不为了并行而强拆。</p>
-      <blockquote>判断规则：同一 agent 应连续完成会共同修改同一批 API、表结构、状态机、索引管线或运行时上下文的任务；只有输入输出契约稳定、互不抢同一上下文时，才拆给不同 agent 并行。</blockquote>
-      <table>
-        <thead>
-          <tr><th>执行组</th><th>负责范围</th><th>执行方式</th><th>依赖条件</th><th>验收标准</th></tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>Agent A：数据闭环主线</td>
-            <td>Auth、Project、Storage、Upload、Parser、Index、Local Ask</td>
-            <td>顺序完成，不拆分。该链路共享用户隔离、文档状态机、R2 对象、chunk 元数据、Qdrant payload 和本地 RAG 运行上下文。</td>
-            <td>当前 API、DB、OpenAPI、TypeScript 契约稳定。</td>
-            <td>用户 A 不能读取用户 B 数据；25MB 与 MIME 校验生效；文档可完成上传、解析、切分、入库和本地问答；Local Ask 的 citations 必须来自本地检索 chunk。</td>
-          </tr>
-          <tr>
-            <td>Agent B：来源策略与 Web 扩展</td>
-            <td>Source Policy、Hybrid、Web Search、Crawl、Web Evidence</td>
-            <td>顺序完成。Mode resolver、tool policy validator、web cache 与 citation 规则共享同一策略上下文，不能拆成多个 agent 抢改。</td>
-            <td>Agent A 已交付 Local Ask 闭环。</td>
-            <td>Local mode 阻止 web 工具；Hybrid 遵循 local-first；失败网页不得进入 citations；web evidence 有来源、时间和缓存状态。</td>
-          </tr>
-          <tr>
-            <td>Agent C：Quiz 输出链路</td>
-            <td>Quiz generation、Quiz save、Quiz display contract</td>
-            <td>可在 Agent A 完成 Parser + Index 后独立进行；不依赖 Web 扩展。</td>
-            <td>文档 chunk、引用字段和项目归属校验稳定。</td>
-            <td>选择题正好 4 个选项；答案、解释、引用来源都通过 schema 校验；普通用户只能看到自己的 quiz set。</td>
-          </tr>
-          <tr>
-            <td>Agent D：前端 MVP</td>
-            <td>Ask、Library、Quiz 页面与前端状态管理</td>
-            <td>可先基于契约开发壳层；最终联调必须等 Agent A 的认证、上传和本地问答接口稳定后顺序完成。</td>
-            <td>API contract、shared TypeScript contracts、核心接口返回形状稳定。</td>
-            <td>Ask、Library、Quiz 可完成主流程；普通用户界面没有 Trace 入口；错误态与加载态不泄露内部 trace 或 secret。</td>
-          </tr>
-          <tr>
-            <td>Agent E：Trace 与 Eval</td>
-            <td>Developer Trace、RAG Eval、admin-only 观测入口</td>
-            <td>顺序完成。Trace schema、run_id、tool_calls、citations 和 eval 指标共享同一观测上下文。</td>
-            <td>Agent A/B/C 的 run、sources、quiz 输出稳定。</td>
-            <td>Trace 仅管理员可见；所有 prompt、token、provider secret、用户隐私字段已脱敏；eval 指标可追溯到 run 与 citation。</td>
-          </tr>
-          <tr>
-            <td>Agent F：安全与生命周期收口</td>
-            <td>删除、过期、限流、secret scan、发布前安全清单</td>
-            <td>最后收口，不提前并行改核心链路。该组横跨 DB、R2、Qdrant、Redis、API 和前端权限。</td>
-            <td>Agent A-E 的主要数据路径已经稳定。</td>
-            <td>删除 project 会清理 DB、R2、Qdrant、Redis；限流与 quota guard 生效；公开仓库不包含真实密钥、本地数据或缓存产物。</td>
-          </tr>
-        </tbody>
-      </table>
-      <h3>调度说明</h3>
-      <ul>
-        <li><strong>禁止强拆：</strong>同一个状态机、同一组表、同一条数据闭环、同一套 prompt 或 trace schema 被多个任务共同依赖时，默认给同一个 agent 顺序完成。</li>
-        <li><strong>允许并行：</strong>Agent A 完成 Parser + Index 后，Agent C 可启动 Quiz；Agent A 完成本地问答接口后，Agent D 可进入真实联调；Agent B 可在 Local Ask 稳定后接入 Web 扩展。</li>
-        <li><strong>交接要求：</strong>每个 agent 完成后必须更新相关 HTML 文档、记录测试命令、说明未实现逻辑和下一位 agent 的输入契约。</li>
-      </ul>
-    </section>
-
-    <section id="validation">
-      <h2>验证命令与结果</h2>
-      <table>
-        <thead>
-          <tr><th>命令</th><th>状态</th><th>作用</th></tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td><code>pytest tests/test_project_scaffold.py -q</code></td>
-            <td class="ok">通过：7 个测试</td>
-            <td>验证必需契约文件、OpenAPI、SQL、共享类型、Pydantic schema、docs 无 Markdown，以及 HTML 乱码回归测试。</td>
-          </tr>
-          <tr>
-            <td><code>docs HTML 乱码标记扫描</code></td>
-            <td class="ok">通过：无匹配</td>
-            <td>确认 HTML 文档不再包含连续问号或常见乱码标记。</td>
-          </tr>
-          <tr>
-            <td><code>python skill/agent-context-html/scripts/validate_context_dashboard.py docs/handoff</code></td>
-            <td class="ok">通过</td>
-            <td>验证静态交接仪表盘结构符合 agent-context-html 契约。</td>
-          </tr>
-          <tr>
-            <td><code>npm --workspace @researchmate/web run build</code></td>
-            <td>未运行</td>
-            <td>前端依赖安装在项目外部，尚未配置项目内模块链接。</td>
-          </tr>
-          <tr>
-            <td><code>D:\software\researchMate\.venv\Scripts\ruff.exe check apps\api workers\ai-worker tests scripts</code></td>
-            <td class="ok">通过</td>
-            <td>验证 Python lint 基线。</td>
-          </tr>
-          <tr>
-            <td><code>FastAPI 应用导入检查</code></td>
-            <td class="ok">通过：21 个路由</td>
-            <td>确认路由壳层无需启动服务器即可加载。</td>
-          </tr>
-        </tbody>
-      </table>
-    </section>
-
-    <section id="risks">
-      <h2>风险</h2>
-      <ul>
-        <li><strong>契约漂移：</strong>OpenAPI、Pydantic、SQL 和 TypeScript 必须同步修改。</li>
-        <li><strong>密钥泄露：</strong>真实 key 只能放在本地 <code>.env</code> 或云端 secret manager，不能进入仓库。</li>
-        <li><strong>Trace 暴露：</strong>管理员 trace 不能出现在普通用户导航、公开路由或普通响应体中。</li>
-        <li><strong>Prompt injection：</strong>上传文件和网页内容只能作为证据，不能作为系统指令。</li>
-        <li><strong>Git 元数据缺失：</strong>当前目录没有暴露分支或提交历史，上传前需要重新确认提交范围。</li>
-      </ul>
-    </section>
-
-    <section id="decision-gates">
-      <h2>停止与确认条件 <span class="sr">Decision gates</span></h2>
-      <ul>
-        <li>重命名 API 字段或响应 schema 前必须停下来确认。</li>
-        <li>修改数据库 owner 字段、主键或删除策略前必须停下来确认。</li>
-        <li>加入真实 provider key 或 signed URL 示例前必须停下来确认。</li>
-        <li>让 Auto mode 默认调用 web 工具前必须停下来确认。</li>
-        <li>把 Developer Trace 暴露给普通用户前必须停下来确认。</li>
-        <li>把共享阻塞上下文拆给多个 agent 前必须停下来确认。</li>
-      </ul>
-    </section>
-
-    <section id="context-health">
-      <h2>上下文健康度 <span class="sr">Context health</span></h2>
-      <div class="grid cols-3">
-        <article class="card"><h3>新鲜度</h3><p>本页已在当前初始化阶段更新。</p></article>
-        <article class="card"><h3>覆盖度</h3><p>项目文档和本地 skill 覆盖较高；Git 元数据覆盖较低。</p></article>
-        <article class="card"><h3>冲突</h3><p>未发现事实源冲突；Git 状态缺失已明确标注。</p></article>
+    <section id="repo-map" class="panel split">
+      <div>
+        <div class="section-head"><p class="eyebrow">Repo map</p><h2>项目结构</h2></div>
+        <pre class="tree"><code>researchMate/
+  apps/api/                  FastAPI API、routers、schemas、local services
+  apps/web/                  Next.js App Router 前端 MVP
+  workers/ai-worker/         worker contracts 与 local fallback helper
+  packages/shared/           TypeScript shared contracts
+  infra/openapi/             OpenAPI YAML
+  infra/supabase/            Postgres migration 与 RLS 草案
+  docs/                      HTML-only 项目文档
+  docs/handoff/              本 agent context dashboard
+  tests/                     scaffold、API workflow、frontend contracts</code></pre>
+      </div>
+      <div>
+        <div class="section-head"><p class="eyebrow">运行入口</p><h2>关键命令</h2></div>
+        <pre><code>pytest tests/test_project_scaffold.py tests/test_api_workflow.py tests/test_frontend_contracts.py -q
+python skill/agent-context-html/scripts/validate_context_dashboard.py docs/handoff
+python -m uvicorn researchmate_api.main:app --app-dir apps/api/src --reload --host 127.0.0.1 --port 8000
+npm --workspace @researchmate/web run dev</code></pre>
       </div>
     </section>
 
-    <section id="completion-status">
-      <h2>完成状态 <span class="sr">Completion status</span></h2>
-      <p><strong class="warn">DONE_WITH_CONCERNS</strong>：脚手架、契约文档和 handoff 工件已存在，验证已通过。仍需注意：当前没有 Git 元数据，因此分支和提交状态仍是推断信息。</p>
+    <section id="handoff" class="panel">
+      <div class="section-head"><p class="eyebrow">Handoff ledger</p><h2>本轮交接记录</h2></div>
+      <ul>
+        <li>实现后端业务闭环：project/document/job/ask/quiz/sources/trace。</li>
+        <li>实现前端 MVP：Project、Ask、Library、Quiz、Developer Trace 页面。</li>
+        <li>更新 OpenAPI、README、AGENTS、docs HTML、test plan 和 security checklist。</li>
+        <li>新增测试：API workflow 和 frontend contract，共 18 个 pytest 测试通过。</li>
+      </ul>
     </section>
 
-    <section id="sources">
-      <h2>来源审计 <span class="sr">Source audit</span></h2>
-      <table>
-        <thead>
-          <tr><th>来源</th><th>类型</th><th>用途</th></tr>
-        </thead>
-        <tbody>
-          <tr><td>docs/researchmate-prd.html</td><td>事实源</td><td>产品范围、source mode、slash command 和安全规则。</td></tr>
-          <tr><td>docs/researchmate-architecture.html</td><td>事实源</td><td>技术栈、库表、LangGraph 和 API 草案。</td></tr>
-          <tr><td>docs/project-development-process.html</td><td>事实源</td><td>开发阶段和验收标准。</td></tr>
-          <tr><td>skill/karpathySKILL.md</td><td>事实源</td><td>简单性、外科手术式修改和显式假设。</td></tr>
-          <tr><td>skill/gstack/intro/index.html</td><td>事实源</td><td>从 API Spec 到 Execution Plan 的交付链路。</td></tr>
-          <tr><td>skill/agent-context-html/SKILL.md</td><td>事实源</td><td>交接仪表盘契约和完成状态词汇。</td></tr>
-          <tr><td>.git</td><td>缺失来源</td><td>无法读取分支、提交或 diff 状态。</td></tr>
-          <tr><td>TASK_STATE.md / .agent / memory-bank</td><td>缺失来源</td><td>未找到更早的交接状态记录。</td></tr>
-        </tbody>
-      </table>
+    <section id="validation" class="panel">
+      <div class="section-head"><p class="eyebrow">Validation and commands</p><h2>测试与未运行项</h2></div>
+      <h3>已运行</h3>
+      <ul><li>npm run check:all -&gt; 18 passed、handoff validation passed、ruff passed、Next build passed、npm audit 0 vulnerabilities。</li><li>python skill/agent-context-html/scripts/validate_context_dashboard.py docs/handoff -&gt; passed。</li><li>OpenAPI/API coverage smoke -&gt; passed。</li><li>docs HTML-only scan -&gt; passed。</li><li>secret 粗筛 -&gt; 仅命中 .env.example 占位值。</li></ul>
+      <h3>未运行或未成功运行</h3>
+      <ul><li>真实 Supabase/R2/Qdrant/Redis/provider 集成测试未运行：需要用户填入外部 API 和 secrets。</li><li>生产域名登录态、浏览器几何和 canary 测试未运行：等待部署 URL。</li></ul>
+    </section>
+
+    <section id="risks" class="panel">
+      <div class="section-head"><p class="eyebrow">Risks</p><h2>风险与假设</h2></div>
+      <ul class="risk-list"><li>本地 deterministic answer/quiz 是可测试 fallback，不代表真实 LLM 质量。</li><li>demo web evidence 不联网；上线必须替换为真实 search/read provider，并保留失败网页不得进入 citations 的规则。</li><li>in-memory store 适合本地测试，不适合生产；上线必须接 Supabase/R2/Qdrant/Redis。</li><li>工作区存在未提交改动；下一个 agent 在继续前应查看 diff，避免覆盖本次实现。</li></ul>
+    </section>
+
+    <section id="context-health" class="panel">
+      <div class="section-head"><p class="eyebrow">Context health</p><h2>上下文健康度</h2></div>
+      <div class="status-grid">
+        <div><span>confidence</span><strong>high</strong></div>
+        <div><span>freshness</span><strong>post-test</strong></div>
+        <div><span>coverage</span><strong>docs/code/tests</strong></div>
+        <div><span>dirty tree</span><strong>true</strong></div>
+      </div>
+      <p>缺失来源：真实 .env secrets 按安全策略不进入仓库；真实部署日志尚未产生；TASK_STATE.md 不存在。</p>
+    </section>
+
+    <section id="completion-status" class="panel">
+      <div class="section-head"><p class="eyebrow">Completion status</p><h2>DONE_WITH_CONCERNS</h2></div>
+      <p>本地完整性、安全粗筛、docs 合规和 CI 质量门已通过；生产上线仍依赖真实云服务、secret 配置和部署平台选择。</p>
+      <h3>已完成</h3>
+      <ul><li>实现 FastAPI 主业务闭环</li><li>实现 Next.js 前端 MVP 页面</li><li>更新 OpenAPI、README、AGENTS 和 docs HTML</li><li>新增 API workflow 与 frontend contract 测试</li><li>生成并验证 agent context dashboard</li><li>运行完整 check:all 质量门</li></ul>
+      <p><strong>建议：</strong>上线前按 docs/index.html 的 Next Step、docs/security-checklist.html 和 docs/test-plan.html 执行真实 provider 与部署验证。</p>
+    </section>
+
+    <section id="sources" class="panel">
+      <div class="section-head"><p class="eyebrow">Source audit</p><h2>来源审计</h2></div>
+      <h3>Sources used</h3>
+      <ul><li>skill/karpathySKILL.md</li><li>skill/gstack/intro/index.html</li><li>skill/gstack/intro/design-consultation.html</li><li>skill/gstack/intro/design-html.html</li><li>skill/gstack/intro/design-review.html</li><li>skill/gstack/intro/autoplan.html</li><li>skill/gstack/intro/plan-eng-review.html</li><li>skill/gstack/intro/plan-design-review.html</li><li>skill/gstack/intro/plan-devex-review.html</li><li>skill/gstack/intro/qa.html</li><li>skill/gstack/intro/qa-only.html</li><li>skill/gstack/intro/benchmark.html</li><li>skill/gstack/intro/cso.html</li><li>skill/gstack/intro/guard.html</li><li>skill/gstack/intro/careful.html</li><li>skill/gstack/intro/freeze.html</li><li>docs/index.html</li><li>docs/api-spec.html</li><li>docs/openapi-spec.html</li><li>docs/db-schema.html</li><li>docs/ui-page-spec.html</li><li>docs/execution-plan.html</li><li>docs/test-plan.html</li><li>docs/security-checklist.html</li><li>apps/api/src/researchmate_api</li><li>apps/web/app</li><li>workers/ai-worker/src/researchmate_worker/jobs.py</li><li>packages/shared/src/contracts.ts</li><li>tests/test_project_scaffold.py</li><li>tests/test_api_workflow.py</li><li>tests/test_frontend_contracts.py</li></ul>
+      <h3>Sources missing</h3>
+      <ul><li>真实 .env secrets：按安全策略不进入仓库。</li><li>node_modules：按交付策略不打包依赖目录。</li><li>真实部署日志：尚未上线。</li><li>浏览器截图/几何测试：当前未运行。</li></ul>
+      <h3>文档入口</h3>
+      <p><a href="../index.html">Docs Index</a> · <a href="../api-spec.html">API</a> · <a href="../test-plan.html">Test Plan</a> · <a href="../security-checklist.html">Security Checklist</a> · <a href="../execution-plan.html">Execution Plan</a></p>
     </section>
   </main>
-
   <script src="assets/site.js"></script>
 </body>
 </html>

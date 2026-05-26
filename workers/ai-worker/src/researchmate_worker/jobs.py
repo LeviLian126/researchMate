@@ -29,3 +29,35 @@ class WorkerJobHandler(Protocol):
     # 处理已经校验过的 worker 任务。
     def handle(self, payload: WorkerJobPayload) -> None:
         """Process a validated worker job payload."""
+
+
+# 纯函数 chunker，供本地 worker 与 API adapter 复用测试。
+def chunk_text_for_index(text: str, target_size: int = 900) -> list[str]:
+    normalized = "\n".join(line.strip() for line in text.splitlines() if line.strip())
+    if not normalized:
+        return []
+    chunks: list[str] = []
+    current = ""
+    for paragraph in normalized.split("\n"):
+        if len(current) + len(paragraph) + 1 <= target_size:
+            current = f"{current}\n{paragraph}".strip()
+        else:
+            if current:
+                chunks.append(current)
+            current = paragraph
+    if current:
+        chunks.append(current)
+    return chunks
+
+
+# 本地 no-op handler，用于没有真实队列时验证 job payload 和幂等边界。
+class LocalWorkerJobHandler:
+    # 保存已处理的 job id，防止重复执行。
+    def __init__(self) -> None:
+        self.handled_job_ids: set[UUID] = set()
+
+    # 标记任务已处理；生产实现应替换为 parser/indexer/deletion 逻辑。
+    def handle(self, payload: WorkerJobPayload) -> None:
+        if payload.job_id in self.handled_job_ids:
+            return
+        self.handled_job_ids.add(payload.job_id)

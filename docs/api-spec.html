@@ -4,238 +4,72 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>API Spec - ResearchMate Docs</title>
-  <style>
-:root{--bg:#f8fafc;--surface:#fff;--text:#0f172a;--muted:#475569;--line:#dbe3ef;--brand:#0f766e;--brand-soft:#ccfbf1;--code:#0f172a;--warn:#92400e}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.65}.top{position:sticky;top:0;z-index:5;border-bottom:1px solid var(--line);background:rgba(255,255,255,.94);backdrop-filter:blur(12px)}.top-inner{width:min(1180px,calc(100% - 32px));margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 0}.brand{font-weight:800;color:var(--text);text-decoration:none}.nav{display:flex;flex-wrap:wrap;gap:8px}.nav a{border:1px solid var(--line);border-radius:6px;padding:6px 9px;color:var(--brand);text-decoration:none;font-size:13px;background:var(--surface)}.nav a[aria-current="page"]{background:var(--brand-soft);color:#134e4a}.wrap{width:min(1180px,calc(100% - 32px));margin:0 auto}.hero{padding:28px 0 16px}.eyebrow{color:var(--brand);font-weight:800;text-transform:uppercase;font-size:12px;letter-spacing:.08em}h1{font-size:38px;line-height:1.1;margin:8px 0 12px}h2{font-size:26px;margin:32px 0 10px;border-top:1px solid var(--line);padding-top:24px}h3{font-size:20px;margin:24px 0 8px}h4{font-size:16px;margin:18px 0 6px}.lead{font-size:18px;color:var(--muted);max-width:860px}.layout{display:grid;grid-template-columns:280px minmax(0,1fr);gap:20px;align-items:start}.toc{position:sticky;top:68px;border:1px solid var(--line);border-radius:8px;background:var(--surface);padding:14px;max-height:calc(100vh - 96px);overflow:auto}.toc strong{display:block;margin-bottom:8px}.toc a{display:block;color:var(--muted);text-decoration:none;padding:5px 0;font-size:13px}.toc a:hover{color:var(--brand)}.doc{border:1px solid var(--line);border-radius:8px;background:var(--surface);padding:22px;overflow:hidden}.doc p{color:#26364f}.doc a{color:var(--brand)}blockquote{border-left:4px solid var(--brand);margin:14px 0;padding:8px 14px;background:#f0fdfa;color:#334155}pre{overflow:auto;border:1px solid var(--line);border-radius:8px;background:#0b1220;color:#dbeafe;padding:14px;line-height:1.5}code{font-family:"Cascadia Code",Consolas,monospace;background:#eef2f7;border-radius:4px;padding:1px 4px;color:var(--code)}pre code{background:transparent;padding:0;color:inherit}table{width:100%;border-collapse:collapse;margin:12px 0;display:block;overflow:auto}th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}th{background:#f1f5f9}ul,ol{padding-left:24px}.cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.card{border:1px solid var(--line);border-radius:8px;background:var(--surface);padding:14px}.card h3{margin-top:0}.chip{display:inline-flex;border:1px solid var(--line);border-radius:999px;padding:4px 9px;margin:4px;color:var(--muted);font-size:13px}.warn{color:var(--warn)}details{border:1px solid var(--line);border-radius:8px;padding:12px;margin:20px 0;background:#fbfdff}summary{font-weight:800;cursor:pointer}.source-note{color:var(--muted);font-size:13px;margin-top:22px}@media(max-width:900px){.layout{grid-template-columns:1fr}.toc{position:relative;top:auto}.cards{grid-template-columns:1fr}.top-inner{align-items:flex-start;flex-direction:column}h1{font-size:30px}}
-</style>
+  <style>:root{--bg:#f8fafc;--surface:#fff;--text:#0f172a;--muted:#475569;--line:#dbe3ef;--brand:#0f766e;--brand-soft:#ccfbf1;--code:#0f172a;--warn:#92400e;--ok:#047857}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.65}.top{position:sticky;top:0;z-index:5;border-bottom:1px solid var(--line);background:rgba(255,255,255,.94);backdrop-filter:blur(12px)}.top-inner{width:min(1180px,calc(100% - 32px));margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 0}.brand{font-weight:800;color:var(--text);text-decoration:none}.nav{display:flex;flex-wrap:wrap;gap:8px}.nav a{border:1px solid var(--line);border-radius:6px;padding:6px 9px;color:var(--brand);text-decoration:none;font-size:13px;background:var(--surface)}.nav a[aria-current="page"]{background:var(--brand-soft);color:#134e4a}.wrap{width:min(1180px,calc(100% - 32px));margin:0 auto}.hero{padding:28px 0 16px}.eyebrow{color:var(--brand);font-weight:800;text-transform:uppercase;font-size:12px;letter-spacing:.08em}h1{font-size:38px;line-height:1.1;margin:8px 0 12px}h2{font-size:26px;margin:32px 0 10px;border-top:1px solid var(--line);padding-top:24px}h3{font-size:20px;margin:24px 0 8px}.lead{font-size:18px;color:var(--muted);max-width:900px}.doc{border:1px solid var(--line);border-radius:8px;background:var(--surface);padding:22px;margin-bottom:32px}.doc p{color:#26364f}.doc a{color:var(--brand)}blockquote{border-left:4px solid var(--brand);margin:14px 0;padding:8px 14px;background:#f0fdfa;color:#334155}pre{overflow:auto;border:1px solid var(--line);border-radius:8px;background:#0b1220;color:#dbeafe;padding:14px;line-height:1.5}code{font-family:"Cascadia Code",Consolas,monospace;background:#eef2f7;border-radius:4px;padding:1px 4px;color:var(--code)}pre code{background:transparent;padding:0;color:inherit}table{width:100%;border-collapse:collapse;margin:12px 0;display:table}th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}th{background:#f1f5f9}ul,ol{padding-left:24px}.cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.card{border:1px solid var(--line);border-radius:8px;background:var(--surface);padding:14px}.card h3{margin-top:0}.chip{display:inline-flex;border:1px solid var(--line);border-radius:999px;padding:4px 9px;margin:4px;color:var(--muted);font-size:13px;background:#fff}.ok{color:var(--ok);font-weight:800}.warn{color:var(--warn);font-weight:800}.source-note{color:var(--muted);font-size:13px;margin-top:22px}@media(max-width:900px){.cards{grid-template-columns:1fr}.top-inner{align-items:flex-start;flex-direction:column}h1{font-size:30px}table{display:block;overflow:auto}}</style>
 </head>
 <body>
-  <header class="top"><div class="top-inner"><a class="brand" href="HANDOFF.html">ResearchMate Docs</a><nav class="nav" aria-label="Project documentation"><a href="HANDOFF.html">总览</a><a href="handoff/index.html">Agent Dashboard</a><a href="researchmate-prd.html">PRD</a><a href="researchmate-architecture.html">Architecture</a><a href="project-development-process.html">Process</a><a href="api-spec.html" aria-current="page">API</a><a href="openapi-spec.html">OpenAPI</a><a href="db-schema.html">DB</a><a href="ui-page-spec.html">UI</a><a href="execution-plan.html">Plan</a></nav></div></header>
+  <header class="top"><div class="top-inner"><a class="brand" href="index.html">ResearchMate Docs</a><nav class="nav" aria-label="Project documentation"><a href="index.html">总览</a><a href="handoff/index.html">Agent Dashboard</a><a href="researchmate-prd.html">PRD</a><a href="researchmate-architecture.html">Architecture</a><a href="project-development-process.html">Process</a><a href="api-spec.html" aria-current="page">API</a><a href="openapi-spec.html">OpenAPI</a><a href="db-schema.html">DB</a><a href="ui-page-spec.html">UI</a><a href="test-plan.html">Test Plan</a><a href="security-checklist.html">Security</a><a href="execution-plan.html">Plan</a></nav></div></header>
   <main class="wrap">
     <section class="hero">
       <span class="eyebrow">Project Documentation</span>
       <h1>API Spec</h1>
-      <p class="lead">定义前后端 API 契约、校验边界与非实现范围。</p>
-      <p class="source-note">Migrated from <code>API_SPEC.md</code>. The original Markdown is preserved at the bottom of this HTML page for lossless handoff.</p>
+      <p class="lead">定义当前已实现的本地 MVP API、鉴权边界、错误模型和可替换云端 adapter 边界。</p>
     </section>
-    <div class="layout">
-      <aside class="toc"><strong>目录</strong><a href="#1-契约事实源">1. 契约事实源</a><a href="#2-全局规则">2. 全局规则</a><a href="#2-1-认证">&nbsp;&nbsp;2.1 认证</a><a href="#2-2-授权">&nbsp;&nbsp;2.2 授权</a><a href="#2-3-错误响应">&nbsp;&nbsp;2.3 错误响应</a><a href="#3-mvp-api">3. MVP API</a><a href="#4-source-mode-与-task-type">4. Source Mode 与 Task Type</a><a href="#4-1-source-mode">&nbsp;&nbsp;4.1 Source Mode</a><a href="#4-2-task-type">&nbsp;&nbsp;4.2 Task Type</a><a href="#5-校验边界">5. 校验边界</a><a href="#5-1-请求校验">&nbsp;&nbsp;5.1 请求校验</a><a href="#5-2-输出校验">&nbsp;&nbsp;5.2 输出校验</a><a href="#6-前后端约定">6. 前后端约定</a><a href="#7-非实现说明">7. 非实现说明</a></aside>
-      <article class="doc"><h1 id="researchmate-api-spec">ResearchMate API Spec</h1>
-<blockquote><strong>TLDR:</strong> API 版本统一使用 <code>/api/v1</code>。所有业务接口默认需要 Bearer JWT。所有 project、document、run、quiz、trace 访问都必须做 <code>user_id</code> 归属校验。</blockquote>
-<h3 id="1-契约事实源">1. 契约事实源</h3>
-<table><thead><tr><th>文件</th><th>作用</th></tr></thead><tbody>
-<tr><td><code>infra/openapi/openapi.yaml and docs/openapi-spec.html</code></td><td>HTTP API 的机器可读事实源</td></tr>
-<tr><td><code>apps/api/src/researchmate_api/schemas</code></td><td>FastAPI/Pydantic 请求与响应模型</td></tr>
-<tr><td><code>packages/shared/src/contracts.ts</code></td><td>前端可复用的 TypeScript 契约</td></tr>
+    <article class="doc">
+<blockquote><strong>TLDR:</strong> API 版本统一使用 <code>/api/v1</code>。除 <code>/healthz</code> 外，所有业务接口默认需要 Bearer token；所有 project、document、run、quiz、trace 访问都按 owner user_id 校验。</blockquote>
+<h2 id="status">当前实现状态</h2>
+<table><thead><tr><th>模块</th><th>状态</th><th>说明</th></tr></thead><tbody>
+<tr><td>Auth</td><td><span class="ok">已实现本地 dev token</span></td><td><code>dev</code>、<code>dev-admin</code>、<code>dev-user-a</code>、<code>dev-user-b</code> 用于本地联调；上线替换为 Supabase JWT 校验。</td></tr>
+<tr><td>Project</td><td><span class="ok">已实现</span></td><td>创建、列表、读取、删除均做用户隔离。</td></tr>
+<tr><td>Document</td><td><span class="ok">已实现本地上传闭环</span></td><td><code>upload-url</code> 返回 R2 signed URL 占位；<code>complete</code> 支持 <code>extracted_text</code> 模拟 worker 解析并写入 chunks。</td></tr>
+<tr><td>Ask</td><td><span class="ok">已实现</span></td><td>支持 <code>/study</code>、<code>/search</code>、<code>/hybrid</code> 与 mode selector；Auto 默认 local-only。</td></tr>
+<tr><td>Quiz</td><td><span class="ok">已实现</span></td><td>基于本地 chunks 生成题目；选择题恰好四个选项；题目保存历史。</td></tr>
+<tr><td>Sources</td><td><span class="ok">已实现</span></td><td>按 <code>run_id</code> 展开 citations 与来源统计。</td></tr>
+<tr><td>Developer Trace</td><td><span class="ok">已实现 admin/developer-only</span></td><td>普通用户不可见；trace 仅记录脱敏计划、工具摘要、检索片段和校验结果。</td></tr>
+<tr><td>Web provider</td><td><span class="warn">adapter 待接真实 API</span></td><td>本地使用 demo evidence，不联网、不需要真实 SERPER/JINA/FIRECRAWL key。</td></tr>
 </tbody></table>
-<h3 id="2-全局规则">2. 全局规则</h3>
-<h4 id="2-1-认证">2.1 认证</h4>
-<ul>
-<li><code>GET /api/v1/healthz</code> 不需要认证。</li>
-<li>其他接口默认需要 <code>Authorization: Bearer &lt;token&gt;</code>。</li>
-<li>后端必须校验 token 的 <strong>issuer</strong>、<strong>audience</strong>、<strong>signature</strong>、<strong>expiry</strong> 和用户状态。</li>
-</ul>
-<h4 id="2-2-授权">2.2 授权</h4>
-<p>所有资源接口必须验证：</p>
-<pre><code class="language-text">request.user_id == resource.owner_user_id</code></pre>
-<blockquote>管理员接口也必须校验角色，并记录审计日志。</blockquote>
-<h4 id="2-3-错误响应">2.3 错误响应</h4>
-<pre><code class="language-json">{
-  &quot;error&quot;: {
-    &quot;code&quot;: &quot;DOCUMENT_NOT_READY&quot;,
-    &quot;message&quot;: &quot;Document is still being processed.&quot;,
-    &quot;request_id&quot;: &quot;req_...&quot;
-  }
-}</code></pre>
-<p>错误响应不得包含：</p>
-<ul>
-<li>SQL</li>
-<li>stack trace</li>
-<li>provider raw error</li>
-<li>API key</li>
-<li>OAuth token</li>
-<li>R2 signed secret</li>
-</ul>
-<h3 id="3-mvp-api">3. MVP API</h3>
+<h2 id="routes">MVP API</h2>
 <table><thead><tr><th>模块</th><th>API</th><th>目的</th><th>权限</th></tr></thead><tbody>
-<tr><td>Auth</td><td><code>GET /api/v1/me</code></td><td>获取当前用户</td><td>登录用户</td></tr>
-<tr><td>Project</td><td><code>POST /api/v1/projects</code></td><td>创建项目</td><td>登录用户</td></tr>
+<tr><td>Auth</td><td><code>GET /api/v1/me</code></td><td>获取当前用户</td><td>Bearer</td></tr>
+<tr><td>Project</td><td><code>POST /api/v1/projects</code></td><td>创建项目</td><td>owner</td></tr>
 <tr><td>Project</td><td><code>GET /api/v1/projects</code></td><td>列出项目</td><td>owner</td></tr>
 <tr><td>Project</td><td><code>GET /api/v1/projects/{project_id}</code></td><td>读取项目</td><td>owner</td></tr>
-<tr><td>Project</td><td><code>DELETE /api/v1/projects/{project_id}</code></td><td>删除项目</td><td>owner</td></tr>
-<tr><td>Upload</td><td><code>POST /api/v1/documents/upload-url</code></td><td>获取 R2 signed URL</td><td>owner</td></tr>
-<tr><td>Document</td><td><code>POST /api/v1/documents</code></td><td>创建文档元数据</td><td>owner</td></tr>
+<tr><td>Project</td><td><code>DELETE /api/v1/projects/{project_id}</code></td><td>删除项目并清理本地关联数据</td><td>owner</td></tr>
+<tr><td>Upload</td><td><code>POST /api/v1/documents/upload-url</code></td><td>创建文档记录并返回上传 URL</td><td>owner</td></tr>
+<tr><td>Document</td><td><code>POST /api/v1/documents/{document_id}/complete</code></td><td>上传完成后触发解析和索引</td><td>owner</td></tr>
 <tr><td>Document</td><td><code>GET /api/v1/projects/{project_id}/documents</code></td><td>列出项目文件</td><td>owner</td></tr>
 <tr><td>Document</td><td><code>GET /api/v1/documents/{document_id}</code></td><td>读取文件状态</td><td>owner</td></tr>
-<tr><td>Document</td><td><code>DELETE /api/v1/documents/{document_id}</code></td><td>删除文件</td><td>owner</td></tr>
-<tr><td>Job</td><td><code>GET /api/v1/jobs/{job_id}</code></td><td>查看异步任务</td><td>owner</td></tr>
-<tr><td>Ask</td><td><code>POST /api/v1/ask</code></td><td>可溯源问答</td><td>owner</td></tr>
+<tr><td>Job</td><td><code>GET /api/v1/jobs/{job_id}</code></td><td>查看解析、索引、删除任务</td><td>owner</td></tr>
+<tr><td>Ask</td><td><code>POST /api/v1/ask</code></td><td>生成可溯源回答</td><td>owner</td></tr>
 <tr><td>Quiz</td><td><code>POST /api/v1/quiz</code></td><td>生成测验</td><td>owner</td></tr>
+<tr><td>Quiz</td><td><code>GET /api/v1/projects/{project_id}/quiz</code></td><td>查看测验历史</td><td>owner</td></tr>
 <tr><td>Sources</td><td><code>GET /api/v1/runs/{run_id}/sources</code></td><td>展开来源</td><td>owner</td></tr>
 <tr><td>Trace</td><td><code>GET /api/v1/dev/traces/{trace_id}</code></td><td>查看调试链路</td><td>developer/admin</td></tr>
 <tr><td>Health</td><td><code>GET /api/v1/healthz</code></td><td>健康检查</td><td>public</td></tr>
 </tbody></table>
-<h3 id="4-source-mode-与-task-type">4. Source Mode 与 Task Type</h3>
-<h4 id="4-1-source-mode">4.1 Source Mode</h4>
-<table><thead><tr><th>Mode</th><th>含义</th><th>默认联网</th></tr></thead><tbody>
-<tr><td><code>auto</code></td><td>后端规则判断，默认不联网</td><td>否</td></tr>
-<tr><td><code>local_only</code></td><td>只查上传资料</td><td>否</td></tr>
-<tr><td><code>web_only</code></td><td>只查联网资料</td><td>是</td></tr>
-<tr><td><code>hybrid</code></td><td>先本地，必要时联网</td><td>条件触发</td></tr>
-</tbody></table>
-<h4 id="4-2-task-type">4.2 Task Type</h4>
-<table><thead><tr><th>Task</th><th>来源</th></tr></thead><tbody>
-<tr><td><code>answer</code></td><td>普通 Ask、<code>/study</code>、<code>/search</code>、<code>/hybrid</code></td></tr>
-<tr><td><code>quiz</code></td><td><code>/quiz</code></td></tr>
-</tbody></table>
-<blockquote><strong>重要：</strong> Quiz 不是 Mode，不允许进入右下角 Mode selector。</blockquote>
-<h3 id="5-校验边界">5. 校验边界</h3>
-<h4 id="5-1-请求校验">5.1 请求校验</h4>
+<h2 id="source-policy">Source Mode 与 Slash Command</h2>
 <ul>
-<li><code>project_id</code>、<code>document_id</code>、<code>run_id</code>、<code>trace_id</code> 必须是 UUID。</li>
-<li><code>message</code> 最大 8000 字符。</li>
-<li>上传文件最大 25MB。</li>
-<li>文件类型只允许 <code>pdf</code>、<code>docx</code>、<code>pptx</code>。</li>
-<li>搜索、抓取、Ask、Quiz 都要做 per-user 和 per-IP 限流。</li>
+<li><code>auto</code> 默认解析为 <code>local_only</code>，控制成本、延迟和隐私。</li>
+<li><code>/study</code> 强制本地资料问答；没有 ready chunks 时返回 <code>DOCUMENT_NOT_INDEXED</code>，不编造答案。</li>
+<li><code>/search</code> 强制 web-only；当前本地运行只返回 demo evidence，上线后替换真实搜索和抓取 provider。</li>
+<li><code>/hybrid</code> 先本地检索，本地为空时可触发 web fallback。</li>
+<li><code>/quiz</code> 走 <code>POST /api/v1/quiz</code>，不允许混入 Ask route。</li>
 </ul>
-<h4 id="5-2-输出校验">5.2 输出校验</h4>
-<table><thead><tr><th>输出</th><th>Schema</th><th>必要校验</th></tr></thead><tbody>
-<tr><td>Ask</td><td><code>GroundedAnswer</code></td><td>JSON parse、Pydantic、Source policy、Citation</td></tr>
-<tr><td>Quiz</td><td><code>QuizSet</code></td><td>题型、选项数量、答案、解析、来源摘要</td></tr>
-<tr><td>Trace</td><td><code>DeveloperTrace</code></td><td>管理员权限、脱敏、无 secret</td></tr>
-</tbody></table>
-<h3 id="6-前后端约定">6. 前后端约定</h3>
-<ul>
-<li>前端只渲染结构化字段，不解析模型原始文本。</li>
-<li>Ask 顶部只显示 <code>Mode</code> 和 <code>Sources</code> 摘要。</li>
-<li>Sources panel 使用 <code>GET /runs/{run_id}/sources</code>。</li>
-<li>普通用户 UI 不显示 trace、prompt、token 明细和工具 raw payload。</li>
-<li>Admin Trace 没有普通导航入口。</li>
-</ul>
-<h3 id="7-非实现说明">7. 非实现说明</h3>
-<p>当前 <code>apps/api</code> 只保留路由和 schema。业务逻辑未实现时统一返回 <code>501</code>，这是刻意边界，不是 bug。</p><details><summary>原始 Markdown 备份</summary><pre><code># ResearchMate API Spec
-
-&gt; **TLDR:** API 版本统一使用 `/api/v1`。所有业务接口默认需要 Bearer JWT。所有 project、document、run、quiz、trace 访问都必须做 `user_id` 归属校验。
-
-## 1. 契约事实源
-
-| 文件 | 作用 |
-|---|---|
-| `infra/openapi/openapi.yaml and docs/openapi-spec.html` | HTTP API 的机器可读事实源 |
-| `apps/api/src/researchmate_api/schemas` | FastAPI/Pydantic 请求与响应模型 |
-| `packages/shared/src/contracts.ts` | 前端可复用的 TypeScript 契约 |
-
-## 2. 全局规则
-
-### 2.1 认证
-
-- `GET /api/v1/healthz` 不需要认证。
-- 其他接口默认需要 `Authorization: Bearer &lt;token&gt;`。
-- 后端必须校验 token 的 **issuer**、**audience**、**signature**、**expiry** 和用户状态。
-
-### 2.2 授权
-
-所有资源接口必须验证：
-
-```text
-request.user_id == resource.owner_user_id
-```
-
-&gt; 管理员接口也必须校验角色，并记录审计日志。
-
-### 2.3 错误响应
-
-```json
-{
-  &quot;error&quot;: {
-    &quot;code&quot;: &quot;DOCUMENT_NOT_READY&quot;,
-    &quot;message&quot;: &quot;Document is still being processed.&quot;,
-    &quot;request_id&quot;: &quot;req_...&quot;
+<h2 id="errors">统一错误体</h2>
+<pre><code>{
+  "error": {
+    "code": "DOCUMENT_NOT_INDEXED",
+    "message": "No ready local document chunks exist for this project.",
+    "request_id": "req_local_dev"
   }
-}
-```
-
-错误响应不得包含：
-
-- SQL
-- stack trace
-- provider raw error
-- API key
-- OAuth token
-- R2 signed secret
-
-## 3. MVP API
-
-| 模块 | API | 目的 | 权限 |
-|---|---|---|---|
-| Auth | `GET /api/v1/me` | 获取当前用户 | 登录用户 |
-| Project | `POST /api/v1/projects` | 创建项目 | 登录用户 |
-| Project | `GET /api/v1/projects` | 列出项目 | owner |
-| Project | `GET /api/v1/projects/{project_id}` | 读取项目 | owner |
-| Project | `DELETE /api/v1/projects/{project_id}` | 删除项目 | owner |
-| Upload | `POST /api/v1/documents/upload-url` | 获取 R2 signed URL | owner |
-| Document | `POST /api/v1/documents` | 创建文档元数据 | owner |
-| Document | `GET /api/v1/projects/{project_id}/documents` | 列出项目文件 | owner |
-| Document | `GET /api/v1/documents/{document_id}` | 读取文件状态 | owner |
-| Document | `DELETE /api/v1/documents/{document_id}` | 删除文件 | owner |
-| Job | `GET /api/v1/jobs/{job_id}` | 查看异步任务 | owner |
-| Ask | `POST /api/v1/ask` | 可溯源问答 | owner |
-| Quiz | `POST /api/v1/quiz` | 生成测验 | owner |
-| Sources | `GET /api/v1/runs/{run_id}/sources` | 展开来源 | owner |
-| Trace | `GET /api/v1/dev/traces/{trace_id}` | 查看调试链路 | developer/admin |
-| Health | `GET /api/v1/healthz` | 健康检查 | public |
-
-## 4. Source Mode 与 Task Type
-
-### 4.1 Source Mode
-
-| Mode | 含义 | 默认联网 |
-|---|---|---:|
-| `auto` | 后端规则判断，默认不联网 | 否 |
-| `local_only` | 只查上传资料 | 否 |
-| `web_only` | 只查联网资料 | 是 |
-| `hybrid` | 先本地，必要时联网 | 条件触发 |
-
-### 4.2 Task Type
-
-| Task | 来源 |
-|---|---|
-| `answer` | 普通 Ask、`/study`、`/search`、`/hybrid` |
-| `quiz` | `/quiz` |
-
-&gt; **重要：** Quiz 不是 Mode，不允许进入右下角 Mode selector。
-
-## 5. 校验边界
-
-### 5.1 请求校验
-
-- `project_id`、`document_id`、`run_id`、`trace_id` 必须是 UUID。
-- `message` 最大 8000 字符。
-- 上传文件最大 25MB。
-- 文件类型只允许 `pdf`、`docx`、`pptx`。
-- 搜索、抓取、Ask、Quiz 都要做 per-user 和 per-IP 限流。
-
-### 5.2 输出校验
-
-| 输出 | Schema | 必要校验 |
-|---|---|---|
-| Ask | `GroundedAnswer` | JSON parse、Pydantic、Source policy、Citation |
-| Quiz | `QuizSet` | 题型、选项数量、答案、解析、来源摘要 |
-| Trace | `DeveloperTrace` | 管理员权限、脱敏、无 secret |
-
-## 6. 前后端约定
-
-- 前端只渲染结构化字段，不解析模型原始文本。
-- Ask 顶部只显示 `Mode` 和 `Sources` 摘要。
-- Sources panel 使用 `GET /runs/{run_id}/sources`。
-- 普通用户 UI 不显示 trace、prompt、token 明细和工具 raw payload。
-- Admin Trace 没有普通导航入口。
-
-## 7. 非实现说明
-
-当前 `apps/api` 只保留路由和 schema。业务逻辑未实现时统一返回 `501`，这是刻意边界，不是 bug。
-
-</code></pre></details></article>
-    </div>
+}</code></pre>
+<h2 id="security">输出与安全约束</h2>
+<ul>
+<li>错误响应不得包含 SQL、stack trace、provider raw error、API key、OAuth token 或 R2 signed secret。</li>
+<li>Developer Trace 不进入普通用户导航；普通 user token 调用返回 <code>403 ADMIN_REQUIRED</code>。</li>
+<li>前端只读取 <code>NEXT_PUBLIC_API_BASE_URL</code> 等 public 配置，不包含后端密钥名或密钥值。</li>
+<li>机器可读事实源为 <a href="openapi-spec.html"><code>docs/openapi-spec.html</code></a> 与 <code>infra/openapi/openapi.yaml</code>。</li>
+</ul>
+    </article>
   </main>
 </body>
 </html>

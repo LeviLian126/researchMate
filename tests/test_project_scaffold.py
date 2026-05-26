@@ -10,7 +10,7 @@ def test_required_contract_files_exist() -> None:
         ".gitignore",
         ".env.example",
         "README.md",
-        "docs/HANDOFF.html",
+        "docs/index.html",
         "docs/api-spec.html",
         "docs/db-schema.html",
         "docs/ui-page-spec.html",

@@ -8,17 +8,19 @@ on:
       - develop
 
 jobs:
-  contract-check:
+  quality-gate:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
       - name: Install contract dependencies
         run: python -m pip install -r requirements-dev.txt
-      - name: Run scaffold contract tests
-        run: pytest tests/test_project_scaffold.py -q
-      - name: Validate handoff dashboard
-        run: python skill/agent-context-html/scripts/validate_context_dashboard.py docs/handoff
-
+      - name: Install web dependencies
+        run: npm install
+      - name: Run full quality gate
+        run: npm run check:all

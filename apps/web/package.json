@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@researchmate/shared": "0.1.0",
-    "next": "latest",
+    "next": "16.3.0-canary.29",
     "react": "latest",
     "react-dom": "latest"
   },
@@ -21,4 +21,3 @@
     "typescript": "latest"
   }
 }
-

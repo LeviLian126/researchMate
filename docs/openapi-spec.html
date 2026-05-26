@@ -1,816 +1,1708 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>OpenAPI Spec - ResearchMate Docs</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ResearchMate OpenAPI Spec</title>
   <style>
-:root{--bg:#f8fafc;--surface:#fff;--text:#0f172a;--muted:#475569;--line:#dbe3ef;--brand:#0f766e;--brand-soft:#ccfbf1;--code:#0f172a;--warn:#92400e}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.65}.top{position:sticky;top:0;z-index:5;border-bottom:1px solid var(--line);background:rgba(255,255,255,.94);backdrop-filter:blur(12px)}.top-inner{width:min(1180px,calc(100% - 32px));margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 0}.brand{font-weight:800;color:var(--text);text-decoration:none}.nav{display:flex;flex-wrap:wrap;gap:8px}.nav a{border:1px solid var(--line);border-radius:6px;padding:6px 9px;color:var(--brand);text-decoration:none;font-size:13px;background:var(--surface)}.nav a[aria-current="page"]{background:var(--brand-soft);color:#134e4a}.wrap{width:min(1180px,calc(100% - 32px));margin:0 auto}.hero{padding:28px 0 16px}.eyebrow{color:var(--brand);font-weight:800;text-transform:uppercase;font-size:12px;letter-spacing:.08em}h1{font-size:38px;line-height:1.1;margin:8px 0 12px}h2{font-size:26px;margin:32px 0 10px;border-top:1px solid var(--line);padding-top:24px}h3{font-size:20px;margin:24px 0 8px}h4{font-size:16px;margin:18px 0 6px}.lead{font-size:18px;color:var(--muted);max-width:860px}.layout{display:grid;grid-template-columns:280px minmax(0,1fr);gap:20px;align-items:start}.toc{position:sticky;top:68px;border:1px solid var(--line);border-radius:8px;background:var(--surface);padding:14px;max-height:calc(100vh - 96px);overflow:auto}.toc strong{display:block;margin-bottom:8px}.toc a{display:block;color:var(--muted);text-decoration:none;padding:5px 0;font-size:13px}.toc a:hover{color:var(--brand)}.doc{border:1px solid var(--line);border-radius:8px;background:var(--surface);padding:22px;overflow:hidden}.doc p{color:#26364f}.doc a{color:var(--brand)}blockquote{border-left:4px solid var(--brand);margin:14px 0;padding:8px 14px;background:#f0fdfa;color:#334155}pre{overflow:auto;border:1px solid var(--line);border-radius:8px;background:#0b1220;color:#dbeafe;padding:14px;line-height:1.5}code{font-family:"Cascadia Code",Consolas,monospace;background:#eef2f7;border-radius:4px;padding:1px 4px;color:var(--code)}pre code{background:transparent;padding:0;color:inherit}table{width:100%;border-collapse:collapse;margin:12px 0;display:block;overflow:auto}th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}th{background:#f1f5f9}ul,ol{padding-left:24px}.cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.card{border:1px solid var(--line);border-radius:8px;background:var(--surface);padding:14px}.card h3{margin-top:0}.chip{display:inline-flex;border:1px solid var(--line);border-radius:999px;padding:4px 9px;margin:4px;color:var(--muted);font-size:13px}.warn{color:var(--warn)}details{border:1px solid var(--line);border-radius:8px;padding:12px;margin:20px 0;background:#fbfdff}summary{font-weight:800;cursor:pointer}.source-note{color:var(--muted);font-size:13px;margin-top:22px}@media(max-width:900px){.layout{grid-template-columns:1fr}.toc{position:relative;top:auto}.cards{grid-template-columns:1fr}.top-inner{align-items:flex-start;flex-direction:column}h1{font-size:30px}}
-</style>
+    :root { color-scheme: light; --bg:#f8fafc; --panel:#ffffff; --ink:#0f172a; --muted:#64748b; --line:#dbe4ef; --accent:#2563eb; }
+    body { margin:0; font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background:var(--bg); color:var(--ink); }
+    main { max-width:1120px; margin:0 auto; padding:40px 24px; }
+    nav { display:flex; gap:12px; flex-wrap:wrap; margin:18px 0 28px; }
+    a { color:var(--accent); text-decoration:none; font-weight:700; }
+    a:hover { text-decoration:underline; }
+    .card { background:var(--panel); border:1px solid var(--line); border-radius:18px; padding:22px; box-shadow:0 12px 30px rgba(15,23,42,.06); }
+    .pill { display:inline-flex; border:1px solid var(--line); border-radius:999px; padding:6px 10px; color:var(--muted); font-size:13px; background:#fff; }
+    pre { overflow:auto; background:#0f172a; color:#e2e8f0; padding:20px; border-radius:16px; line-height:1.5; font-size:13px; }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    ul { line-height:1.8; }
+  </style>
 </head>
 <body>
-  <header class="top"><div class="top-inner"><a class="brand" href="HANDOFF.html">ResearchMate Docs</a><nav class="nav" aria-label="Project documentation"><a href="HANDOFF.html">总览</a><a href="handoff/index.html">Agent Dashboard</a><a href="researchmate-prd.html">PRD</a><a href="researchmate-architecture.html">Architecture</a><a href="project-development-process.html">Process</a><a href="api-spec.html">API</a><a href="openapi-spec.html" aria-current="page">OpenAPI</a><a href="db-schema.html">DB</a><a href="ui-page-spec.html">UI</a><a href="execution-plan.html">Plan</a></nav></div></header>
-  <main class="wrap">
-    <section class="hero">
-      <span class="eyebrow">Machine Contract Mirror</span>
-      <h1>OpenAPI Spec</h1>
-      <p class="lead">This page mirrors the machine-readable OpenAPI contract now stored at <code>infra/openapi/openapi.yaml</code>.</p>
+  <main>
+    <p class="pill">machine-readable source of truth</p>
+    <h1>ResearchMate OpenAPI Spec</h1>
+    <p>本页面内嵌 <code>infra/openapi/openapi.yaml</code> 的当前内容，覆盖 Project、Document、Ask、Quiz、Sources、Developer Trace、Job 与 Health 接口。</p>
+    <nav>
+      <a href="index.html">Handoff</a>
+      <a href="api-spec.html">API Guide</a>
+      <a href="execution-plan.html">Execution Plan</a>
+      <a href="test-plan.html">Test Plan</a>
+      <a href="security-checklist.html">Security Checklist</a>
+    </nav>
+    <section class="card">
+      <h2>关键验收点</h2>
+      <ul>
+        <li>所有受保护路由显式声明 <code>bearerAuth</code>。</li>
+        <li><code>/api/v1/documents/upload-url</code>、<code>/api/v1/documents/{document_id}/complete</code> 支持本地开发上传闭环。</li>
+        <li><code>/api/v1/ask</code>、<code>/api/v1/quiz</code>、<code>/api/v1/runs/{run_id}/sources</code> 与 <code>/api/v1/dev/traces/{trace_id}</code> 完成可追溯学习闭环。</li>
+      </ul>
     </section>
-    <article class="doc">
-      <h2 id="openapi-yaml">OpenAPI YAML</h2>
-      <pre><code class="language-yaml">openapi: 3.1.0
+    <h2>YAML</h2>
+    <pre><code class="language-yaml">openapi: 3.1.0
 info:
   title: ResearchMate API
+  description: Local-first ResearchMate API with swappable cloud/provider adapters.
   version: 0.1.0
-  summary: Contract-first API for a local-first AI research workspace.
-servers:
-  - url: http://localhost:8000/api/v1
-    description: Local FastAPI server
-security:
-  - bearerAuth: []
-tags:
-  - name: health
-  - name: auth
-  - name: projects
-  - name: documents
-  - name: jobs
-  - name: ask
-  - name: quiz
-  - name: sources
-  - name: developer-trace
 paths:
   /api/v1/healthz:
     get:
-      tags: [health]
-      summary: Health check
-      security: []
+      tags:
+      - health
+      summary: Healthz
+      operationId: healthz_api_v1_healthz_get
       responses:
-        &quot;200&quot;:
-          description: API is alive.
+        &#x27;200&#x27;:
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+                title: Response Healthz Api V1 Healthz Get
+  /api/v1/me:
+    get:
+      tags:
+      - auth
+      summary: Get Me
+      operationId: get_me_api_v1_me_get
+      responses:
+        &#x27;200&#x27;:
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: &#x27;#/components/schemas/CurrentUser&#x27;
+        &#x27;401&#x27;:
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: &#x27;#/components/schemas/ErrorResponse&#x27;
+        &#x27;403&#x27;:
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: &#x27;#/components/schemas/ErrorResponse&#x27;
+        &#x27;404&#x27;:
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: &#x27;#/components/schemas/ErrorResponse&#x27;
+      security:
+      - bearerAuth: []
+  /api/v1/projects:
+    get:
+      tags:
+      - projects
+      summary: List Projects
+      operationId: list_projects_api_v1_projects_get
+      responses:
+        &#x27;200&#x27;:
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: &#x27;#/components/schemas/ProjectRecord&#x27;
+                type: array
+                title: Response List Projects Api V1 Projects Get
+        &#x27;401&#x27;:
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: &#x27;#/components/schemas/ErrorResponse&#x27;
+        &#x27;403&#x27;:
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: &#x27;#/components/schemas/ErrorResponse&#x27;
+        &#x27;404&#x27;:
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: &#x27;#/components/schemas/ErrorResponse&#x27;
+      security:
+      - bearerAuth: []
+    post:
+      tags:
+      - projects
+      summary: Create Project
+      operationId: create_project_api_v1_projects_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: &#x27;#/components/schemas/ProjectCreate&#x27;
+        required: true
+      responses:
+        &#x27;201&#x27;:
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: &#x27;#/components/schemas/ProjectRecord&#x27;
+        &#x27;422&#x27;:
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: &#x27;#/components/schemas/HTTPValidationError&#x27;
+        &#x27;401&#x27;:
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: &#x27;#/components/schemas/ErrorResponse&#x27;
+        &#x27;403&#x27;:
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: &#x27;#/components/schemas/ErrorResponse&#x27;
+        &#x27;404&#x27;:
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: &#x27;#/components/schemas/ErrorResponse&#x27;
+      security:
+      - bearerAuth: []
+  /api/v1/projects/{project_id}:
+    get:
+      tags:
+      - projects
+      summary: Get Project
+      operationId: get_project_api_v1_projects__project_id__get
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Project Id
+      responses:
+        &#x27;200&#x27;:
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: &#x27;#/components/schemas/ProjectRecord&#x27;
+        &#x27;422&#x27;:
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: &#x27;#/components/schemas/HTTPValidationError&#x27;
+        &#x27;401&#x27;:
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: &#x27;#/components/schemas/ErrorResponse&#x27;
+        &#x27;403&#x27;:
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: &#x27;#/components/schemas/ErrorResponse&#x27;
+        &#x27;404&#x27;:
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: &#x27;#/components/schemas/ErrorResponse&#x27;
+    delete:
+      tags:
+      - projects
+      summary: Delete Project
+      operationId: delete_project_api_v1_projects__project_id__delete
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Project Id
+      responses:
+        &#x27;202&#x27;:
+          description: Successful Response
           content:
             application/json:
               schema:
                 type: object
-                required: [status]
-                properties:
-                  status:
-                    type: string
-                    enum: [ok]
-  /api/v1/me:
-    get:
-      tags: [auth]
-      summary: Get current user
-      responses:
-        &quot;200&quot;:
-          description: Current authenticated user.
+                additionalProperties:
+                  type: string
+                title: Response Delete Project Api V1 Projects  Project Id  Delete
+        &#x27;422&#x27;:
+          description: Validation Error
           content:
             application/json:
               schema:
-                $ref: &quot;#/components/schemas/CurrentUser&quot;
-        &quot;401&quot;:
-          $ref: &quot;#/components/responses/AuthRequired&quot;
-  /api/v1/projects:
-    post:
-      tags: [projects]
-      summary: Create project
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: &quot;#/components/schemas/ProjectCreate&quot;
-      responses:
-        &quot;201&quot;:
-          description: Project created.
+                $ref: &#x27;#/components/schemas/HTTPValidationError&#x27;
+        &#x27;401&#x27;:
+          description: Authentication required
           content:
             application/json:
               schema:
-                $ref: &quot;#/components/schemas/Project&quot;
-        &quot;401&quot;:
-          $ref: &quot;#/components/responses/AuthRequired&quot;
-    get:
-      tags: [projects]
-      summary: List projects owned by current user
-      responses:
-        &quot;200&quot;:
-          description: User-owned projects.
+                $ref: &#x27;#/components/schemas/ErrorResponse&#x27;
+        &#x27;403&#x27;:
+          description: Forbidden
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: &quot;#/components/schemas/Project&quot;
-        &quot;401&quot;:
-          $ref: &quot;#/components/responses/AuthRequired&quot;
-  /api/v1/projects/{project_id}:
-    parameters:
-      - $ref: &quot;#/components/parameters/ProjectId&quot;
-    get:
-      tags: [projects]
-      summary: Get project
-      responses:
-        &quot;200&quot;:
-          description: Project visible to current user.
+                $ref: &#x27;#/components/schemas/ErrorResponse&#x27;
+        &#x27;404&#x27;:
+          description: Not found
           content:
             application/json:
               schema:
-                $ref: &quot;#/components/schemas/Project&quot;
-        &quot;403&quot;:
-          $ref: &quot;#/components/responses/Forbidden&quot;
-        &quot;404&quot;:
-          $ref: &quot;#/components/responses/NotFound&quot;
-    delete:
-      tags: [projects]
-      summary: Delete project and create cleanup job
-      responses:
-        &quot;202&quot;:
-          description: Deletion job accepted.
-          content:
-            application/json:
-              schema:
-                $ref: &quot;#/components/schemas/JobAccepted&quot;
-        &quot;403&quot;:
-          $ref: &quot;#/components/responses/Forbidden&quot;
+                $ref: &#x27;#/components/schemas/ErrorResponse&#x27;
   /api/v1/documents/upload-url:
     post:
-      tags: [documents]
-      summary: Create signed upload URL
+      tags:
+      - documents
+      summary: Create Upload Url
+      operationId: create_upload_url_api_v1_documents_upload_url_post
       requestBody:
-        required: true
         content:
           application/json:
             schema:
-              $ref: &quot;#/components/schemas/UploadUrlRequest&quot;
+              $ref: &#x27;#/components/schemas/UploadUrlRequest&#x27;
+        required: true
       responses:
-        &quot;200&quot;:
-          description: Short-lived R2 signed upload URL.
+        &#x27;200&#x27;:
+          description: Successful Response
           content:
             application/json:
               schema:
-                $ref: &quot;#/components/schemas/UploadUrlResponse&quot;
-        &quot;413&quot;:
-          $ref: &quot;#/components/responses/FileTooLarge&quot;
-        &quot;415&quot;:
-          $ref: &quot;#/components/responses/UnsupportedFileType&quot;
+                $ref: &#x27;#/components/schemas/UploadUrlResponse&#x27;
+        &#x27;422&#x27;:
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: &#x27;#/components/schemas/HTTPValidationError&#x27;
+        &#x27;401&#x27;:
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: &#x27;#/components/schemas/ErrorResponse&#x27;
+        &#x27;403&#x27;:
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: &#x27;#/components/schemas/ErrorResponse&#x27;
+        &#x27;404&#x27;:
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: &#x27;#/components/schemas/ErrorResponse&#x27;
+      security:
+      - bearerAuth: []
   /api/v1/documents:
     post:
-      tags: [documents]
-      summary: Create document metadata
+      tags:
+      - documents
+      summary: Create Document
+      operationId: create_document_api_v1_documents_post
       requestBody:
-        required: true
         content:
           application/json:
             schema:
-              $ref: &quot;#/components/schemas/UploadUrlRequest&quot;
+              $ref: &#x27;#/components/schemas/UploadUrlRequest&#x27;
+        required: true
       responses:
-        &quot;201&quot;:
-          description: Document metadata created.
+        &#x27;201&#x27;:
+          description: Successful Response
           content:
             application/json:
               schema:
-                $ref: &quot;#/components/schemas/Document&quot;
+                $ref: &#x27;#/components/schemas/DocumentRecord&#x27;
+        &#x27;422&#x27;:
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: &#x27;#/components/schemas/HTTPValidationError&#x27;
+        &#x27;401&#x27;:
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: &#x27;#/components/schemas/ErrorResponse&#x27;
+        &#x27;403&#x27;:
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: &#x27;#/components/schemas/ErrorResponse&#x27;
+        &#x27;404&#x27;:
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: &#x27;#/components/schemas/ErrorResponse&#x27;
+      security:
+      - bearerAuth: []
   /api/v1/projects/{project_id}/documents:
-    parameters:
-      - $ref: &quot;#/components/parameters/ProjectId&quot;
     get:
-      tags: [documents]
-      summary: List project documents
+      tags:
+      - documents
+      summary: List Project Documents
+      operationId: list_project_documents_api_v1_projects__project_id__documents_get
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Project Id
       responses:
-        &quot;200&quot;:
-          description: Documents in this project.
+        &#x27;200&#x27;:
+          description: Successful Response
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: &quot;#/components/schemas/Document&quot;
+                  $ref: &#x27;#/components/schemas/DocumentRecord&#x27;
+                title: Response List Project Documents Api V1 Projects  Project Id  Documents
+                  Get
+        &#x27;422&#x27;:
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: &#x27;#/components/schemas/HTTPValidationError&#x27;
+        &#x27;401&#x27;:
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: &#x27;#/components/schemas/ErrorResponse&#x27;
+        &#x27;403&#x27;:
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: &#x27;#/components/schemas/ErrorResponse&#x27;
+        &#x27;404&#x27;:
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: &#x27;#/components/schemas/ErrorResponse&#x27;
   /api/v1/documents/{document_id}:
-    parameters:
-      - $ref: &quot;#/components/parameters/DocumentId&quot;
     get:
-      tags: [documents]
-      summary: Get document metadata
+      tags:
+      - documents
+      summary: Get Document
+      operationId: get_document_api_v1_documents__document_id__get
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: document_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Document Id
       responses:
-        &quot;200&quot;:
-          description: Document visible to current user.
+        &#x27;200&#x27;:
+          description: Successful Response
           content:
             application/json:
               schema:
-                $ref: &quot;#/components/schemas/Document&quot;
+                $ref: &#x27;#/components/schemas/DocumentRecord&#x27;
+        &#x27;422&#x27;:
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: &#x27;#/components/schemas/HTTPValidationError&#x27;
+        &#x27;401&#x27;:
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: &#x27;#/components/schemas/ErrorResponse&#x27;
+        &#x27;403&#x27;:
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: &#x27;#/components/schemas/ErrorResponse&#x27;
+        &#x27;404&#x27;:
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: &#x27;#/components/schemas/ErrorResponse&#x27;
     delete:
-      tags: [documents]
-      summary: Delete document and cleanup linked data
+      tags:
+      - documents
+      summary: Delete Document
+      operationId: delete_document_api_v1_documents__document_id__delete
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: document_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Document Id
       responses:
-        &quot;202&quot;:
-          description: Deletion job accepted.
+        &#x27;202&#x27;:
+          description: Successful Response
           content:
             application/json:
               schema:
-                $ref: &quot;#/components/schemas/JobAccepted&quot;
+                type: object
+                additionalProperties:
+                  type: string
+                title: Response Delete Document Api V1 Documents  Document Id  Delete
+        &#x27;422&#x27;:
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: &#x27;#/components/schemas/HTTPValidationError&#x27;
+        &#x27;401&#x27;:
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: &#x27;#/components/schemas/ErrorResponse&#x27;
+        &#x27;403&#x27;:
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: &#x27;#/components/schemas/ErrorResponse&#x27;
+        &#x27;404&#x27;:
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: &#x27;#/components/schemas/ErrorResponse&#x27;
   /api/v1/documents/{document_id}/complete:
-    parameters:
-      - $ref: &quot;#/components/parameters/DocumentId&quot;
     post:
-      tags: [documents]
-      summary: Mark upload complete and enqueue parse job
+      tags:
+      - documents
+      summary: Complete Upload
+      operationId: complete_upload_api_v1_documents__document_id__complete_post
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: document_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Document Id
       requestBody:
-        required: false
         content:
           application/json:
             schema:
-              $ref: &quot;#/components/schemas/UploadCompleteRequest&quot;
+              anyOf:
+              - $ref: &#x27;#/components/schemas/UploadCompleteRequest&#x27;
+              - type: &#x27;null&#x27;
+              title: Payload
       responses:
-        &quot;202&quot;:
-          description: Parse job accepted.
+        &#x27;202&#x27;:
+          description: Successful Response
           content:
             application/json:
               schema:
-                $ref: &quot;#/components/schemas/JobAccepted&quot;
+                type: object
+                additionalProperties:
+                  type: string
+                title: Response Complete Upload Api V1 Documents  Document Id  Complete
+                  Post
+        &#x27;422&#x27;:
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: &#x27;#/components/schemas/HTTPValidationError&#x27;
+        &#x27;401&#x27;:
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: &#x27;#/components/schemas/ErrorResponse&#x27;
+        &#x27;403&#x27;:
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: &#x27;#/components/schemas/ErrorResponse&#x27;
+        &#x27;404&#x27;:
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: &#x27;#/components/schemas/ErrorResponse&#x27;
   /api/v1/jobs/{job_id}:
-    parameters:
-      - $ref: &quot;#/components/parameters/JobId&quot;
     get:
-      tags: [jobs]
-      summary: Get async job status
+      tags:
+      - jobs
+      summary: Get Job
+      operationId: get_job_api_v1_jobs__job_id__get
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: job_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Job Id
       responses:
-        &quot;200&quot;:
-          description: Job status.
+        &#x27;200&#x27;:
+          description: Successful Response
           content:
             application/json:
               schema:
-                $ref: &quot;#/components/schemas/Job&quot;
+                $ref: &#x27;#/components/schemas/JobRecord&#x27;
+        &#x27;422&#x27;:
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: &#x27;#/components/schemas/HTTPValidationError&#x27;
+        &#x27;401&#x27;:
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: &#x27;#/components/schemas/ErrorResponse&#x27;
+        &#x27;403&#x27;:
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: &#x27;#/components/schemas/ErrorResponse&#x27;
+        &#x27;404&#x27;:
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: &#x27;#/components/schemas/ErrorResponse&#x27;
   /api/v1/ask:
     post:
-      tags: [ask]
-      summary: Ask a grounded question
+      tags:
+      - ask
+      summary: Ask
+      operationId: ask_api_v1_ask_post
       requestBody:
-        required: true
         content:
           application/json:
             schema:
-              $ref: &quot;#/components/schemas/AskRequest&quot;
-            examples:
-              localStudy:
-                value:
-                  project_id: &quot;00000000-0000-4000-8000-000000000001&quot;
-                  message: &quot;/study 根据课件解释 RAG&quot;
-                  selected_mode: &quot;auto&quot;
+              $ref: &#x27;#/components/schemas/AskRequest&#x27;
+        required: true
       responses:
-        &quot;200&quot;:
-          description: Structured grounded answer.
+        &#x27;200&#x27;:
+          description: Successful Response
           content:
             application/json:
               schema:
-                $ref: &quot;#/components/schemas/AskResponse&quot;
-        &quot;409&quot;:
-          $ref: &quot;#/components/responses/DocumentNotReady&quot;
-        &quot;422&quot;:
-          $ref: &quot;#/components/responses/ValidationFailed&quot;
-        &quot;429&quot;:
-          $ref: &quot;#/components/responses/RateLimited&quot;
+                $ref: &#x27;#/components/schemas/AskResponse&#x27;
+        &#x27;422&#x27;:
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: &#x27;#/components/schemas/HTTPValidationError&#x27;
+        &#x27;401&#x27;:
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: &#x27;#/components/schemas/ErrorResponse&#x27;
+        &#x27;403&#x27;:
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: &#x27;#/components/schemas/ErrorResponse&#x27;
+        &#x27;404&#x27;:
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: &#x27;#/components/schemas/ErrorResponse&#x27;
+      security:
+      - bearerAuth: []
   /api/v1/quiz:
     post:
-      tags: [quiz]
-      summary: Generate a local-first quiz
+      tags:
+      - quiz
+      summary: Create Quiz
+      operationId: create_quiz_api_v1_quiz_post
       requestBody:
-        required: true
         content:
           application/json:
             schema:
-              $ref: &quot;#/components/schemas/QuizRequest&quot;
+              $ref: &#x27;#/components/schemas/QuizRequest&#x27;
+        required: true
       responses:
-        &quot;200&quot;:
-          description: Structured quiz set.
+        &#x27;200&#x27;:
+          description: Successful Response
           content:
             application/json:
               schema:
-                $ref: &quot;#/components/schemas/QuizResponse&quot;
-        &quot;409&quot;:
-          $ref: &quot;#/components/responses/DocumentNotReady&quot;
-        &quot;422&quot;:
-          $ref: &quot;#/components/responses/ValidationFailed&quot;
+                $ref: &#x27;#/components/schemas/QuizResponse&#x27;
+        &#x27;422&#x27;:
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: &#x27;#/components/schemas/HTTPValidationError&#x27;
+        &#x27;401&#x27;:
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: &#x27;#/components/schemas/ErrorResponse&#x27;
+        &#x27;403&#x27;:
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: &#x27;#/components/schemas/ErrorResponse&#x27;
+        &#x27;404&#x27;:
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: &#x27;#/components/schemas/ErrorResponse&#x27;
+      security:
+      - bearerAuth: []
+  /api/v1/projects/{project_id}/quiz:
+    get:
+      tags:
+      - quiz
+      summary: List Quiz History
+      operationId: list_quiz_history_api_v1_projects__project_id__quiz_get
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Project Id
+      responses:
+        &#x27;200&#x27;:
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: &#x27;#/components/schemas/QuizHistoryResponse&#x27;
+        &#x27;422&#x27;:
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: &#x27;#/components/schemas/HTTPValidationError&#x27;
+        &#x27;401&#x27;:
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: &#x27;#/components/schemas/ErrorResponse&#x27;
+        &#x27;403&#x27;:
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: &#x27;#/components/schemas/ErrorResponse&#x27;
+        &#x27;404&#x27;:
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: &#x27;#/components/schemas/ErrorResponse&#x27;
   /api/v1/runs/{run_id}/sources:
-    parameters:
-      - $ref: &quot;#/components/parameters/RunId&quot;
     get:
-      tags: [sources]
-      summary: Get Sources panel data
+      tags:
+      - sources
+      summary: Get Run Sources
+      operationId: get_run_sources_api_v1_runs__run_id__sources_get
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Run Id
       responses:
-        &quot;200&quot;:
-          description: Source summary and citations.
+        &#x27;200&#x27;:
+          description: Successful Response
           content:
             application/json:
               schema:
-                $ref: &quot;#/components/schemas/RunSourcesResponse&quot;
+                $ref: &#x27;#/components/schemas/RunSourcesResponse&#x27;
+        &#x27;422&#x27;:
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: &#x27;#/components/schemas/HTTPValidationError&#x27;
+        &#x27;401&#x27;:
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: &#x27;#/components/schemas/ErrorResponse&#x27;
+        &#x27;403&#x27;:
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: &#x27;#/components/schemas/ErrorResponse&#x27;
+        &#x27;404&#x27;:
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: &#x27;#/components/schemas/ErrorResponse&#x27;
   /api/v1/dev/traces/{trace_id}:
-    parameters:
-      - $ref: &quot;#/components/parameters/TraceId&quot;
     get:
-      tags: [developer-trace]
-      summary: Get admin-only developer trace
-      description: Must only be visible to developer or admin users.
+      tags:
+      - developer-trace
+      summary: Get Trace
+      operationId: get_trace_api_v1_dev_traces__trace_id__get
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: trace_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Trace Id
       responses:
-        &quot;200&quot;:
-          description: Sanitized developer trace.
+        &#x27;200&#x27;:
+          description: Successful Response
           content:
             application/json:
               schema:
-                $ref: &quot;#/components/schemas/DeveloperTrace&quot;
-        &quot;403&quot;:
-          $ref: &quot;#/components/responses/AdminRequired&quot;
+                $ref: &#x27;#/components/schemas/DeveloperTrace&#x27;
+        &#x27;422&#x27;:
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: &#x27;#/components/schemas/HTTPValidationError&#x27;
+        &#x27;401&#x27;:
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: &#x27;#/components/schemas/ErrorResponse&#x27;
+        &#x27;403&#x27;:
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: &#x27;#/components/schemas/ErrorResponse&#x27;
+        &#x27;404&#x27;:
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: &#x27;#/components/schemas/ErrorResponse&#x27;
 components:
+  schemas:
+    AskRequest:
+      properties:
+        project_id:
+          type: string
+          format: uuid
+          title: Project Id
+        message:
+          type: string
+          maxLength: 8000
+          minLength: 1
+          title: Message
+        selected_mode:
+          $ref: &#x27;#/components/schemas/SourceMode&#x27;
+          default: auto
+      type: object
+      required:
+      - project_id
+      - message
+      title: AskRequest
+    AskResponse:
+      properties:
+        run_id:
+          type: string
+          format: uuid
+          title: Run Id
+        answer:
+          type: string
+          maxLength: 16000
+          minLength: 1
+          title: Answer
+        mode:
+          $ref: &#x27;#/components/schemas/SourceMode&#x27;
+        sources:
+          $ref: &#x27;#/components/schemas/SourceSummary&#x27;
+        citations:
+          items:
+            $ref: &#x27;#/components/schemas/Citation&#x27;
+          type: array
+          maxItems: 80
+          title: Citations
+        trace_id:
+          type: string
+          format: uuid
+          title: Trace Id
+        validation_status:
+          type: string
+          enum:
+          - passed
+          - failed
+          - retrying
+          title: Validation Status
+      type: object
+      required:
+      - run_id
+      - answer
+      - mode
+      - sources
+      - trace_id
+      - validation_status
+      title: AskResponse
+    Citation:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        source_type:
+          $ref: &#x27;#/components/schemas/SourceType&#x27;
+        document_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: &#x27;null&#x27;
+          title: Document Id
+        chunk_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: &#x27;null&#x27;
+          title: Chunk Id
+        page_no:
+          anyOf:
+          - type: integer
+            minimum: 1.0
+          - type: &#x27;null&#x27;
+          title: Page No
+        slide_no:
+          anyOf:
+          - type: integer
+            minimum: 1.0
+          - type: &#x27;null&#x27;
+          title: Slide No
+        url:
+          anyOf:
+          - type: string
+            maxLength: 2048
+          - type: &#x27;null&#x27;
+          title: Url
+        quote:
+          type: string
+          maxLength: 1200
+          minLength: 1
+          title: Quote
+        claim_id:
+          anyOf:
+          - type: string
+            maxLength: 120
+          - type: &#x27;null&#x27;
+          title: Claim Id
+      type: object
+      required:
+      - id
+      - source_type
+      - quote
+      title: Citation
+    CurrentUser:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        email:
+          anyOf:
+          - type: string
+            maxLength: 320
+          - type: &#x27;null&#x27;
+          title: Email
+        role:
+          type: string
+          enum:
+          - user
+          - developer
+          - admin
+          title: Role
+          default: user
+      type: object
+      required:
+      - id
+      title: CurrentUser
+    DeveloperTrace:
+      properties:
+        trace_id:
+          type: string
+          format: uuid
+          title: Trace Id
+        user_id:
+          type: string
+          format: uuid
+          title: User Id
+        project_id:
+          type: string
+          format: uuid
+          title: Project Id
+        run_id:
+          type: string
+          format: uuid
+          title: Run Id
+        execution_plan:
+          $ref: &#x27;#/components/schemas/ExecutionPlan&#x27;
+        router_reason:
+          type: string
+          maxLength: 2000
+          title: Router Reason
+        retrieved_chunks:
+          items:
+            additionalProperties: true
+            type: object
+          type: array
+          maxItems: 80
+          title: Retrieved Chunks
+        tool_calls:
+          items:
+            $ref: &#x27;#/components/schemas/ToolCallTrace&#x27;
+          type: array
+          maxItems: 40
+          title: Tool Calls
+        validation_result:
+          additionalProperties: true
+          type: object
+          title: Validation Result
+        latency_ms:
+          anyOf:
+          - type: integer
+            minimum: 0.0
+          - type: &#x27;null&#x27;
+          title: Latency Ms
+        token_usage:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: &#x27;null&#x27;
+          title: Token Usage
+        errors:
+          items:
+            type: string
+          type: array
+          maxItems: 20
+          title: Errors
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+      type: object
+      required:
+      - trace_id
+      - user_id
+      - project_id
+      - run_id
+      - execution_plan
+      - router_reason
+      - validation_result
+      - created_at
+      title: DeveloperTrace
+    Difficulty:
+      type: string
+      enum:
+      - easy
+      - medium
+      - hard
+      title: Difficulty
+    DocumentRecord:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        user_id:
+          type: string
+          format: uuid
+          title: User Id
+        project_id:
+          type: string
+          format: uuid
+          title: Project Id
+        filename:
+          type: string
+          title: Filename
+        file_type:
+          type: string
+          title: File Type
+        mime_type:
+          type: string
+          title: Mime Type
+        size_bytes:
+          type: integer
+          title: Size Bytes
+        status:
+          $ref: &#x27;#/components/schemas/DocumentStatus&#x27;
+        error_message:
+          anyOf:
+          - type: string
+          - type: &#x27;null&#x27;
+          title: Error Message
+        expires_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: &#x27;null&#x27;
+          title: Expires At
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+        deleted_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: &#x27;null&#x27;
+          title: Deleted At
+      type: object
+      required:
+      - id
+      - user_id
+      - project_id
+      - filename
+      - file_type
+      - mime_type
+      - size_bytes
+      - status
+      - created_at
+      - updated_at
+      title: DocumentRecord
+    DocumentStatus:
+      type: string
+      enum:
+      - uploaded
+      - parsing
+      - parsed
+      - indexing
+      - ready
+      - failed
+      - expired
+      - deleted
+      title: DocumentStatus
+    ExecutionPlan:
+      properties:
+        source_mode:
+          $ref: &#x27;#/components/schemas/SourceMode&#x27;
+        task_type:
+          $ref: &#x27;#/components/schemas/TaskType&#x27;
+        allowed_tools:
+          items:
+            type: string
+          type: array
+          maxItems: 12
+          minItems: 1
+          title: Allowed Tools
+        requires_local_docs:
+          type: boolean
+          title: Requires Local Docs
+        requires_web:
+          type: boolean
+          title: Requires Web
+        output_schema:
+          type: string
+          enum:
+          - GroundedAnswer
+          - QuizSet
+          title: Output Schema
+      type: object
+      required:
+      - source_mode
+      - task_type
+      - allowed_tools
+      - requires_local_docs
+      - requires_web
+      - output_schema
+      title: ExecutionPlan
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: &#x27;#/components/schemas/ValidationError&#x27;
+          type: array
+          title: Detail
+      type: object
+      title: HTTPValidationError
+    JobRecord:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        user_id:
+          type: string
+          format: uuid
+          title: User Id
+        project_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: &#x27;null&#x27;
+          title: Project Id
+        document_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: &#x27;null&#x27;
+          title: Document Id
+        type:
+          type: string
+          maxLength: 80
+          minLength: 2
+          title: Type
+        status:
+          $ref: &#x27;#/components/schemas/JobStatus&#x27;
+        progress:
+          type: integer
+          maximum: 100.0
+          minimum: 0.0
+          title: Progress
+          default: 0
+        error_message:
+          anyOf:
+          - type: string
+          - type: &#x27;null&#x27;
+          title: Error Message
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+      type: object
+      required:
+      - id
+      - user_id
+      - type
+      - status
+      - created_at
+      - updated_at
+      title: JobRecord
+    JobStatus:
+      type: string
+      enum:
+      - pending
+      - running
+      - succeeded
+      - failed
+      - cancelled
+      title: JobStatus
+    ProjectCreate:
+      properties:
+        name:
+          type: string
+          maxLength: 120
+          minLength: 1
+          title: Name
+      type: object
+      required:
+      - name
+      title: ProjectCreate
+    ProjectRecord:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        user_id:
+          type: string
+          format: uuid
+          title: User Id
+        name:
+          type: string
+          title: Name
+        status:
+          type: string
+          title: Status
+        expires_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: &#x27;null&#x27;
+          title: Expires At
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+        deleted_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: &#x27;null&#x27;
+          title: Deleted At
+      type: object
+      required:
+      - id
+      - user_id
+      - name
+      - status
+      - created_at
+      - updated_at
+      title: ProjectRecord
+    QuizHistoryResponse:
+      properties:
+        project_id:
+          type: string
+          format: uuid
+          title: Project Id
+        quiz_sets:
+          items:
+            $ref: &#x27;#/components/schemas/QuizSet&#x27;
+          type: array
+          maxItems: 100
+          title: Quiz Sets
+      type: object
+      required:
+      - project_id
+      title: QuizHistoryResponse
+    QuizQuestion:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        type:
+          type: string
+          enum:
+          - single_choice
+          - short_answer
+          title: Type
+        question:
+          type: string
+          maxLength: 1200
+          minLength: 1
+          title: Question
+        options:
+          anyOf:
+          - items:
+              type: string
+            type: array
+            maxItems: 4
+          - type: &#x27;null&#x27;
+          title: Options
+        answer:
+          type: string
+          maxLength: 1200
+          minLength: 1
+          title: Answer
+        explanation:
+          type: string
+          maxLength: 2000
+          minLength: 1
+          title: Explanation
+        difficulty:
+          $ref: &#x27;#/components/schemas/Difficulty&#x27;
+          default: medium
+        source_citations:
+          items:
+            $ref: &#x27;#/components/schemas/Citation&#x27;
+          type: array
+          maxItems: 12
+          title: Source Citations
+      type: object
+      required:
+      - id
+      - type
+      - question
+      - answer
+      - explanation
+      title: QuizQuestion
+    QuizRequest:
+      properties:
+        project_id:
+          type: string
+          format: uuid
+          title: Project Id
+        prompt:
+          type: string
+          maxLength: 4000
+          minLength: 1
+          title: Prompt
+          default: /quiz
+        selected_mode:
+          $ref: &#x27;#/components/schemas/SourceMode&#x27;
+          default: local_only
+        single_choice_count:
+          type: integer
+          maximum: 20.0
+          minimum: 0.0
+          title: Single Choice Count
+          default: 5
+        short_answer_count:
+          type: integer
+          maximum: 20.0
+          minimum: 0.0
+          title: Short Answer Count
+          default: 3
+      type: object
+      required:
+      - project_id
+      title: QuizRequest
+    QuizResponse:
+      properties:
+        quiz_set:
+          $ref: &#x27;#/components/schemas/QuizSet&#x27;
+        run_id:
+          type: string
+          format: uuid
+          title: Run Id
+        trace_id:
+          type: string
+          format: uuid
+          title: Trace Id
+        validation_status:
+          type: string
+          enum:
+          - passed
+          - failed
+          - retrying
+          title: Validation Status
+      type: object
+      required:
+      - quiz_set
+      - run_id
+      - trace_id
+      - validation_status
+      title: QuizResponse
+    QuizSet:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        mode:
+          $ref: &#x27;#/components/schemas/SourceMode&#x27;
+        sources:
+          $ref: &#x27;#/components/schemas/SourceSummary&#x27;
+        questions:
+          items:
+            $ref: &#x27;#/components/schemas/QuizQuestion&#x27;
+          type: array
+          maxItems: 40
+          minItems: 1
+          title: Questions
+      type: object
+      required:
+      - id
+      - mode
+      - sources
+      - questions
+      title: QuizSet
+    RunSourcesResponse:
+      properties:
+        run_id:
+          type: string
+          format: uuid
+          title: Run Id
+        summary:
+          $ref: &#x27;#/components/schemas/SourceSummary&#x27;
+        citations:
+          items:
+            $ref: &#x27;#/components/schemas/Citation&#x27;
+          type: array
+          maxItems: 120
+          title: Citations
+      type: object
+      required:
+      - run_id
+      - summary
+      title: RunSourcesResponse
+    SourceMode:
+      type: string
+      enum:
+      - auto
+      - local_only
+      - web_only
+      - hybrid
+      title: SourceMode
+    SourceSummary:
+      properties:
+        local_chunks:
+          type: integer
+          maximum: 50.0
+          minimum: 0.0
+          title: Local Chunks
+          default: 0
+        web_pages:
+          type: integer
+          maximum: 20.0
+          minimum: 0.0
+          title: Web Pages
+          default: 0
+      type: object
+      title: SourceSummary
+    SourceType:
+      type: string
+      enum:
+      - local_doc
+      - web_page
+      title: SourceType
+    TaskType:
+      type: string
+      enum:
+      - answer
+      - quiz
+      title: TaskType
+    ToolCallTrace:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        tool_name:
+          type: string
+          maxLength: 120
+          minLength: 2
+          title: Tool Name
+        input_summary:
+          additionalProperties: true
+          type: object
+          title: Input Summary
+        output_summary:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: &#x27;null&#x27;
+          title: Output Summary
+        status:
+          type: string
+          title: Status
+        latency_ms:
+          anyOf:
+          - type: integer
+            minimum: 0.0
+          - type: &#x27;null&#x27;
+          title: Latency Ms
+        error_message:
+          anyOf:
+          - type: string
+            maxLength: 500
+          - type: &#x27;null&#x27;
+          title: Error Message
+      type: object
+      required:
+      - id
+      - tool_name
+      - input_summary
+      - status
+      title: ToolCallTrace
+    UploadCompleteRequest:
+      properties:
+        checksum_sha256:
+          anyOf:
+          - type: string
+            maxLength: 64
+            minLength: 64
+          - type: &#x27;null&#x27;
+          title: Checksum Sha256
+        extracted_text:
+          anyOf:
+          - type: string
+            maxLength: 200000
+          - type: &#x27;null&#x27;
+          title: Extracted Text
+          description: Local development fallback. Production worker should extract
+            text from R2.
+      type: object
+      title: UploadCompleteRequest
+    UploadUrlRequest:
+      properties:
+        project_id:
+          type: string
+          format: uuid
+          title: Project Id
+        filename:
+          type: string
+          maxLength: 240
+          minLength: 1
+          title: Filename
+        file_type:
+          type: string
+          enum:
+          - pdf
+          - docx
+          - pptx
+          title: File Type
+        mime_type:
+          type: string
+          maxLength: 120
+          minLength: 3
+          title: Mime Type
+        size_bytes:
+          type: integer
+          maximum: 26214400.0
+          exclusiveMinimum: 0.0
+          title: Size Bytes
+      type: object
+      required:
+      - project_id
+      - filename
+      - file_type
+      - mime_type
+      - size_bytes
+      title: UploadUrlRequest
+    UploadUrlResponse:
+      properties:
+        document_id:
+          type: string
+          format: uuid
+          title: Document Id
+        upload_url:
+          type: string
+          maxLength: 4096
+          minLength: 1
+          title: Upload Url
+        r2_object_key:
+          type: string
+          maxLength: 512
+          minLength: 16
+          title: R2 Object Key
+        expires_in_seconds:
+          type: integer
+          maximum: 900.0
+          minimum: 60.0
+          title: Expires In Seconds
+      type: object
+      required:
+      - document_id
+      - upload_url
+      - r2_object_key
+      - expires_in_seconds
+      title: UploadUrlResponse
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+            - type: string
+            - type: integer
+          type: array
+          title: Location
+        msg:
+          type: string
+          title: Message
+        type:
+          type: string
+          title: Error Type
+        input:
+          title: Input
+        ctx:
+          type: object
+          title: Context
+      type: object
+      required:
+      - loc
+      - msg
+      - type
+      title: ValidationError
+    ErrorResponse:
+      $defs:
+        ErrorDetail:
+          properties:
+            code:
+              maxLength: 80
+              minLength: 2
+              title: Code
+              type: string
+            message:
+              maxLength: 300
+              minLength: 1
+              title: Message
+              type: string
+            request_id:
+              maxLength: 120
+              minLength: 4
+              title: Request Id
+              type: string
+          required:
+          - code
+          - message
+          - request_id
+          title: ErrorDetail
+          type: object
+      properties:
+        error:
+          $ref: &#x27;#/components/schemas/ErrorDetail&#x27;
+      required:
+      - error
+      title: ErrorResponse
+      type: object
   securitySchemes:
     bearerAuth:
       type: http
       scheme: bearer
-      bearerFormat: JWT
-  parameters:
-    ProjectId:
-      name: project_id
-      in: path
-      required: true
-      schema:
-        type: string
-        format: uuid
-    DocumentId:
-      name: document_id
-      in: path
-      required: true
-      schema:
-        type: string
-        format: uuid
-    JobId:
-      name: job_id
-      in: path
-      required: true
-      schema:
-        type: string
-        format: uuid
-    RunId:
-      name: run_id
-      in: path
-      required: true
-      schema:
-        type: string
-        format: uuid
-    TraceId:
-      name: trace_id
-      in: path
-      required: true
-      schema:
-        type: string
-        format: uuid
-  responses:
-    AuthRequired:
-      description: Missing or invalid authentication.
-      content:
-        application/json:
-          schema:
-            $ref: &quot;#/components/schemas/ErrorResponse&quot;
-    AdminRequired:
-      description: Current user is not allowed to view developer trace.
-      content:
-        application/json:
-          schema:
-            $ref: &quot;#/components/schemas/ErrorResponse&quot;
-    Forbidden:
-      description: Resource does not belong to current user.
-      content:
-        application/json:
-          schema:
-            $ref: &quot;#/components/schemas/ErrorResponse&quot;
-    NotFound:
-      description: Resource was not found or is not visible.
-      content:
-        application/json:
-          schema:
-            $ref: &quot;#/components/schemas/ErrorResponse&quot;
-    DocumentNotReady:
-      description: Required local documents are not indexed yet.
-      content:
-        application/json:
-          schema:
-            $ref: &quot;#/components/schemas/ErrorResponse&quot;
-    FileTooLarge:
-      description: Uploaded file is larger than configured limit.
-      content:
-        application/json:
-          schema:
-            $ref: &quot;#/components/schemas/ErrorResponse&quot;
-    UnsupportedFileType:
-      description: File type or MIME type is not allowed.
-      content:
-        application/json:
-          schema:
-            $ref: &quot;#/components/schemas/ErrorResponse&quot;
-    RateLimited:
-      description: Per-user or per-IP quota exceeded.
-      content:
-        application/json:
-          schema:
-            $ref: &quot;#/components/schemas/ErrorResponse&quot;
-    ValidationFailed:
-      description: Request or generated output failed schema validation.
-      content:
-        application/json:
-          schema:
-            $ref: &quot;#/components/schemas/ErrorResponse&quot;
-  schemas:
-    SourceMode:
-      type: string
-      enum: [auto, local_only, web_only, hybrid]
-    CurrentUser:
-      type: object
-      required: [id, role]
-      properties:
-        id:
-          type: string
-          format: uuid
-        email:
-          type: string
-          nullable: true
-        role:
-          type: string
-          enum: [user, developer, admin]
-    ErrorResponse:
-      type: object
-      required: [error]
-      properties:
-        error:
-          type: object
-          required: [code, message, request_id]
-          properties:
-            code:
-              type: string
-            message:
-              type: string
-            request_id:
-              type: string
-    ProjectCreate:
-      type: object
-      required: [name]
-      properties:
-        name:
-          type: string
-          minLength: 1
-          maxLength: 120
-    Project:
-      type: object
-      required: [id, user_id, name, status, created_at, updated_at]
-      properties:
-        id:
-          type: string
-          format: uuid
-        user_id:
-          type: string
-          format: uuid
-        name:
-          type: string
-        status:
-          type: string
-          enum: [active, deleting, deleted, expired]
-        expires_at:
-          type: string
-          format: date-time
-          nullable: true
-        created_at:
-          type: string
-          format: date-time
-        updated_at:
-          type: string
-          format: date-time
-    UploadUrlRequest:
-      type: object
-      required: [project_id, filename, file_type, mime_type, size_bytes]
-      properties:
-        project_id:
-          type: string
-          format: uuid
-        filename:
-          type: string
-          maxLength: 240
-        file_type:
-          type: string
-          enum: [pdf, docx, pptx]
-        mime_type:
-          type: string
-        size_bytes:
-          type: integer
-          minimum: 1
-          maximum: 26214400
-    UploadUrlResponse:
-      type: object
-      required: [document_id, upload_url, r2_object_key, expires_in_seconds]
-      properties:
-        document_id:
-          type: string
-          format: uuid
-        upload_url:
-          type: string
-        r2_object_key:
-          type: string
-        expires_in_seconds:
-          type: integer
-          minimum: 60
-          maximum: 900
-    UploadCompleteRequest:
-      type: object
-      properties:
-        checksum_sha256:
-          type: string
-          nullable: true
-    Document:
-      type: object
-      required: [id, user_id, project_id, filename, file_type, mime_type, size_bytes, status]
-      properties:
-        id:
-          type: string
-          format: uuid
-        user_id:
-          type: string
-          format: uuid
-        project_id:
-          type: string
-          format: uuid
-        filename:
-          type: string
-        file_type:
-          type: string
-          enum: [pdf, docx, pptx]
-        mime_type:
-          type: string
-        size_bytes:
-          type: integer
-        status:
-          type: string
-          enum: [uploaded, parsing, parsed, indexing, ready, failed, expired, deleted]
-        error_message:
-          type: string
-          nullable: true
-    JobAccepted:
-      type: object
-      required: [job_id, status]
-      properties:
-        job_id:
-          type: string
-          format: uuid
-        status:
-          type: string
-          enum: [pending, running]
-    Job:
-      type: object
-      required: [id, user_id, type, status, progress, created_at, updated_at]
-      properties:
-        id:
-          type: string
-          format: uuid
-        user_id:
-          type: string
-          format: uuid
-        project_id:
-          type: string
-          format: uuid
-          nullable: true
-        document_id:
-          type: string
-          format: uuid
-          nullable: true
-        type:
-          type: string
-        status:
-          type: string
-          enum: [pending, running, succeeded, failed, cancelled]
-        progress:
-          type: integer
-          minimum: 0
-          maximum: 100
-        error_message:
-          type: string
-          nullable: true
-        created_at:
-          type: string
-          format: date-time
-        updated_at:
-          type: string
-          format: date-time
-    AskRequest:
-      type: object
-      required: [project_id, message]
-      properties:
-        project_id:
-          type: string
-          format: uuid
-        message:
-          type: string
-          minLength: 1
-          maxLength: 8000
-        selected_mode:
-          $ref: &quot;#/components/schemas/SourceMode&quot;
-    AskResponse:
-      type: object
-      required: [run_id, answer, mode, sources, citations, trace_id, validation_status]
-      properties:
-        run_id:
-          type: string
-          format: uuid
-        answer:
-          type: string
-        mode:
-          $ref: &quot;#/components/schemas/SourceMode&quot;
-        sources:
-          $ref: &quot;#/components/schemas/SourceSummary&quot;
-        citations:
-          type: array
-          items:
-            $ref: &quot;#/components/schemas/Citation&quot;
-        trace_id:
-          type: string
-          format: uuid
-        validation_status:
-          type: string
-          enum: [passed, failed, retrying]
-    QuizRequest:
-      type: object
-      required: [project_id]
-      properties:
-        project_id:
-          type: string
-          format: uuid
-        prompt:
-          type: string
-          maxLength: 4000
-        selected_mode:
-          $ref: &quot;#/components/schemas/SourceMode&quot;
-        single_choice_count:
-          type: integer
-          minimum: 0
-          maximum: 20
-        short_answer_count:
-          type: integer
-          minimum: 0
-          maximum: 20
-    QuizResponse:
-      type: object
-      required: [quiz_set, run_id, trace_id, validation_status]
-      properties:
-        quiz_set:
-          $ref: &quot;#/components/schemas/QuizSet&quot;
-        run_id:
-          type: string
-          format: uuid
-        trace_id:
-          type: string
-          format: uuid
-        validation_status:
-          type: string
-          enum: [passed, failed, retrying]
-    QuizSet:
-      type: object
-      required: [id, mode, sources, questions]
-      properties:
-        id:
-          type: string
-          format: uuid
-        mode:
-          $ref: &quot;#/components/schemas/SourceMode&quot;
-        sources:
-          $ref: &quot;#/components/schemas/SourceSummary&quot;
-        questions:
-          type: array
-          minItems: 1
-          maxItems: 40
-          items:
-            $ref: &quot;#/components/schemas/QuizQuestion&quot;
-    QuizQuestion:
-      type: object
-      required: [id, type, question, answer, explanation, difficulty]
-      properties:
-        id:
-          type: string
-          format: uuid
-        type:
-          type: string
-          enum: [single_choice, short_answer]
-        question:
-          type: string
-        options:
-          type: array
-          minItems: 4
-          maxItems: 4
-          items:
-            type: string
-        answer:
-          type: string
-        explanation:
-          type: string
-        difficulty:
-          type: string
-          enum: [easy, medium, hard]
-        source_citations:
-          type: array
-          items:
-            $ref: &quot;#/components/schemas/Citation&quot;
-    SourceSummary:
-      type: object
-      required: [local_chunks, web_pages]
-      properties:
-        local_chunks:
-          type: integer
-          minimum: 0
-        web_pages:
-          type: integer
-          minimum: 0
-    Citation:
-      type: object
-      required: [id, source_type, quote]
-      properties:
-        id:
-          type: string
-          format: uuid
-        source_type:
-          type: string
-          enum: [local_doc, web_page]
-        document_id:
-          type: string
-          format: uuid
-          nullable: true
-        chunk_id:
-          type: string
-          format: uuid
-          nullable: true
-        page_no:
-          type: integer
-          nullable: true
-        slide_no:
-          type: integer
-          nullable: true
-        url:
-          type: string
-          nullable: true
-        quote:
-          type: string
-        claim_id:
-          type: string
-          nullable: true
-    RunSourcesResponse:
-      type: object
-      required: [run_id, summary, citations]
-      properties:
-        run_id:
-          type: string
-          format: uuid
-        summary:
-          $ref: &quot;#/components/schemas/SourceSummary&quot;
-        citations:
-          type: array
-          items:
-            $ref: &quot;#/components/schemas/Citation&quot;
-    DeveloperTrace:
-      type: object
-      required: [trace_id, user_id, project_id, run_id, execution_plan, validation_result, created_at]
-      properties:
-        trace_id:
-          type: string
-          format: uuid
-        user_id:
-          type: string
-          format: uuid
-        project_id:
-          type: string
-          format: uuid
-        run_id:
-          type: string
-          format: uuid
-        execution_plan:
-          type: object
-        router_reason:
-          type: string
-        retrieved_chunks:
-          type: array
-          items:
-            type: object
-        tool_calls:
-          type: array
-          items:
-            type: object
-        validation_result:
-          type: object
-        latency_ms:
-          type: integer
-          nullable: true
-        token_usage:
-          type: object
-          nullable: true
-        errors:
-          type: array
-          items:
-            type: string
-        created_at:
-          type: string
-          format: date-time
-
+      bearerFormat: JWT or local dev token
 </code></pre>
-    </article>
   </main>
 </body>
 </html>
