@@ -1,22 +1,22 @@
 {
   "schema_version": "1.1",
-  "generated_at": "2026-05-26T15:08:10.869Z",
+  "generated_at": "2026-05-27T10:19:20.647Z",
   "repo": "researchMate",
   "repo_path": "D:\\project\\researchMate\\scratch",
   "branch": "main",
   "status": "dirty",
   "confidence": "high",
-  "objective": "完成 ResearchMate 最新改动的 gstack 07-10 校验，合并 docs 主入口，保留 agent-context-html 兼容子页面，并记录 GitHub Actions 上线 next step。",
+  "objective": "维护 ResearchMate 实时 HTML 文档：统一 docs/index.html 与 handoff 风格，并按 PRD/Architecture 将当前源码进度拆成模块子页。",
   "next_actions": [
-    "在 GitHub Secrets / 部署平台 Secret Manager 填入 Supabase、R2、Qdrant、Redis、LLM、Search/Crawl API。",
-    "把 API dev token、in-memory store、demo web evidence、deterministic answer/quiz fallback 替换为生产 adapter。",
-    "按 docs/index.html 的 Next Step 选择部署平台并补充 deploy job 或托管平台自动部署。",
-    "部署后运行 healthz、登录、上传、解析、Ask、Hybrid、Quiz、Trace 权限冒烟测试。"
+    "优先完成 Supabase OAuth/JWT 与前端角色感知 Trace 隐藏。",
+    "替换 in-memory store 为 Supabase/R2/Qdrant/Redis adapter，并补生命周期清理测试。",
+    "接入真实 parser、embedding、LLM、Search/Crawl provider，保留 source policy 与 citation validation。",
+    "部署 Frontend/API/Worker 后运行生产 smoke/canary，并同步更新 docs/progress*.html。"
   ],
   "blockers": [
-    "真实 Supabase/R2/Qdrant/Redis/provider secrets 未配置，不能进入仓库。",
-    "生产数据层尚未从本地 adapter 切换到云端服务。",
-    "真实部署日志和生产域名 canary 测试尚未产生。"
+    "生产 secrets 未配置，不能进入仓库。",
+    "真实云服务 adapter 尚未接入。",
+    "前端 Ask 页面 Trace 链接仍需按角色隐藏。"
   ],
   "changed_files": [
     ".github/workflows/ci.yml",
@@ -51,7 +51,13 @@
     "scripts/repair_docs_html_encoding.py",
     "tests/conftest.py",
     "tests/test_api_workflow.py",
-    "tests/test_frontend_contracts.py"
+    "tests/test_frontend_contracts.py",
+    "docs/progress.html",
+    "docs/progress-backend.html",
+    "docs/progress-frontend.html",
+    "docs/progress-ops.html",
+    "docs/handoff/assets/site.css",
+    "tests/test_project_scaffold.py"
   ],
   "important_files": [
     "README.md",
@@ -74,14 +80,19 @@
     "package.json",
     "package-lock.json",
     "requirements-dev.txt",
-    "tests/conftest.py"
+    "tests/conftest.py",
+    "docs/progress.html",
+    "docs/progress-backend.html",
+    "docs/progress-frontend.html",
+    "docs/progress-ops.html"
   ],
   "tests_run": [
     "npm run check:all -> 18 passed, handoff validation passed, ruff passed, Next build passed, npm audit 0 vulnerabilities",
-    "python skill/agent-context-html/scripts/validate_context_dashboard.py docs/handoff -> passed",
-    "OpenAPI/API coverage smoke -> passed",
-    "docs HTML-only scan -> passed",
-    "secret coarse scan -> only .env.example placeholder values matched"
+    "docs markdown scan -> none",
+    "garbled question scan -> none",
+    "key docs local links -> ok",
+    "inline style scan -> none",
+    "remote asset scan -> none"
   ],
   "tests_not_run": [
     "真实 Supabase/R2/Qdrant/Redis/provider 集成测试：等待 secrets 和云服务。",
@@ -94,10 +105,10 @@
     "npm --workspace @researchmate/web run dev"
   ],
   "risks": [
-    "Next 使用 canary 版本是为了规避当前 stable 依赖的 PostCSS 漏洞；后续 stable 发布修复后应切回稳定版。",
+    "前端 Ask 页面仍会显示 Trace 链接，后端会 403 普通用户，但 PRD 要求普通用户界面不暴露入口。",
     "本地 deterministic answer/quiz 是可测试 fallback，不代表真实 LLM 质量。",
     "in-memory store 只适合本地测试，不适合生产。",
-    "真实 search/crawl provider 需要 source policy、失败隔离、成本限制和引用校验。"
+    "真实 search/crawl provider 需要 SSRF、重定向、缓存、成本限制和引用校验。"
   ],
   "decision_gates": [
     "需要把 Auto 默认改为联网时，必须先做隐私、成本和安全评审。",
@@ -108,26 +119,23 @@
   ],
   "completion_status": {
     "status": "DONE_WITH_CONCERNS",
-    "reason": "本地完整性、安全粗筛、docs 合规和 CI 质量门已通过；生产上线仍依赖真实云服务、secret 配置和部署平台选择。",
+    "reason": "HTML 文档主入口、handoff 与模块进度子页已统一为实时状态文档；生产 Auth、云数据层、provider 和部署仍未完成。",
     "attempted": [
-      "同步最新项目副本到 Git 工作区",
-      "修复 Python 测试依赖和 ruff 问题",
-      "升级 Next canary 并固定 PostCSS 安全版本",
-      "增强 GitHub Actions quality-gate",
-      "合并 docs 主入口为 docs/index.html",
-      "运行完整 check:all 质量门"
+      "统一 docs/index.html 与 docs/handoff/index.html 的视觉和信息架构",
+      "新增 docs/progress*.html 模块进度子页",
+      "按 PRD/Architecture 对照源码标注完成、部分完成和未完成项",
+      "更新 agent 恢复入口和文档维护规则"
     ],
-    "recommendation": "上线前按 docs/index.html 的 Next Step、docs/security-checklist.html 和 docs/test-plan.html 执行真实 provider 与部署验证。"
+    "recommendation": "后续任何功能进度变化都直接改写 docs/progress*.html 当前状态，不追加历史版本段落。"
   },
   "context_health": {
     "confidence": "high",
-    "freshness": "post-quality-gate-and-docs-entry-merge",
-    "source_coverage": "docs, code, tests, CI, OpenAPI",
+    "freshness": "post-doc-progress-restructure",
+    "source_coverage": "PRD, Architecture, code, tests, CI, OpenAPI",
     "missing_sources": [
       "真实 .env secrets 按安全策略不进入仓库",
       "真实部署日志尚未产生",
-      "生产 provider 集成测试尚未运行",
-      "TASK_STATE.md 不存在"
+      "生产 provider 集成测试尚未运行"
     ],
     "dirty_tree": true
   },
@@ -167,7 +175,11 @@
     "package.json",
     "package-lock.json",
     "requirements-dev.txt",
-    "tests/conftest.py"
+    "tests/conftest.py",
+    "docs/progress.html",
+    "docs/progress-backend.html",
+    "docs/progress-frontend.html",
+    "docs/progress-ops.html"
   ],
   "sources_missing": [
     "真实 .env secrets：按安全策略不进入仓库。",

@@ -13,7 +13,7 @@
 | Ask | 已实现 | `/study` local-only、`/search` web-only demo、`/hybrid` local-first fallback。 |
 | Quiz | 已实现 | 基于本地 chunks 生成有引用的题目；选择题固定 4 个选项。 |
 | Developer Trace | 已实现 | 仅 developer/admin 可见；普通用户无法读取。 |
-| Docs | 已实现 | `docs` 保持 HTML-only，并包含 handoff dashboard、test plan、安全清单和 OpenAPI 镜像。 |
+| Docs | 已实现 | `docs/index.html` 是唯一主入口，`docs/progress*.html` 展示实时模块进度，另包含 handoff dashboard、test plan、安全清单和 OpenAPI 镜像。 |
 
 ## 本地运行
 
@@ -83,6 +83,7 @@ researchMate/
     supabase/         数据库 migration
     qdrant/           向量集合 schema
   docs/
+    progress*.html    实时模块进度
     handoff/          agent 交接 dashboard
     *.html            项目 HTML 文档、测试计划、安全清单
   tests/              scaffold、API workflow、frontend contract 测试
@@ -107,4 +108,4 @@ researchMate/
 3. **No secrets in repo**：真实 key 只进本地 `.env` 或部署平台 secret manager。
 4. **Grounded output**：Ask、Quiz 必须有 citations；无本地资料时拒绝编造。
 5. **可验证**：新增功能必须补测试或更新测试计划。
-6. **HTML 文档优先**：`docs` 下不新增 Markdown，项目文档以 HTML 页面维护。
+6. **HTML 文档优先**：`docs` 下不新增 Markdown，项目文档以 `docs/index.html` 和 `docs/progress*.html` 为实时入口维护。

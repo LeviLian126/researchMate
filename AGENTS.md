@@ -2,7 +2,7 @@
 
 ## TLDR
 
-- 先读 `docs/index.html`、`docs/handoff/index.html`、`docs/handoff/context-state.json`，再改代码。
+- 先读 `docs/index.html`、`docs/progress.html`、`docs/handoff/context-state.json`，再改代码。
 - 修改后的文件路径向用户展示时使用相对路径。
 - 写类、函数等代码块时，每个类或函数前添加一行简短注释说明作用。
 - 不把真实 API key、OAuth token、R2 secret、provider secret 放进仓库或 trace。
@@ -23,4 +23,4 @@ ResearchMate 当前阶段已完成本地可运行 MVP：Next.js 前端、FastAPI
 
 ## Documentation Rule
 
-`docs` 目录内的项目文档使用 HTML 页面维护，不再新增 Markdown 文档。更新上下文时同步维护 `docs/handoff/index.html` 和 `docs/handoff/context-state.json`。
+`docs` 目录内的项目文档使用 HTML 页面维护，不再新增 Markdown 文档。`docs/index.html` 是唯一主入口，`docs/progress*.html` 是实时模块进度页；更新上下文时同步维护 `docs/handoff/index.html` 和 `docs/handoff/context-state.json`。

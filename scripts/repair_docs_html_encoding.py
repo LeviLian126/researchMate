@@ -17,6 +17,8 @@ DOC_LEADS = {
     "ui-page-spec.html": "定义核心页面、Trace 可见性与 UI 验收边界。",
 }
 
+SHARED_STYLE = '<link rel="stylesheet" href="handoff/assets/site.css">'
+
 
 # 修复通用文档页里被替换为问号的导航、目录和摘要文案。
 def repair_common_wrappers() -> None:
@@ -44,85 +46,25 @@ def repair_common_wrappers() -> None:
         path.write_text(text, encoding="utf-8", newline="\n")
 
 
-# 复用现有样式并重建 docs 主入口，避免保留任何乱码片段。
-def rebuild_docs_index() -> None:
-    handoff = DOCS / "index.html"
-    previous = handoff.read_text(encoding="utf-8")
-    style_match = re.search(r"<style>\n?(.*?)\n?</style>", previous, flags=re.DOTALL)
-    style = style_match.group(1) if style_match else ""
-
-    handoff.write_text(
-        f"""<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ResearchMate Handoff</title>
-  <style>
-{style}
-</style>
-</head>
-<body>
-  <header class="top">
-    <div class="top-inner">
-      <a class="brand" href="index.html">ResearchMate Docs</a>
-      <nav class="nav" aria-label="Project documentation">
-        <a href="index.html" aria-current="page">总览</a>
-        <a href="handoff/index.html">Agent Dashboard</a>
-        <a href="researchmate-prd.html">PRD</a>
-        <a href="researchmate-architecture.html">Architecture</a>
-        <a href="project-development-process.html">Process</a>
-        <a href="api-spec.html">API</a>
-        <a href="openapi-spec.html">OpenAPI</a>
-        <a href="db-schema.html">DB</a>
-        <a href="ui-page-spec.html">UI</a>
-        <a href="execution-plan.html">Plan</a>
-      </nav>
-    </div>
-  </header>
-  <main class="wrap">
-    <section class="hero">
-      <span class="eyebrow">Agent-friendly HTML documentation</span>
-      <h1>ResearchMate 项目主入口</h1>
-      <p class="lead">项目已将 docs 内 Markdown 文档迁移为 HTML 页面，并补齐可导航的 HTML、agent 交接上下文和 multi-agent 交付计划。</p>
-      <div class="chip">Status: DONE_WITH_CONCERNS</div>
-      <div class="chip">Docs Markdown: migrated</div>
-      <div class="chip">Source preservation: raw Markdown embedded</div>
-    </section>
-    <section class="doc">
-      <h2 id="start">文档入口</h2>
-      <p>后续 agent 应先阅读本页，再按页眉进入 PRD、Architecture、API、DB、UI 与 Execution Plan。<a href="handoff/index.html">Agent Dashboard</a> 保留为工具兼容子页面。</p>
-      <div class="cards">
-        <article class="card"><h3>Agent Dashboard</h3><p>当前任务状态、下一步行动、风险和 source audit。</p><p><a href="handoff/index.html">打开</a></p></article>
-        <article class="card"><h3>PRD</h3><p>产品目标、用户范围和 MVP 成功标准。</p><p><a href="researchmate-prd.html">打开</a></p></article>
-        <article class="card"><h3>Architecture</h3><p>系统边界、服务分层、RAG、Trace 与安全策略。</p><p><a href="researchmate-architecture.html">打开</a></p></article>
-        <article class="card"><h3>Process</h3><p>阶段化研发流程和每阶段验收口径。</p><p><a href="project-development-process.html">打开</a></p></article>
-        <article class="card"><h3>API Spec</h3><p>HTTP API、错误模型、请求响应和校验边界。</p><p><a href="api-spec.html">打开</a></p></article>
-        <article class="card"><h3>OpenAPI</h3><p>机器可读 OpenAPI 契约的 HTML 镜像。</p><p><a href="openapi-spec.html">打开</a></p></article>
-        <article class="card"><h3>DB Schema</h3><p>Postgres、RLS、Qdrant payload 与删除策略。</p><p><a href="db-schema.html">打开</a></p></article>
-        <article class="card"><h3>UI Page Spec</h3><p>Ask、Library、Quiz、Trace 的页面约定。</p><p><a href="ui-page-spec.html">打开</a></p></article>
-        <article class="card"><h3>Execution Plan</h3><p>multi-agent 分工、边界与交付标准。</p><p><a href="execution-plan.html">打开</a></p></article>
-      </div>
-      <h2 id="policy">文档维护规则</h2>
-      <blockquote>项目文档以后优先维护 HTML 页面，避免在 docs 内新增 Markdown。</blockquote>
-      <ul>
-        <li>保持 <code>docs</code> 目录无 Markdown。</li>
-        <li>机器可读契约放在 <code>infra</code> 等工程目录，<code>docs</code> 内只保留 HTML 阅读页。</li>
-        <li>交接信息同步维护 <code>docs/handoff/index.html</code> 与 <code>docs/handoff/context-state.json</code>。</li>
-      </ul>
-    </section>
-  </main>
-</body>
-</html>
-""",
-        encoding="utf-8",
-        newline="\n",
-    )
+# 统一 docs 根页面样式入口，避免继续保留每页一套内联 CSS。
+def unify_shared_styles() -> None:
+    for path in DOCS.glob("*.html"):
+        text = path.read_text(encoding="utf-8")
+        text = re.sub(r"\n?\s*<style>.*?</style>", f"\n  {SHARED_STYLE}", text, flags=re.DOTALL)
+        if SHARED_STYLE not in text:
+            text = text.replace("</head>", f"  {SHARED_STYLE}\n</head>")
+        if 'href="progress.html"' not in text:
+            text = text.replace(
+                '<a href="handoff/index.html">Agent Dashboard</a>',
+                '<a href="handoff/index.html">Agent Dashboard</a><a href="progress.html">Progress</a>',
+            )
+        path.write_text(text, encoding="utf-8", newline="\n")
 
 
 # 执行所有文档乱码修复任务。
 def main() -> None:
     repair_common_wrappers()
+    unify_shared_styles()
 
 
 if __name__ == "__main__":
