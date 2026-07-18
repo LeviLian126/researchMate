@@ -1,0 +1,538 @@
+{
+  "version": 2,
+  "cases": [
+    {
+      "id": "auth-copy-edit",
+      "suite": "core",
+      "prompt_file": "tests/routing/prompts/auth-copy-edit.txt",
+      "activation": "EXPLICIT_ONLY",
+      "initial_owner": "04",
+      "scope": "LOCAL",
+      "risk": "STANDARD",
+      "external_effect": false,
+      "mutation": "CHANGE_AND_VERIFY",
+      "required_preconditions": [],
+      "required_gates": [],
+      "terminal_target": "VERIFIED_CHANGE",
+      "acceptable_terminal_statuses": [
+        "DONE",
+        "DONE_WITH_CONCERNS"
+      ],
+      "forbidden_initial_owners": [
+        "01",
+        "02",
+        "06"
+      ],
+      "reason": "Sensitive vocabulary in local copy does not create sensitive behavior or an external effect."
+    },
+    {
+      "id": "static-payment-mock",
+      "suite": "core",
+      "prompt_file": "tests/routing/prompts/static-payment-mock.txt",
+      "activation": "EXPLICIT_ONLY",
+      "initial_owner": "04",
+      "scope": "MODULE",
+      "risk": "STANDARD",
+      "external_effect": false,
+      "mutation": "CHANGE_AND_VERIFY",
+      "required_preconditions": [],
+      "required_gates": [],
+      "terminal_target": "VERIFIED_CHANGE",
+      "acceptable_terminal_statuses": [
+        "DONE",
+        "DONE_WITH_CONCERNS"
+      ],
+      "forbidden_initial_owners": [
+        "01",
+        "02",
+        "06"
+      ],
+      "reason": "A disconnected frontend mock is not a live payment action."
+    },
+    {
+      "id": "implement-no-deploy",
+      "suite": "core",
+      "prompt_file": "tests/routing/prompts/implement-no-deploy.txt",
+      "activation": "AUTO",
+      "initial_owner": "03",
+      "scope": "CROSS_BOUNDARY",
+      "risk": "STANDARD",
+      "external_effect": false,
+      "mutation": "CHANGE_AND_VERIFY",
+      "required_preconditions": [
+        "SYSTEM_CONTRACT"
+      ],
+      "required_gates": [
+        "QUALITY"
+      ],
+      "terminal_target": "VERIFIED_CHANGE",
+      "acceptable_terminal_statuses": [
+        "DONE",
+        "DONE_WITH_CONCERNS"
+      ],
+      "forbidden_initial_owners": [
+        "01",
+        "02",
+        "05",
+        "06"
+      ],
+      "reason": "Approved cross-boundary implementation starts with the first build owner and explicitly excludes release."
+    },
+    {
+      "id": "ambiguous-ship-it",
+      "suite": "core",
+      "prompt_file": "tests/routing/prompts/ambiguous-ship-it.txt",
+      "activation": "AUTO",
+      "initial_owner": "06",
+      "scope": "CROSS_BOUNDARY",
+      "risk": "SENSITIVE",
+      "external_effect": true,
+      "mutation": "PLAN_ONLY",
+      "required_preconditions": [
+        "QUALITY_EVIDENCE",
+        "EXACT_AUTHORIZATION",
+        "TARGET_AND_ARTIFACT",
+        "RECOVERY_PATH"
+      ],
+      "required_gates": [
+        "QUALITY",
+        "RELEASE"
+      ],
+      "terminal_target": "VERIFIED_RELEASE",
+      "acceptable_terminal_statuses": [
+        "BLOCKED_AUTHORIZATION",
+        "BLOCKED_USER_DECISION"
+      ],
+      "forbidden_initial_owners": [
+        "01",
+        "03",
+        "04",
+        "07"
+      ],
+      "reason": "Vague ship language does not identify an exact production action, target, source, or recovery boundary."
+    },
+    {
+      "id": "migration-doc-typo",
+      "suite": "core",
+      "prompt_file": "tests/routing/prompts/migration-doc-typo.txt",
+      "activation": "EXPLICIT_ONLY",
+      "initial_owner": "02",
+      "scope": "LOCAL",
+      "risk": "STANDARD",
+      "external_effect": false,
+      "mutation": "CHANGE_AND_VERIFY",
+      "required_preconditions": [],
+      "required_gates": [],
+      "terminal_target": "VERIFIED_CHANGE",
+      "acceptable_terminal_statuses": [
+        "DONE"
+      ],
+      "forbidden_initial_owners": [
+        "01",
+        "03",
+        "05",
+        "06"
+      ],
+      "reason": "A documentation typo remains local even though the subject is migration."
+    },
+    {
+      "id": "branch-review-only",
+      "suite": "core",
+      "prompt_file": "tests/routing/prompts/branch-review-only.txt",
+      "activation": "EXPLICIT_ONLY",
+      "initial_owner": "05",
+      "scope": "MODULE",
+      "risk": "STANDARD",
+      "external_effect": false,
+      "mutation": "REVIEW_ONLY",
+      "required_preconditions": [],
+      "required_gates": [],
+      "terminal_target": "REVIEW_RESULT",
+      "acceptable_terminal_statuses": [
+        "DONE",
+        "DONE_WITH_CONCERNS"
+      ],
+      "forbidden_initial_owners": [
+        "01",
+        "03",
+        "04",
+        "06"
+      ],
+      "reason": "Review-only intent forbids edits and finishes with an evidence-backed review result."
+    },
+    {
+      "id": "no-browser-proof",
+      "suite": "core",
+      "prompt_file": "tests/routing/prompts/no-browser-proof.txt",
+      "activation": "EXPLICIT_ONLY",
+      "initial_owner": "04",
+      "scope": "LOCAL",
+      "risk": "STANDARD",
+      "external_effect": false,
+      "mutation": "CHANGE_AND_VERIFY",
+      "required_preconditions": [
+        "BROWSER_EVIDENCE"
+      ],
+      "required_gates": [
+        "QUALITY"
+      ],
+      "terminal_target": "VERIFIED_CHANGE",
+      "acceptable_terminal_statuses": [
+        "BLOCKED_EVIDENCE"
+      ],
+      "forbidden_initial_owners": [
+        "01",
+        "02",
+        "06"
+      ],
+      "reason": "Required viewport interaction proof cannot be replaced by source inspection."
+    },
+    {
+      "id": "no-test-environment",
+      "suite": "core",
+      "prompt_file": "tests/routing/prompts/no-test-environment.txt",
+      "activation": "EXPLICIT_ONLY",
+      "initial_owner": "03",
+      "scope": "MODULE",
+      "risk": "STANDARD",
+      "external_effect": false,
+      "mutation": "CHANGE_AND_VERIFY",
+      "required_preconditions": [
+        "TEST_ENVIRONMENT"
+      ],
+      "required_gates": [
+        "QUALITY"
+      ],
+      "terminal_target": "VERIFIED_CHANGE",
+      "acceptable_terminal_statuses": [
+        "BLOCKED_EVIDENCE"
+      ],
+      "forbidden_initial_owners": [
+        "01",
+        "02",
+        "06"
+      ],
+      "reason": "The unavailable runtime prevents the required regression proof."
+    },
+    {
+      "id": "deploy-no-access",
+      "suite": "core",
+      "prompt_file": "tests/routing/prompts/deploy-no-access.txt",
+      "activation": "AUTO",
+      "initial_owner": "06",
+      "scope": "CROSS_BOUNDARY",
+      "risk": "SENSITIVE",
+      "external_effect": true,
+      "mutation": "PLAN_ONLY",
+      "required_preconditions": [
+        "QUALITY_EVIDENCE",
+        "EXACT_AUTHORIZATION",
+        "TARGET_AND_ARTIFACT",
+        "TARGET_ACCESS",
+        "RECOVERY_PATH"
+      ],
+      "required_gates": [
+        "QUALITY",
+        "RELEASE"
+      ],
+      "terminal_target": "VERIFIED_RELEASE",
+      "acceptable_terminal_statuses": [
+        "BLOCKED_AUTHORIZATION"
+      ],
+      "forbidden_initial_owners": [
+        "01",
+        "03",
+        "04",
+        "07"
+      ],
+      "reason": "Exact intent without target access can prepare but cannot execute or claim release."
+    },
+    {
+      "id": "repeated-fix-loop",
+      "suite": "core",
+      "prompt_file": "tests/routing/prompts/repeated-fix-loop.txt",
+      "activation": "AUTO",
+      "initial_owner": "05",
+      "scope": "CROSS_BOUNDARY",
+      "risk": "SENSITIVE",
+      "external_effect": false,
+      "mutation": "PLAN_ONLY",
+      "required_preconditions": [
+        "NEW_EVIDENCE"
+      ],
+      "required_gates": [
+        "QUALITY"
+      ],
+      "terminal_target": "VERIFIED_CHANGE",
+      "acceptable_terminal_statuses": [
+        "BLOCKED_EVIDENCE"
+      ],
+      "forbidden_initial_owners": [
+        "01",
+        "02",
+        "03",
+        "04",
+        "06"
+      ],
+      "reason": "The repair and architecture budgets are exhausted with no evidence-producing action remaining."
+    },
+    {
+      "id": "project-board-update",
+      "suite": "core",
+      "prompt_file": "tests/routing/prompts/project-board-update.txt",
+      "activation": "AUTO",
+      "initial_owner": "agent-context",
+      "scope": "CROSS_BOUNDARY",
+      "risk": "STANDARD",
+      "external_effect": false,
+      "mutation": "CHANGE_AND_VERIFY",
+      "required_preconditions": [
+        "BROWSER_EVIDENCE"
+      ],
+      "required_gates": [
+        "QUALITY"
+      ],
+      "terminal_target": "CURRENT_DOCUMENTATION",
+      "acceptable_terminal_statuses": [
+        "DONE",
+        "DONE_WITH_CONCERNS"
+      ],
+      "forbidden_initial_owners": [
+        "03",
+        "04",
+        "06",
+        "07"
+      ],
+      "reason": "Durable project documentation uses the internal agent-context capability and complete inventory coverage."
+    },
+    {
+      "id": "active-production-harm",
+      "suite": "core",
+      "prompt_file": "tests/routing/prompts/active-production-harm.txt",
+      "activation": "AUTO",
+      "initial_owner": "06",
+      "scope": "CROSS_BOUNDARY",
+      "risk": "ACTIVE_HARM",
+      "external_effect": true,
+      "mutation": "PLAN_ONLY",
+      "required_preconditions": [
+        "EXACT_AUTHORIZATION",
+        "TARGET_AND_ARTIFACT",
+        "RECOVERY_PATH"
+      ],
+      "required_gates": [
+        "SECURITY",
+        "RELEASE"
+      ],
+      "terminal_target": "INCIDENT_CONTAINED",
+      "acceptable_terminal_statuses": [
+        "BLOCKED_AUTHORIZATION"
+      ],
+      "forbidden_initial_owners": [
+        "01",
+        "04",
+        "07"
+      ],
+      "reason": "Active payment harm routes to containment before growth, but unspecified external actions still need exact authority."
+    },
+    {
+      "id": "no-browser-optional",
+      "suite": "full",
+      "prompt_file": "tests/routing/prompts/no-browser-optional.txt",
+      "activation": "EXPLICIT_ONLY",
+      "initial_owner": "03",
+      "scope": "MODULE",
+      "risk": "STANDARD",
+      "external_effect": false,
+      "mutation": "CHANGE_AND_VERIFY",
+      "required_preconditions": [],
+      "required_gates": [],
+      "terminal_target": "VERIFIED_CHANGE",
+      "acceptable_terminal_statuses": [
+        "DONE",
+        "DONE_WITH_CONCERNS"
+      ],
+      "forbidden_initial_owners": [
+        "01",
+        "04",
+        "06"
+      ],
+      "reason": "Missing browser tooling is irrelevant when acceptance is entirely server-side."
+    },
+    {
+      "id": "core-feature-plan",
+      "suite": "full",
+      "prompt_file": "tests/routing/prompts/core-feature-plan.txt",
+      "activation": "AUTO",
+      "initial_owner": "01",
+      "scope": "PRODUCT_DIRECTION",
+      "risk": "SENSITIVE",
+      "external_effect": false,
+      "mutation": "PLAN_ONLY",
+      "required_preconditions": [
+        "PRODUCT_SCOPE"
+      ],
+      "required_gates": [
+        "CONTRACT"
+      ],
+      "terminal_target": "PRODUCT_DECISION",
+      "acceptable_terminal_statuses": [
+        "DONE",
+        "BLOCKED_USER_DECISION"
+      ],
+      "forbidden_initial_owners": [
+        "03",
+        "04",
+        "06"
+      ],
+      "reason": "A changed primary workflow and ambition decision belongs to product scope before system design."
+    },
+    {
+      "id": "system-design-approval-flow",
+      "suite": "full",
+      "prompt_file": "tests/routing/prompts/system-design-approval-flow.txt",
+      "activation": "AUTO",
+      "initial_owner": "02",
+      "scope": "CROSS_BOUNDARY",
+      "risk": "SENSITIVE",
+      "external_effect": false,
+      "mutation": "PLAN_ONLY",
+      "required_preconditions": [
+        "PRODUCT_SCOPE"
+      ],
+      "required_gates": [
+        "SECURITY"
+      ],
+      "terminal_target": "SYSTEM_PLAN",
+      "acceptable_terminal_statuses": [
+        "DONE",
+        "DONE_WITH_CONCERNS"
+      ],
+      "forbidden_initial_owners": [
+        "01",
+        "03",
+        "04",
+        "06"
+      ],
+      "reason": "Approved multi-tenant scope needs a contract-complete system plan, not implementation."
+    },
+    {
+      "id": "approved-owner-scoped-api-build",
+      "suite": "full",
+      "prompt_file": "tests/routing/prompts/approved-owner-scoped-api-build.txt",
+      "activation": "EXPLICIT_ONLY",
+      "initial_owner": "03",
+      "scope": "MODULE",
+      "risk": "SENSITIVE",
+      "external_effect": false,
+      "mutation": "CHANGE_AND_VERIFY",
+      "required_preconditions": [
+        "SYSTEM_CONTRACT"
+      ],
+      "required_gates": [
+        "QUALITY",
+        "SECURITY"
+      ],
+      "terminal_target": "VERIFIED_CHANGE",
+      "acceptable_terminal_statuses": [
+        "DONE",
+        "DONE_WITH_CONCERNS"
+      ],
+      "forbidden_initial_owners": [
+        "01",
+        "02",
+        "04",
+        "06"
+      ],
+      "reason": "An approved access-sensitive API enters its implementation owner without reopening architecture."
+    },
+    {
+      "id": "approved-public-landing-redesign",
+      "suite": "full",
+      "prompt_file": "tests/routing/prompts/approved-public-landing-redesign.txt",
+      "activation": "EXPLICIT_ONLY",
+      "initial_owner": "04",
+      "scope": "MODULE",
+      "risk": "STANDARD",
+      "external_effect": false,
+      "mutation": "CHANGE_AND_VERIFY",
+      "required_preconditions": [
+        "PRODUCT_SCOPE"
+      ],
+      "required_gates": [
+        "QUALITY"
+      ],
+      "terminal_target": "VERIFIED_CHANGE",
+      "acceptable_terminal_statuses": [
+        "DONE",
+        "DONE_WITH_CONCERNS"
+      ],
+      "forbidden_initial_owners": [
+        "01",
+        "02",
+        "03",
+        "06"
+      ],
+      "reason": "An approved redesign remains frontend work with browser evidence."
+    },
+    {
+      "id": "stable-post-release-feedback",
+      "suite": "full",
+      "prompt_file": "tests/routing/prompts/stable-post-release-feedback.txt",
+      "activation": "AUTO",
+      "initial_owner": "07",
+      "scope": "MODULE",
+      "risk": "STANDARD",
+      "external_effect": false,
+      "mutation": "REPORT_ONLY",
+      "required_preconditions": [],
+      "required_gates": [],
+      "terminal_target": "OPERATING_DECISION",
+      "acceptable_terminal_statuses": [
+        "DONE",
+        "DONE_WITH_CONCERNS"
+      ],
+      "forbidden_initial_owners": [
+        "02",
+        "03",
+        "04",
+        "06"
+      ],
+      "reason": "Stable post-release evidence belongs to operations and learning, not another release."
+    },
+    {
+      "id": "authorized-production-release",
+      "suite": "full",
+      "prompt_file": "tests/routing/prompts/authorized-production-release.txt",
+      "activation": "AUTO",
+      "initial_owner": "06",
+      "scope": "CROSS_BOUNDARY",
+      "risk": "SENSITIVE",
+      "external_effect": true,
+      "mutation": "EXECUTE_AUTHORIZED",
+      "required_preconditions": [
+        "QUALITY_EVIDENCE",
+        "EXACT_AUTHORIZATION",
+        "TARGET_AND_ARTIFACT",
+        "RECOVERY_PATH"
+      ],
+      "required_gates": [
+        "QUALITY",
+        "RELEASE"
+      ],
+      "terminal_target": "VERIFIED_RELEASE",
+      "acceptable_terminal_statuses": [
+        "DONE",
+        "DONE_WITH_CONCERNS"
+      ],
+      "forbidden_initial_owners": [
+        "01",
+        "02",
+        "03",
+        "04",
+        "07"
+      ],
+      "reason": "A precise authorized release starts in Node06 and finishes only after target verification."
+    }
+  ]
+}

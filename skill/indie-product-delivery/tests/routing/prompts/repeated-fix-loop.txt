@@ -1,0 +1,1 @@
+Three focused repairs for the same authentication redirect root cause have failed, each with a different evidence-backed hypothesis. The task has already returned to architecture once, and no new runtime evidence or environment is available. Decide how to conclude this task.

@@ -1,0 +1,1 @@
+Fix the mobile header overlap. Browser tooling is unavailable in this environment, and the acceptance criterion explicitly requires confirming the interaction at mobile viewport sizes.

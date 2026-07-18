@@ -5,7 +5,6 @@ import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { apiFetch, DeveloperTrace } from "../../../lib/api";
 
-// 渲染开发者可见的脱敏 Trace 页面。
 export default function TracePage() {
   const params = useParams<{ traceId: string }>();
   const traceId = params.traceId;
@@ -17,7 +16,7 @@ export default function TracePage() {
       try {
         setTrace(await apiFetch<DeveloperTrace>(`/dev/traces/${traceId}`));
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Trace 不存在或无权限");
+        setError(err instanceof Error ? err.message : "The trace does not exist or this identity cannot access it.");
       }
     }
     void loadTrace();
@@ -28,10 +27,10 @@ export default function TracePage() {
       <section className="workspace-header glass-panel">
         <div>
           <p className="eyebrow">Developer Trace</p>
-          <h1>脱敏执行链路</h1>
-          <p>普通用户 token 无法访问本页；页面不展示 API key、OAuth token 或 signed secret。</p>
+          <h1>Sanitized execution trace</h1>
+          <p>A regular user cannot access this route. API keys, OAuth tokens, signed URLs, and raw private payloads are excluded.</p>
         </div>
-        <Link className="secondary-button" href="/app">返回项目</Link>
+        <Link className="secondary-button" href="/app">Return to projects</Link>
       </section>
       {error && <p className="error-banner">{error}</p>}
       {trace && (

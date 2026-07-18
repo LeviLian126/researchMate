@@ -1,0 +1,3 @@
+Before coding, help me plan a new team approval workflow. This changes the product's primary workflow, adds
+roles and approval states, and will touch the API, database, and UI. I want to decide whether to keep it
+focused or make it a stronger differentiator.

@@ -20,6 +20,116 @@ paths:
                   type: string
                 type: object
                 title: Response Healthz Api V1 Healthz Get
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Permission denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: State or idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Request validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Usage limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Dependency unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/readyz:
+    get:
+      tags:
+      - health
+      summary: Readyz
+      description: Probe non-charging dependencies required to safely accept production
+        work.
+      operationId: readyz_api_v1_readyz_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Permission denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: State or idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Request validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Usage limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Dependency unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /api/v1/me:
     get:
       tags:
@@ -33,6 +143,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CurrentUser'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '401':
           description: Authentication required
           content:
@@ -40,19 +156,43 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '403':
-          description: Forbidden
+          description: Permission denied
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '404':
-          description: Not found
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: State or idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Request validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Usage limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Dependency unavailable
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
       security:
-      - bearerAuth: []
+      - HTTPBearer: []
   /api/v1/projects:
     get:
       tags:
@@ -69,6 +209,12 @@ paths:
                   $ref: '#/components/schemas/ProjectRecord'
                 type: array
                 title: Response List Projects Api V1 Projects Get
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '401':
           description: Authentication required
           content:
@@ -76,19 +222,43 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '403':
-          description: Forbidden
+          description: Permission denied
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '404':
-          description: Not found
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: State or idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Request validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Usage limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Dependency unavailable
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
       security:
-      - bearerAuth: []
+      - HTTPBearer: []
     post:
       tags:
       - projects
@@ -107,12 +277,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ProjectRecord'
-        '422':
-          description: Validation Error
+        '400':
+          description: Invalid request
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HTTPValidationError'
+                $ref: '#/components/schemas/ErrorResponse'
         '401':
           description: Authentication required
           content:
@@ -120,19 +290,43 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '403':
-          description: Forbidden
+          description: Permission denied
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '404':
-          description: Not found
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: State or idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Request validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Usage limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Dependency unavailable
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
       security:
-      - bearerAuth: []
+      - HTTPBearer: []
   /api/v1/projects/{project_id}:
     get:
       tags:
@@ -140,7 +334,7 @@ paths:
       summary: Get Project
       operationId: get_project_api_v1_projects__project_id__get
       security:
-      - bearerAuth: []
+      - HTTPBearer: []
       parameters:
       - name: project_id
         in: path
@@ -156,12 +350,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ProjectRecord'
-        '422':
-          description: Validation Error
+        '400':
+          description: Invalid request
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HTTPValidationError'
+                $ref: '#/components/schemas/ErrorResponse'
         '401':
           description: Authentication required
           content:
@@ -169,13 +363,37 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '403':
-          description: Forbidden
+          description: Permission denied
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '404':
-          description: Not found
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: State or idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Request validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Usage limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Dependency unavailable
           content:
             application/json:
               schema:
@@ -186,7 +404,7 @@ paths:
       summary: Delete Project
       operationId: delete_project_api_v1_projects__project_id__delete
       security:
-      - bearerAuth: []
+      - HTTPBearer: []
       parameters:
       - name: project_id
         in: path
@@ -205,12 +423,12 @@ paths:
                 additionalProperties:
                   type: string
                 title: Response Delete Project Api V1 Projects  Project Id  Delete
-        '422':
-          description: Validation Error
+        '400':
+          description: Invalid request
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HTTPValidationError'
+                $ref: '#/components/schemas/ErrorResponse'
         '401':
           description: Authentication required
           content:
@@ -218,13 +436,37 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '403':
-          description: Forbidden
+          description: Permission denied
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '404':
-          description: Not found
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: State or idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Request validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Usage limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Dependency unavailable
           content:
             application/json:
               schema:
@@ -248,12 +490,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/UploadUrlResponse'
-        '422':
-          description: Validation Error
+        '400':
+          description: Invalid request
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HTTPValidationError'
+                $ref: '#/components/schemas/ErrorResponse'
         '401':
           description: Authentication required
           content:
@@ -261,19 +503,43 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '403':
-          description: Forbidden
+          description: Permission denied
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '404':
-          description: Not found
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: State or idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Request validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Usage limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Dependency unavailable
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
       security:
-      - bearerAuth: []
+      - HTTPBearer: []
   /api/v1/documents:
     post:
       tags:
@@ -293,12 +559,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DocumentRecord'
-        '422':
-          description: Validation Error
+        '400':
+          description: Invalid request
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HTTPValidationError'
+                $ref: '#/components/schemas/ErrorResponse'
         '401':
           description: Authentication required
           content:
@@ -306,19 +572,43 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '403':
-          description: Forbidden
+          description: Permission denied
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '404':
-          description: Not found
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: State or idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Request validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Usage limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Dependency unavailable
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
       security:
-      - bearerAuth: []
+      - HTTPBearer: []
   /api/v1/projects/{project_id}/documents:
     get:
       tags:
@@ -326,7 +616,7 @@ paths:
       summary: List Project Documents
       operationId: list_project_documents_api_v1_projects__project_id__documents_get
       security:
-      - bearerAuth: []
+      - HTTPBearer: []
       parameters:
       - name: project_id
         in: path
@@ -346,12 +636,12 @@ paths:
                   $ref: '#/components/schemas/DocumentRecord'
                 title: Response List Project Documents Api V1 Projects  Project Id  Documents
                   Get
-        '422':
-          description: Validation Error
+        '400':
+          description: Invalid request
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HTTPValidationError'
+                $ref: '#/components/schemas/ErrorResponse'
         '401':
           description: Authentication required
           content:
@@ -359,13 +649,37 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '403':
-          description: Forbidden
+          description: Permission denied
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '404':
-          description: Not found
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: State or idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Request validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Usage limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Dependency unavailable
           content:
             application/json:
               schema:
@@ -377,7 +691,7 @@ paths:
       summary: Get Document
       operationId: get_document_api_v1_documents__document_id__get
       security:
-      - bearerAuth: []
+      - HTTPBearer: []
       parameters:
       - name: document_id
         in: path
@@ -393,12 +707,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DocumentRecord'
-        '422':
-          description: Validation Error
+        '400':
+          description: Invalid request
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HTTPValidationError'
+                $ref: '#/components/schemas/ErrorResponse'
         '401':
           description: Authentication required
           content:
@@ -406,13 +720,37 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '403':
-          description: Forbidden
+          description: Permission denied
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '404':
-          description: Not found
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: State or idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Request validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Usage limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Dependency unavailable
           content:
             application/json:
               schema:
@@ -423,7 +761,7 @@ paths:
       summary: Delete Document
       operationId: delete_document_api_v1_documents__document_id__delete
       security:
-      - bearerAuth: []
+      - HTTPBearer: []
       parameters:
       - name: document_id
         in: path
@@ -442,12 +780,12 @@ paths:
                 additionalProperties:
                   type: string
                 title: Response Delete Document Api V1 Documents  Document Id  Delete
-        '422':
-          description: Validation Error
+        '400':
+          description: Invalid request
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HTTPValidationError'
+                $ref: '#/components/schemas/ErrorResponse'
         '401':
           description: Authentication required
           content:
@@ -455,13 +793,37 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '403':
-          description: Forbidden
+          description: Permission denied
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '404':
-          description: Not found
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: State or idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Request validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Usage limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Dependency unavailable
           content:
             application/json:
               schema:
@@ -473,7 +835,7 @@ paths:
       summary: Complete Upload
       operationId: complete_upload_api_v1_documents__document_id__complete_post
       security:
-      - bearerAuth: []
+      - HTTPBearer: []
       parameters:
       - name: document_id
         in: path
@@ -501,12 +863,12 @@ paths:
                   type: string
                 title: Response Complete Upload Api V1 Documents  Document Id  Complete
                   Post
-        '422':
-          description: Validation Error
+        '400':
+          description: Invalid request
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HTTPValidationError'
+                $ref: '#/components/schemas/ErrorResponse'
         '401':
           description: Authentication required
           content:
@@ -514,13 +876,37 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '403':
-          description: Forbidden
+          description: Permission denied
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '404':
-          description: Not found
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: State or idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Request validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Usage limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Dependency unavailable
           content:
             application/json:
               schema:
@@ -532,7 +918,7 @@ paths:
       summary: Get Job
       operationId: get_job_api_v1_jobs__job_id__get
       security:
-      - bearerAuth: []
+      - HTTPBearer: []
       parameters:
       - name: job_id
         in: path
@@ -548,12 +934,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/JobRecord'
-        '422':
-          description: Validation Error
+        '400':
+          description: Invalid request
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HTTPValidationError'
+                $ref: '#/components/schemas/ErrorResponse'
         '401':
           description: Authentication required
           content:
@@ -561,13 +947,37 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '403':
-          description: Forbidden
+          description: Permission denied
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '404':
-          description: Not found
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: State or idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Request validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Usage limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Dependency unavailable
           content:
             application/json:
               schema:
@@ -591,12 +1001,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AskResponse'
-        '422':
-          description: Validation Error
+        '400':
+          description: Invalid request
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HTTPValidationError'
+                $ref: '#/components/schemas/ErrorResponse'
         '401':
           description: Authentication required
           content:
@@ -604,19 +1014,43 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '403':
-          description: Forbidden
+          description: Permission denied
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '404':
-          description: Not found
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: State or idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Request validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Usage limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Dependency unavailable
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
       security:
-      - bearerAuth: []
+      - HTTPBearer: []
   /api/v1/quiz:
     post:
       tags:
@@ -636,12 +1070,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/QuizResponse'
-        '422':
-          description: Validation Error
+        '400':
+          description: Invalid request
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HTTPValidationError'
+                $ref: '#/components/schemas/ErrorResponse'
         '401':
           description: Authentication required
           content:
@@ -649,19 +1083,43 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '403':
-          description: Forbidden
+          description: Permission denied
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '404':
-          description: Not found
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: State or idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Request validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Usage limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Dependency unavailable
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
       security:
-      - bearerAuth: []
+      - HTTPBearer: []
   /api/v1/projects/{project_id}/quiz:
     get:
       tags:
@@ -669,7 +1127,7 @@ paths:
       summary: List Quiz History
       operationId: list_quiz_history_api_v1_projects__project_id__quiz_get
       security:
-      - bearerAuth: []
+      - HTTPBearer: []
       parameters:
       - name: project_id
         in: path
@@ -685,12 +1143,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/QuizHistoryResponse'
-        '422':
-          description: Validation Error
+        '400':
+          description: Invalid request
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HTTPValidationError'
+                $ref: '#/components/schemas/ErrorResponse'
         '401':
           description: Authentication required
           content:
@@ -698,13 +1156,37 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '403':
-          description: Forbidden
+          description: Permission denied
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '404':
-          description: Not found
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: State or idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Request validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Usage limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Dependency unavailable
           content:
             application/json:
               schema:
@@ -716,7 +1198,7 @@ paths:
       summary: Get Run Sources
       operationId: get_run_sources_api_v1_runs__run_id__sources_get
       security:
-      - bearerAuth: []
+      - HTTPBearer: []
       parameters:
       - name: run_id
         in: path
@@ -732,12 +1214,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/RunSourcesResponse'
-        '422':
-          description: Validation Error
+        '400':
+          description: Invalid request
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HTTPValidationError'
+                $ref: '#/components/schemas/ErrorResponse'
         '401':
           description: Authentication required
           content:
@@ -745,13 +1227,37 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '403':
-          description: Forbidden
+          description: Permission denied
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '404':
-          description: Not found
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: State or idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Request validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Usage limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Dependency unavailable
           content:
             application/json:
               schema:
@@ -763,7 +1269,7 @@ paths:
       summary: Get Trace
       operationId: get_trace_api_v1_dev_traces__trace_id__get
       security:
-      - bearerAuth: []
+      - HTTPBearer: []
       parameters:
       - name: trace_id
         in: path
@@ -779,12 +1285,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DeveloperTrace'
-        '422':
-          description: Validation Error
+        '400':
+          description: Invalid request
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HTTPValidationError'
+                $ref: '#/components/schemas/ErrorResponse'
         '401':
           description: Authentication required
           content:
@@ -792,13 +1298,1233 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '403':
-          description: Forbidden
+          description: Permission denied
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '404':
-          description: Not found
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: State or idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Request validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Usage limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Dependency unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/research-runs:
+    post:
+      tags:
+      - evidence-review
+      summary: Create Research Run
+      operationId: create_research_run_api_v1_research_runs_post
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Idempotency-Key
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResearchRunCreate'
+      responses:
+        '202':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResearchRunAccepted'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Permission denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: State or idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Request validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Usage limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Dependency unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/runs/{run_id}:
+    get:
+      tags:
+      - evidence-review
+      summary: Get Workflow Run
+      operationId: get_workflow_run_api_v1_runs__run_id__get
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Run Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowRunRecord'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Permission denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: State or idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Request validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Usage limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Dependency unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/runs/{run_id}/events:
+    get:
+      tags:
+      - evidence-review
+      summary: Stream Run Events
+      operationId: stream_run_events_api_v1_runs__run_id__events_get
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Run Id
+      - name: after_sequence
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: -1
+          default: -1
+          title: After Sequence
+      - name: Last-Event-ID
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Last-Event-Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Permission denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: State or idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Request validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Usage limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Dependency unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/runs/{run_id}/decisions:
+    post:
+      tags:
+      - evidence-review
+      summary: Create Human Decision
+      operationId: create_human_decision_api_v1_runs__run_id__decisions_post
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Run Id
+      - name: Idempotency-Key
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Idempotency-Key
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HumanDecisionCreate'
+      responses:
+        '202':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HumanDecisionAccepted'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Permission denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: State or idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Request validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Usage limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Dependency unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/projects/{project_id}/claims:
+    get:
+      tags:
+      - evidence-review
+      summary: List Claims
+      operationId: list_claims_api_v1_projects__project_id__claims_get
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Project Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClaimListResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Permission denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: State or idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Request validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Usage limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Dependency unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/projects/{project_id}/claim-relations:
+    get:
+      tags:
+      - evidence-review
+      summary: List Claim Relations
+      operationId: list_claim_relations_api_v1_projects__project_id__claim_relations_get
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Project Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClaimRelationListResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Permission denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: State or idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Request validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Usage limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Dependency unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/projects/{project_id}/reports:
+    get:
+      tags:
+      - evidence-review
+      summary: List Reports
+      operationId: list_reports_api_v1_projects__project_id__reports_get
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Project Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportListResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Permission denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: State or idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Request validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Usage limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Dependency unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/reports/{report_id}:
+    get:
+      tags:
+      - evidence-review
+      summary: Get Report
+      operationId: get_report_api_v1_reports__report_id__get
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: report_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Report Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportDetail'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Permission denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: State or idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Request validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Usage limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Dependency unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/pipeline-versions:
+    get:
+      tags:
+      - evidence-review
+      summary: List Pipeline Versions
+      operationId: list_pipeline_versions_api_v1_pipeline_versions_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PipelineVersionListResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Permission denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: State or idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Request validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Usage limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Dependency unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+      - HTTPBearer: []
+  /api/v1/evaluation-datasets:
+    get:
+      tags:
+      - evidence-review
+      summary: List Evaluation Datasets
+      operationId: list_evaluation_datasets_api_v1_evaluation_datasets_get
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: project_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Project Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EvaluationDatasetListResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Permission denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: State or idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Request validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Usage limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Dependency unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/reports/{report_id}/refresh:
+    post:
+      tags:
+      - evidence-review
+      summary: Refresh Report
+      operationId: refresh_report_api_v1_reports__report_id__refresh_post
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: report_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Report Id
+      - name: Idempotency-Key
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Idempotency-Key
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReportRefreshCreate'
+      responses:
+        '202':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportRefreshAccepted'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Permission denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: State or idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Request validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Usage limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Dependency unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/evaluation-runs:
+    post:
+      tags:
+      - evidence-review
+      summary: Create Evaluation Run
+      operationId: create_evaluation_run_api_v1_evaluation_runs_post
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Idempotency-Key
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EvaluationRunCreate'
+      responses:
+        '202':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EvaluationRunAccepted'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Permission denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: State or idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Request validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Usage limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Dependency unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/evaluation-runs/{evaluation_run_id}:
+    get:
+      tags:
+      - evidence-review
+      summary: Get Evaluation Run
+      operationId: get_evaluation_run_api_v1_evaluation_runs__evaluation_run_id__get
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: evaluation_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Evaluation Run Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EvaluationRunRecord'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Permission denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: State or idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Request validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Usage limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Dependency unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/dev/reliability:
+    get:
+      tags:
+      - evidence-review
+      summary: Reliability
+      operationId: reliability_api_v1_dev_reliability_get
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: window_hours
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 168
+          minimum: 1
+          default: 24
+          title: Window Hours
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReliabilityResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Permission denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: State or idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Request validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Usage limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Dependency unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/dev/fault-scenarios:
+    post:
+      tags:
+      - evidence-review
+      summary: Create Fault Scenario
+      operationId: create_fault_scenario_api_v1_dev_fault_scenarios_post
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Idempotency-Key
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FaultScenarioCreate'
+      responses:
+        '202':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FaultScenarioAccepted'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Permission denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: State or idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Request validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Usage limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Dependency unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/dev/fault-scenarios/{exercise_id}:
+    get:
+      tags:
+      - evidence-review
+      summary: Get Fault Scenario
+      operationId: get_fault_scenario_api_v1_dev_fault_scenarios__exercise_id__get
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: exercise_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Exercise Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FaultScenarioRecord'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Permission denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: State or idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Request validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Usage limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Dependency unavailable
           content:
             application/json:
               schema:
@@ -920,6 +2646,143 @@ components:
       - source_type
       - quote
       title: Citation
+    ClaimListResponse:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/ClaimSummary'
+          type: array
+          title: Items
+        next_cursor:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Next Cursor
+      type: object
+      required:
+      - items
+      title: ClaimListResponse
+    ClaimRelationListResponse:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/ClaimRelationSummary'
+          type: array
+          title: Items
+        next_cursor:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Next Cursor
+      type: object
+      required:
+      - items
+      title: ClaimRelationListResponse
+    ClaimRelationSummary:
+      properties:
+        source_claim_id:
+          type: string
+          format: uuid
+          title: Source Claim Id
+        target_claim_id:
+          type: string
+          format: uuid
+          title: Target Claim Id
+        relation:
+          type: string
+          enum:
+          - supports
+          - contradicts
+          - duplicates
+          title: Relation
+        confidence:
+          type: number
+          maximum: 1.0
+          minimum: 0.0
+          title: Confidence
+        rationale_summary:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Rationale Summary
+        source_text:
+          type: string
+          title: Source Text
+        target_text:
+          type: string
+          title: Target Text
+      type: object
+      required:
+      - source_claim_id
+      - target_claim_id
+      - relation
+      - confidence
+      - source_text
+      - target_text
+      title: ClaimRelationSummary
+    ClaimSummary:
+      properties:
+        claim_id:
+          type: string
+          format: uuid
+          title: Claim Id
+        text:
+          type: string
+          title: Text
+        stance:
+          type: string
+          enum:
+          - supports
+          - opposes
+          - neutral
+          title: Stance
+        confidence:
+          type: number
+          maximum: 1.0
+          minimum: 0.0
+          title: Confidence
+        review_status:
+          type: string
+          enum:
+          - pending
+          - accepted
+          - edited
+          - rejected
+          - invalidated
+          title: Review Status
+        evidence_count:
+          type: integer
+          minimum: 0.0
+          title: Evidence Count
+        support_count:
+          type: integer
+          minimum: 0.0
+          title: Support Count
+        contradiction_count:
+          type: integer
+          minimum: 0.0
+          title: Contradiction Count
+        duplicate_count:
+          type: integer
+          minimum: 0.0
+          title: Duplicate Count
+        source_version:
+          type: integer
+          minimum: 1.0
+          title: Source Version
+      type: object
+      required:
+      - claim_id
+      - text
+      - stance
+      - confidence
+      - review_status
+      - evidence_count
+      - support_count
+      - contradiction_count
+      - duplicate_count
+      - source_version
+      title: ClaimSummary
     CurrentUser:
       properties:
         id:
@@ -1103,6 +2966,222 @@ components:
       - expired
       - deleted
       title: DocumentStatus
+    ErrorDetail:
+      properties:
+        code:
+          type: string
+          maxLength: 80
+          minLength: 2
+          title: Code
+        message:
+          type: string
+          maxLength: 300
+          minLength: 1
+          title: Message
+        request_id:
+          type: string
+          maxLength: 120
+          minLength: 4
+          title: Request Id
+      type: object
+      required:
+      - code
+      - message
+      - request_id
+      title: ErrorDetail
+    ErrorResponse:
+      properties:
+        error:
+          $ref: '#/components/schemas/ErrorDetail'
+      type: object
+      required:
+      - error
+      title: ErrorResponse
+    EvaluationDatasetListResponse:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/EvaluationDatasetSummary'
+          type: array
+          title: Items
+      type: object
+      required:
+      - items
+      title: EvaluationDatasetListResponse
+    EvaluationDatasetSummary:
+      properties:
+        dataset_id:
+          type: string
+          format: uuid
+          title: Dataset Id
+        project_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Project Id
+        name:
+          type: string
+          title: Name
+        version:
+          type: integer
+          minimum: 1.0
+          title: Version
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
+        case_count:
+          type: integer
+          minimum: 0.0
+          title: Case Count
+      type: object
+      required:
+      - dataset_id
+      - name
+      - version
+      - case_count
+      title: EvaluationDatasetSummary
+    EvaluationRunAccepted:
+      properties:
+        evaluation_run_id:
+          type: string
+          format: uuid
+          title: Evaluation Run Id
+        case_count:
+          type: integer
+          minimum: 0.0
+          title: Case Count
+        status_url:
+          type: string
+          title: Status Url
+        estimated_budget_boundary:
+          anyOf:
+          - type: string
+            pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          - type: 'null'
+          title: Estimated Budget Boundary
+      type: object
+      required:
+      - evaluation_run_id
+      - case_count
+      - status_url
+      title: EvaluationRunAccepted
+    EvaluationRunCreate:
+      properties:
+        dataset_id:
+          type: string
+          format: uuid
+          title: Dataset Id
+        pipeline_version_id:
+          type: string
+          format: uuid
+          title: Pipeline Version Id
+        metrics:
+          items:
+            type: string
+            enum:
+            - schema_valid
+            - citation_precision
+            - evidence_recall
+            - faithfulness
+          type: array
+          maxItems: 4
+          minItems: 1
+          title: Metrics
+        max_parallelism:
+          type: integer
+          maximum: 20.0
+          minimum: 1.0
+          title: Max Parallelism
+          default: 4
+        max_cost_usd:
+          anyOf:
+          - type: number
+            maximum: 25.0
+            exclusiveMinimum: 0.0
+          - type: string
+            pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          - type: 'null'
+          title: Max Cost Usd
+        labels:
+          items:
+            type: string
+          type: array
+          maxItems: 20
+          title: Labels
+      type: object
+      required:
+      - dataset_id
+      - pipeline_version_id
+      - metrics
+      title: EvaluationRunCreate
+    EvaluationRunRecord:
+      properties:
+        evaluation_run_id:
+          type: string
+          format: uuid
+          title: Evaluation Run Id
+        dataset_id:
+          type: string
+          format: uuid
+          title: Dataset Id
+        pipeline_version_id:
+          type: string
+          format: uuid
+          title: Pipeline Version Id
+        status:
+          type: string
+          enum:
+          - pending
+          - running
+          - succeeded
+          - failed
+          - cancelled
+          title: Status
+        progress:
+          type: integer
+          maximum: 100.0
+          minimum: 0.0
+          title: Progress
+        summary:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Summary
+        scores:
+          items:
+            additionalProperties: true
+            type: object
+          type: array
+          title: Scores
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        started_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Started At
+        completed_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Completed At
+      type: object
+      required:
+      - evaluation_run_id
+      - dataset_id
+      - pipeline_version_id
+      - status
+      - progress
+      - created_at
+      title: EvaluationRunRecord
     ExecutionPlan:
       properties:
         source_mode:
@@ -1137,15 +3216,186 @@ components:
       - requires_web
       - output_schema
       title: ExecutionPlan
-    HTTPValidationError:
+    FaultScenarioAccepted:
       properties:
-        detail:
-          items:
-            $ref: '#/components/schemas/ValidationError'
-          type: array
-          title: Detail
+        exercise_id:
+          type: string
+          format: uuid
+          title: Exercise Id
+        target_run_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Target Run Id
+        expected_recovery_state:
+          type: string
+          title: Expected Recovery State
+        status_url:
+          type: string
+          title: Status Url
+        expires_at:
+          type: string
+          format: date-time
+          title: Expires At
       type: object
-      title: HTTPValidationError
+      required:
+      - exercise_id
+      - expected_recovery_state
+      - status_url
+      - expires_at
+      title: FaultScenarioAccepted
+    FaultScenarioCreate:
+      properties:
+        scenario:
+          type: string
+          enum:
+          - llm_timeout
+          - qdrant_unavailable
+          - worker_interrupt
+          - r2_failure
+          title: Scenario
+        target_run_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Target Run Id
+        duration_seconds:
+          type: integer
+          maximum: 60.0
+          minimum: 1.0
+          title: Duration Seconds
+      type: object
+      required:
+      - scenario
+      - duration_seconds
+      title: FaultScenarioCreate
+    FaultScenarioRecord:
+      properties:
+        exercise_id:
+          type: string
+          format: uuid
+          title: Exercise Id
+        scenario:
+          type: string
+          enum:
+          - llm_timeout
+          - qdrant_unavailable
+          - worker_interrupt
+          - r2_failure
+          title: Scenario
+        target_run_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Target Run Id
+        status:
+          type: string
+          enum:
+          - pending
+          - running
+          - succeeded
+          - failed
+          title: Status
+        attempts:
+          type: integer
+          minimum: 0.0
+          title: Attempts
+        expires_at:
+          type: string
+          format: date-time
+          title: Expires At
+        safe_result:
+          additionalProperties: true
+          type: object
+          title: Safe Result
+        error_code:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Error Code
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        started_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Started At
+        completed_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Completed At
+      type: object
+      required:
+      - exercise_id
+      - scenario
+      - status
+      - attempts
+      - expires_at
+      - created_at
+      title: FaultScenarioRecord
+    HumanDecisionAccepted:
+      properties:
+        decision_id:
+          type: string
+          format: uuid
+          title: Decision Id
+        run_id:
+          type: string
+          format: uuid
+          title: Run Id
+        status:
+          type: string
+          const: accepted
+          title: Status
+          default: accepted
+        resume_status_url:
+          type: string
+          title: Resume Status Url
+      type: object
+      required:
+      - decision_id
+      - run_id
+      - resume_status_url
+      title: HumanDecisionAccepted
+    HumanDecisionCreate:
+      properties:
+        interrupt_key:
+          type: string
+          maxLength: 160
+          minLength: 1
+          title: Interrupt Key
+        decision:
+          type: string
+          enum:
+          - approve
+          - edit
+          - reject
+          title: Decision
+        edited_payload:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Edited Payload
+        reason:
+          anyOf:
+          - type: string
+            maxLength: 2000
+          - type: 'null'
+          title: Reason
+      type: object
+      required:
+      - interrupt_key
+      - decision
+      title: HumanDecisionCreate
     JobRecord:
       properties:
         id:
@@ -1212,6 +3462,51 @@ components:
       - failed
       - cancelled
       title: JobStatus
+    PipelineVersionListResponse:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/PipelineVersionSummary'
+          type: array
+          title: Items
+      type: object
+      required:
+      - items
+      title: PipelineVersionListResponse
+    PipelineVersionSummary:
+      properties:
+        pipeline_version_id:
+          type: string
+          format: uuid
+          title: Pipeline Version Id
+        name:
+          type: string
+          title: Name
+        version:
+          type: integer
+          minimum: 1.0
+          title: Version
+        configuration:
+          additionalProperties: true
+          type: object
+          title: Configuration
+        code_sha:
+          type: string
+          title: Code Sha
+        accepted_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Accepted At
+      type: object
+      required:
+      - pipeline_version_id
+      - name
+      - version
+      - configuration
+      - code_sha
+      title: PipelineVersionSummary
     ProjectCreate:
       properties:
         name:
@@ -1417,6 +3712,354 @@ components:
       - sources
       - questions
       title: QuizSet
+    ReliabilityResponse:
+      properties:
+        window_hours:
+          type: integer
+          title: Window Hours
+        run_count:
+          type: integer
+          title: Run Count
+        success_rate:
+          type: number
+          maximum: 1.0
+          minimum: 0.0
+          title: Success Rate
+        error_rate:
+          type: number
+          maximum: 1.0
+          minimum: 0.0
+          title: Error Rate
+        retry_count:
+          type: integer
+          minimum: 0.0
+          title: Retry Count
+        p50_latency_ms:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: P50 Latency Ms
+        p95_latency_ms:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: P95 Latency Ms
+        input_tokens:
+          type: integer
+          minimum: 0.0
+          title: Input Tokens
+        output_tokens:
+          type: integer
+          minimum: 0.0
+          title: Output Tokens
+        cost_usd:
+          type: string
+          pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          title: Cost Usd
+          default: '0'
+        sample_trace_ids:
+          items:
+            type: string
+            format: uuid
+          type: array
+          title: Sample Trace Ids
+      type: object
+      required:
+      - window_hours
+      - run_count
+      - success_rate
+      - error_rate
+      - retry_count
+      - input_tokens
+      - output_tokens
+      title: ReliabilityResponse
+    ReportDetail:
+      properties:
+        report_id:
+          type: string
+          format: uuid
+          title: Report Id
+        source_run_id:
+          type: string
+          format: uuid
+          title: Source Run Id
+        title:
+          type: string
+          title: Title
+        status:
+          type: string
+          enum:
+          - draft
+          - review
+          - published
+          - invalidated
+          title: Status
+        revision:
+          type: integer
+          minimum: 1.0
+          title: Revision
+        validation_status:
+          type: string
+          enum:
+          - pending
+          - passed
+          - failed
+          - retrying
+          title: Validation Status
+        affected_section_count:
+          type: integer
+          minimum: 0.0
+          title: Affected Section Count
+        generated_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Generated At
+        sections:
+          items:
+            $ref: '#/components/schemas/ReportSectionRecord'
+          type: array
+          title: Sections
+      type: object
+      required:
+      - report_id
+      - source_run_id
+      - title
+      - status
+      - revision
+      - validation_status
+      - affected_section_count
+      - sections
+      title: ReportDetail
+    ReportListResponse:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/ReportSummary'
+          type: array
+          title: Items
+        next_cursor:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Next Cursor
+      type: object
+      required:
+      - items
+      title: ReportListResponse
+    ReportRefreshAccepted:
+      properties:
+        run_id:
+          type: string
+          format: uuid
+          title: Run Id
+        base_revision:
+          type: integer
+          title: Base Revision
+        planned_revision:
+          type: integer
+          title: Planned Revision
+        impacted_section_keys:
+          items:
+            type: string
+          type: array
+          title: Impacted Section Keys
+        events_url:
+          type: string
+          title: Events Url
+      type: object
+      required:
+      - run_id
+      - base_revision
+      - planned_revision
+      - impacted_section_keys
+      - events_url
+      title: ReportRefreshAccepted
+    ReportRefreshCreate:
+      properties:
+        changed_document_ids:
+          items:
+            type: string
+            format: uuid
+          type: array
+          maxItems: 200
+          title: Changed Document Ids
+        force_sections:
+          items:
+            type: string
+          type: array
+          maxItems: 100
+          title: Force Sections
+        pipeline_version_id:
+          type: string
+          format: uuid
+          title: Pipeline Version Id
+      type: object
+      required:
+      - pipeline_version_id
+      title: ReportRefreshCreate
+    ReportSectionRecord:
+      properties:
+        section_id:
+          type: string
+          format: uuid
+          title: Section Id
+        section_key:
+          type: string
+          title: Section Key
+        position:
+          type: integer
+          minimum: 0.0
+          title: Position
+        heading:
+          type: string
+          title: Heading
+        body_markdown:
+          type: string
+          title: Body Markdown
+        evidence_snapshot:
+          additionalProperties: true
+          type: object
+          title: Evidence Snapshot
+        validation_status:
+          type: string
+          enum:
+          - pending
+          - passed
+          - failed
+          - retrying
+          title: Validation Status
+      type: object
+      required:
+      - section_id
+      - section_key
+      - position
+      - heading
+      - body_markdown
+      - evidence_snapshot
+      - validation_status
+      title: ReportSectionRecord
+    ReportSummary:
+      properties:
+        report_id:
+          type: string
+          format: uuid
+          title: Report Id
+        source_run_id:
+          type: string
+          format: uuid
+          title: Source Run Id
+        title:
+          type: string
+          title: Title
+        status:
+          type: string
+          enum:
+          - draft
+          - review
+          - published
+          - invalidated
+          title: Status
+        revision:
+          type: integer
+          minimum: 1.0
+          title: Revision
+        validation_status:
+          type: string
+          enum:
+          - pending
+          - passed
+          - failed
+          - retrying
+          title: Validation Status
+        affected_section_count:
+          type: integer
+          minimum: 0.0
+          title: Affected Section Count
+        generated_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Generated At
+      type: object
+      required:
+      - report_id
+      - source_run_id
+      - title
+      - status
+      - revision
+      - validation_status
+      - affected_section_count
+      title: ReportSummary
+    ResearchRunAccepted:
+      properties:
+        run_id:
+          type: string
+          format: uuid
+          title: Run Id
+        status:
+          type: string
+          const: pending
+          title: Status
+          default: pending
+        status_url:
+          type: string
+          title: Status Url
+        events_url:
+          type: string
+          title: Events Url
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+      type: object
+      required:
+      - run_id
+      - status_url
+      - events_url
+      - created_at
+      title: ResearchRunAccepted
+    ResearchRunCreate:
+      properties:
+        project_id:
+          type: string
+          format: uuid
+          title: Project Id
+        research_goal:
+          type: string
+          maxLength: 12000
+          minLength: 20
+          title: Research Goal
+        source_scope:
+          $ref: '#/components/schemas/SourceScope'
+        pipeline_version_id:
+          type: string
+          format: uuid
+          title: Pipeline Version Id
+        review_policy:
+          type: string
+          enum:
+          - strict
+          - balanced
+          title: Review Policy
+          default: strict
+        max_cost_usd:
+          anyOf:
+          - type: number
+            maximum: 25.0
+            exclusiveMinimum: 0.0
+          - type: string
+            pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          - type: 'null'
+          title: Max Cost Usd
+      type: object
+      required:
+      - project_id
+      - research_goal
+      - pipeline_version_id
+      title: ResearchRunCreate
     RunSourcesResponse:
       properties:
         run_id:
@@ -1444,6 +4087,21 @@ components:
       - web_only
       - hybrid
       title: SourceMode
+    SourceScope:
+      properties:
+        document_ids:
+          items:
+            type: string
+            format: uuid
+          type: array
+          maxItems: 200
+          title: Document Ids
+        allow_web:
+          type: boolean
+          title: Allow Web
+          default: false
+      type: object
+      title: SourceScope
     SourceSummary:
       properties:
         local_chunks:
@@ -1520,8 +4178,7 @@ components:
         checksum_sha256:
           anyOf:
           - type: string
-            maxLength: 64
-            minLength: 64
+            pattern: ^[0-9a-fA-F]{64}$
           - type: 'null'
           title: Checksum Sha256
         extracted_text:
@@ -1598,66 +4255,89 @@ components:
       - r2_object_key
       - expires_in_seconds
       title: UploadUrlResponse
-    ValidationError:
+    WorkflowRunRecord:
       properties:
-        loc:
-          items:
-            anyOf:
-            - type: string
-            - type: integer
-          type: array
-          title: Location
-        msg:
+        run_id:
           type: string
-          title: Message
-        type:
+          format: uuid
+          title: Run Id
+        project_id:
           type: string
-          title: Error Type
-        input:
-          title: Input
-        ctx:
-          type: object
-          title: Context
+          format: uuid
+          title: Project Id
+        pipeline_version_id:
+          type: string
+          format: uuid
+          title: Pipeline Version Id
+        kind:
+          type: string
+          enum:
+          - ask
+          - evidence_review
+          - report_refresh
+          title: Kind
+        status:
+          type: string
+          enum:
+          - pending
+          - running
+          - waiting_human
+          - succeeded
+          - failed
+          - cancelled
+          title: Status
+        progress:
+          type: integer
+          maximum: 100.0
+          minimum: 0.0
+          title: Progress
+        current_node:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Current Node
+        review_required:
+          type: boolean
+          title: Review Required
+          default: false
+        output:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Output
+        error_code:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Error Code
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        started_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Started At
+        completed_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Completed At
       type: object
       required:
-      - loc
-      - msg
-      - type
-      title: ValidationError
-    ErrorResponse:
-      $defs:
-        ErrorDetail:
-          properties:
-            code:
-              maxLength: 80
-              minLength: 2
-              title: Code
-              type: string
-            message:
-              maxLength: 300
-              minLength: 1
-              title: Message
-              type: string
-            request_id:
-              maxLength: 120
-              minLength: 4
-              title: Request Id
-              type: string
-          required:
-          - code
-          - message
-          - request_id
-          title: ErrorDetail
-          type: object
-      properties:
-        error:
-          $ref: '#/components/schemas/ErrorDetail'
-      required:
-      - error
-      title: ErrorResponse
-      type: object
+      - run_id
+      - project_id
+      - pipeline_version_id
+      - kind
+      - status
+      - progress
+      - created_at
+      title: WorkflowRunRecord
   securitySchemes:
-    bearerAuth:
+    HTTPBearer:
       type: http
       scheme: bearer
-      bearerFormat: JWT or local dev token

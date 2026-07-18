@@ -1,0 +1,1 @@
+Node01 has approved the public landing page copy, audience, and CTA. Redesign the page with a distinct product-grounded visual direction and real available assets, preserve routes/pricing/analytics/legal behavior, and verify the result in the browser.

@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from threading import RLock
+from typing import Protocol
 from uuid import UUID, uuid4
 
 from researchmate_api.schemas.ask import AskResponse
@@ -44,6 +45,85 @@ class UploadReservation:
     r2_object_key: str
     request: UploadUrlRequest
     created_at: datetime
+
+
+class ResearchMateRepository(Protocol):
+    """Persistence boundary consumed by the current application services."""
+
+    def ensure_user(self, user: CurrentUser) -> CurrentUser: ...
+
+    def create_project(self, user: CurrentUser, payload: ProjectCreate) -> ProjectRecord: ...
+
+    def list_projects(self, user: CurrentUser) -> list[ProjectRecord]: ...
+
+    def get_project(self, user: CurrentUser, project_id: UUID) -> ProjectRecord | None: ...
+
+    def delete_project(self, user: CurrentUser, project_id: UUID) -> JobRecord | None: ...
+
+    def create_upload_url(
+        self, user: CurrentUser, payload: UploadUrlRequest
+    ) -> UploadUrlResponse | None: ...
+
+    def create_document(
+        self, user: CurrentUser, payload: UploadUrlRequest
+    ) -> DocumentRecord | None: ...
+
+    def list_project_documents(
+        self, user: CurrentUser, project_id: UUID
+    ) -> list[DocumentRecord] | None: ...
+
+    def get_document(self, user: CurrentUser, document_id: UUID) -> DocumentRecord | None: ...
+
+    def complete_document(
+        self,
+        user: CurrentUser,
+        document_id: UUID,
+        extracted_text: str | None,
+        checksum_sha256: str | None = None,
+    ) -> JobRecord | None: ...
+
+    def delete_document(self, user: CurrentUser, document_id: UUID) -> JobRecord | None: ...
+
+    def get_job(self, user: CurrentUser, job_id: UUID) -> JobRecord | None: ...
+
+    def get_run_sources(
+        self, user: CurrentUser, run_id: UUID
+    ) -> RunSourcesResponse | None: ...
+
+    def get_trace(self, user: CurrentUser, trace_id: UUID) -> DeveloperTrace | None: ...
+
+    def record_run(
+        self,
+        user: CurrentUser,
+        project_id: UUID,
+        message: str,
+        plan: ExecutionPlan,
+        router_reason: str,
+        retrieved_chunks: list[ChunkEntry],
+        citations: list[Citation],
+        tool_calls: list[ToolCallTrace],
+        validation_result: dict,
+    ) -> tuple[UUID, UUID]: ...
+
+    def save_ask_response(self, user: CurrentUser, response: AskResponse) -> AskResponse: ...
+
+    def save_quiz_set(
+        self, user: CurrentUser, project_id: UUID, run_id: UUID, quiz_set: QuizSet
+    ) -> QuizSet: ...
+
+    def list_quiz_sets(
+        self, user: CurrentUser, project_id: UUID
+    ) -> list[QuizSet] | None: ...
+
+    def increment_usage(self, user: CurrentUser, kind: str, limit: int) -> bool: ...
+
+    def project_chunks(
+        self, user: CurrentUser, project_id: UUID
+    ) -> list[ChunkEntry] | None: ...
+
+    def get_chunks_by_ids(
+        self, user: CurrentUser, project_id: UUID, chunk_ids: list[UUID]
+    ) -> list[ChunkEntry] | None: ...
 
 
 # 线程安全的本地开发仓库，生产环境可替换为 Supabase/R2/Qdrant/Redis adapter。
@@ -208,7 +288,13 @@ class InMemoryResearchMateStore:
             return document
 
     # 完成上传并写入解析后的本地 chunks。
-    def complete_document(self, user: CurrentUser, document_id: UUID, extracted_text: str | None) -> JobRecord | None:
+    def complete_document(
+        self,
+        user: CurrentUser,
+        document_id: UUID,
+        extracted_text: str | None,
+        checksum_sha256: str | None = None,
+    ) -> JobRecord | None:
         with self._lock:
             document = self.get_document(user, document_id)
             if document is None:
@@ -288,15 +374,21 @@ class InMemoryResearchMateStore:
             return response
 
     # 读取管理员 trace。
-    def get_trace(self, trace_id: UUID) -> DeveloperTrace | None:
+    def get_trace(self, user: CurrentUser, trace_id: UUID) -> DeveloperTrace | None:
         with self._lock:
-            return self.traces.get(trace_id)
+            trace = self.traces.get(trace_id)
+            if trace is None:
+                return None
+            if user.role in {"developer", "admin"} or trace.user_id == user.id:
+                return trace
+            return None
 
     # 记录一次 Ask/Quiz 运行。
     def record_run(
         self,
         user: CurrentUser,
         project_id: UUID,
+        message: str,
         plan: ExecutionPlan,
         router_reason: str,
         retrieved_chunks: list[ChunkEntry],
@@ -343,13 +435,15 @@ class InMemoryResearchMateStore:
             return run_id, trace_id
 
     # 保存 Ask 响应。
-    def save_ask_response(self, response: AskResponse) -> AskResponse:
+    def save_ask_response(self, user: CurrentUser, response: AskResponse) -> AskResponse:
         with self._lock:
             self.ask_responses[response.run_id] = response
             return response
 
     # 保存 QuizSet 并建立 project 索引。
-    def save_quiz_set(self, project_id: UUID, quiz_set: QuizSet) -> QuizSet:
+    def save_quiz_set(
+        self, user: CurrentUser, project_id: UUID, run_id: UUID, quiz_set: QuizSet
+    ) -> QuizSet:
         with self._lock:
             self.quiz_sets[quiz_set.id] = quiz_set
             self.project_quiz_sets.setdefault(project_id, []).insert(0, quiz_set.id)
@@ -382,6 +476,15 @@ class InMemoryResearchMateStore:
                 for chunk in self.chunks.values()
                 if chunk.user_id == user.id and chunk.project_id == project_id
             ]
+
+    def get_chunks_by_ids(
+        self, user: CurrentUser, project_id: UUID, chunk_ids: list[UUID]
+    ) -> list[ChunkEntry] | None:
+        chunks = self.project_chunks(user, project_id)
+        if chunks is None:
+            return None
+        by_id = {chunk.id: chunk for chunk in chunks}
+        return [by_id[chunk_id] for chunk_id in chunk_ids if chunk_id in by_id]
 
     # 创建 job 记录，调用方需已持锁。
     def _create_job_locked(

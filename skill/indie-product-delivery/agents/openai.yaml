@@ -1,0 +1,4 @@
+interface:
+  display_name: "Indie Product Delivery"
+  short_description: "Coordinate delivery and durable project documentation"
+  default_prompt: "Use $indie-product-delivery to deliver this product change and keep its durable documentation evidence-backed and reader-ready."

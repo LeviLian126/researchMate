@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
-import { apiFetch, ProjectRecord, setDevToken } from "../lib/api";
+import { apiFetch, describeApiError, ProjectRecord, setDevToken } from "../lib/api";
+import { isLocalDevelopment } from "../lib/supabase";
 
-// 渲染项目列表和本地开发 token 设置。
 export default function ProjectListPage() {
+  const local = isLocalDevelopment();
   const [projects, setProjects] = useState<ProjectRecord[]>([]);
   const [name, setName] = useState("Research workspace");
   const [token, setToken] = useState("dev");
@@ -18,17 +19,16 @@ export default function ProjectListPage() {
     try {
       setProjects(await apiFetch<ProjectRecord[]>("/projects"));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "无法加载项目");
+      setError(describeApiError(err).detail);
     } finally {
       setLoading(false);
     }
   }
 
   useEffect(() => {
-    const saved = window.localStorage.getItem("researchmate_token") || "dev";
-    setToken(saved);
+    if (local) setToken(window.localStorage.getItem("researchmate_token") || "dev");
     void loadProjects();
-  }, []);
+  }, [local]);
 
   async function createProject(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -41,7 +41,7 @@ export default function ProjectListPage() {
       setProjects((current) => [project, ...current]);
       setName("");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "创建项目失败");
+      setError(describeApiError(err).detail);
     }
   }
 
@@ -54,29 +54,29 @@ export default function ProjectListPage() {
     <main className="app-shell">
       <section className="workspace-header glass-panel">
         <div>
-          <p className="eyebrow">Workspace</p>
-          <h1>项目列表</h1>
-          <p>本地开发默认使用 Bearer dev；可切换 dev-user-a、dev-user-b 测试用户隔离。</p>
+          <p className="eyebrow">Portfolio demo workspace</p>
+          <h1>Research projects</h1>
+          <p>{local ? <>Use <code>dev</code> locally, or switch between isolated development identities.</> : <>This workspace uses the verified Supabase session restored by the browser auth client.</>}</p>
         </div>
-        <div className="token-box">
-          <label htmlFor="token">开发 Token</label>
-          <input id="token" value={token} onChange={(event) => setToken(event.target.value)} />
-          <button type="button" onClick={saveToken}>应用</button>
-        </div>
+        {local && <div className="token-box">
+          <label htmlFor="token">Bearer token</label>
+          <input id="token" type="password" autoComplete="off" value={token} onChange={(event) => setToken(event.target.value)} />
+          <button type="button" onClick={saveToken}>Apply identity</button>
+        </div>}
       </section>
 
       <section className="content-grid two-columns">
         <form className="glass-panel stack" onSubmit={createProject}>
-          <h2>创建项目</h2>
+          <h2>Create a project</h2>
           <input value={name} onChange={(event) => setName(event.target.value)} placeholder="Project name" />
-          <button className="primary-button" type="submit">创建</button>
+          <button className="primary-button" type="submit">Create project</button>
           {error && <p className="error-banner">{error}</p>}
         </form>
 
         <div className="glass-panel stack">
-          <h2>已有项目</h2>
-          {loading && <p>正在加载...</p>}
-          {!loading && projects.length === 0 && <p>还没有项目。先创建一个项目，再上传资料。</p>}
+          <h2>Available projects</h2>
+          {loading && <p role="status">Loading owned projects…</p>}
+          {!loading && projects.length === 0 && <p className="empty-state">No projects for this identity. Create one, then add sources.</p>}
           <div className="card-list">
             {projects.map((project) => (
               <article className="resource-card" key={project.id}>
@@ -85,9 +85,9 @@ export default function ProjectListPage() {
                   <span>{project.status}</span>
                 </div>
                 <div className="row-actions">
-                  <Link href={`/app/projects/${project.id}`}>Ask</Link>
+                  <Link href={`/app/projects/${project.id}`}>Evidence review</Link>
                   <Link href={`/app/projects/${project.id}/library`}>Library</Link>
-                  <Link href={`/app/projects/${project.id}/quiz`}>Quiz</Link>
+                  <Link href={`/app/projects/${project.id}/labs`}>Labs</Link>
                 </div>
               </article>
             ))}

@@ -1,111 +1,92 @@
 # ResearchMate
 
-> **TLDR:** ResearchMate 是一个可溯源 AI 研究学习工作台。当前仓库已完成本地可运行 MVP：前端页面、FastAPI 业务闭环、本地解析/索引 fallback、Ask、Sources、Quiz、Developer Trace、安全边界、测试与 HTML handoff 文档。剩余工作是填入真实云端 API/secret、替换本地 adapter 并上线。
+ResearchMate is a personal AI engineering portfolio: a production-oriented Agentic RAG system for multi-source evidence review. It is designed to demonstrate engineering depth for recruiting and technical interviews, not customer acquisition, subscriptions, billing, or revenue growth.
 
-## 当前能力
+The central scenario is deliberately complex enough to justify the stack: ingest a collection of PDF, DOCX, PPTX, and web sources; decompose a research question; retrieve and rerank evidence; extract claims and relationships; pause uncertain or unsafe work for human review; generate a page-cited report; incrementally refresh affected sections; and compare pipeline versions under evaluation and reliability experiments.
 
-| 模块 | 状态 | 说明 |
+## Current status
+
+| Area | Repository state | Remaining external proof |
 |---|---|---|
-| Frontend | 已实现 | Next.js App Router 页面：Project list、Ask、Library、Quiz、Developer Trace。 |
-| API | 已实现 | FastAPI 路由覆盖 project、document、jobs、ask、quiz、sources、trace、health。 |
-| Auth | 本地 dev 模式已实现 | `dev`、`dev-admin`、`dev-user-a`、`dev-user-b` 用于本地联调；生产替换为 Supabase JWT。 |
-| Upload / Parse / Index | 本地 fallback 已实现 | `documents/upload-url` 创建文档；`complete` 通过 `extracted_text` 模拟 worker 解析并切片。 |
-| Ask | 已实现 | `/study` local-only、`/search` web-only demo、`/hybrid` local-first fallback。 |
-| Quiz | 已实现 | 基于本地 chunks 生成有引用的题目；选择题固定 4 个选项。 |
-| Developer Trace | 已实现 | 仅 developer/admin 可见；普通用户无法读取。 |
-| Docs | 已实现 | `docs/index.html` 是唯一主入口，`docs/progress*.html` 展示实时模块进度，另包含 handoff dashboard、test plan、安全清单和 OpenAPI 镜像。 |
+| Web application | Evidence workspace, ingestion, grounded Ask, human decisions, reports, Evaluation Lab, and Reliability Lab are implemented. Local development uses explicit development identities; non-local builds use Supabase Auth REST. | Browser smoke against deployed API and Supabase session. |
+| FastAPI contract | 35 typed REST operations with ownership/role checks, executable catalogs, complete report reads, idempotency boundaries, unified errors, liveness, and dependency readiness. OpenAPI is generated and drift-checked. | Managed-service readiness and preview smoke. |
+| Durable state | PostgreSQL repositories, ordered/checksummed migrations, RLS design, transactional outbox, leases, retries, and resumable workflow state are implemented. | Apply migrations to isolated development/preview projects and run integration tests. |
+| Retrieval and agents | NVIDIA-compatible chat/embedding adapters, Tavily search, Qdrant hybrid retrieval, reranking, LangGraph checkpoint/interrupt workflow, and grounded synthesis are implemented behind explicit runtime configuration. | Provider credentials, quality evaluation, and failure/recovery evidence. |
+| Evaluation and reliability | Budget-bounded evaluation runs, baseline comparison, trace-safe telemetry, fault exercises, and reliability summaries are implemented. | RAGAS/Langfuse/OTLP and worker execution in managed environments. |
+| Delivery | CI, immutable GHCR image builds, protected manual release, migration gate, Azure Container Apps updates, Vercel deployment, and readiness smoke are configured. | Human configuration of GitHub environments, OIDC, cloud resources, secrets, and the first release. |
 
-## 本地运行
+The exact implemented, scaffolded, committed, failed, and not-yet-validated states are maintained in the [HTML documentation](docs/index.html). A feature is not presented as production-proven merely because its adapter or contract exists.
 
-### 1. 安装 Python 依赖
+## Architecture
+
+- Next.js on Vercel for the portfolio and evidence-review UI.
+- FastAPI on Azure Container Apps for authenticated contracts and orchestration.
+- Separate Celery worker and transactional-outbox dispatcher processes with Upstash Redis for bounded asynchronous work.
+- Supabase PostgreSQL/Auth as the business source of truth and identity boundary.
+- Cloudflare R2 for original files and parsed artifacts.
+- Qdrant for filtered dense/sparse retrieval projections.
+- LangGraph for checkpointed workflow state and human interrupts.
+- NVIDIA's OpenAI-compatible endpoint for chat and embeddings; Tavily for bounded web retrieval.
+- OpenTelemetry and Langfuse for privacy-safe operational and LLM observations.
+
+PostgreSQL is authoritative. R2 and Qdrant are rebuildable projections; Redis never stores irrecoverable business truth.
+
+## Local development
+
+Local infrastructure does not require Docker. The application runs with the existing Node/Python environment and explicit in-memory/fake providers; managed development projects are used only for opt-in integration testing.
 
 ```powershell
-pip install -r requirements-dev.txt
-```
+# Install repository dependencies when they are not already available.
+npm ci
+uv pip install --python D:\software\env\researchmate\Scripts\python.exe -r requirements-dev.txt
 
-### 2. 启动 API
+# Use the project environment for repository scripts in this shell.
+& D:\software\env\researchmate\Scripts\Activate.ps1
 
-```powershell
+# Terminal 1: deterministic local API; no paid provider calls.
+$env:APP_ENV="local"
+$env:LLM_PROVIDER="fake"
+$env:EMBEDDING_PROVIDER="fake"
+$env:WEB_SEARCH_PROVIDER="disabled"
 python -m uvicorn researchmate_api.main:app --app-dir apps/api/src --reload --host 127.0.0.1 --port 8000
+
+# Terminal 2
+npm run web:dev
 ```
 
-### 3. 安装并启动前端
+Open `http://localhost:3000/app`. The development identity selector is available only when both the browser and API are running in local development. Preview and production fail closed and require a valid Supabase session.
+
+Copy `.env.example` to `.env` for local-only credentials. Never commit provider keys; preview and production values belong in their platform secret stores and must use different projects, databases, buckets, and API keys.
+
+## Quality gates
 
 ```powershell
-npm install
-npm --workspace @researchmate/web run dev
+npm run check:all
 ```
 
-打开：
+The aggregate gate runs Python tests, Ruff, OpenAPI drift, migration-file validation, the production Next.js build, and the production dependency audit. Provider and cloud integration tests remain opt-in so unit tests do not depend on network access or consume paid quotas.
+
+## Release boundary
+
+`.github/workflows/release.yml` is intentionally manual and protected. Before the first deployment, a human must configure GitHub Environments, Azure OIDC and separate API/worker/dispatcher Container Apps, GHCR image access, Vercel project credentials, Supabase, Upstash, Qdrant, R2, Tavily, NVIDIA token prices, and observability secrets. The workflow then applies checksummed domain migrations plus SDK-owned LangGraph checkpoint migrations, deploys immutable commit-SHA images and the prebuilt web application, and requires liveness plus full dependency readiness smoke. After the first ready document is ingested, run guarded `scripts/bootstrap_demo_catalog.py` once to provision the accepted pipeline and frozen evaluation dataset shown by the UI.
+
+This workspace currently contains an empty `.git` directory, so it has no usable commit identity or remote. Restore or initialize the intended repository before enabling CI/CD; that choice is intentionally left to the owner so existing history is never overwritten.
+
+Free tiers are treated as demo infrastructure, not an SLA. If student/free quotas are exhausted, background computation is paused and only the precomputed read-only demonstration should remain available.
+
+## Repository map
 
 ```text
-http://localhost:3000/app
+apps/api/                 FastAPI contracts and provider adapters
+apps/web/                 Next.js portfolio and evidence-review UI
+workers/ai-worker/        ingestion, outbox, workflow, evaluation, fault workers
+infra/openapi/            generated machine-readable API contract
+infra/supabase/migrations ordered PostgreSQL/RLS migrations
+infra/qdrant/             vector collection contract
+packages/shared/          shared frontend contracts
+docs/                     five authoritative English HTML pages
+scripts/                  contract, migration, and documentation tooling
+tests/                    unit, contract, security, and release gates
 ```
 
-本地默认 token：
-
-| Token | Role | 用途 |
-|---|---|---|
-| `dev` | developer | 默认本地开发账号，可看 trace。 |
-| `dev-admin` | admin | 管理员权限。 |
-| `dev-user-a` | user | 普通用户 A，用于隔离测试。 |
-| `dev-user-b` | user | 普通用户 B，用于隔离测试。 |
-
-## 快速验证
-
-```powershell
-pytest tests/test_project_scaffold.py tests/test_api_workflow.py tests/test_frontend_contracts.py -q
-python skill/agent-context-html/scripts/validate_context_dashboard.py docs/handoff
-```
-
-可选检查：
-
-```powershell
-ruff check apps/api/src workers/ai-worker/src tests
-npm --workspace @researchmate/web run build
-```
-
-> 当前交付不包含 `.venv`、`node_modules`、真实密钥或部署产物；如果本地环境未安装 ruff 或 node_modules，不应把未运行的检查误记为通过。
-
-## 目录说明
-
-```text
-researchMate/
-  apps/
-    api/              FastAPI API、schemas、routers、本地服务 adapter
-    web/              Next.js 前端 MVP
-  workers/
-    ai-worker/        文档解析和索引 worker 抽象及本地 fallback
-  packages/
-    shared/           前后端共享 TypeScript 契约
-  infra/
-    openapi/          OpenAPI 机器可读契约
-    supabase/         数据库 migration
-    qdrant/           向量集合 schema
-  docs/
-    progress*.html    实时模块进度
-    handoff/          agent 交接 dashboard
-    *.html            项目 HTML 文档、测试计划、安全清单
-  tests/              scaffold、API workflow、frontend contract 测试
-```
-
-## 上线前替换点
-
-| 本地实现 | 上线替换 |
-|---|---|
-| dev token | Supabase Auth JWT issuer/audience/signature/expiry 校验 |
-| in-memory store | Supabase Postgres + RLS、Redis cache/job state |
-| local upload URL placeholder | Cloudflare R2 signed URL 和对象生命周期 |
-| `extracted_text` fallback | Docling/MarkItDown worker 从 R2 读取并解析 |
-| in-memory chunk retrieval | Qdrant embedding search，必须带 user_id/project_id filter |
-| deterministic answer/quiz | OpenAI-compatible LLM provider，保留 schema validation 和 citation validation |
-| demo web evidence | SERPER/Tavily + JINA/Firecrawl provider，保留 source-policy guard |
-
-## 开发原则
-
-1. **Local-first**：Auto 默认不联网；Local Ask 不得调用 web 工具。
-2. **Owner isolation**：任何 project、document、run、quiz、trace 访问都必须校验用户归属或管理员角色。
-3. **No secrets in repo**：真实 key 只进本地 `.env` 或部署平台 secret manager。
-4. **Grounded output**：Ask、Quiz 必须有 citations；无本地资料时拒绝编造。
-5. **可验证**：新增功能必须补测试或更新测试计划。
-6. **HTML 文档优先**：`docs` 下不新增 Markdown，项目文档以 `docs/index.html` 和 `docs/progress*.html` 为实时入口维护。
+Start with the [portfolio overview](docs/index.html), then follow its deep links to Product, Architecture, Database, and API sections. Those HTML pages are the authoritative source for feature status and unresolved validation work.

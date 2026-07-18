@@ -1,36 +1,3 @@
-from enum import Enum
-from typing import Protocol
-from uuid import UUID
-
-from pydantic import BaseModel, Field
-
-
-# 定义 worker 支持的任务类型。
-class WorkerJobType(str, Enum):
-    PARSE_DOCUMENT = "parse_document"
-    INDEX_DOCUMENT = "index_document"
-    READ_WEB_PAGE = "read_web_page"
-    RUN_RAG_EVAL = "run_rag_eval"
-    DELETE_PROJECT = "delete_project"
-
-
-# 定义 worker 任务负载。
-class WorkerJobPayload(BaseModel):
-    job_id: UUID
-    user_id: UUID
-    project_id: UUID | None = None
-    document_id: UUID | None = None
-    type: WorkerJobType
-    metadata: dict = Field(default_factory=dict)
-
-
-# 定义 worker handler 抽象。
-class WorkerJobHandler(Protocol):
-    # 处理已经校验过的 worker 任务。
-    def handle(self, payload: WorkerJobPayload) -> None:
-        """Process a validated worker job payload."""
-
-
 # 纯函数 chunker，供本地 worker 与 API adapter 复用测试。
 def chunk_text_for_index(text: str, target_size: int = 900) -> list[str]:
     normalized = "\n".join(line.strip() for line in text.splitlines() if line.strip())
@@ -48,16 +15,3 @@ def chunk_text_for_index(text: str, target_size: int = 900) -> list[str]:
     if current:
         chunks.append(current)
     return chunks
-
-
-# 本地 no-op handler，用于没有真实队列时验证 job payload 和幂等边界。
-class LocalWorkerJobHandler:
-    # 保存已处理的 job id，防止重复执行。
-    def __init__(self) -> None:
-        self.handled_job_ids: set[UUID] = set()
-
-    # 标记任务已处理；生产实现应替换为 parser/indexer/deletion 逻辑。
-    def handle(self, payload: WorkerJobPayload) -> None:
-        if payload.job_id in self.handled_job_ids:
-            return
-        self.handled_job_ids.add(payload.job_id)

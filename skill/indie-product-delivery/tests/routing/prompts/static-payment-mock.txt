@@ -1,0 +1,1 @@
+Build a static payment-state mock inside the existing frontend demo. It must stay disconnected from providers, billing APIs, real credentials, and production data.

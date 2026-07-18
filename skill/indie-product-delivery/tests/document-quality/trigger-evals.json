@@ -1,0 +1,26 @@
+[
+  {
+    "query": "Refresh our repository-backed HTML project board after adding a billing route and migration. Keep every claim traceable to current evidence.",
+    "should_trigger": true
+  },
+  {
+    "query": "Turn these repository notes into a maintained technical design document that explains the API contract, risks, and unresolved decisions.",
+    "should_trigger": true
+  },
+  {
+    "query": "Prepare release notes from the verified changes, compatibility limits, and test evidence in this repository.",
+    "should_trigger": true
+  },
+  {
+    "query": "Fix the typo in this button label: 'Submti'.",
+    "should_trigger": false
+  },
+  {
+    "query": "What does HTTP 409 mean?",
+    "should_trigger": false
+  },
+  {
+    "query": "Change one already-approved CSS margin in the existing component and run its local check.",
+    "should_trigger": false
+  }
+]

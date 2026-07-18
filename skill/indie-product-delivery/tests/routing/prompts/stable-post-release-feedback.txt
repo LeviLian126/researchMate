@@ -1,0 +1,1 @@
+The release has been stable for two days. Review support feedback and early activation signals to decide what to observe or learn next; do not deploy, roll back, or change implementation in this request.

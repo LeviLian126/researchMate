@@ -2,16 +2,14 @@ import "./globals.css";
 import type { ReactNode } from "react";
 
 export const metadata = {
-  title: "ResearchMate",
-  description: "Local-first AI research workspace with traceable sources.",
+  title: "ResearchMate · AI Engineering Portfolio",
+  description: "A production-oriented Agentic RAG engineering demo for multi-source evidence review.",
 };
 
-// 渲染全局页面壳层。
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="zh-CN">
+    <html lang="en">
       <body>{children}</body>
     </html>
   );
 }
-

@@ -1,0 +1,1 @@
+Refresh the existing HTML project documentation from the complete repository and maintained todo. Keep the current snapshot on the landing board, update the material-change activity page, cover every evidenced API, database field, capability, risk, and roadmap item, and validate the pages in a browser.

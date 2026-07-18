@@ -2,7 +2,7 @@ from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, status
 
-from researchmate_api.dependencies import get_current_user, raise_api_error
+from researchmate_api.dependencies import get_current_user, get_store, raise_api_error
 from researchmate_api.schemas.common import CurrentUser, SourceMode, TaskType
 from researchmate_api.schemas.quiz import QuizHistoryResponse, QuizRequest, QuizResponse
 from researchmate_api.schemas.trace import ToolCallTrace
@@ -10,7 +10,7 @@ from researchmate_api.services.answering import build_grounded_answer
 from researchmate_api.services.quiz_generation import generate_quiz_set
 from researchmate_api.services.retrieval import retrieve_local_chunks
 from researchmate_api.services.source_policy import resolve_intent, validate_tool_policy
-from researchmate_api.services.store import store
+from researchmate_api.services.store import ResearchMateRepository
 
 
 router = APIRouter()
@@ -18,10 +18,14 @@ router = APIRouter()
 
 # 接收 Quiz 请求并返回结构化测验。
 @router.post("/quiz", response_model=QuizResponse)
-def create_quiz(payload: QuizRequest, user: CurrentUser = Depends(get_current_user)) -> QuizResponse:
-    if store.get_project(user, payload.project_id) is None:
+def create_quiz(
+    payload: QuizRequest,
+    user: CurrentUser = Depends(get_current_user),
+    repository: ResearchMateRepository = Depends(get_store),
+) -> QuizResponse:
+    if repository.get_project(user, payload.project_id) is None:
         raise_api_error(status.HTTP_404_NOT_FOUND, "PROJECT_NOT_FOUND", "Project was not found.")
-    if not store.increment_usage(user, "quiz", limit=100):
+    if not repository.increment_usage(user, "quiz", limit=100):
         raise_api_error(status.HTTP_429_TOO_MANY_REQUESTS, "RATE_LIMITED", "Daily quiz quota exceeded.")
     selected_mode = SourceMode(payload.selected_mode)
     intent = resolve_intent(payload.prompt, selected_mode, TaskType.QUIZ)
@@ -31,7 +35,7 @@ def create_quiz(payload: QuizRequest, user: CurrentUser = Depends(get_current_us
             "QUIZ_REQUIRES_LOCAL_SOURCES",
             "Quiz generation must use local or hybrid sources, not web_only.",
         )
-    chunks = store.project_chunks(user, payload.project_id)
+    chunks = repository.project_chunks(user, payload.project_id)
     if chunks is None:
         raise_api_error(status.HTTP_404_NOT_FOUND, "PROJECT_NOT_FOUND", "Project was not found.")
     retrieved = retrieve_local_chunks(chunks, intent.clean_message, limit=10)
@@ -82,9 +86,10 @@ def create_quiz(payload: QuizRequest, user: CurrentUser = Depends(get_current_us
         "source_policy": policy_result,
         "question_count": len(quiz_set.questions),
     }
-    run_id, trace_id = store.record_run(
+    run_id, trace_id = repository.record_run(
         user=user,
         project_id=payload.project_id,
+        message=intent.clean_message,
         plan=intent.plan,
         router_reason=intent.router_reason,
         retrieved_chunks=retrieved,
@@ -92,7 +97,7 @@ def create_quiz(payload: QuizRequest, user: CurrentUser = Depends(get_current_us
         tool_calls=tool_calls,
         validation_result=validation_result,
     )
-    store.save_quiz_set(payload.project_id, quiz_set)
+    repository.save_quiz_set(user, payload.project_id, run_id, quiz_set)
     return QuizResponse(
         quiz_set=quiz_set,
         run_id=run_id,
@@ -106,8 +111,9 @@ def create_quiz(payload: QuizRequest, user: CurrentUser = Depends(get_current_us
 def list_quiz_history(
     project_id: UUID,
     user: CurrentUser = Depends(get_current_user),
+    repository: ResearchMateRepository = Depends(get_store),
 ) -> QuizHistoryResponse:
-    quiz_sets = store.list_quiz_sets(user, project_id)
+    quiz_sets = repository.list_quiz_sets(user, project_id)
     if quiz_sets is None:
         raise_api_error(status.HTTP_404_NOT_FOUND, "PROJECT_NOT_FOUND", "Project was not found.")
     return QuizHistoryResponse(project_id=project_id, quiz_sets=quiz_sets)

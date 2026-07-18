@@ -1,0 +1,1 @@
+Fix the spelling error in the existing migration guide. Do not change schema behavior, commands, compatibility guidance, or migration execution.

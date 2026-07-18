@@ -1,180 +1,160 @@
-<!doctype html>
-<html lang="zh-CN" data-mode="light">
+<!DOCTYPE html>
+<html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>ResearchMate 实时项目文档</title>
-  <link rel="stylesheet" href="handoff/assets/site.css">
+  <meta charset="utf-8"/>
+  <meta content="width=device-width,initial-scale=1" name="viewport"/>
+  <meta content="ResearchMate is a personal AI engineering portfolio for production-oriented Agentic RAG, multi-source evidence review, evaluation, and reliability engineering." name="description"/>
+  <title>ResearchMate · Personal AI engineering portfolio</title>
+  <link href="assets/site.css" rel="stylesheet"/>
 </head>
-<body>
-  <a class="skip-link" href="#main">跳到正文</a>
-  <header class="topbar">
-    <div>
-      <p class="eyebrow">ResearchMate Docs</p>
-      <h1>实时项目文档</h1>
+<body class="landing">
+  <header class="mast">
+    <div class="shell mast-row">
+      <a class="brand" href="index.html">ResearchMate documentation</a>
+      <span class="stamp">Evidence snapshot · 18 July 2026</span>
     </div>
-    <nav aria-label="项目文档导航">
-      <a href="index.html" aria-current="page">总览</a>
-      <a href="progress.html">进度</a>
-      <a href="handoff/index.html">Agent Handoff</a>
-      <a href="researchmate-prd.html">PRD</a>
-      <a href="researchmate-architecture.html">Architecture</a>
-      <a href="api-spec.html">API</a>
-      <a href="db-schema.html">DB</a>
-      <a href="execution-plan.html">Plan</a>
-      <button type="button" id="mode-toggle">切换主题</button>
-    </nav>
   </header>
+  <nav aria-label="Documentation" class="global"><div class="shell">
+    <a aria-current="page" href="index.html">Overview</a>
+    <a href="product/index.html">Product &amp; roadmap</a>
+    <a href="architecture/index.html">Architecture &amp; stack</a>
+    <a href="contracts/data/index.html">Database</a>
+    <a href="contracts/api/index.html">API</a>
+  </div></nav>
 
-  <main id="main">
-    <section id="resume" class="hero">
-      <div>
-        <p class="eyebrow">当前状态</p>
-        <h2>本地 MVP 可运行；生产云服务与真实 provider 尚未接入</h2>
-        <p class="lead">本页是项目唯一主入口，持续覆盖当前源码、PRD、架构和验收状态。旧版本叙述不在页面中堆叠保留，状态变化时直接更新这里和进度子页。</p>
-        <div class="badge-row">
-          <span class="badge status-done">质量门 PASS</span>
-          <span class="badge status-partial">生产接入 PARTIAL</span>
-          <span class="badge status-done">docs HTML-only</span>
+  <main>
+    <section class="landing-hero">
+      <div class="shell">
+        <p class="eyebrow">Personal AI engineering portfolio / public technical demo</p>
+        <h1>Evidence review, built as an inspectable AI system.</h1>
+        <p class="lede">ResearchMate is a personal AI engineering portfolio for a production-oriented Agentic RAG workflow. It turns a bounded source collection into claims, citations, decisions, and report revisions—and makes the contracts, test evidence, and unproven runtime boundaries visible to an interviewer.</p>
+        <div class="actions" aria-label="Primary documentation actions">
+          <a class="button primary" href="product/index.html#scenario">Follow the evidence-review scenario</a>
+          <a class="button" href="architecture/index.html#target-architecture">Inspect the target architecture</a>
+        </div>
+        <div class="meta">
+          <span class="status local">Repository-validated · 103 Python tests</span>
+          <span class="status local">Implemented contract · 35 REST operations</span>
+          <span class="status partial">Integration unvalidated · managed runtime</span>
+          <span class="status unknown">Not deployed · cloud and CI runs</span>
         </div>
       </div>
-      <div class="status-grid" aria-label="项目摘要">
-        <div><span>Completion status</span><strong>DONE_WITH_CONCERNS</strong></div>
-        <div><span>代码阶段</span><strong>Local MVP</strong></div>
-        <div><span>主要入口</span><strong>docs/index.html</strong></div>
-        <div><span>最新质量门</span><strong>npm run check:all</strong></div>
+    </section>
+
+    <section id="snapshot" class="snapshot-section">
+      <div class="shell">
+        <p class="eyebrow">Current decision snapshot</p>
+        <h2>What can be claimed today</h2>
+        <div class="snapshot-grid">
+          <article class="state-card"><span class="status local">Verified locally</span><b>Repository boundary</b><p>Ruff and 103 Python tests pass. OpenAPI, migration-file, documentation-link, TypeScript, and Next.js build checks have repository evidence.</p></article>
+          <article class="state-card"><span class="status partial">Implemented, not integrated</span><b>Distributed-system seams</b><p>Postgres/RLS, R2, Qdrant, Celery/outbox, LangGraph, evaluation, telemetry, and MCP have code and contracts, but no managed end-to-end run.</p></article>
+          <article class="state-card"><span class="status unknown">Blocked by setup</span><b>External proof</b><p>No cloud project, valid Git remote, CI run, provider credential, migration application, or deployment exists in this checkout.</p></article>
+          <article class="state-card"><span class="status planned">Next evidence to obtain</span><b>First managed vertical slice</b><p>Provision isolated development services; then prove one upload → queue → checkpointed research run → cited report → trace recovery path.</p></article>
+        </div>
+        <p class="source">Evidence: tests/ · infra/openapi/openapi.yaml · infra/supabase/migrations/ · .github/workflows/ · apps/web · apps/api · workers/ai-worker. Local browser visual and cloud-runtime checks were not performed.</p>
       </div>
     </section>
 
-    <section id="start-here" class="panel">
-      <div class="section-head">
-        <div><p class="eyebrow">Agent start-here</p><h2>继续开发前先读</h2></div>
-      </div>
-      <div class="copy-box">
-        <pre><code id="resume-prompt">先阅读 docs/index.html、docs/progress.html、docs/handoff/context-state.json。开发前运行 npm run check:all；不要提交真实 secret；如修改接口、库表、前端调用或模块状态，必须同步更新对应 HTML 文档。</code></pre>
-        <button type="button" data-copy="resume-prompt">复制提示词</button>
-      </div>
-    </section>
-
-    <section id="product-map" class="panel">
-      <div class="section-head">
-        <div><p class="eyebrow">PRD 对照</p><h2>当前功能与完成度</h2></div>
-        <a class="primary-action" href="progress.html">打开完整进度</a>
-      </div>
-      <div class="module-grid">
-        <article class="module-card">
-          <div class="badge status-partial">部分完成</div>
-          <h3>登录与用户隔离</h3>
-          <p>本地 Bearer dev token、角色和 owner 校验已完成；Supabase OAuth/JWT 生产接入未完成。</p>
-          <a href="progress-backend.html#auth">查看依据</a>
-        </article>
-        <article class="module-card">
-          <div class="badge status-partial">部分完成</div>
-          <h3>Library 上传、解析、索引</h3>
-          <p>上传地址占位、MIME 校验、extracted_text 本地解析和 chunk 已完成；R2、Docling、Qdrant 未接入。</p>
-          <a href="progress-backend.html#library">查看依据</a>
-        </article>
-        <article class="module-card">
-          <div class="badge status-partial">部分完成</div>
-          <h3>Ask / Source Mode</h3>
-          <p>Local/Web/Hybrid 路由、来源引用和 Sources endpoint 已完成；真实 LLM/Search/Crawl/LangGraph 未接入。</p>
-          <a href="progress-backend.html#ask">查看依据</a>
-        </article>
-        <article class="module-card">
-          <div class="badge status-partial">部分完成</div>
-          <h3>Quiz</h3>
-          <p>本地资料生成、四选项、答案解析、引用和历史列表已完成；真实 LLM 生成和更细粒度学习功能未完成。</p>
-          <a href="progress-frontend.html#quiz">查看依据</a>
-        </article>
-        <article class="module-card">
-          <div class="badge status-partial">部分完成</div>
-          <h3>Developer Trace</h3>
-          <p>后端 admin-only 已完成；前端 Ask 页面仍会显示 Trace 链接，需按角色隐藏以完全符合 PRD。</p>
-          <a href="progress-frontend.html#trace">查看依据</a>
-        </article>
-        <article class="module-card">
-          <div class="badge status-done">本地完成</div>
-          <h3>CI / 文档 / 契约</h3>
-          <p>OpenAPI、共享类型、测试、lint、Next build、npm audit 和 handoff 校验均纳入质量门。</p>
-          <a href="progress-ops.html#quality">查看依据</a>
-        </article>
+    <section id="portfolio-boundary">
+      <div class="shell">
+        <p class="eyebrow">Why this project exists</p>
+        <h2>An engineering portfolio, not a commercial SaaS</h2>
+        <div class="comparison-rail">
+          <div class="comparison-side">
+            <h3>Portfolio objective</h3>
+            <p>Demonstrate AI full-stack architecture, durable workflows, retrieval quality, data contracts, observability, failure recovery, security boundaries, and CI/CD with evidence an interviewer can inspect.</p>
+          </div>
+          <div class="comparison-side">
+            <h3>Explicitly outside the objective</h3>
+            <p>Customer acquisition, revenue, pricing, subscriptions, billing, CRM, marketing automation, and growth analytics are not success criteria and will not drive the roadmap.</p>
+          </div>
+        </div>
+        <div class="notice"><strong>Reader action:</strong> recruiters can assess scope quickly; engineers can follow the linked contracts and evidence; demo users exercise system behavior rather than a conversion funnel.</div>
       </div>
     </section>
 
-    <section id="architecture-slices" class="panel">
-      <div class="section-head">
-        <div><p class="eyebrow">Architecture slices</p><h2>按架构分块阅读</h2></div>
-      </div>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>子页</th><th>覆盖范围</th><th>适合谁先读</th></tr></thead>
-          <tbody>
-            <tr><td><a href="progress.html">progress.html</a></td><td>全局模块矩阵、下一步顺序、状态口径。</td><td>所有 agent。</td></tr>
-            <tr><td><a href="progress-backend.html">progress-backend.html</a></td><td>Auth、Project、Document、Ask、Quiz、Trace、Store、Worker、DB。</td><td>后端、数据、RAG、worker agent。</td></tr>
-            <tr><td><a href="progress-frontend.html">progress-frontend.html</a></td><td>Project list、Ask、Library、Quiz、Trace UI 与前端契约缺口。</td><td>前端、UI、交互 agent。</td></tr>
-            <tr><td><a href="progress-ops.html">progress-ops.html</a></td><td>CI/CD、安全、部署、Secrets、质量门和运维待办。</td><td>DevOps、安全、发布 agent。</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
-
-    <section id="next-actions" class="panel">
-      <div class="section-head">
-        <div><p class="eyebrow">Next actions</p><h2>下一步顺序</h2></div>
-      </div>
-      <ol>
-        <li>先完成生产 Auth：Supabase Google/GitHub OAuth、JWT issuer/audience/signature/expiry 校验，并让前端按真实角色隐藏 Trace。</li>
-        <li>再替换数据层：Supabase Postgres/RLS、Cloudflare R2 signed URL、Qdrant 向量检索、Redis job/cache/rate limit。</li>
-        <li>接入真实 AI 与 Web provider：LLM、embedding、Serper/Tavily、Jina/Firecrawl，并保留 source policy 和 citation validation。</li>
-        <li>最后做上线：部署 Frontend/API/Worker，填入 GitHub Secrets 或平台 Secret Manager，跑生产冒烟和 canary。</li>
-      </ol>
-    </section>
-
-    <section id="validation" class="panel split">
-      <div>
-        <div class="section-head"><p class="eyebrow">Validation</p><h2>已验证</h2></div>
-        <ul class="compact-list">
-          <li><code>npm run check:all</code>：18 个 pytest、handoff validation、ruff、Next build、npm audit 通过。</li>
-          <li>OpenAPI 路由覆盖：MVP 必需路径存在。</li>
-          <li>docs HTML-only：<code>docs</code> 内没有 Markdown。</li>
-          <li>乱码扫描：HTML 未出现连续问号乱码。</li>
-        </ul>
-      </div>
-      <div>
-        <div class="section-head"><p class="eyebrow">未验证</p><h2>生产缺口</h2></div>
-        <ul class="compact-list">
-          <li>真实 Supabase/R2/Qdrant/Redis 集成。</li>
-          <li>真实 LLM/Search/Crawl provider。</li>
-          <li>OAuth callback、CSRF/CORS 生产域名、SSRF 防护。</li>
-          <li>生产部署日志和浏览器端 canary。</li>
-        </ul>
+    <section id="pipeline">
+      <div class="shell">
+        <p class="eyebrow">The scenario that earns the stack</p>
+        <h2>From a source collection to an auditable evidence report</h2>
+        <p class="sub">A simple document chatbot would not justify the target architecture. The committed scenario coordinates long-running ingestion, parallel evidence work, stateful review, incremental recomputation, and measurable quality.</p>
+        <div class="journey-map">
+          <article class="journey-step partial"><span class="step-no">01 / INGEST</span><b>Build the source corpus</b><small>Upload tens to hundreds of documents and web sources; parse, deduplicate, version, chunk, and index them asynchronously.</small></article>
+          <article class="journey-step partial"><span class="step-no">02 / PLAN</span><b>Decompose the research goal</b><small>LangGraph turns a broad question into bounded sub-questions and persists checkpoints for interruption and resume.</small></article>
+          <article class="journey-step partial"><span class="step-no">03 / EXTRACT</span><b>Build an evidence model</b><small>Celery workers retrieve in parallel, extract claims, attach page-level citations, and classify support, conflict, duplication, and gaps.</small></article>
+          <article class="journey-step partial"><span class="step-no">04 / REVIEW</span><b>Resolve uncertainty</b><small>Low-confidence conclusions, untrusted web evidence, and prompt-injection signals pause for an explicit human decision.</small></article>
+          <article class="journey-step partial"><span class="step-no">05 / SYNTHESIZE</span><b>Publish and update the report</b><small>Generate a cited report and recompute only affected claims and sections when the corpus changes.</small></article>
+          <article class="journey-step partial"><span class="step-no">06 / PROVE</span><b>Evaluate the system</b><small>Compare retrieval and pipeline versions; inspect traces, latency, tokens, cost, retries, failures, and recovery.</small></article>
+        </div>
+        <div class="actions compact">
+          <a class="button" href="product/index.html#scenario">Read the authoritative product scenario</a>
+          <a class="button" href="architecture/index.html#flows">Inspect runtime and failure flows</a>
+        </div>
       </div>
     </section>
 
-    <section id="decision-gates" class="panel">
-      <div class="section-head"><p class="eyebrow">Decision gates</p><h2>停止条件</h2></div>
-      <ul class="risk-list">
-        <li>任何真实 API key、OAuth token、R2 secret、provider secret 准备进入仓库时，必须停止。</li>
-        <li>要把 Auto 默认改成联网时，必须先做隐私、成本和安全评审。</li>
-        <li>要让普通用户看到 Developer Trace 入口时，必须先重做权限与前端可见性设计。</li>
-        <li>修改 owner isolation、RLS、signed URL 或删除逻辑时，必须先补隔离测试。</li>
-      </ul>
+    <section id="surfaces">
+      <div class="shell">
+        <p class="eyebrow">Two connected product surfaces</p>
+        <h2>The user workflow creates the workload; the engineering lab proves it</h2>
+        <div class="doc-index capability-index">
+          <a class="doc-link" href="product/index.html#cap-research-workspace"><b>Research Workspace</b><span>Projects, source library, grounded Ask, claims, contradictions, human review, and cited reports.</span></a>
+          <a class="doc-link" href="product/index.html#cap-evidence-agent"><b>Evidence Review Agent</b><span>Bounded LangGraph orchestration, parallel work, checkpoints, quality gates, and incremental refresh.</span></a>
+          <a class="doc-link" href="product/index.html#cap-evaluation-lab"><b>Evaluation Lab</b><span>Versioned datasets and experiments for retrieval, citation, faithfulness, latency, and cost.</span></a>
+          <a class="doc-link" href="product/index.html#cap-reliability-lab"><b>Reliability Lab</b><span>Trace graph, context health, fault injection, retry evidence, and SLA simulation.</span></a>
+        </div>
+      </div>
     </section>
 
-    <section id="sources" class="panel">
-      <div class="section-head"><p class="eyebrow">Source audit</p><h2>本页依据</h2></div>
-      <p>状态来自当前源码、PRD、Architecture、OpenAPI、测试和 CI 配置；不是历史记录归档。后续实现改变后，应直接更新这些状态页面。</p>
-      <div class="badge-row">
-        <span class="chip">docs/researchmate-prd.html</span>
-        <span class="chip">docs/researchmate-architecture.html</span>
-        <span class="chip">apps/api/src/researchmate_api</span>
-        <span class="chip">apps/web/app</span>
-        <span class="chip">tests/</span>
-        <span class="chip">infra/openapi/openapi.yaml</span>
+    <section id="current-boundary">
+      <div class="shell">
+        <p class="eyebrow">Honest delivery boundary</p>
+        <h2>Code, proof, and target design are deliberately separate</h2>
+        <div class="access-rails">
+          <article class="access-rail"><h3>Contract surface</h3><p>35 FastAPI/OpenAPI operations provide the original MVP plus research, decision, report, catalog, evaluation, reliability, readiness, and fault contracts.</p><a href="contracts/api/index.html#operations">Read the complete REST ledger →</a></article>
+          <article class="access-rail derived"><h3>Runtime seams</h3><p>Postgres/RLS, R2, Qdrant, Celery/outbox, provider adapters, LangGraph, evaluation, telemetry, and MCP are implemented seams. None has completed a managed end-to-end run.</p><a href="architecture/index.html#current-architecture">See the runtime boundary →</a></article>
+          <article class="access-rail unknown"><h3>Known local limits</h3><p>LangGraph, RAGAS, MCP, Langfuse, and OpenTelemetry packages now import. A bounded LangGraph graph and authenticated MCP initialization pass locally. Checkpoint storage, provider evaluation, telemetry export, PDF OCR/layout assets, npm audit, and browser inspection remain unverified or blocked.</p><a href="product/index.html#validation">Review validation limits →</a></article>
+          <article class="access-rail unknown"><h3>Release boundary</h3><p>Cloud services, Git remote, CI runs, migrations, provider quality, recovery, costs, and uptime are unproven. Release YAML exists but it has never executed from this checkout.</p><a href="architecture/index.html#deployment">Review deployment gates →</a></article>
+        </div>
+        <div class="doc-index capability-index" aria-label="Implemented capability deep links">
+          <a class="doc-link" href="product/index.html#cap-projects"><b>Projects</b><span>Current owner-scoped workspace contract.</span></a>
+          <a class="doc-link" href="product/index.html#cap-documents"><b>Documents</b><span>Current local ingestion fallback and lifecycle.</span></a>
+          <a class="doc-link" href="product/index.html#cap-grounded-ask"><b>Grounded Ask</b><span>Current cited answer and refusal behavior.</span></a>
+          <a class="doc-link" href="product/index.html#cap-source-routing"><b>Source routing</b><span>Current local policy and bounded Tavily web/hybrid adapter.</span></a>
+          <a class="doc-link" href="product/index.html#cap-sources"><b>Sources and Trace</b><span>Current evidence and role-restricted execution inspection.</span></a>
+          <a class="doc-link" href="product/index.html#cap-quiz"><b>Quiz</b><span>Current evidence-backed question generation.</span></a>
+        </div>
+      </div>
+    </section>
+
+    <section id="contracts">
+      <div class="shell">
+        <p class="eyebrow">Contract proof</p>
+        <h2>Inspect the current ledger and its validation boundary</h2>
+        <p class="sub">Implementation counts are tied to repository and OpenAPI evidence. Applied-database, background-runtime, MCP-runtime, and deployment claims remain separate.</p>
+        <div class="signal-grid">
+          <a class="signal signal-link" href="contracts/data/index.html#tables"><span class="number">15</span><b>initial migration tables</b><small>Complete field, relationship, integrity, and RLS ledger.</small></a>
+          <a class="signal signal-link" href="contracts/api/index.html#operations"><span class="number">35</span><b>implemented REST operations</b><small>Original 18, one non-charging readiness probe, and 16 advanced contracts.</small></a>
+          <a class="signal signal-link" href="contracts/data/index.html#planned-schema"><span class="number">16</span><b>additive domain tables</b><small>Declared in maintained migrations; no managed database has applied or validated them.</small></a>
+          <a class="signal signal-link" href="contracts/api/index.html#planned-mcp"><span class="number">1</span><b>MCP gateway boundary</b><small>Authenticated local protocol initialization passes; Inspector and consumer parity remain unverified.</small></a>
+        </div>
+      </div>
+    </section>
+
+    <section id="reading-paths">
+      <div class="shell">
+        <p class="eyebrow">Choose a technical reading path</p>
+        <h2>Jump to the authoritative detail instead of reading repeated summaries</h2>
+        <div class="doc-index">
+          <a class="doc-link" href="product/index.html#capabilities"><b>Feature and roadmap review</b><span>Scenario, current capabilities, committed work, acceptance, dependencies, and non-goals.</span></a>
+          <a class="doc-link" href="architecture/index.html#stack"><b>Architecture interview</b><span>Runtime boundaries, stack justification, failure recovery, local environment, deployment, and CI/CD.</span></a>
+          <a class="doc-link" href="contracts/data/index.html#planned-schema"><b>Data design review</b><span>Initial and additive migration contracts for workflow, evidence, reports, outbox, and evaluation.</span></a>
+          <a class="doc-link" href="contracts/api/index.html#planned-operations"><b>API design review</b><span>Thirty-five implemented REST contracts, their integration gaps, and the separately reported MCP runtime boundary.</span></a>
+        </div>
       </div>
     </section>
   </main>
-
-  <script src="handoff/assets/site.js"></script>
+  <footer class="shell footer">ResearchMate portfolio overview · current evidence snapshot inspected 18 July 2026</footer>
+  <script src="assets/site.js"></script>
 </body>
 </html>

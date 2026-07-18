@@ -1,0 +1,1 @@
+Before writing code, design the system for a multi-tenant approval workflow. I need the data model, API/actions, tenant permissions, state transitions, provider/job boundary, and recoverable failures. The product scope is already approved; return the design only.

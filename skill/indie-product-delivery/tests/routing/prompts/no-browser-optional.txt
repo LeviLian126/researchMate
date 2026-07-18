@@ -1,0 +1,1 @@
+Implement the approved server-side copy export and run its unit tests. Browser tooling is unavailable, but no browser behavior is part of acceptance.

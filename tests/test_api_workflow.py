@@ -4,6 +4,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from researchmate_api.main import create_app
+from researchmate_api.config import Settings
 from researchmate_api.schemas.common import SourceMode, TaskType
 from researchmate_api.services.source_policy import resolve_intent, validate_tool_policy
 from researchmate_api.services.store import store
@@ -18,7 +19,7 @@ def reset_local_store() -> Generator[None, None, None]:
 
 @pytest.fixture()
 def client() -> TestClient:
-    return TestClient(create_app())
+    return TestClient(create_app(settings=Settings(app_env="test", llm_provider="fake")))
 
 
 HEADERS = {"Authorization": "Bearer dev"}
@@ -159,6 +160,24 @@ def test_local_ask_without_indexed_document_is_rejected(client: TestClient) -> N
     assert ask_response.json()["error"]["code"] == "DOCUMENT_NOT_INDEXED"
 
 
+# 验证本地文档存在但与问题无词项重合时拒答，不能用无关 chunk 伪造引用。
+def test_local_ask_rejects_unrelated_document_evidence(client: TestClient) -> None:
+    project_id, _ = create_ready_document(client)
+
+    ask_response = client.post(
+        "/api/v1/ask",
+        json={
+            "project_id": project_id,
+            "message": "/study explain photosynthesis chlorophyll",
+            "selected_mode": "auto",
+        },
+        headers=HEADERS,
+    )
+
+    assert ask_response.status_code == 409
+    assert ask_response.json()["error"]["code"] == "EVIDENCE_NOT_FOUND"
+
+
 # 验证上传类型和 MIME 的安全边界。
 def test_upload_rejects_mime_mismatch(client: TestClient) -> None:
     project_response = client.post("/api/v1/projects", json={"name": "Security"}, headers=HEADERS)
@@ -179,6 +198,30 @@ def test_upload_rejects_mime_mismatch(client: TestClient) -> None:
     assert upload_response.json()["error"]["code"] == "VALIDATION_FAILED"
 
 
+def test_upload_completion_rejects_non_hex_checksum(client: TestClient) -> None:
+    project_response = client.post("/api/v1/projects", json={"name": "Checksum"}, headers=HEADERS)
+    upload_response = client.post(
+        "/api/v1/documents/upload-url",
+        json={
+            "project_id": project_response.json()["id"],
+            "filename": "paper.pdf",
+            "file_type": "pdf",
+            "mime_type": "application/pdf",
+            "size_bytes": 100,
+        },
+        headers=HEADERS,
+    )
+
+    response = client.post(
+        f"/api/v1/documents/{upload_response.json()['document_id']}/complete",
+        json={"checksum_sha256": "z" * 64, "extracted_text": "valid local text"},
+        headers=HEADERS,
+    )
+
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "VALIDATION_FAILED"
+
+
 # 验证 Source Policy 阻止 local-only 越权调用 web 工具。
 def test_source_policy_validator_blocks_unallowed_tools() -> None:
     intent = resolve_intent("/study explain retrieval", SourceMode.AUTO, TaskType.ANSWER)
@@ -187,3 +230,26 @@ def test_source_policy_validator_blocks_unallowed_tools() -> None:
     assert intent.plan.source_mode == "local_only"
     assert result["passed"] is False
     assert result["denied_tools"] == ["search_web"]
+
+
+def test_executable_catalogs_and_report_detail_fail_closed_locally(client: TestClient) -> None:
+    pipelines = client.get("/api/v1/pipeline-versions", headers=HEADERS)
+    datasets = client.get("/api/v1/evaluation-datasets", headers=HEADERS)
+    missing_report = client.get(
+        "/api/v1/reports/00000000-0000-4000-8000-000000000099",
+        headers=HEADERS,
+    )
+
+    assert pipelines.status_code == 200
+    assert pipelines.json() == {"items": []}
+    assert datasets.status_code == 200
+    assert datasets.json() == {"items": []}
+    assert missing_report.status_code == 404
+    assert missing_report.json()["error"]["code"] == "REPORT_NOT_FOUND"
+
+
+def test_evaluation_catalog_requires_developer_role(client: TestClient) -> None:
+    response = client.get("/api/v1/evaluation-datasets", headers=USER_A_HEADERS)
+
+    assert response.status_code == 403
+    assert response.json()["error"]["code"] == "ADMIN_REQUIRED"

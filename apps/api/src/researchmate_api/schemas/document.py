@@ -40,7 +40,7 @@ class UploadUrlResponse(BaseModel):
 
 # 定义上传完成通知。
 class UploadCompleteRequest(BaseModel):
-    checksum_sha256: str | None = Field(default=None, min_length=64, max_length=64)
+    checksum_sha256: str | None = Field(default=None, pattern=r"^[0-9a-fA-F]{64}$")
     extracted_text: str | None = Field(
         default=None,
         max_length=200_000,

@@ -1,0 +1,146 @@
+name: researchmate-release
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Protected GitHub environment and deployment target
+        required: true
+        type: choice
+        options: [preview, production]
+
+concurrency:
+  group: researchmate-${{ inputs.environment }}
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+  API_IMAGE: ghcr.io/${{ github.repository_owner }}/researchmate-api
+  WORKER_IMAGE: ghcr.io/${{ github.repository_owner }}/researchmate-worker
+  VERCEL_CLI_VERSION: 54.21.1
+
+jobs:
+  quality-gate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: npm
+      - run: python -m pip install -r requirements-dev.txt
+      - run: npm ci
+      - run: npm run check:all
+
+  build-images:
+    needs: quality-gate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        include:
+          - image: researchmate-api
+            dockerfile: apps/api/Dockerfile
+          - image: researchmate-worker
+            dockerfile: workers/ai-worker/Dockerfile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          push: true
+          provenance: true
+          sbom: true
+          tags: ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}:${{ github.sha }}
+
+  deploy:
+    needs: build-images
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    permissions:
+      contents: read
+      id-token: write
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+      - name: Install release clients
+        run: |
+          python -m pip install "psycopg[binary]>=3.2,<4" "langgraph-checkpoint-postgres>=3,<4"
+          npm install --global vercel@${VERCEL_CLI_VERSION}
+      - name: Apply additive database migrations
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          ALLOW_SCHEMA_APPLY: "1"
+        run: python scripts/apply_migrations.py --apply
+      - name: Apply LangGraph checkpoint migrations
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          ALLOW_SCHEMA_APPLY: "1"
+        run: python scripts/setup_langgraph_checkpoint.py
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Deploy API and worker images by immutable commit SHA
+        env:
+          AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+          AZURE_API_APP: ${{ vars.AZURE_API_APP }}
+          AZURE_WORKER_APP: ${{ vars.AZURE_WORKER_APP }}
+          AZURE_DISPATCHER_APP: ${{ vars.AZURE_DISPATCHER_APP }}
+        run: |
+          az config set extension.use_dynamic_install=yes_without_prompt
+          az containerapp update --resource-group "$AZURE_RESOURCE_GROUP" --name "$AZURE_API_APP" --image "${API_IMAGE}:${GITHUB_SHA}"
+          az containerapp update --resource-group "$AZURE_RESOURCE_GROUP" --name "$AZURE_WORKER_APP" --image "${WORKER_IMAGE}:${GITHUB_SHA}" --set-env-vars RESEARCHMATE_PROCESS_ROLE=worker
+          az containerapp update --resource-group "$AZURE_RESOURCE_GROUP" --name "$AZURE_DISPATCHER_APP" --image "${WORKER_IMAGE}:${GITHUB_SHA}" --set-env-vars RESEARCHMATE_PROCESS_ROLE=dispatcher
+      - name: Build and deploy the prebuilt Vercel frontend
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          TARGET=${{ inputs.environment }}
+          vercel pull --yes --environment="$TARGET" --token="$VERCEL_TOKEN" --cwd apps/web
+          if [ "$TARGET" = "production" ]; then
+            vercel build --prod --token="$VERCEL_TOKEN" --cwd apps/web
+            vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN" --cwd apps/web
+          else
+            vercel build --token="$VERCEL_TOKEN" --cwd apps/web
+            vercel deploy --prebuilt --token="$VERCEL_TOKEN" --cwd apps/web
+          fi
+      - name: Smoke deployed API
+        env:
+          API_HEALTH_URL: ${{ vars.API_HEALTH_URL }}
+        run: |
+          test -n "$API_HEALTH_URL"
+          curl --fail --retry 5 --retry-all-errors --max-time 15 "$API_HEALTH_URL/api/v1/healthz"
+          curl --fail --retry 5 --retry-all-errors --max-time 20 "$API_HEALTH_URL/api/v1/readyz"
+      - name: Smoke deployed web and documentation
+        env:
+          WEB_BASE_URL: ${{ vars.WEB_BASE_URL }}
+        run: |
+          test -n "$WEB_BASE_URL"
+          curl --fail --location --retry 5 --retry-all-errors --max-time 20 "$WEB_BASE_URL/"
+          curl --fail --location --retry 5 --retry-all-errors --max-time 20 "$WEB_BASE_URL/docs/"

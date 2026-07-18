@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import { ProjectNav } from "../../../../components/project-nav";
 import { apiFetch, QuizSet } from "../../../../lib/api";
 
 interface QuizHistoryResponse {
@@ -10,7 +11,6 @@ interface QuizHistoryResponse {
   quiz_sets: QuizSet[];
 }
 
-// 渲染测验生成和历史列表。
 export default function QuizPage() {
   const params = useParams<{ projectId: string }>();
   const projectId = params.projectId;
@@ -23,7 +23,7 @@ export default function QuizPage() {
       const history = await apiFetch<QuizHistoryResponse>(`/projects/${projectId}/quiz`);
       setQuizSets(history.quiz_sets);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "无法加载 Quiz 历史");
+      setError(err instanceof Error ? err.message : "Quiz history could not be loaded.");
     }
   }
 
@@ -47,7 +47,7 @@ export default function QuizPage() {
       });
       await loadHistory();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "生成 Quiz 失败");
+      setError(err instanceof Error ? err.message : "Quiz generation could not be completed.");
     } finally {
       setLoading(false);
     }
@@ -55,23 +55,24 @@ export default function QuizPage() {
 
   return (
     <main className="app-shell">
+      <ProjectNav projectId={projectId} current="quiz" />
       <section className="workspace-header glass-panel">
         <div>
-          <p className="eyebrow">Quiz</p>
-          <h1>本地资料测验</h1>
-          <p>选择题恰好 4 个选项；每题必须绑定来源引用。</p>
+          <p className="eyebrow">Grounded quiz</p>
+          <h1>Review local evidence</h1>
+          <p>Every question must bind to source citations; single-choice questions contain exactly four options.</p>
         </div>
         <div className="row-actions">
-          <Link href={`/app/projects/${projectId}`}>Ask</Link>
+          <Link href={`/app/projects/${projectId}`}>Evidence review</Link>
           <Link href={`/app/projects/${projectId}/library`}>Library</Link>
           <button className="primary-button" type="button" onClick={generateQuiz} disabled={loading}>
-            {loading ? "生成中..." : "生成 Quiz"}
+            {loading ? "Generating…" : "Generate quiz"}
           </button>
         </div>
       </section>
       {error && <p className="error-banner">{error}</p>}
       <section className="quiz-list">
-        {quizSets.length === 0 && <div className="glass-panel empty-state">暂无 Quiz。先上传资料，再生成题目。</div>}
+        {quizSets.length === 0 && <div className="glass-panel empty-state">No quiz sets. Add an indexed source before generating one.</div>}
         {quizSets.map((quizSet) => (
           <article className="glass-panel quiz-card" key={quizSet.id}>
             <div className="sources-header">
@@ -86,8 +87,8 @@ export default function QuizPage() {
                     {question.options.map((option) => <li key={option}>{option}</li>)}
                   </ol>
                 )}
-                <p><strong>答案：</strong>{question.answer}</p>
-                <p><strong>解析：</strong>{question.explanation}</p>
+                <p><strong>Answer: </strong>{question.answer}</p>
+                <p><strong>Explanation: </strong>{question.explanation}</p>
                 <small>{question.source_citations.length} source citation(s)</small>
               </section>
             ))}

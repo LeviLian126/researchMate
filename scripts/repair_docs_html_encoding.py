@@ -17,7 +17,16 @@ DOC_LEADS = {
     "ui-page-spec.html": "定义核心页面、Trace 可见性与 UI 验收边界。",
 }
 
-SHARED_STYLE = '<link rel="stylesheet" href="handoff/assets/site.css">'
+ASSET_STYLE = "assets/site.css"
+
+
+# 计算当前 HTML-first docs 页面到共享样式的相对路径。
+def stylesheet_link(path: Path) -> str:
+    relative = Path(
+        *[".."] * (len(path.relative_to(DOCS).parents) - 1),
+        ASSET_STYLE,
+    ).as_posix()
+    return f'<link rel="stylesheet" href="{relative}">'
 
 
 # 修复通用文档页里被替换为问号的导航、目录和摘要文案。
@@ -48,16 +57,14 @@ def repair_common_wrappers() -> None:
 
 # 统一 docs 根页面样式入口，避免继续保留每页一套内联 CSS。
 def unify_shared_styles() -> None:
-    for path in DOCS.glob("*.html"):
+    for path in DOCS.rglob("*.html"):
+        if "assets" in path.relative_to(DOCS).parts:
+            continue
+        shared_style = stylesheet_link(path)
         text = path.read_text(encoding="utf-8")
-        text = re.sub(r"\n?\s*<style>.*?</style>", f"\n  {SHARED_STYLE}", text, flags=re.DOTALL)
-        if SHARED_STYLE not in text:
-            text = text.replace("</head>", f"  {SHARED_STYLE}\n</head>")
-        if 'href="progress.html"' not in text:
-            text = text.replace(
-                '<a href="handoff/index.html">Agent Dashboard</a>',
-                '<a href="handoff/index.html">Agent Dashboard</a><a href="progress.html">Progress</a>',
-            )
+        text = re.sub(r"\n?\s*<style>.*?</style>", f"\n  {shared_style}", text, flags=re.DOTALL)
+        if shared_style not in text:
+            text = text.replace("</head>", f"  {shared_style}\n</head>")
         path.write_text(text, encoding="utf-8", newline="\n")
 
 

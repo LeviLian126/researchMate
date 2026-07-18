@@ -24,9 +24,13 @@ logs/
 # Node and frontend outputs
 node_modules/
 .next/
+*.tsbuildinfo
+apps/web/public/docs/
 out/
 dist/
 build/
+.build-test/
+.uv-cache/
 .turbo/
 coverage/
 npm-debug.log*
@@ -37,6 +41,7 @@ pnpm-debug.log*
 # Python outputs and virtual environments
 __pycache__/
 *.py[cod]
+*.egg-info/
 .pytest_cache/
 .ruff_cache/
 .mypy_cache/
@@ -55,4 +60,3 @@ Thumbs.db
 .qdrant/
 .redis/
 .docker/
-

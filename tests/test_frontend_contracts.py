@@ -12,6 +12,13 @@ def test_frontend_mvp_pages_exist() -> None:
         "apps/web/app/app/projects/[projectId]/page.tsx",
         "apps/web/app/app/projects/[projectId]/library/page.tsx",
         "apps/web/app/app/projects/[projectId]/quiz/page.tsx",
+        "apps/web/app/app/projects/[projectId]/labs/page.tsx",
+        "apps/web/app/components/project-nav.tsx",
+        "apps/web/app/components/state-notice.tsx",
+        "apps/web/app/components/auth-gate.tsx",
+        "apps/web/app/app/layout.tsx",
+        "apps/web/app/dev/layout.tsx",
+        "apps/web/app/lib/supabase.ts",
         "apps/web/app/dev/traces/[traceId]/page.tsx",
         "apps/web/app/lib/api.ts",
         "apps/web/app/globals.css",
@@ -31,6 +38,7 @@ def test_frontend_calls_mvp_api_contracts() -> None:
             ROOT / "apps/web/app/app/projects/[projectId]/page.tsx",
             ROOT / "apps/web/app/app/projects/[projectId]/library/page.tsx",
             ROOT / "apps/web/app/app/projects/[projectId]/quiz/page.tsx",
+            ROOT / "apps/web/app/app/projects/[projectId]/labs/page.tsx",
             ROOT / "apps/web/app/dev/traces/[traceId]/page.tsx",
             ROOT / "apps/web/app/lib/api.ts",
         ]
@@ -45,6 +53,16 @@ def test_frontend_calls_mvp_api_contracts() -> None:
         "/ask",
         "/quiz",
         "/dev/traces/",
+        "/research-runs",
+        "/runs/${runId}/events",
+        "/decisions",
+        "/claims",
+        "/claim-relations",
+        "/reports",
+        "/refresh",
+        "/evaluation-runs",
+        "/dev/reliability",
+        "/dev/fault-scenarios",
     ]
 
     for token in required_tokens:
@@ -57,6 +75,7 @@ def test_regular_project_pages_do_not_nav_to_dev_trace() -> None:
         ROOT / "apps/web/app/app/page.tsx",
         ROOT / "apps/web/app/app/projects/[projectId]/library/page.tsx",
         ROOT / "apps/web/app/app/projects/[projectId]/quiz/page.tsx",
+        ROOT / "apps/web/app/app/projects/[projectId]/labs/page.tsx",
     ]
     combined = "\n".join(path.read_text(encoding="utf-8") for path in regular_pages)
 
@@ -79,3 +98,71 @@ def test_frontend_does_not_reference_backend_secret_names() -> None:
 
     for token in forbidden_tokens:
         assert token not in combined
+
+
+# Evidence review uses the authenticated API boundary and visibly covers recovery states.
+def test_evidence_frontend_covers_async_and_recovery_states() -> None:
+    source = (ROOT / "apps/web/app/app/projects/[projectId]/page.tsx").read_text(encoding="utf-8")
+    api_source = (ROOT / "apps/web/app/lib/api.ts").read_text(encoding="utf-8")
+
+    required_state_tokens = [
+        "waiting_human",
+        "Run failed safely",
+        "pending",
+        "provider",
+        "Authentication required",
+        "Developer access required",
+        "State changed",
+        "Usage limit reached",
+        "Refresh evidence",
+    ]
+    combined = source + api_source
+    for token in required_state_tokens:
+        assert token in combined
+
+
+# Provider credentials and direct LLM calls remain outside the browser bundle.
+def test_frontend_does_not_call_model_provider_directly() -> None:
+    frontend_files = list((ROOT / "apps/web/app").rglob("*.tsx")) + list((ROOT / "apps/web/app").rglob("*.ts"))
+    combined = "\n".join(path.read_text(encoding="utf-8") for path in frontend_files)
+    forbidden_provider_calls = [
+        "integrate.api.nvidia.com",
+        "api.openai.com",
+        "chat.completions.create",
+        "responses.create",
+    ]
+    for token in forbidden_provider_calls:
+        assert token not in combined
+
+
+# Preview and production authenticate through a persisted Supabase session and never a dev fallback.
+def test_frontend_uses_supabase_session_outside_local_development() -> None:
+    package = (ROOT / "apps/web/package.json").read_text(encoding="utf-8")
+    auth = (ROOT / "apps/web/app/components/auth-gate.tsx").read_text(encoding="utf-8")
+    supabase = (ROOT / "apps/web/app/lib/supabase.ts").read_text(encoding="utf-8")
+    api = (ROOT / "apps/web/app/lib/api.ts").read_text(encoding="utf-8")
+
+    for token in [
+        "NEXT_PUBLIC_SUPABASE_URL",
+        "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+        "onAuthStateChange",
+        "signInWithPassword",
+        "sendMagicLink",
+        "signOut",
+        "getSupabaseSession",
+        "session.access_token",
+        '"/token?grant_type=password"',
+        '"/token?grant_type=refresh_token"',
+        '"/logout?scope=local"',
+        '"apikey"',
+        "researchmate_supabase_session",
+        "REFRESH_SKEW_MS",
+        "window.setTimeout(() => void refreshSession",
+    ]:
+        assert token in package + auth + supabase + api
+
+    assert '"@supabase/supabase-js"' not in package
+    assert "if (isLocalDevelopment()) return getDevToken()" in api
+    assert "if (!session?.access_token)" in api
+    assert 'return window.localStorage.getItem("researchmate_token") || "dev"' in api
+    assert 'if (!isLocalDevelopment()) throw new ApiError' in api

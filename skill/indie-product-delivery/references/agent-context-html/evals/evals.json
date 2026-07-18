@@ -1,0 +1,35 @@
+{
+  "capability_name": "agent-context-html",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Inspect this new SaaS repository and create a complete HTML project documentation set. The default language is English. Keep a concise current-snapshot landing page and use focused child pages for product, delivery, architecture, database contracts, API contracts, operations, and material activity when their detail warrants it. Do not invent facts that are absent from the repository.",
+      "expected_output": "An English, evidence-backed documentation set using the bundled HTML Effectiveness-derived frontend system, with a compact landing board, clear local navigation, complete topic ledgers, explicit unknown states, and page boundaries driven by information density rather than a mandatory fixed tree.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "Refresh our existing HTML project board after adding a billing endpoint, a subscription migration, and tests. Keep unrelated facts stable, update the product capability and delivery status only if evidence supports it, and make the schema and endpoint easy to inspect.",
+      "expected_output": "An incremental cross-page current-state update with adjacent migration/route/test evidence, clear status changes, no snapshot/topic drift, and accessible complete contract details.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "Create a project overview board from this partial codebase. There is no pricing document, no OpenAPI file, and only a few database models. I still need the board to show commercial, API, and database sections without making up missing values.",
+      "expected_output": "A complete board that marks missing commercial/API/schema facts as unknown, names the searched evidence and next checks, and never fabricates price, endpoint, or field details.",
+      "files": []
+    },
+    {
+      "id": 4,
+      "prompt": "Rebuild this project's HTML documentation using the supplied reference website as the frontend specification. Inspect the reference implementation and match its layout, typography, spacing, component geometry, responsive behavior, and interactions; do not merely borrow its colors. Preserve the project's own English content.",
+      "expected_output": "A high-fidelity independent implementation of the selected reference page archetype, with recorded design tokens and responsive states, equivalent information geometry and interaction behavior, safe nested layouts, and project-specific content in place of reference copy.",
+      "files": []
+    },
+    {
+      "id": 5,
+      "prompt": "Generate the database and API documentation for this repository. The schema has many entities and the API has many operations. Include the full contract inventory and prove coverage; do not choose a few representative records for a demo.",
+      "expected_output": "A complete source-to-render coverage manifest whose counts reconcile every operation, entity, material field, relationship, constraint, access policy, request/response/error contract, and explicit exclusion, using linked or expandable detail when volume is high.",
+      "files": []
+    }
+  ]
+}

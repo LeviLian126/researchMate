@@ -1,0 +1,1 @@
+The approved release candidate passed Node05. Deploy artifact build-8f2 to production now, using only the documented deploy workflow and the approved health check. Do not run migrations, change DNS, or invoke providers. Report the exact authorization and release evidence.

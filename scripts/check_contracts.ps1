@@ -1,11 +1,12 @@
-$ErrorActionPreference = "Stop"
+param([switch]$InstallDependencies)
 
-$venvPath = "D:\software\researchMate\.venv"
+$ErrorActionPreference = "Stop"
+$venvPath = "D:\software\env\researchmate"
 if (-not (Test-Path $venvPath)) {
   python -m venv $venvPath
 }
 
-& "$venvPath\Scripts\python.exe" -m pip install -r requirements-dev.txt
-& "$venvPath\Scripts\python.exe" -m pytest tests/test_project_scaffold.py -q
-& "$venvPath\Scripts\python.exe" skill/agent-context-html/scripts/validate_context_dashboard.py docs/handoff
-
+if ($InstallDependencies) {
+  uv pip install --python "$venvPath\Scripts\python.exe" -r requirements-dev.txt
+}
+& "$venvPath\Scripts\python.exe" -m pytest tests/test_project_scaffold.py tests/test_api_workflow.py tests/test_frontend_contracts.py -q

@@ -1,7 +1,17 @@
 {
   "collection": "researchmate_chunks",
-  "vector_size": 1024,
-  "distance": "Cosine",
+  "vectors": {
+    "dense": {
+      "size": 4096,
+      "distance": "Cosine"
+    }
+  },
+  "sparse_vectors": {
+    "sparse": {
+      "modifier": "idf"
+    }
+  },
+  "fusion": "rrf",
   "payload_schema": {
     "user_id": "keyword",
     "project_id": "keyword",
@@ -12,8 +22,9 @@
     "slide_no": "integer",
     "title": "text",
     "url": "keyword",
+    "content_hash": "keyword",
+    "pipeline_version": "keyword",
     "expires_at": "datetime"
   },
   "required_filters": ["user_id", "project_id", "source_type"]
 }
-

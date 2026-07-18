@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
+import { ProjectNav } from "../../../../components/project-nav";
+import { StateNotice } from "../../../../components/state-notice";
 import { apiFetch, DocumentRecord, fileTypeFromName, mimeForFileType } from "../../../../lib/api";
 
 interface UploadUrlResponse {
@@ -12,7 +14,6 @@ interface UploadUrlResponse {
   expires_in_seconds: number;
 }
 
-// 渲染资料库、上传和解析状态。
 export default function LibraryPage() {
   const params = useParams<{ projectId: string }>();
   const projectId = params.projectId;
@@ -26,7 +27,7 @@ export default function LibraryPage() {
     try {
       setDocuments(await apiFetch<DocumentRecord[]>(`/projects/${projectId}/documents`));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "无法加载文件");
+      setError(err instanceof Error ? err.message : "Documents could not be loaded.");
     }
   }
 
@@ -37,10 +38,10 @@ export default function LibraryPage() {
   async function upload(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
-    setStatus("准备上传...");
+    setStatus("Requesting a bounded upload URL…");
     try {
       if (!selectedFile) {
-        throw new Error("请选择 PDF/DOCX/PPTX 文件");
+        throw new Error("Select a PDF, DOCX, or PPTX file.");
       }
       const fileType = fileTypeFromName(selectedFile.name);
       const mimeType = mimeForFileType(fileType);
@@ -55,47 +56,53 @@ export default function LibraryPage() {
         method: "POST",
         body: JSON.stringify(uploadPayload),
       });
-      setStatus(`Signed URL ready: ${uploadUrl.expires_in_seconds}s`);
-      const extractedText = manualText.trim() || (await selectedFile.text());
+      setStatus(`Upload URL ready for ${uploadUrl.expires_in_seconds} seconds.`);
+      const isLocalFallback = uploadUrl.upload_url.includes("/api/v1/dev/upload/");
+      if (!isLocalFallback) {
+        const uploadResponse = await fetch(uploadUrl.upload_url, {
+          method: "PUT",
+          headers: { "Content-Type": mimeType },
+          body: selectedFile,
+        });
+        if (!uploadResponse.ok) throw new Error("Object storage rejected the upload. Request a new URL and retry.");
+      }
       await apiFetch(`/documents/${uploadUrl.document_id}/complete`, {
         method: "POST",
-        body: JSON.stringify({ extracted_text: extractedText }),
+        body: JSON.stringify({ extracted_text: isLocalFallback ? manualText.trim() || (await selectedFile.text()) : null }),
       });
-      setStatus("解析与索引完成");
+      setStatus("Upload verified. Parsing and indexing are queued.");
       await loadDocuments();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "上传失败");
+      setError(err instanceof Error ? err.message : "Upload could not be completed.");
     }
   }
 
   return (
     <main className="app-shell">
+      <ProjectNav projectId={projectId} current="library" />
       <section className="workspace-header glass-panel">
         <div>
-          <p className="eyebrow">Library</p>
-          <h1>上传、解析与索引</h1>
-          <p>本地开发通过 extracted_text 模拟 worker 从 R2 解析后的文本；上线后替换为真实 R2 + parser。</p>
+          <p className="eyebrow">Source library</p>
+          <h1>Upload, parse, and index</h1>
+          <p>Production uploads directly to a short-lived R2 URL. Local memory mode uses an explicit text fallback because it has no object-storage endpoint.</p>
         </div>
-        <div className="row-actions">
-          <Link href={`/app/projects/${projectId}`}>Ask</Link>
-          <Link href={`/app/projects/${projectId}/quiz`}>Quiz</Link>
-        </div>
+        <Link className="secondary-button" href={`/app/projects/${projectId}`}>Review evidence</Link>
       </section>
 
       <section className="content-grid two-columns">
         <form className="glass-panel stack" onSubmit={upload}>
-          <h2>上传资料</h2>
+          <h2>Add a source</h2>
           <input type="file" accept=".pdf,.docx,.pptx" onChange={(event) => setSelectedFile(event.target.files?.[0] ?? null)} />
-          <label htmlFor="manual-text">本地解析文本 fallback</label>
+          <label htmlFor="manual-text">Local-only parsed text fallback</label>
           <textarea id="manual-text" rows={8} value={manualText} onChange={(event) => setManualText(event.target.value)} />
-          <button className="primary-button" type="submit">上传并解析</button>
-          {status && <p className="success-banner">{status}</p>}
-          {error && <p className="error-banner">{error}</p>}
+          <button className="primary-button" type="submit">Upload and queue ingestion</button>
+          {status && <StateNotice state={{ title: "Ingestion status", detail: status, kind: "success" }} />}
+          {error && <StateNotice state={{ title: "Upload needs attention", detail: error, kind: "error" }} />}
         </form>
 
         <div className="glass-panel stack">
-          <h2>文件状态</h2>
-          {documents.length === 0 && <p>暂无文件。</p>}
+          <h2>Source status</h2>
+          {documents.length === 0 && <p className="empty-state">No sources yet. Upload one to make retrieval and evidence review meaningful.</p>}
           {documents.map((document) => (
             <article className="resource-card" key={document.id}>
               <div>

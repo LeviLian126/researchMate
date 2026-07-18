@@ -20,8 +20,7 @@ def retrieve_local_chunks(chunks: list[ChunkEntry], query: str, limit: int = 5) 
         score = sum(min(query_tokens[token], chunk_tokens[token]) for token in query_tokens)
         scored.append((score, -index, chunk))
     scored.sort(key=lambda item: (item[0], item[1]), reverse=True)
-    positive = [chunk for score, _, chunk in scored if score > 0]
-    return (positive or [chunk for _, _, chunk in scored])[:limit]
+    return [chunk for score, _, chunk in scored if score > 0][:limit]
 
 
 # 从 chunk 中生成安全短引用。

@@ -1,5 +1,0 @@
-interface:
-  display_name: "Agent Context HTML"
-  short_description: "Generates static human/agent handoff dashboards from repo structure, state files, git signals, and handoff notes."
-  icon: "🧭"
-  brand_color: "#355C7D"

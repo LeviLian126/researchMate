@@ -1,0 +1,60 @@
+{
+  "skill_name": "indie-product-delivery",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Create a complete HTML project board from a repository with no pricing file and no OpenAPI document.",
+      "expected_output": "A reader-oriented, evidence-backed board that exposes absent commercial and API facts as unknown instead of inventing them.",
+      "files": [],
+      "expectations": [
+        "Establishes the target reader and fact sources before drafting.",
+        "Keeps pricing and API facts visibly unknown with a next check.",
+        "Records whether independent reader testing was completed."
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Rewrite a technical design document that calls an authorization change pivotal and transformative, while preserving every endpoint, risk, and evidence path.",
+      "expected_output": "A restrained technical edit that removes unsupported significance language without changing contract meaning.",
+      "files": [],
+      "expectations": [
+        "Removes unsupported promotional or significance language.",
+        "Preserves every endpoint, risk, status, and evidence path.",
+        "Uses stable terminology and direct professional prose."
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Update the README and release note for a new CLI version with commands, version numbers, and compatibility limits.",
+      "expected_output": "A complete durable-document draft followed by focused refinement that leaves operational literals exact.",
+      "files": [],
+      "expectations": [
+        "Builds a complete first draft before section-level edits.",
+        "Keeps commands, version numbers, terminology, and compatibility limits exact.",
+        "Avoids filler and generic release-language conclusions."
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "Finish a design document when no isolated reader or fresh review context is available.",
+      "expected_output": "A limited but honest delivery that completes the fixed self-check and does not claim independent validation.",
+      "files": [],
+      "expectations": [
+        "Uses the six reader questions as a structured self-check.",
+        "States independent reader test not completed.",
+        "Does not claim that a new reader validated the document."
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "Fix one typo in an existing button label.",
+      "expected_output": "A narrow UI copy fix without the full durable-document workflow.",
+      "files": [],
+      "expectations": [
+        "Keeps the task within its existing frontend owner.",
+        "Does not require a document contract or reader test.",
+        "Uses narrow verification appropriate to a local copy change."
+      ]
+    }
+  ]
+}
