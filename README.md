@@ -70,7 +70,7 @@ The aggregate gate runs Python tests, Ruff, OpenAPI drift, migration-file valida
 
 `.github/workflows/release.yml` is intentionally manual and protected. Before the first deployment, a human must configure GitHub Environments, Azure OIDC and separate API/worker/dispatcher Container Apps, GHCR image access, Vercel project credentials, Supabase, Upstash, Qdrant, R2, Tavily, NVIDIA token prices, and observability secrets. The workflow then applies checksummed domain migrations plus SDK-owned LangGraph checkpoint migrations, deploys immutable commit-SHA images and the prebuilt web application, and requires liveness plus full dependency readiness smoke. After the first ready document is ingested, run guarded `scripts/bootstrap_demo_catalog.py` once to provision the accepted pipeline and frozen evaluation dataset shown by the UI.
 
-This workspace currently contains an empty `.git` directory, so it has no usable commit identity or remote. Restore or initialize the intended repository before enabling CI/CD; that choice is intentionally left to the owner so existing history is never overwritten.
+The repository is connected to the public `main` branch and the first current CI run has been triggered from commit `fbf055f`. This is source-control evidence only: GitHub Environments, cloud providers, OCI publication, migrations, smoke checks, rollback, and production deployment remain unvalidated.
 
 Free tiers are treated as demo infrastructure, not an SLA. If student/free quotas are exhausted, background computation is paused and only the precomputed read-only demonstration should remain available.
 

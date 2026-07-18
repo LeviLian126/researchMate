@@ -11,6 +11,8 @@
 
 # Local data and generated private assets
 data/
+!docs/contracts/data/
+!docs/contracts/data/index.html
 uploads/
 storage/
 tmp/
