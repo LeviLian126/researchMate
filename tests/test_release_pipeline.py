@@ -13,6 +13,7 @@ def test_ci_runs_the_full_test_build_contract_and_security_gate() -> None:
     assert "scripts/apply_migrations.py --check-files" in package
     assert "npm ci" in workflow
     assert "npm run check:all" in workflow
+    assert "bash -n scripts/provision_azure_container_apps.sh" in workflow
     assert "permissions:\n      contents: read" in workflow
 
 
@@ -31,8 +32,25 @@ def test_release_is_manual_protected_and_uses_immutable_images() -> None:
     assert '"$WEB_BASE_URL/"' in workflow
     assert '"$WEB_BASE_URL/docs/"' not in workflow
     assert "AZURE_DISPATCHER_APP" in workflow
-    assert "RESEARCHMATE_PROCESS_ROLE=dispatcher" in workflow
+    assert "scripts/provision_azure_container_apps.sh" in workflow
+    assert "AZURE_CONTAINERAPPS_ENVIRONMENT" in workflow
+    assert "OBJECT_STORAGE_SECRET_ACCESS_KEY" in workflow
+    assert "NEXT_PUBLIC_API_BASE_URL" in workflow
+    assert "provision_azure_container_apps.sh --check" in workflow
     assert "push:" not in workflow.split("jobs:", 1)[0]
+
+
+def test_azure_reconciler_creates_a_no_log_environment_and_uses_secret_references() -> None:
+    script = (ROOT / "scripts/provision_azure_container_apps.sh").read_text(encoding="utf-8")
+
+    assert "az containerapp env create" in script
+    assert "--logs-destination none" in script
+    assert "az containerapp secret set" in script
+    assert "secretref:database-url" in script
+    assert "RESEARCHMATE_PROCESS_ROLE=$role" in script
+    assert "--min-replicas 1" in script
+    assert "API_HEALTH_URL=https://$api_fqdn" in script
+    assert '"${1:-}" == "--check"' in script
 
 
 def test_container_images_are_non_root_and_worker_prefetches_pdf_models() -> None:

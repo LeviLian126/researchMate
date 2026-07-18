@@ -25,5 +25,7 @@ jobs:
         run: python -m pip install -r requirements-dev.txt
       - name: Install web dependencies
         run: npm ci
+      - name: Validate the release reconciler shell syntax
+        run: bash -n scripts/provision_azure_container_apps.sh
       - name: Run full quality gate
         run: npm run check:all
