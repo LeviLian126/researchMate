@@ -20,9 +20,6 @@ const contentSecurityPolicy = [
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
-  async rewrites() {
-    return [{ source: "/docs", destination: "/docs/index.html" }];
-  },
   async headers() {
     return [
       {

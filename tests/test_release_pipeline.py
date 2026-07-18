@@ -28,7 +28,8 @@ def test_release_is_manual_protected_and_uses_immutable_images() -> None:
     assert "scripts/setup_langgraph_checkpoint.py" in workflow
     assert "/api/v1/healthz" in workflow
     assert "/api/v1/readyz" in workflow
-    assert '"$WEB_BASE_URL/docs/"' in workflow
+    assert '"$WEB_BASE_URL/"' in workflow
+    assert '"$WEB_BASE_URL/docs/"' not in workflow
     assert "AZURE_DISPATCHER_APP" in workflow
     assert "RESEARCHMATE_PROCESS_ROLE=dispatcher" in workflow
     assert "push:" not in workflow.split("jobs:", 1)[0]
@@ -83,4 +84,4 @@ def test_web_release_sets_baseline_browser_security_headers() -> None:
         assert header in config
     assert "frame-ancestors 'none'" in config
     assert "object-src 'none'" in config
-    assert 'source: "/docs", destination: "/docs/index.html"' in config
+    assert 'source: "/docs", destination: "/docs/index.html"' not in config

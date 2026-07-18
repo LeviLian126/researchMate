@@ -14,7 +14,9 @@ export default function HomePage() {
           <Link className="primary-button" href="/app">
             Open the demo workspace
           </Link>
-          <a className="secondary-button" href="/docs/">Read the engineering documentation</a>
+          <a className="secondary-button" href="https://github.com/LeviLian126/researchMate/tree/main/docs">
+            Browse developer documentation on GitHub
+          </a>
         </div>
         <div className="feature-grid">
           <article>
