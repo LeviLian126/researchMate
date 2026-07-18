@@ -251,13 +251,13 @@ def build_repository(settings: Settings) -> ResearchMateRepository:
         return InMemoryResearchMateStore()
 
     from researchmate_api.persistence.postgres import PostgresResearchMateRepository
-    from researchmate_api.services.object_storage import R2ObjectStorage
+    from researchmate_api.services.object_storage import S3CompatibleObjectStorage
 
     assert settings.database_url is not None
     upload_url_factory = None
     object_metadata_reader = None
-    if settings.r2_configured:
-        storage = R2ObjectStorage(settings)
+    if settings.object_storage_configured:
+        storage = S3CompatibleObjectStorage(settings)
 
         def upload_url_factory(_document_id, object_key, payload):
             return storage.presign_upload(object_key, content_type=payload.mime_type)

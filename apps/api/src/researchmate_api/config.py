@@ -19,6 +19,11 @@ class Settings(BaseSettings):
     r2_access_key_id: SecretStr | None = None
     r2_secret_access_key: SecretStr | None = None
     r2_bucket: str | None = None
+    object_storage_endpoint_url: str | None = None
+    object_storage_access_key_id: SecretStr | None = None
+    object_storage_secret_access_key: SecretStr | None = None
+    object_storage_bucket: str | None = None
+    object_storage_region: str = "auto"
     llm_provider: Literal["fake", "nvidia"] = "fake"
     nvidia_api_key: SecretStr | None = None
     nvidia_base_url: str = "https://integrate.api.nvidia.com/v1"
@@ -91,6 +96,45 @@ class Settings(BaseSettings):
             )
         )
 
+    @property
+    def uses_generic_object_storage(self) -> bool:
+        """Select an explicit S3-compatible endpoint without mixing credential sets."""
+        return any(
+            (
+                self.object_storage_endpoint_url,
+                self.object_storage_access_key_id,
+                self.object_storage_secret_access_key,
+                self.object_storage_bucket,
+            )
+        )
+
+    @property
+    def object_storage_endpoint_url_resolved(self) -> str | None:
+        return self.object_storage_endpoint_url if self.uses_generic_object_storage else self.r2_endpoint_url
+
+    @property
+    def object_storage_access_key_id_resolved(self) -> SecretStr | None:
+        return self.object_storage_access_key_id if self.uses_generic_object_storage else self.r2_access_key_id
+
+    @property
+    def object_storage_secret_access_key_resolved(self) -> SecretStr | None:
+        return self.object_storage_secret_access_key if self.uses_generic_object_storage else self.r2_secret_access_key
+
+    @property
+    def object_storage_bucket_resolved(self) -> str | None:
+        return self.object_storage_bucket if self.uses_generic_object_storage else self.r2_bucket
+
+    @property
+    def object_storage_configured(self) -> bool:
+        return all(
+            (
+                self.object_storage_endpoint_url_resolved,
+                self.object_storage_access_key_id_resolved,
+                self.object_storage_secret_access_key_resolved,
+                self.object_storage_bucket_resolved,
+            )
+        )
+
     @model_validator(mode="after")
     def validate_security_boundary(self) -> "Settings":
         if self.app_env in {"preview", "production"} and self.auth_mode != "supabase":
@@ -121,8 +165,8 @@ class Settings(BaseSettings):
                 raise ValueError("preview and production require DATABASE_URL")
             if not self.redis_url:
                 raise ValueError("preview and production require REDIS_URL")
-            if not self.r2_configured:
-                raise ValueError("preview and production require complete Cloudflare R2 configuration")
+            if not self.object_storage_configured:
+                raise ValueError("preview and production require complete S3-compatible object storage configuration")
             if self.llm_provider != "nvidia" or self.nvidia_api_key is None:
                 raise ValueError("preview and production require the configured NVIDIA LLM provider")
             if self.embedding_provider != "nvidia" or self.embedding_dimension != 4096:

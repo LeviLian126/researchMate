@@ -69,7 +69,7 @@ def test_local_readiness_is_explicit_and_non_charging() -> None:
             "outbox": "not_required",
             "checkpoint": "not_required",
             "qdrant": "not_required",
-            "r2": "not_required",
+            "object_storage": "not_required",
             "llm": "not_required",
             "web_search": "not_required",
         },
@@ -129,7 +129,7 @@ def test_managed_readiness_requires_live_background_delivery(monkeypatch) -> Non
         runtime_heartbeat_max_age_seconds=150,
         outbox_pending_max_age_seconds=180,
         qdrant_url="https://qdrant.example.test",
-        r2_configured=True,
+        object_storage_configured=True,
         app_env="preview",
     )
     hybrid_store = SimpleNamespace(

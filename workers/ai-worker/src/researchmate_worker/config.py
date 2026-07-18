@@ -35,6 +35,11 @@ class WorkerSettings(BaseSettings):
     r2_access_key_id: SecretStr | None = None
     r2_secret_access_key: SecretStr | None = None
     r2_bucket: str | None = None
+    object_storage_endpoint_url: str | None = None
+    object_storage_access_key_id: SecretStr | None = None
+    object_storage_secret_access_key: SecretStr | None = None
+    object_storage_bucket: str | None = None
+    object_storage_region: str = "auto"
     embedding_provider: Literal["fake", "nvidia"] = "fake"
     llm_provider: Literal["fake", "nvidia"] = "fake"
     nvidia_api_key: SecretStr | None = None
@@ -83,6 +88,44 @@ class WorkerSettings(BaseSettings):
             )
         )
 
+    @property
+    def uses_generic_object_storage(self) -> bool:
+        return any(
+            (
+                self.object_storage_endpoint_url,
+                self.object_storage_access_key_id,
+                self.object_storage_secret_access_key,
+                self.object_storage_bucket,
+            )
+        )
+
+    @property
+    def object_storage_endpoint_url_resolved(self) -> str | None:
+        return self.object_storage_endpoint_url if self.uses_generic_object_storage else self.r2_endpoint_url
+
+    @property
+    def object_storage_access_key_id_resolved(self) -> SecretStr | None:
+        return self.object_storage_access_key_id if self.uses_generic_object_storage else self.r2_access_key_id
+
+    @property
+    def object_storage_secret_access_key_resolved(self) -> SecretStr | None:
+        return self.object_storage_secret_access_key if self.uses_generic_object_storage else self.r2_secret_access_key
+
+    @property
+    def object_storage_bucket_resolved(self) -> str | None:
+        return self.object_storage_bucket if self.uses_generic_object_storage else self.r2_bucket
+
+    @property
+    def object_storage_configured(self) -> bool:
+        return all(
+            (
+                self.object_storage_endpoint_url_resolved,
+                self.object_storage_access_key_id_resolved,
+                self.object_storage_secret_access_key_resolved,
+                self.object_storage_bucket_resolved,
+            )
+        )
+
     @model_validator(mode="after")
     def validate_remote_runtime(self) -> "WorkerSettings":
         if self.app_env in {"preview", "production"}:
@@ -90,8 +133,8 @@ class WorkerSettings(BaseSettings):
                 raise ValueError("preview and production workers require DATABASE_URL")
             if not self.redis_url:
                 raise ValueError("preview and production workers require REDIS_URL")
-            if not self.r2_configured:
-                raise ValueError("preview and production workers require Cloudflare R2")
+            if not self.object_storage_configured:
+                raise ValueError("preview and production workers require S3-compatible object storage")
             if self.embedding_provider != "nvidia" or self.nvidia_api_key is None:
                 raise ValueError("preview and production workers require NVIDIA embeddings")
             if self.llm_provider != "nvidia":

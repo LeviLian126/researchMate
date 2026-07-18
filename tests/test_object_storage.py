@@ -1,7 +1,7 @@
 from pydantic import SecretStr
 
 from researchmate_api.config import Settings
-from researchmate_api.services.object_storage import R2ObjectStorage
+from researchmate_api.services.object_storage import R2ObjectStorage, S3CompatibleObjectStorage
 
 
 class FakeS3Client:
@@ -69,3 +69,21 @@ def test_r2_adapter_presigns_and_normalizes_metadata(tmp_path) -> None:
     assert destination.read_bytes() == b"document bytes"
     assert client.downloaded == ("researchmate-test", "users/u/document.pdf")
     assert client.deleted == {"Bucket": "researchmate-test", "Key": "users/u/document.pdf"}
+
+
+def test_generic_s3_endpoint_uses_its_own_credential_set() -> None:
+    settings = Settings(
+        app_env="test",
+        llm_provider="fake",
+        object_storage_endpoint_url="https://example.supabase.co/storage/v1/s3",
+        object_storage_access_key_id=SecretStr("generic-access"),
+        object_storage_secret_access_key=SecretStr("generic-secret"),
+        object_storage_bucket="researchmate-test",
+        object_storage_region="us-east-1",
+    )
+
+    storage = S3CompatibleObjectStorage(settings, client=FakeS3Client())
+
+    assert settings.uses_generic_object_storage is True
+    assert settings.object_storage_configured is True
+    assert storage.bucket == "researchmate-test"

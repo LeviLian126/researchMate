@@ -27,7 +27,7 @@ def readyz(request: Request) -> JSONResponse:
         "outbox": "not_required",
         "checkpoint": "not_required",
         "qdrant": "not_required",
-        "r2": "not_required",
+        "object_storage": "not_required",
         "llm": "not_required",
         "web_search": "not_required",
     }
@@ -134,11 +134,11 @@ def readyz(request: Request) -> JSONResponse:
         except Exception:
             components["qdrant"] = "unavailable"
             failures.append("qdrant")
-    if settings.r2_configured:
-        components["r2"] = "configured_not_probed"
+    if settings.object_storage_configured:
+        components["object_storage"] = "configured_not_probed"
     elif settings.app_env in {"preview", "production"}:
-        components["r2"] = "unavailable"
-        failures.append("r2")
+        components["object_storage"] = "unavailable"
+        failures.append("object_storage")
     if request.app.state.chat_provider is not None:
         components["llm"] = "configured_not_charged"
     elif settings.app_env in {"preview", "production"}:

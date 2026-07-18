@@ -32,24 +32,28 @@ class StoredObjectMetadata:
     metadata: dict[str, str]
 
 
-class R2ObjectStorage:
-    """Private Cloudflare R2 adapter; SDK objects never escape this boundary."""
+class S3CompatibleObjectStorage:
+    """Private S3-compatible adapter; provider SDK objects never escape this boundary."""
 
     def __init__(self, settings: Settings, client: Any | None = None) -> None:
-        if not settings.r2_configured or not settings.r2_endpoint_url or not settings.r2_bucket:
-            raise ObjectStorageConfigurationError("Cloudflare R2 is not fully configured")
-        self.bucket = settings.r2_bucket
+        if not settings.object_storage_configured:
+            raise ObjectStorageConfigurationError("S3-compatible object storage is not fully configured")
+        endpoint_url = settings.object_storage_endpoint_url_resolved
+        access_key_id = settings.object_storage_access_key_id_resolved
+        secret_access_key = settings.object_storage_secret_access_key_resolved
+        bucket = settings.object_storage_bucket_resolved
+        if not endpoint_url or not access_key_id or not secret_access_key or not bucket:
+            raise ObjectStorageConfigurationError("S3-compatible object storage is not fully configured")
+        self.bucket = bucket
         if client is None:
             import boto3
 
-            assert settings.r2_access_key_id is not None
-            assert settings.r2_secret_access_key is not None
             client = boto3.client(
                 "s3",
-                endpoint_url=settings.r2_endpoint_url,
-                region_name="auto",
-                aws_access_key_id=settings.r2_access_key_id.get_secret_value(),
-                aws_secret_access_key=settings.r2_secret_access_key.get_secret_value(),
+                endpoint_url=endpoint_url,
+                region_name=settings.object_storage_region,
+                aws_access_key_id=access_key_id.get_secret_value(),
+                aws_secret_access_key=secret_access_key.get_secret_value(),
             )
         self.client = client
 
@@ -121,3 +125,7 @@ class R2ObjectStorage:
             504,
         }
         return ObjectStorageRequestError(operation, retryable=retryable)
+
+
+# Retained for existing deployments that still provide the legacy R2_* variables.
+R2ObjectStorage = S3CompatibleObjectStorage

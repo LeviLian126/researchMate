@@ -490,7 +490,7 @@
       <details id="documents"><summary><code>documents</code> &middot; 15 fields</summary>
        <div class="grid">
         <div class="fact"><b>Purpose</b><p>Uploaded object metadata and parsing/indexing lifecycle.</p></div>
-        <div class="fact"><b>Integrity and indexes</b><p>Owner/project FKs cascade; unique R2 key; PDF/DOCX/PPTX and 25 MiB checks. Index: <code>idx_documents_user_project_status</code>.</p></div>
+        <div class="fact"><b>Integrity and indexes</b><p>Owner/project FKs cascade; unique object-store key; PDF/DOCX/PPTX and 25 MiB checks. Index: <code>idx_documents_user_project_status</code>.</p></div>
         <div class="fact"><b>Access and lifecycle</b><p>RLS: owner ALL. DB, object, pages, and chunks require coordinated deletion; no trigger performs it.</p></div>
        </div>
        <div class="scroll"><table class="dense"><thead><tr><th>Field</th><th>Exact declaration</th><th>Null</th><th>Key / constraint</th><th>Role</th></tr></thead><tbody>
@@ -501,7 +501,7 @@
 <tr id="field-documents-file_type"><td><code>file_type</code></td><td><code>text not null check (file_type in (&#x27;pdf&#x27;, &#x27;docx&#x27;, &#x27;pptx&#x27;))</code></td><td>required</td><td>CHECK</td><td>Allowlisted file category.</td></tr>
 <tr id="field-documents-mime_type"><td><code>mime_type</code></td><td><code>text not null</code></td><td>required</td><td>none declared</td><td>Declared media type.</td></tr>
 <tr id="field-documents-size_bytes"><td><code>size_bytes</code></td><td><code>bigint not null check (size_bytes &gt; 0 and size_bytes &lt;= 26214400)</code></td><td>required</td><td>CHECK</td><td>Object size in bytes.</td></tr>
-<tr id="field-documents-r2_object_key"><td><code>r2_object_key</code></td><td><code>text not null unique</code></td><td>required</td><td>UNIQUE</td><td>Durable object-store key.</td></tr>
+<tr id="field-documents-r2_object_key"><td><code>r2_object_key</code></td><td><code>text not null unique</code></td><td>required</td><td>UNIQUE</td><td>Durable object-store key. The literal field name is retained for migration compatibility; it is provider-neutral at runtime.</td></tr>
 <tr id="field-documents-parser"><td><code>parser</code></td><td><code>text</code></td><td>nullable</td><td>none declared</td><td>Parser identifier.</td></tr>
 <tr id="field-documents-status"><td><code>status</code></td><td><code>document_status not null default &#x27;uploaded&#x27;</code></td><td>required</td><td>default &#x27;uploaded&#x27;</td><td>Lifecycle state value.</td></tr>
 <tr id="field-documents-error_message"><td><code>error_message</code></td><td><code>text</code></td><td>nullable</td><td>none declared</td><td>Safe failure summary.</td></tr>
@@ -734,7 +734,7 @@
        <p class="eyebrow">Additive migration and repository contracts</p>
       <h2>Workflow, evidence, report, outbox, evaluation, and fault entities</h2>
       <p class="sub">Fifteen additive contracts come from <code>202607150002_evidence_review_schema.sql</code>; <code>202607150005_evaluation_budget_and_fault_exercises.sql</code> adds <code>fault_exercises</code>, bringing the domain total to 31 tables (15 initial + 16 additive). Migration 006 adds one backend-only operational <code>runtime_heartbeats</code> table and workflow lease/budget fields; it is not counted as a domain table. FastAPI and worker repositories use these shapes, but no migration has been applied to Supabase and no managed-Postgres integration has run.</p>
-      <div class="notice"><strong>Storage ownership:</strong> PostgreSQL is the source of truth for business state. R2 stores private source bytes and parser artifacts; Qdrant stores rebuildable dense/sparse projections; Redis stores broker and short-lived coordination state only. No irreplaceable business fact may exist only in R2, Qdrant, or Redis.</div>
+      <div class="notice"><strong>Storage ownership:</strong> PostgreSQL is the source of truth for business state. S3-compatible object storage stores private source bytes and parser artifacts; Qdrant stores rebuildable dense/sparse projections; Redis stores broker and short-lived coordination state only. No irreplaceable business fact may exist only in object storage, Qdrant, or Redis.</div>
       <div class="notice warning"><strong>Checkpoint boundary:</strong> LangGraph Postgres checkpoint tables are SDK-managed infrastructure, not domain tables. A guarded release command now runs the SDK's versioned <code>setup()</code> once before deployment; workers no longer execute DDL. No checkpoint table exists in a validated managed database, and these four tables are not included in the 31-domain-table count.</div>
 
       <details id="planned-workflow-runs" data-contract="declared" open><summary><code>workflow_runs</code> · durable orchestration root <span class="status partial">migration + repository code · not applied</span></summary><dl class="kv">

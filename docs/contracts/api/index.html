@@ -137,8 +137,8 @@
       <dt>Caller / access</dt><dd>Deployment platform, readiness smoke, or operator. Public; no bearer token and no private payload.</dd>
       <dt>Input</dt><dd>No path, query, or body fields.</dd>
       <dt>Success</dt><dd><code>200</code> with <code>status:"ready"</code>, environment, component states, and an empty failed-component list. Local/memory dependencies may be <code>not_required</code>.</dd>
-      <dt>Failure / semantics</dt><dd><code>503</code> with <code>status:"not_ready"</code> and safe failed component names. It executes <code>select 1</code> for Postgres, verifies the four SDK-owned checkpoint tables, checks fresh worker/dispatcher heartbeats, rejects stale or exhausted outbox work, pings Redis, and reads Qdrant collection metadata. R2, LLM, and web search remain configuration checks only, so it never spends NVIDIA or Tavily quota.</dd>
-      <dt>Current boundary</dt><dd>Route and deterministic local/memory tests exist. No managed Postgres/Redis/Qdrant/R2/NVIDIA/Tavily readiness response or background heartbeat has been validated.</dd>
+      <dt>Failure / semantics</dt><dd><code>503</code> with <code>status:"not_ready"</code> and safe failed component names. It executes <code>select 1</code> for Postgres, verifies the four SDK-owned checkpoint tables, checks fresh worker/dispatcher heartbeats, rejects stale or exhausted outbox work, pings Redis, and reads Qdrant collection metadata. S3-compatible object storage, LLM, and web search remain configuration checks only, so it never spends NVIDIA or Tavily quota.</dd>
+      <dt>Current boundary</dt><dd>Route and deterministic local/memory tests exist. No managed Postgres/Redis/Qdrant/object-storage/NVIDIA/Tavily readiness response or background heartbeat has been validated.</dd>
       <dt>Evidence</dt><dd><span class="source">routers/health.py · tests/test_runtime_foundation.py · infra/openapi/openapi.yaml</span></dd>
      </dl></details>
      <details id="op-me" data-api-card data-api="identity" data-method="GET" data-access="bearer"><summary><code>GET /api/v1/me</code> — resolve the current identity</summary><dl class="kv">
@@ -184,7 +184,7 @@
       <dt>Caller / access</dt><dd>Project owner.</dd>
       <dt>Input</dt><dd>JSON <a href="#schema-upload"><code>UploadUrlRequest</code></a>: project, filename, supported file type and MIME type, and byte size.</dd>
       <dt>Success</dt><dd>200 <a href="#schema-upload"><code>UploadUrlResponse</code></a> with document ID, upload URL, object key, and expiry.</dd>
-      <dt>Failure / semantics</dt><dd>404 project; 422 invalid type, MIME, or size; auth failures. The memory repository returns a local placeholder. The Postgres repository uses the R2 adapter to return a short-lived PUT URL bound to the reserved content type; no managed R2 call has been validated. No idempotency key is accepted.</dd>
+      <dt>Failure / semantics</dt><dd>404 project; 422 invalid type, MIME, or size; auth failures. The memory repository returns a local placeholder. The Postgres repository uses the S3-compatible adapter to return a short-lived PUT URL bound to the reserved content type; no managed object-storage call has been validated. No idempotency key is accepted.</dd>
       <dt>Evidence</dt><dd><span class="source">routers/documents.py · schemas/document.py · persistence/postgres.py · services/object_storage.py</span></dd>
      </dl></details>
      <details id="op-document-create" data-api-card data-api="documents" data-method="POST" data-access="owner"><summary><code>POST /api/v1/documents</code> — create document metadata</summary><dl class="kv">
@@ -212,8 +212,8 @@
       <dt>Caller / access</dt><dd>Document owner.</dd>
       <dt>Input</dt><dd><code>document_id</code>: UUID. Body may be omitted or null; when present, <a href="#schema-upload"><code>UploadCompleteRequest</code></a> accepts optional checksum and extracted text.</dd>
       <dt>Success</dt><dd>202 object containing <code>job_id</code>.</dd>
-      <dt>Failure / semantics</dt><dd>404 <code>DOCUMENT_NOT_FOUND</code>; 409 <code>UPLOAD_SIZE_MISMATCH</code> or <code>UPLOAD_TYPE_MISMATCH</code>; 503 object-storage verification failure; 422 validation; auth failures. The memory repository deliberately keeps the synchronous extracted-text fallback. The Postgres repository verifies R2 metadata, then atomically writes the parsing state, pending job, and unique outbox event; a repeated completion returns the existing job. The worker verifies an optional SHA-256 checksum before parsing.</dd>
-      <dt>Async / recovery</dt><dd>The outbox dispatcher publishes a deterministic task ID. The Celery consumer uses an expiring Postgres lease, deterministic page/chunk IDs, bounded retry, and explicit ready/failed terminal states. Managed Postgres/R2/Redis/Qdrant integration is not yet validated.</dd>
+      <dt>Failure / semantics</dt><dd>404 <code>DOCUMENT_NOT_FOUND</code>; 409 <code>UPLOAD_SIZE_MISMATCH</code> or <code>UPLOAD_TYPE_MISMATCH</code>; 503 object-storage verification failure; 422 validation; auth failures. The memory repository deliberately keeps the synchronous extracted-text fallback. The Postgres repository verifies S3-compatible metadata, then atomically writes the parsing state, pending job, and unique outbox event; a repeated completion returns the existing job. The worker verifies an optional SHA-256 checksum before parsing.</dd>
+      <dt>Async / recovery</dt><dd>The outbox dispatcher publishes a deterministic task ID. The Celery consumer uses an expiring Postgres lease, deterministic page/chunk IDs, bounded retry, and explicit ready/failed terminal states. Managed Postgres/object-storage/Redis/Qdrant integration is not yet validated.</dd>
       <dt>Evidence</dt><dd><span class="source">routers/documents.py · persistence/postgres.py · researchmate_worker/outbox.py · researchmate_worker/ingestion.py · tests/test_document_ingestion.py</span></dd>
      </dl></details>
      <details id="op-document-delete" data-api-card data-api="documents" data-method="DELETE" data-access="owner"><summary><code>DELETE /api/v1/documents/{document_id}</code> — request document deletion</summary><dl class="kv">

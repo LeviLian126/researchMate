@@ -9,7 +9,7 @@ from sqlalchemy import create_engine, text
 from researchmate_api.services.embedding import NvidiaEmbeddingProvider
 from researchmate_api.services.evidence_generation import EvidenceGenerationError
 from researchmate_api.services.llm import NvidiaChatProvider, ProviderRequestError
-from researchmate_api.services.object_storage import R2ObjectStorage
+from researchmate_api.services.object_storage import S3CompatibleObjectStorage
 from researchmate_api.services.qdrant_store import QdrantHybridStore
 from researchmate_api.services.qdrant_store import VectorStoreRequestError
 from researchmate_api.services.web_search import TavilyWebSearchProvider
@@ -60,8 +60,8 @@ def build_ingestion_service() -> DocumentIngestionService:
     settings = WorkerSettings()
     if not settings.database_url:
         raise RuntimeError("DATABASE_URL is required to execute ingestion tasks")
-    if not settings.r2_configured:
-        raise RuntimeError("Cloudflare R2 is required to execute ingestion tasks")
+    if not settings.object_storage_configured:
+        raise RuntimeError("S3-compatible object storage is required to execute ingestion tasks")
     if settings.embedding_provider != "nvidia" or settings.nvidia_api_key is None:
         raise RuntimeError("NVIDIA embeddings are required to execute ingestion tasks")
     if not settings.qdrant_url:
@@ -74,7 +74,7 @@ def build_ingestion_service() -> DocumentIngestionService:
     )
     return DocumentIngestionService(
         store=SqlIngestionStore(engine),
-        object_reader=R2ObjectStorage(settings),  # type: ignore[arg-type]
+        object_reader=S3CompatibleObjectStorage(settings),  # type: ignore[arg-type]
         parser=DoclingDocumentParser(
             max_file_size=settings.max_upload_bytes,
             max_num_pages=settings.parser_max_pages,
@@ -91,14 +91,14 @@ def build_ingestion_service() -> DocumentIngestionService:
 @lru_cache
 def build_deletion_service() -> DocumentDeletionService:
     settings = WorkerSettings()
-    if not settings.database_url or not settings.r2_configured or not settings.qdrant_url:
-        raise RuntimeError("Database, R2, and Qdrant are required for deletion tasks")
+    if not settings.database_url or not settings.object_storage_configured or not settings.qdrant_url:
+        raise RuntimeError("Database, S3-compatible object storage, and Qdrant are required for deletion tasks")
     engine = create_engine(settings.database_url, pool_pre_ping=True)
     embedding = NvidiaEmbeddingProvider(settings)  # type: ignore[arg-type]
     vector_store = QdrantHybridStore(settings, embedding)  # type: ignore[arg-type]
     return DocumentDeletionService(
         store=SqlDeletionStore(engine),
-        object_storage=R2ObjectStorage(settings),  # type: ignore[arg-type]
+        object_storage=S3CompatibleObjectStorage(settings),  # type: ignore[arg-type]
         vector_store=vector_store,
         lease_seconds=settings.ingestion_lease_seconds,
         max_attempts=settings.ingestion_max_attempts,
