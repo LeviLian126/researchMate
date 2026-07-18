@@ -7,7 +7,7 @@ on:
         description: Protected GitHub environment and deployment target
         required: true
         type: choice
-        options: [preview, production]
+        options: [preview, Production]
 
 concurrency:
   group: researchmate-${{ inputs.environment }}
@@ -91,7 +91,7 @@ jobs:
           npm install --global vercel@${VERCEL_CLI_VERSION}
       - name: Preflight release configuration without changing cloud resources
         env:
-          APP_ENV: ${{ inputs.environment }}
+          APP_ENV: ${{ inputs.environment == 'Production' && 'production' || 'preview' }}
           AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
           AZURE_LOCATION: ${{ vars.AZURE_LOCATION }}
           AZURE_CONTAINERAPPS_ENVIRONMENT: ${{ vars.AZURE_CONTAINERAPPS_ENVIRONMENT }}
@@ -136,7 +136,7 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
       - name: Reconcile Azure runtime and deploy immutable images
         env:
-          APP_ENV: ${{ inputs.environment }}
+          APP_ENV: ${{ inputs.environment == 'Production' && 'production' || 'preview' }}
           AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
           AZURE_LOCATION: ${{ vars.AZURE_LOCATION }}
           AZURE_CONTAINERAPPS_ENVIRONMENT: ${{ vars.AZURE_CONTAINERAPPS_ENVIRONMENT }}
@@ -169,20 +169,23 @@ jobs:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-          NEXT_PUBLIC_APP_ENV: ${{ inputs.environment }}
+          APP_ENV: ${{ inputs.environment == 'Production' && 'production' || 'preview' }}
+          NEXT_PUBLIC_APP_ENV: ${{ inputs.environment == 'Production' && 'production' || 'preview' }}
           NEXT_PUBLIC_API_BASE_URL: ${{ env.API_HEALTH_URL }}/api/v1
           NEXT_PUBLIC_SUPABASE_URL: ${{ vars.SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
         run: |
-          TARGET=${{ inputs.environment }}
+          TARGET="$APP_ENV"
           vercel pull --yes --environment="$TARGET" --token="$VERCEL_TOKEN" --cwd apps/web
           if [ "$TARGET" = "production" ]; then
             vercel build --prod --token="$VERCEL_TOKEN" --cwd apps/web
-            vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN" --cwd apps/web
+            WEB_BASE_URL="$(vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN" --cwd apps/web | tail -n 1)"
           else
             vercel build --token="$VERCEL_TOKEN" --cwd apps/web
-            vercel deploy --prebuilt --token="$VERCEL_TOKEN" --cwd apps/web
+            WEB_BASE_URL="$(vercel deploy --prebuilt --token="$VERCEL_TOKEN" --cwd apps/web | tail -n 1)"
           fi
+          test -n "$WEB_BASE_URL"
+          echo "WEB_BASE_URL=$WEB_BASE_URL" >> "$GITHUB_ENV"
       - name: Smoke deployed API
         env:
           API_HEALTH_URL: ${{ vars.API_HEALTH_URL }}
@@ -192,7 +195,7 @@ jobs:
           curl --fail --retry 5 --retry-all-errors --max-time 20 "$API_HEALTH_URL/api/v1/readyz"
       - name: Smoke deployed web entry
         env:
-          WEB_BASE_URL: ${{ vars.WEB_BASE_URL }}
+          WEB_BASE_URL: ${{ env.WEB_BASE_URL }}
         run: |
           test -n "$WEB_BASE_URL"
           curl --fail --location --retry 5 --retry-all-errors --max-time 20 "$WEB_BASE_URL/"

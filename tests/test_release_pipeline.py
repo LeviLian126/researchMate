@@ -22,6 +22,8 @@ def test_release_is_manual_protected_and_uses_immutable_images() -> None:
 
     assert "workflow_dispatch:" in workflow
     assert "environment: ${{ inputs.environment }}" in workflow
+    assert "options: [preview, Production]" in workflow
+    assert "inputs.environment == 'Production' && 'production' || 'preview'" in workflow
     assert "id-token: write" in workflow
     assert "${{ github.sha }}" in workflow
     assert "ALLOW_SCHEMA_APPLY: \"1\"" in workflow
@@ -37,6 +39,7 @@ def test_release_is_manual_protected_and_uses_immutable_images() -> None:
     assert "OBJECT_STORAGE_SECRET_ACCESS_KEY" in workflow
     assert "NEXT_PUBLIC_API_BASE_URL" in workflow
     assert "provision_azure_container_apps.sh --check" in workflow
+    assert 'echo "WEB_BASE_URL=$WEB_BASE_URL" >> "$GITHUB_ENV"' in workflow
     assert "push:" not in workflow.split("jobs:", 1)[0]
 
 
