@@ -23,8 +23,6 @@ jobs:
     steps:
       - name: Check out the approved ref
         uses: actions/checkout@v6
-      - name: Configure Pages metadata
-        uses: actions/configure-pages@v5
       - name: Upload static documentation
         uses: actions/upload-pages-artifact@v4
         with:
