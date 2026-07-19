@@ -1,0 +1,68 @@
+name: Generate Chinese documentation
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - docs/index.html
+      - docs/product/index.html
+      - docs/architecture/index.html
+      - docs/contracts/data/index.html
+      - docs/contracts/api/index.html
+      - scripts/generate_zh_docs.py
+      - .github/workflows/translate-docs.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: translate-chinese-docs
+  cancel-in-progress: true
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install generator dependencies
+        run: python -m pip install --disable-pip-version-check beautifulsoup4==4.12.3 deep-translator==1.11.4
+
+      - name: Generate one-to-one Chinese pages
+        run: python scripts/generate_zh_docs.py
+
+      - name: Verify generated page set and structural markers
+        run: |
+          test -f docs/zh/index.html
+          test -f docs/zh/product/index.html
+          test -f docs/zh/architecture/index.html
+          test -f docs/zh/contracts/data/index.html
+          test -f docs/zh/contracts/api/index.html
+          grep -q 'lang="zh-CN"' docs/zh/index.html
+          grep -q 'id="capabilities"' docs/zh/product/index.html
+          grep -q 'id="target-architecture"' docs/zh/architecture/index.html
+          grep -q 'id="tables"' docs/zh/contracts/data/index.html
+          grep -q 'id="operations"' docs/zh/contracts/api/index.html
+          git diff --check
+
+      - name: Commit generated documentation
+        run: |
+          if git diff --quiet -- docs/zh; then
+            echo "Chinese documentation is already current."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/zh
+          git commit -m "docs: regenerate complete Chinese documentation"
+          git push origin HEAD:main
