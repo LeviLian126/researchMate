@@ -11,7 +11,7 @@
   <header class="mast">
     <div class="shell mast-row">
       <a class="brand" href="index.html">ResearchMate documentation</a>
-      <span class="stamp">Evidence snapshot · 18 July 2026</span>
+      <span class="stamp">Evidence snapshot · 19 July 2026</span>
     </div>
   </header>
   <nav aria-label="Documentation" class="global"><div class="shell">
@@ -36,7 +36,8 @@
           <span class="status local">Repository-validated · 105 Python tests</span>
           <span class="status local">Implemented contract · 35 REST operations</span>
           <span class="status partial">Integration unvalidated · managed runtime</span>
-          <span class="status partial">Frontend live · production Supabase is wired; managed runtime remains unvalidated</span>
+          <span class="status local">Cloudflare bundle · built locally</span>
+          <span class="status partial">Public demo release · token/deployment pending</span>
         </div>
       </div>
     </section>
@@ -46,12 +47,12 @@
         <p class="eyebrow">Current decision snapshot</p>
         <h2>What can be claimed today</h2>
         <div class="snapshot-grid">
-          <article class="state-card"><span class="status local">Verified locally</span><b>Repository boundary</b><p>Ruff and 105 Python tests pass. OpenAPI, migration-file, documentation-link, TypeScript, Next.js build, and release-reconciler contract checks have repository evidence.</p></article>
+          <article class="state-card"><span class="status local">Verified locally</span><b>Repository boundary</b><p>Ruff and 105 Python tests pass. OpenAPI, migration-file, documentation-link, TypeScript, Next.js, and OpenNext-for-Cloudflare builds have repository evidence.</p></article>
           <article class="state-card"><span class="status partial">Implemented, not integrated</span><b>Distributed-system seams</b><p>Postgres/RLS, S3-compatible object storage, Qdrant, Celery/outbox, LangGraph, evaluation, telemetry, and MCP have code and contracts, but no managed end-to-end run.</p></article>
-          <article class="state-card"><span class="status partial">Frontend live · managed runtime still incomplete</span><b>External proof</b><p>The public Git remote and Vercel Hobby frontend are verified. <code>https://research-mate-web.vercel.app</code> serves the landing page and workspace entry. GitHub <code>preview</code> and <code>Production</code> environments hold the Azure resource-name variables; <code>Production</code> is <code>main</code>-only and now contains the production database, object-storage, and Supabase-public deployment values as protected secrets or non-sensitive variables. An isolated Supabase Free production project is Healthy in Canada Central: automatic public-table exposure is disabled, automatic RLS is enabled, and its private <code>researchmate-production</code> bucket enforces 25 MB PDF/DOCX/PPTX limits through S3 compatibility. The runtime-only S3 credential is stored only in GitHub Production secrets; no upload or application request has run. The separate development Supabase/Upstash/Qdrant resources remain healthy but unconnected. Qdrant's current no-card account offered only a paid production-cluster path, so it remains development-only rather than being misrepresented as production. Cloudflare R2 remains unactivated because its subscription can bill overages. Azure has no student subscription, and no migration, API connection, session, RLS query, broker delivery, worker heartbeat, image publication, or end-to-end research run is claimed. GitHub Actions CI #18 passed; the protected release remains unexecuted.</p></article>
-          <article class="state-card"><span class="status planned">Next evidence to obtain</span><b>First managed vertical slice</b><p>Complete the protected release configuration; its no-mutation preflight and Azure reconciler are committed but unexecuted. Then prove one upload → queue → checkpointed research run → cited report → trace recovery path.</p></article>
+          <article class="state-card"><span class="status partial">Public demo ready, not yet deployed</span><b>External proof</b><p>The repository now has an OpenNext/Cloudflare Workers bundle and a deterministic in-browser demo mode. It deliberately makes no login, upload, storage, database, queue, model, or provider request. The prior Vercel URL is legacy only. A GitHub <code>Production</code> environment holds the Cloudflare deployment secret; no Worker deployment URL is claimed until the protected run completes.</p></article>
+          <article class="state-card"><span class="status planned">Next evidence to obtain</span><b>Two separate release paths</b><p>First, deploy and smoke the browser-only Cloudflare demo. Separately, choose a container-capable host before exposing the existing FastAPI/Celery/dispatcher code; Azure is retired and Cloudflare Workers is not presented as a Python-worker runtime.</p></article>
         </div>
-        <p class="source">Evidence: tests/ · infra/openapi/openapi.yaml · infra/supabase/migrations/ · .github/workflows/ · apps/web · apps/api · workers/ai-worker. Local browser visual and cloud-runtime checks were not performed.</p>
+        <p class="source">Evidence: tests/ · infra/openapi/openapi.yaml · infra/supabase/migrations/ · .github/workflows/ · apps/web · apps/api · workers/ai-worker. The Worker bundle has local build evidence; public deployment and browser smoke remain pending.</p>
       </div>
     </section>
 
@@ -114,7 +115,7 @@
           <article class="access-rail"><h3>Contract surface</h3><p>35 FastAPI/OpenAPI operations provide the original MVP plus research, decision, report, catalog, evaluation, reliability, readiness, and fault contracts.</p><a href="contracts/api/index.html#operations">Read the complete REST ledger →</a></article>
           <article class="access-rail derived"><h3>Runtime seams</h3><p>Postgres/RLS, S3-compatible storage, Qdrant, Celery/outbox, provider adapters, LangGraph, evaluation, telemetry, and MCP are implemented seams. None has completed a managed end-to-end run.</p><a href="architecture/index.html#current-architecture">See the runtime boundary →</a></article>
           <article class="access-rail unknown"><h3>Known local limits</h3><p>LangGraph, RAGAS, MCP, Langfuse, and OpenTelemetry packages now import. A bounded LangGraph graph and authenticated MCP initialization pass locally. The production dependency audit completed with zero vulnerabilities on 18 July 2026. Checkpoint storage, provider evaluation, telemetry export, PDF OCR/layout assets, and browser inspection remain unverified or blocked.</p><a href="product/index.html#validation">Review validation limits →</a></article>
-          <article class="access-rail unknown"><h3>Release boundary</h3><p>Documentation remains repository-only. The Vercel Hobby frontend is live; an isolated production Supabase project, private bucket, and GitHub-bound runtime configuration now exist. Azure compute, production Redis/Qdrant/provider credentials, migrations, backend connectivity, quality, recovery, costs, uptime, and the protected release workflow remain unproven.</p><a href="architecture/index.html#deployment">Review deployment gates →</a></article>
+          <article class="access-rail unknown"><h3>Release boundary</h3><p>Documentation remains repository-only. A Cloudflare Workers public-demo release is configured but not yet executed. Azure is retired. Supabase, Redis, Qdrant, provider credentials, migrations, backend connectivity, quality, recovery, and uptime remain deliberately outside the first public-demo release.</p><a href="architecture/index.html#deployment">Review deployment gates →</a></article>
         </div>
         <div class="doc-index capability-index" aria-label="Implemented capability deep links">
           <a class="doc-link" href="product/index.html#cap-projects"><b>Projects</b><span>Current owner-scoped workspace contract.</span></a>
@@ -154,7 +155,7 @@
       </div>
     </section>
   </main>
-  <footer class="shell footer">ResearchMate portfolio overview · current evidence snapshot inspected 18 July 2026</footer>
+  <footer class="shell footer">ResearchMate portfolio overview · current evidence snapshot inspected 19 July 2026</footer>
   <script src="assets/site.js"></script>
 </body>
 </html>

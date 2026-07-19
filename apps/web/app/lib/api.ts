@@ -1,4 +1,5 @@
 import { getSupabaseSession, isLocalDevelopment } from "./supabase";
+import { demoFetch, demoRunEvents, isPublicDemo } from "./demo";
 
 export type SourceMode = "auto" | "local_only" | "web_only" | "hybrid";
 export type RunStatus = "pending" | "running" | "waiting_human" | "succeeded" | "failed" | "cancelled";
@@ -230,6 +231,7 @@ export class ApiError extends Error {
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000/api/v1";
 
 export function getDevToken(): string {
+  if (isPublicDemo()) return "public-demo";
   if (!isLocalDevelopment()) throw new ApiError("A Supabase session is required outside local development.", 401, "AUTH_REQUIRED");
   if (typeof window === "undefined") return "dev";
   return window.localStorage.getItem("researchmate_token") || "dev";
@@ -262,6 +264,7 @@ function toApiError(response: Response, body: Record<string, unknown>): ApiError
 }
 
 export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
+  if (isPublicDemo()) return demoFetch<T>(path, init);
   const headers = new Headers(init.headers);
   if (init.body !== undefined && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
   headers.set("Authorization", `Bearer ${await getAccessToken()}`);
@@ -277,6 +280,10 @@ export async function streamRunEvents(
   onEvent: (event: RunEvent) => void,
   signal: AbortSignal,
 ): Promise<void> {
+  if (isPublicDemo()) {
+    await demoRunEvents(onEvent, signal);
+    return;
+  }
   const response = await fetch(`${API_BASE}/runs/${runId}/events?after_sequence=${afterSequence}`, {
     headers: { Authorization: `Bearer ${await getAccessToken()}`, Accept: "text/event-stream" },
     signal,

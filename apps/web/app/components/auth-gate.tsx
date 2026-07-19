@@ -12,17 +12,19 @@ import {
   signInWithPassword,
   signOut,
 } from "../lib/supabase";
+import { isPublicDemo } from "../lib/demo";
 import { StateNotice } from "./state-notice";
 
 type AuthState = "loading" | "signed_out" | "signed_in" | "misconfigured" | "error";
 
 export function AuthGate({ children }: { children: ReactNode }) {
   const local = isLocalDevelopment();
+  const publicDemo = isPublicDemo();
   const [state, setState] = useState<AuthState>(local ? "signed_in" : "loading");
   const [session, setSession] = useState<BrowserAuthSession | null>(null);
 
   useEffect(() => {
-    if (local) return;
+    if (local || publicDemo) return;
     if (!isSupabaseConfigured()) {
       setState("misconfigured");
       return;
@@ -42,9 +44,15 @@ export function AuthGate({ children }: { children: ReactNode }) {
       active = false;
       unsubscribe();
     };
-  }, [local]);
+  }, [local, publicDemo]);
 
   if (local) return <>{children}</>;
+  if (publicDemo) {
+    return <>
+      <div className="demo-mode-banner" role="status"><strong>Interactive static demo</strong><span>Sample evidence is stored only in this browser session. No login, provider call, upload, or managed workflow is running.</span></div>
+      {children}
+    </>;
+  }
   if (state === "loading") {
     return <main className="auth-shell"><div className="glass-panel auth-panel" role="status"><p className="eyebrow">Secure workspace</p><h1>Restoring your session…</h1><p>Supabase is refreshing the browser session before any protected API request is sent.</p></div></main>;
   }

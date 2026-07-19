@@ -365,6 +365,9 @@ legend { padding: 0 6px; color: var(--text); }
 .state-notice--success { border-color: rgba(134, 239, 172, 0.32); }
 .state-notice--partial, .state-notice--validation, .state-notice--conflict, .state-notice--limit { border-color: rgba(252, 211, 77, 0.34); }
 
+.demo-mode-banner { display: flex; gap: 10px; align-items: center; justify-content: center; width: min(1180px, calc(100% - 32px)); margin: 14px auto -2px; border: 1px solid rgba(252, 211, 77, 0.38); border-radius: 12px; padding: 10px 14px; color: #fef3c7; background: rgba(113, 74, 10, 0.32); font-size: 0.86rem; line-height: 1.4; }
+.demo-mode-banner strong { color: #fde68a; white-space: nowrap; }
+
 .run-summary {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -421,6 +424,7 @@ code { color: var(--text); }
   .field-grid, .choice-grid, .metrics-grid, .run-summary { grid-template-columns: 1fr; }
   .inline-control { flex-direction: column; }
   .state-notice { align-items: flex-start; flex-direction: column; }
+  .demo-mode-banner { align-items: flex-start; flex-direction: column; }
   .state-notice button { width: 100%; }
   .event-list > li:not(.empty-state) { grid-template-columns: auto minmax(0, 1fr); }
   .event-list > li > small { grid-column: 2; }

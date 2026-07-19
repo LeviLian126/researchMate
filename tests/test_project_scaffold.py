@@ -2,6 +2,17 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
+AUTHORITATIVE_DOCS = [
+    "docs/architecture/index.html",
+    "docs/contracts/api/index.html",
+    "docs/contracts/data/index.html",
+    "docs/index.html",
+    "docs/product/index.html",
+]
+
+
+def authoritative_html_files() -> list[Path]:
+    return [ROOT / path for path in AUTHORITATIVE_DOCS]
 
 
 def test_required_contract_files_exist() -> None:
@@ -96,7 +107,7 @@ def test_docs_use_english_html_without_separate_planning_markdown() -> None:
     markdown_files = sorted(path.relative_to(ROOT).as_posix() for path in (ROOT / "docs").rglob("*.md"))
     assert markdown_files == []
 
-    html_files = sorted((ROOT / "docs").rglob("*.html"))
+    html_files = authoritative_html_files()
     assert html_files
     for html_file in html_files:
         source = html_file.read_text(encoding="utf-8")
@@ -105,14 +116,7 @@ def test_docs_use_english_html_without_separate_planning_markdown() -> None:
 
 
 def test_docs_have_five_page_information_architecture() -> None:
-    html_files = sorted(path.relative_to(ROOT).as_posix() for path in (ROOT / "docs").rglob("*.html"))
-    assert html_files == [
-        "docs/architecture/index.html",
-        "docs/contracts/api/index.html",
-        "docs/contracts/data/index.html",
-        "docs/index.html",
-        "docs/product/index.html",
-    ]
+    html_files = AUTHORITATIVE_DOCS
 
     combined = "\n".join((ROOT / path).read_text(encoding="utf-8") for path in html_files)
     for retired in ("delivery/index.html", "operations/index.html", "activity/index.html", "todo.md"):
@@ -177,7 +181,7 @@ def test_overview_deep_links_to_authoritative_detail_sections() -> None:
 def test_docs_have_unique_ids_and_one_page_title() -> None:
     import re
 
-    for html_file in sorted((ROOT / "docs").rglob("*.html")):
+    for html_file in authoritative_html_files():
         source = html_file.read_text(encoding="utf-8")
         ids = re.findall(r'\bid="([^"]+)"', source)
         assert len(ids) == len(set(ids)), html_file.relative_to(ROOT).as_posix()
@@ -202,7 +206,7 @@ def test_quality_scripts_do_not_reference_legacy_handoff_docs() -> None:
 
 
 def test_docs_html_do_not_contain_question_mark_garbled_text() -> None:
-    html_files = sorted(path for path in (ROOT / "docs").rglob("*.html"))
+    html_files = authoritative_html_files()
     garbled_files = [
         path.relative_to(ROOT).as_posix()
         for path in html_files

@@ -1,23 +1,17 @@
-name: researchmate-release
+name: researchmate-cloudflare-release
 
 on:
   workflow_dispatch:
     inputs:
       environment:
-        description: Protected GitHub environment and deployment target
+        description: Protected GitHub environment that holds the Cloudflare deploy token
         required: true
         type: choice
-        options: [preview, Production]
+        options: [Production]
 
 concurrency:
-  group: researchmate-${{ inputs.environment }}
+  group: researchmate-cloudflare-${{ inputs.environment }}
   cancel-in-progress: false
-
-env:
-  REGISTRY: ghcr.io
-  API_IMAGE: ghcr.io/${{ github.repository_owner }}/researchmate-api
-  WORKER_IMAGE: ghcr.io/${{ github.repository_owner }}/researchmate-worker
-  VERCEL_CLI_VERSION: 54.21.1
 
 jobs:
   quality-gate:
@@ -38,164 +32,28 @@ jobs:
       - run: python -m pip install -r requirements-dev.txt
       - run: npm ci
       - run: npm run check:all
+      - name: Build the Cloudflare Worker bundle
+        env:
+          NEXT_PUBLIC_DEMO_MODE: "true"
+        run: npm --workspace @researchmate/web exec opennextjs-cloudflare -- build
 
-  build-images:
+  deploy-public-demo:
     needs: quality-gate
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-    strategy:
-      matrix:
-        include:
-          - image: researchmate-api
-            dockerfile: apps/api/Dockerfile
-          - image: researchmate-worker
-            dockerfile: workers/ai-worker/Dockerfile
-    steps:
-      - uses: actions/checkout@v4
-      - uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: ${{ matrix.dockerfile }}
-          push: true
-          provenance: true
-          sbom: true
-          tags: ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}:${{ github.sha }}
-
-  deploy:
-    needs: build-images
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
     permissions:
       contents: read
-      id-token: write
-    timeout-minutes: 30
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.13"
       - uses: actions/setup-node@v5
         with:
           node-version: "22"
-      - name: Install release clients
-        run: |
-          python -m pip install "psycopg[binary]>=3.2,<4" "langgraph-checkpoint-postgres>=3,<4"
-          npm install --global vercel@${VERCEL_CLI_VERSION}
-      - name: Preflight release configuration without changing cloud resources
+          cache: npm
+      - run: npm ci
+      - name: Deploy the public static-demo runtime to Cloudflare Workers
+        working-directory: apps/web
         env:
-          APP_ENV: ${{ inputs.environment == 'Production' && 'production' || 'preview' }}
-          AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
-          AZURE_LOCATION: ${{ vars.AZURE_LOCATION }}
-          AZURE_CONTAINERAPPS_ENVIRONMENT: ${{ vars.AZURE_CONTAINERAPPS_ENVIRONMENT }}
-          AZURE_API_APP: ${{ vars.AZURE_API_APP }}
-          AZURE_WORKER_APP: ${{ vars.AZURE_WORKER_APP }}
-          AZURE_DISPATCHER_APP: ${{ vars.AZURE_DISPATCHER_APP }}
-          API_IMAGE: ${{ env.API_IMAGE }}:${{ github.sha }}
-          WORKER_IMAGE: ${{ env.WORKER_IMAGE }}:${{ github.sha }}
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          REDIS_URL: ${{ secrets.REDIS_URL }}
-          OBJECT_STORAGE_ENDPOINT_URL: ${{ vars.OBJECT_STORAGE_ENDPOINT_URL }}
-          OBJECT_STORAGE_ACCESS_KEY_ID: ${{ secrets.OBJECT_STORAGE_ACCESS_KEY_ID }}
-          OBJECT_STORAGE_SECRET_ACCESS_KEY: ${{ secrets.OBJECT_STORAGE_SECRET_ACCESS_KEY }}
-          OBJECT_STORAGE_BUCKET: ${{ vars.OBJECT_STORAGE_BUCKET }}
-          OBJECT_STORAGE_REGION: ${{ vars.OBJECT_STORAGE_REGION }}
-          QDRANT_URL: ${{ vars.QDRANT_URL }}
-          QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
-          NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
-          NVIDIA_INPUT_COST_PER_MILLION_USD: ${{ vars.NVIDIA_INPUT_COST_PER_MILLION_USD }}
-          NVIDIA_OUTPUT_COST_PER_MILLION_USD: ${{ vars.NVIDIA_OUTPUT_COST_PER_MILLION_USD }}
-          TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
-          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
-          ACCESS_TOKEN_ISSUER: ${{ vars.ACCESS_TOKEN_ISSUER }}
-          CORS_ALLOWED_ORIGINS: ${{ vars.CORS_ALLOWED_ORIGINS }}
-          LANGFUSE_PUBLIC_KEY: ${{ secrets.LANGFUSE_PUBLIC_KEY }}
-          LANGFUSE_SECRET_KEY: ${{ secrets.LANGFUSE_SECRET_KEY }}
-        run: bash scripts/provision_azure_container_apps.sh --check
-      - name: Apply additive database migrations
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          ALLOW_SCHEMA_APPLY: "1"
-        run: python scripts/apply_migrations.py --apply
-      - name: Apply LangGraph checkpoint migrations
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          ALLOW_SCHEMA_APPLY: "1"
-        run: python scripts/setup_langgraph_checkpoint.py
-      - uses: azure/login@v2
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-      - name: Reconcile Azure runtime and deploy immutable images
-        env:
-          APP_ENV: ${{ inputs.environment == 'Production' && 'production' || 'preview' }}
-          AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
-          AZURE_LOCATION: ${{ vars.AZURE_LOCATION }}
-          AZURE_CONTAINERAPPS_ENVIRONMENT: ${{ vars.AZURE_CONTAINERAPPS_ENVIRONMENT }}
-          AZURE_API_APP: ${{ vars.AZURE_API_APP }}
-          AZURE_WORKER_APP: ${{ vars.AZURE_WORKER_APP }}
-          AZURE_DISPATCHER_APP: ${{ vars.AZURE_DISPATCHER_APP }}
-          API_IMAGE: ${{ env.API_IMAGE }}:${{ github.sha }}
-          WORKER_IMAGE: ${{ env.WORKER_IMAGE }}:${{ github.sha }}
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          REDIS_URL: ${{ secrets.REDIS_URL }}
-          OBJECT_STORAGE_ENDPOINT_URL: ${{ vars.OBJECT_STORAGE_ENDPOINT_URL }}
-          OBJECT_STORAGE_ACCESS_KEY_ID: ${{ secrets.OBJECT_STORAGE_ACCESS_KEY_ID }}
-          OBJECT_STORAGE_SECRET_ACCESS_KEY: ${{ secrets.OBJECT_STORAGE_SECRET_ACCESS_KEY }}
-          OBJECT_STORAGE_BUCKET: ${{ vars.OBJECT_STORAGE_BUCKET }}
-          OBJECT_STORAGE_REGION: ${{ vars.OBJECT_STORAGE_REGION }}
-          QDRANT_URL: ${{ vars.QDRANT_URL }}
-          QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
-          NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
-          NVIDIA_INPUT_COST_PER_MILLION_USD: ${{ vars.NVIDIA_INPUT_COST_PER_MILLION_USD }}
-          NVIDIA_OUTPUT_COST_PER_MILLION_USD: ${{ vars.NVIDIA_OUTPUT_COST_PER_MILLION_USD }}
-          TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
-          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
-          ACCESS_TOKEN_ISSUER: ${{ vars.ACCESS_TOKEN_ISSUER }}
-          CORS_ALLOWED_ORIGINS: ${{ vars.CORS_ALLOWED_ORIGINS }}
-          LANGFUSE_PUBLIC_KEY: ${{ secrets.LANGFUSE_PUBLIC_KEY }}
-          LANGFUSE_SECRET_KEY: ${{ secrets.LANGFUSE_SECRET_KEY }}
-        run: bash scripts/provision_azure_container_apps.sh
-      - name: Build and deploy the prebuilt Vercel frontend
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-          APP_ENV: ${{ inputs.environment == 'Production' && 'production' || 'preview' }}
-          NEXT_PUBLIC_APP_ENV: ${{ inputs.environment == 'Production' && 'production' || 'preview' }}
-          NEXT_PUBLIC_API_BASE_URL: ${{ env.API_HEALTH_URL }}/api/v1
-          NEXT_PUBLIC_SUPABASE_URL: ${{ vars.SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-        run: |
-          TARGET="$APP_ENV"
-          vercel pull --yes --environment="$TARGET" --token="$VERCEL_TOKEN" --cwd apps/web
-          if [ "$TARGET" = "production" ]; then
-            vercel build --prod --token="$VERCEL_TOKEN" --cwd apps/web
-            WEB_BASE_URL="$(vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN" --cwd apps/web | tail -n 1)"
-          else
-            vercel build --token="$VERCEL_TOKEN" --cwd apps/web
-            WEB_BASE_URL="$(vercel deploy --prebuilt --token="$VERCEL_TOKEN" --cwd apps/web | tail -n 1)"
-          fi
-          test -n "$WEB_BASE_URL"
-          echo "WEB_BASE_URL=$WEB_BASE_URL" >> "$GITHUB_ENV"
-      - name: Smoke deployed API
-        env:
-          API_HEALTH_URL: ${{ vars.API_HEALTH_URL }}
-        run: |
-          test -n "$API_HEALTH_URL"
-          curl --fail --retry 5 --retry-all-errors --max-time 15 "$API_HEALTH_URL/api/v1/healthz"
-          curl --fail --retry 5 --retry-all-errors --max-time 20 "$API_HEALTH_URL/api/v1/readyz"
-      - name: Smoke deployed web entry
-        env:
-          WEB_BASE_URL: ${{ env.WEB_BASE_URL }}
-        run: |
-          test -n "$WEB_BASE_URL"
-          curl --fail --location --retry 5 --retry-all-errors --max-time 20 "$WEB_BASE_URL/"
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          NEXT_PUBLIC_DEMO_MODE: "true"
+        run: npx opennextjs-cloudflare build && npx wrangler deploy --config wrangler.jsonc

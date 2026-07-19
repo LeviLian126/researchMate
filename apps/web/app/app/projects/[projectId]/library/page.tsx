@@ -84,7 +84,7 @@ export default function LibraryPage() {
         <div>
           <p className="eyebrow">Source library</p>
           <h1>Upload, parse, and index</h1>
-          <p>Production uploads directly to a short-lived R2 URL. Local memory mode uses an explicit text fallback because it has no object-storage endpoint.</p>
+          <p>Production uploads directly to a short-lived S3-compatible object-storage URL. Local memory mode uses an explicit text fallback because it has no object-storage endpoint.</p>
         </div>
         <Link className="secondary-button" href={`/app/projects/${projectId}`}>Review evidence</Link>
       </section>

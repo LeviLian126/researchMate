@@ -4,9 +4,11 @@ import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import { apiFetch, describeApiError, ProjectRecord, setDevToken } from "../lib/api";
 import { isLocalDevelopment } from "../lib/supabase";
+import { isPublicDemo } from "../lib/demo";
 
 export default function ProjectListPage() {
   const local = isLocalDevelopment();
+  const publicDemo = isPublicDemo();
   const [projects, setProjects] = useState<ProjectRecord[]>([]);
   const [name, setName] = useState("Research workspace");
   const [token, setToken] = useState("dev");
@@ -56,7 +58,7 @@ export default function ProjectListPage() {
         <div>
           <p className="eyebrow">Portfolio demo workspace</p>
           <h1>Research projects</h1>
-          <p>{local ? <>Use <code>dev</code> locally, or switch between isolated development identities.</> : <>This workspace uses the verified Supabase session restored by the browser auth client.</>}</p>
+          <p>{local ? <>Use <code>dev</code> locally, or switch between isolated development identities.</> : publicDemo ? <>This browser-only walkthrough uses deterministic sample evidence. It does not create a cloud project or authenticate a user.</> : <>This workspace uses the verified Supabase session restored by the browser auth client.</>}</p>
         </div>
         {local && <div className="token-box">
           <label htmlFor="token">Bearer token</label>

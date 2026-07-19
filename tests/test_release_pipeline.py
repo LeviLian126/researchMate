@@ -17,29 +17,20 @@ def test_ci_runs_the_full_test_build_contract_and_security_gate() -> None:
     assert "permissions:\n      contents: read" in workflow
 
 
-def test_release_is_manual_protected_and_uses_immutable_images() -> None:
+def test_release_is_manual_protected_and_deploys_the_cloudflare_demo() -> None:
     workflow = (ROOT / ".github/workflows/release.yml").read_text(encoding="utf-8")
 
     assert "workflow_dispatch:" in workflow
     assert "environment: ${{ inputs.environment }}" in workflow
-    assert "options: [preview, Production]" in workflow
-    assert "inputs.environment == 'Production' && 'production' || 'preview'" in workflow
-    assert "id-token: write" in workflow
-    assert "${{ github.sha }}" in workflow
-    assert "ALLOW_SCHEMA_APPLY: \"1\"" in workflow
-    assert "scripts/apply_migrations.py --apply" in workflow
-    assert "scripts/setup_langgraph_checkpoint.py" in workflow
-    assert "/api/v1/healthz" in workflow
-    assert "/api/v1/readyz" in workflow
-    assert '"$WEB_BASE_URL/"' in workflow
-    assert '"$WEB_BASE_URL/docs/"' not in workflow
-    assert "AZURE_DISPATCHER_APP" in workflow
-    assert "scripts/provision_azure_container_apps.sh" in workflow
-    assert "AZURE_CONTAINERAPPS_ENVIRONMENT" in workflow
-    assert "OBJECT_STORAGE_SECRET_ACCESS_KEY" in workflow
-    assert "NEXT_PUBLIC_API_BASE_URL" in workflow
-    assert "provision_azure_container_apps.sh --check" in workflow
-    assert 'echo "WEB_BASE_URL=$WEB_BASE_URL" >> "$GITHUB_ENV"' in workflow
+    assert "options: [Production]" in workflow
+    assert "researchmate-cloudflare-${{ inputs.environment }}" in workflow
+    assert "CLOUDFLARE_API_TOKEN" in workflow
+    assert "opennextjs-cloudflare" in workflow
+    assert "wrangler deploy --config wrangler.jsonc" in workflow
+    assert 'NEXT_PUBLIC_DEMO_MODE: "true"' in workflow
+    assert "AZURE_" not in workflow
+    assert "vercel" not in workflow.lower()
+    assert "scripts/apply_migrations.py --apply" not in workflow
     assert "push:" not in workflow.split("jobs:", 1)[0]
 
 
