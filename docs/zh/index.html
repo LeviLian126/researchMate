@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width,initial-scale=1" name="viewport"/>
+  <meta content="ResearchMate 中文技术文档：面向生产的 Agentic RAG、多源证据审查、评估与可靠性工程。" name="description"/>
+  <title>ResearchMate · 中文技术文档</title>
+  <link href="../assets/site.css" rel="stylesheet"/>
+</head>
+<body class="landing">
+  <header class="mast">
+    <div class="shell mast-row">
+      <a class="brand" href="index.html">ResearchMate 中文文档</a>
+      <span class="stamp">证据快照 · 2026 年 7 月 18 日</span>
+    </div>
+  </header>
+  <nav aria-label="文档导航" class="global"><div class="shell">
+    <a aria-current="page" href="#overview">概览</a>
+    <a href="#product">产品与路线图</a>
+    <a href="#architecture">架构与技术栈</a>
+    <a href="#database">数据库</a>
+    <a href="#api">API</a>
+  </div></nav>
+
+  <main>
+    <section class="landing-hero" id="overview">
+      <div class="shell">
+        <p class="eyebrow">个人 AI 工程作品集 / 可公开检查的技术演示</p>
+        <h1>把证据审查构建成一个可检查、可恢复的 AI 系统。</h1>
+        <p class="lede">ResearchMate 是一个面向生产实践的 Agentic RAG 工程作品集。它将限定范围内的 PDF、DOCX、PPTX 与网页来源转化为主张、引用、人工决策和可增量更新的报告，同时公开接口契约、测试证据、失败边界以及尚未完成真实云端验证的部分。</p>
+        <div class="actions" aria-label="主要文档入口">
+          <a class="button primary" href="#pipeline">查看证据审查流程</a>
+          <a class="button" href="#architecture">查看目标架构</a>
+          <a class="button" href="../index.html">阅读英文原始文档</a>
+        </div>
+        <div class="meta">
+          <span class="status local">仓库已验证 · 105 项 Python 测试</span>
+          <span class="status local">已实现契约 · 35 个 REST 操作</span>
+          <span class="status partial">托管环境集成尚未验证</span>
+          <span class="status partial">前端已上线 · 完整运行时仍未闭环</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="snapshot-section" id="snapshot">
+      <div class="shell">
+        <p class="eyebrow">当前证据快照</p>
+        <h2>今天可以诚实声称什么</h2>
+        <div class="snapshot-grid">
+          <article class="state-card"><span class="status local">本地已验证</span><b>仓库质量边界</b><p>Ruff、Python 测试、OpenAPI 漂移检查、迁移文件校验、文档链接、TypeScript、Next.js 构建和发布协调器契约均具有仓库级证据。</p></article>
+          <article class="state-card"><span class="status partial">已实现，未完成集成</span><b>分布式系统接缝</b><p>PostgreSQL/RLS、S3 兼容对象存储、Qdrant、Celery/Outbox、LangGraph、评估、遥测和 MCP 已有代码与契约，但尚无一次完整的托管环境端到端运行。</p></article>
+          <article class="state-card"><span class="status partial">外部资源部分就绪</span><b>当前外部证明</b><p>公开 GitHub 仓库和 Vercel Hobby 前端已经验证。生产 Supabase 项目、私有对象存储桶及部分 GitHub 生产配置已存在，但迁移、真实登录、RLS 查询、消息队列、Worker、向量检索和完整研究任务仍未运行。</p></article>
+          <article class="state-card"><span class="status planned">下一项关键证据</span><b>首个托管垂直切片</b><p>完成受保护的发布配置，并证明一次“上传 → 队列 → 可检查点研究流程 → 带引用报告 → 故障恢复”的完整链路。</p></article>
+        </div>
+        <p class="source">证据来源：tests/、infra/openapi/、infra/supabase/migrations/、.github/workflows/、apps/web、apps/api、workers/ai-worker。中文页不扩大英文原文中的任何生产可用性声明。</p>
+      </div>
+    </section>
+
+    <section id="portfolio-boundary">
+      <div class="shell">
+        <p class="eyebrow">项目定位</p>
+        <h2>这是工程作品集，而不是商业 SaaS</h2>
+        <div class="comparison-rail">
+          <div class="comparison-side">
+            <h3>作品集目标</h3>
+            <p>展示 AI 全栈架构、持久化工作流、检索质量、数据契约、可观测性、故障恢复、安全边界和 CI/CD，并为面试官提供可以沿代码和测试继续检查的证据。</p>
+          </div>
+          <div class="comparison-side">
+            <h3>明确不在目标内</h3>
+            <p>获客、定价、订阅、支付、CRM、营销自动化和增长分析不是成功标准，也不会决定工程路线图。</p>
+          </div>
+        </div>
+        <div class="notice"><strong>阅读方式：</strong>招聘者可以快速判断项目范围；工程师可以沿契约和证据深入检查；演示用户验证的是系统行为，而不是商业转化漏斗。</div>
+      </div>
+    </section>
+
+    <section id="pipeline">
+      <div class="shell">
+        <p class="eyebrow">支撑技术栈的核心场景</p>
+        <h2>从来源集合到可审计的证据报告</h2>
+        <p class="sub">普通文档聊天不足以证明这套技术栈的必要性。ResearchMate 的目标流程包含长时间摄取、并行证据工作、持久化人工决策、增量重计算和可度量质量。</p>
+        <div class="journey-map">
+          <article class="journey-step partial"><span class="step-no">01 / 摄取</span><b>建立来源语料库</b><small>上传数十到数百个文档与网页来源，异步完成解析、去重、版本管理、切块和索引。</small></article>
+          <article class="journey-step partial"><span class="step-no">02 / 规划</span><b>拆解研究目标</b><small>LangGraph 将宽泛问题分解为有边界的子问题，并保存检查点以支持中断和恢复。</small></article>
+          <article class="journey-step partial"><span class="step-no">03 / 提取</span><b>构建证据模型</b><small>Celery Worker 并行检索和提取主张，附加页级引用，并识别支持、冲突、重复与证据缺口。</small></article>
+          <article class="journey-step partial"><span class="step-no">04 / 审查</span><b>处理不确定性</b><small>低置信结论、不可信网页证据和提示词注入信号会暂停流程，等待明确的人工决定。</small></article>
+          <article class="journey-step partial"><span class="step-no">05 / 综合</span><b>生成并更新报告</b><small>生成带引用报告；语料库变化时，只重新计算受到影响的主张和章节。</small></article>
+          <article class="journey-step partial"><span class="step-no">06 / 证明</span><b>评估系统</b><small>比较检索和流水线版本，检查 Trace、延迟、Token、成本、重试、失败和恢复结果。</small></article>
+        </div>
+      </div>
+    </section>
+
+    <section id="product">
+      <div class="shell">
+        <p class="eyebrow">产品与路线图</p>
+        <h2>用户工作流制造真实负载，工程实验室负责证明系统</h2>
+        <div class="doc-index capability-index">
+          <a class="doc-link" href="../product/index.html#cap-research-workspace"><b>研究工作区</b><span>项目、来源库、Grounded Ask、主张、矛盾、人工审查和带引用报告。</span></a>
+          <a class="doc-link" href="../product/index.html#cap-evidence-agent"><b>证据审查 Agent</b><span>有边界的 LangGraph 编排、并行工作、检查点、质量门和增量刷新。</span></a>
+          <a class="doc-link" href="../product/index.html#cap-evaluation-lab"><b>评估实验室</b><span>对检索、引用、忠实度、延迟和成本进行版本化数据集与实验比较。</span></a>
+          <a class="doc-link" href="../product/index.html#cap-reliability-lab"><b>可靠性实验室</b><span>Trace 图、上下文健康度、故障注入、重试证据和 SLA 模拟。</span></a>
+        </div>
+        <div class="grid two">
+          <article class="fact"><b>依赖顺序</b><p>先确定契约，再完成持久化和认证，然后依次建设异步摄取、混合检索、Agent 工作流、评估、可观测性、MCP 和发布证据。</p></article>
+          <article class="fact"><b>范围控制</b><p>不引入没有测量依据的 Kafka、Neo4j、第二套向量数据库、平行 Agent 框架或 Kubernetes 层。</p></article>
+        </div>
+        <div class="actions compact"><a class="button" href="../product/index.html">查看英文产品与路线图原页</a></div>
+      </div>
+    </section>
+
+    <section id="architecture">
+      <div class="shell">
+        <p class="eyebrow">架构与技术栈</p>
+        <h2>前后端分离的模块化单体，结合异步任务和可恢复工作流</h2>
+        <p class="sub">后端不是传统服务端渲染 MVC。FastAPI Router 负责 HTTP 接口，应用服务负责复杂用例编排，Repository Protocol 与 Provider 接口隔离 PostgreSQL、Qdrant、LLM、搜索和对象存储。</p>
+        <div class="flow">
+          <div class="node"><b>Next.js / Vercel</b><small>作品集、研究工作区与工程实验室 UI。</small></div>
+          <div class="node"><b>FastAPI</b><small>认证 REST 契约、权限检查和同步编排入口。</small></div>
+          <div class="node"><b>Celery Worker</b><small>解析、切块、索引、Agent 工作流和评估任务。</small></div>
+          <div class="node"><b>Outbox Dispatcher</b><small>将已提交的 PostgreSQL 意图可靠投递到 Redis。</small></div>
+          <div class="node"><b>LangGraph</b><small>检查点、人工中断、恢复和有边界的 Agent 状态。</small></div>
+          <div class="node"><b>Providers</b><small>NVIDIA、Tavily、Qdrant、Supabase 与 S3 兼容存储。</small></div>
+        </div>
+        <div class="notice"><strong>数据权威边界：</strong>PostgreSQL 保存不可丢失的业务事实；对象存储保存原始文件和解析产物；Qdrant 是可以重建的检索投影；Redis 只承担临时队列和协调，不保存不可恢复的业务真相。</div>
+        <div class="grid two">
+          <article class="fact"><b>架构分类</b><p>API-oriented modular monolith：分层架构与 Ports and Adapters 为主体，并结合 Transactional Outbox、后台 Worker 和工作流编排。</p></article>
+          <article class="fact"><b>安全与可靠性</b><p>所有权和角色检查、RLS、统一错误体、请求 ID、幂等边界、Lease、重试、检查点和隐私安全遥测共同构成运行边界。</p></article>
+        </div>
+        <div class="actions compact"><a class="button" href="../architecture/index.html">查看英文架构原页</a></div>
+      </div>
+    </section>
+
+    <section id="database">
+      <div class="shell">
+        <p class="eyebrow">数据库与持久化契约</p>
+        <h2>PostgreSQL 是业务事实源，其他存储承担明确的派生职责</h2>
+        <div class="signal-grid">
+          <a class="signal signal-link" href="../contracts/data/index.html#tables"><span class="number">15</span><b>初始迁移表</b><small>覆盖用户、项目、文档、任务、运行与基础业务状态。</small></a>
+          <a class="signal signal-link" href="../contracts/data/index.html#planned-schema"><span class="number">16</span><b>增量领域表</b><small>覆盖工作流、证据、主张、报告、Outbox 和评估。</small></a>
+          <div class="signal"><span class="number">RLS</span><b>租户隔离</b><small>用户所有权既由应用层检查，也由数据库行级安全策略约束。</small></div>
+          <div class="signal"><span class="number">SHA</span><b>迁移完整性</b><small>有序且带校验和的迁移避免已发布数据库结构被静默改写。</small></div>
+        </div>
+        <div class="grid two">
+          <article class="fact"><b>持久化边界</b><p>Repository Protocol 使本地内存实现和 PostgreSQL 实现可以替换，上层 Router 与应用服务不依赖具体数据库驱动。</p></article>
+          <article class="fact"><b>一致性边界</b><p>业务记录与 Outbox 意图在同一数据库事务中提交，再由独立 Dispatcher 投递异步任务，降低“数据库成功但消息丢失”的风险。</p></article>
+        </div>
+        <div class="actions compact"><a class="button" href="../contracts/data/index.html">查看英文数据库契约原页</a></div>
+      </div>
+    </section>
+
+    <section id="api">
+      <div class="shell">
+        <p class="eyebrow">API 契约</p>
+        <h2>35 个有类型的 REST 操作构成当前后端公共边界</h2>
+        <p class="sub">接口覆盖身份、项目、文档、任务、Grounded Ask、来源与 Trace、证据审查、人工决定、报告、目录、评估、可靠性、健康检查与依赖就绪状态。</p>
+        <div class="signal-grid">
+          <a class="signal signal-link" href="../contracts/api/index.html#operations"><span class="number">35</span><b>REST 操作</b><small>由 FastAPI/OpenAPI 生成并执行漂移检查。</small></a>
+          <div class="signal"><span class="number">1</span><b>统一错误模型</b><small>标准化错误代码、消息和 request_id，避免泄露堆栈。</small></div>
+          <div class="signal"><span class="number">JWT</span><b>身份边界</b><small>非本地环境要求有效 Supabase 会话，并执行所有权与角色检查。</small></div>
+          <a class="signal signal-link" href="../contracts/api/index.html#planned-mcp"><span class="number">MCP</span><b>协议网关</b><small>本地认证初始化已通过，消费者一致性仍待验证。</small></a>
+        </div>
+        <div class="grid two">
+          <article class="fact"><b>幂等性与状态冲突</b><p>创建型和长任务边界显式处理 Idempotency-Key、重复请求和状态冲突，并使用 409 等统一语义响应。</p></article>
+          <article class="fact"><b>健康与就绪</b><p>Liveness 只证明进程存活；Dependency readiness 进一步检查数据库、Redis、检查点、Worker 心跳和 Outbox 健康度。</p></article>
+        </div>
+        <div class="actions compact"><a class="button" href="../contracts/api/index.html">查看英文 API 契约原页</a></div>
+      </div>
+    </section>
+
+    <section id="validation">
+      <div class="shell">
+        <p class="eyebrow">验证与发布边界</p>
+        <h2>代码存在、仓库验证和生产证明是三件不同的事</h2>
+        <div class="access-rails">
+          <article class="access-rail"><h3>已实现的契约表面</h3><p>FastAPI/OpenAPI、前端契约、数据库迁移、后台角色、检索与 Agent 适配器、评估和遥测均有代码或自动化检查。</p></article>
+          <article class="access-rail derived"><h3>尚未闭环的运行接缝</h3><p>真实 Supabase 会话、RLS 查询、Redis 投递、Qdrant 检索、LangGraph 持久化恢复和 Provider 质量评估仍缺乏托管环境证据。</p></article>
+          <article class="access-rail unknown"><h3>发布边界</h3><p>前端已上线；Azure API、Worker 与 Dispatcher 尚未部署。没有完整迁移、镜像发布、就绪检查、回滚、成本或可用性证明。</p></article>
+          <article class="access-rail unknown"><h3>中文文档边界</h3><p>本页提供核心内容的中文版本和完整导航。字段级数据库账本、操作级 API 账本以及持续更新的证据状态，以对应英文原页和仓库代码为权威来源。</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section id="reading-paths">
+      <div class="shell">
+        <p class="eyebrow">技术阅读路径</p>
+        <h2>根据评审目标进入权威细节</h2>
+        <div class="doc-index">
+          <a class="doc-link" href="../product/index.html"><b>产品与路线图评审</b><span>核心场景、能力状态、依赖顺序、验收标准和非目标。</span></a>
+          <a class="doc-link" href="../architecture/index.html"><b>架构面试</b><span>运行边界、技术栈理由、失败恢复、本地环境、部署和 CI/CD。</span></a>
+          <a class="doc-link" href="../contracts/data/index.html"><b>数据设计评审</b><span>表、字段、关系、完整性、RLS、迁移与派生存储边界。</span></a>
+          <a class="doc-link" href="../contracts/api/index.html"><b>API 设计评审</b><span>REST 操作、认证、幂等性、错误模型、就绪和 MCP 边界。</span></a>
+        </div>
+      </div>
+    </section>
+  </main>
+  <footer class="shell footer">ResearchMate 中文技术文档 · 对应 2026 年 7 月 18 日英文证据快照</footer>
+  <script src="../assets/site.js"></script>
+</body>
+</html>
