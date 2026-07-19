@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+ <meta charset="utf-8"/>
+ <meta content="width=device-width,initial-scale=1" name="viewport"/>
+ <title>ResearchMate · API contracts</title>
+ <link href="../../assets/site.css" rel="stylesheet"/>
+</head>
+<body>
+ <header class="mast">
+  <div class="shell mast-row">
+   <a class="brand" href="../../index.html">ResearchMate documentation</a>
+    <span class="stamp">API contracts · OpenAPI 3.1 / v0.1.0 · 18 July 2026</span>
+  </div>
+ </header>
+ <nav aria-label="Documentation" class="global">
+  <div class="shell">
+   <a href="../../index.html">Home</a>
+   <a href="../../product/index.html">Product</a>
+   <a href="../../architecture/index.html">Architecture</a>
+   <a href="../data/index.html">Database</a>
+   <a aria-current="page" href="index.html">API</a>
+  </div>
+ </nav>
+ <main class="shell">
+  <div class="hero">
+   <p class="eyebrow">FastAPI / JSON over HTTP</p>
+   <h1>API contracts</h1>
+    <p class="lede">This page is the single operation ledger: 35 maintained FastAPI REST operations—18 MVP operations, one non-charging readiness probe, and 16 evidence-review, catalog, report, evaluation, reliability, and fault operations. A route and OpenAPI record prove a contract, not a managed background or cloud integration.</p>
+   <div class="meta">
+     <span class="status local">35 implemented REST operations</span>
+     <span class="status local">Contract tests · 103 Python tests pass</span>
+    <span class="status partial">Bearer · local development identity</span>
+    <span class="status partial">Runtime/OpenAPI error drift</span>
+    <span class="status partial">16 advanced contracts · integration unvalidated</span>
+    <span class="status partial">MCP runtime · local bearer initialization passes</span>
+   </div>
+  </div>
+  <div class="layout">
+   <div class="content">
+    <section id="conventions">
+     <p class="eyebrow">Conventions</p>
+     <h2>Transport, identity, and ownership</h2>
+     <div class="grid">
+      <div class="fact"><b>Authentication</b><p><code>GET /api/v1/healthz</code> and <code>GET /api/v1/readyz</code> are public for platform probes. Every other REST operation declares HTTP bearer authentication. Local/test mode accepts only named or explicit <code>dev:</code> identities; unknown tokens fail closed. Preview/production configuration requires Supabase JWT mode, whose JWKS signature, issuer, audience, expiry, subject, and role mapping are implemented but not provider-validated.</p></div>
+      <div class="fact"><b>Ownership</b><p>Handlers resolve a <code>CurrentUser</code>; Store lookups scope resources to that user. A missing resource and another user's resource both return 404 to avoid disclosing identifiers.</p></div>
+      <div class="fact"><b>Error envelope</b><p>Runtime failures use <code>{"error":{"code","message","request_id"}}</code>. Request validation is normalized to <code>VALIDATION_FAILED</code>; the same validated/generated request ID is returned in <code>X-Request-ID</code>.</p></div>
+     </div>
+     <div class="notice warning"><strong>Known machine/runtime drift.</strong> OpenAPI still declares generated <code>HTTPValidationError</code> bodies for some 422 responses while runtime handlers normalize validation to the project error envelope. Ask and Quiz can also return runtime 409 and 429 responses not present in their OpenAPI response maps.</div>
+    </section>
+
+    <section id="operation-index">
+     <p class="eyebrow">Operation index</p>
+     <h2>All current operations</h2>
+     <p class="sub">Use the filters to find an operation, then follow its link to the single authoritative contract below.</p>
+     <div class="visual-panel">
+      <div class="explorer-tools">
+       <label class="sr-only" for="endpoint-search">Search endpoints</label>
+       <input aria-label="Search API operations" data-endpoint-search="" id="endpoint-search" placeholder="Search path or method" type="search"/>
+       <button type="button" aria-pressed="true" class="filter-btn" data-api-filter="all">All</button>
+       <button type="button" aria-pressed="false" class="filter-btn" data-api-filter="identity">Identity</button>
+       <button type="button" aria-pressed="false" class="filter-btn" data-api-filter="projects">Projects</button>
+       <button type="button" aria-pressed="false" class="filter-btn" data-api-filter="documents">Documents</button>
+       <button type="button" aria-pressed="false" class="filter-btn" data-api-filter="ask">Ask / Trace</button>
+       <button type="button" aria-pressed="false" class="filter-btn" data-api-filter="quiz">Quiz</button>
+       <button type="button" aria-pressed="false" class="filter-btn" data-api-filter="research">Research</button>
+       <button type="button" aria-pressed="false" class="filter-btn" data-api-filter="evaluation">Evaluation / reliability</button>
+      </div>
+      <div class="endpoint-map">
+       <div class="endpoint-group"><h3>Identity</h3>
+       <a class="endpoint-pill" data-api="identity" data-method="GET" href="#op-health"><span class="method">GET</span>/api/v1/healthz</a>
+        <a class="endpoint-pill" data-api="identity" data-method="GET" href="#op-ready"><span class="method">GET</span>/api/v1/readyz</a>
+       <a class="endpoint-pill" data-api="identity" data-method="GET" href="#op-me"><span class="method">GET</span>/api/v1/me</a>
+       </div>
+       <div class="endpoint-group"><h3>Projects</h3>
+        <a class="endpoint-pill" data-api="projects" data-method="GET" href="#op-project-list"><span class="method">GET</span>/api/v1/projects</a>
+        <a class="endpoint-pill" data-api="projects" data-method="POST" href="#op-project-create"><span class="method">POST</span>/api/v1/projects</a>
+        <a class="endpoint-pill" data-api="projects" data-method="GET" href="#op-project-get"><span class="method">GET</span>/api/v1/projects/{project_id}</a>
+        <a class="endpoint-pill" data-api="projects" data-method="DELETE" href="#op-project-delete"><span class="method">DELETE</span>/api/v1/projects/{project_id}</a>
+       </div>
+       <div class="endpoint-group"><h3>Documents and jobs</h3>
+        <a class="endpoint-pill" data-api="documents" data-method="POST" href="#op-upload-url"><span class="method">POST</span>/api/v1/documents/upload-url</a>
+        <a class="endpoint-pill" data-api="documents" data-method="POST" href="#op-document-create"><span class="method">POST</span>/api/v1/documents</a>
+        <a class="endpoint-pill" data-api="documents" data-method="GET" href="#op-document-list"><span class="method">GET</span>/api/v1/projects/{project_id}/documents</a>
+        <a class="endpoint-pill" data-api="documents" data-method="GET" href="#op-document-get"><span class="method">GET</span>/api/v1/documents/{document_id}</a>
+        <a class="endpoint-pill" data-api="documents" data-method="POST" href="#op-document-complete"><span class="method">POST</span>/api/v1/documents/{document_id}/complete</a>
+        <a class="endpoint-pill" data-api="documents" data-method="DELETE" href="#op-document-delete"><span class="method">DELETE</span>/api/v1/documents/{document_id}</a>
+        <a class="endpoint-pill" data-api="documents" data-method="GET" href="#op-job-get"><span class="method">GET</span>/api/v1/jobs/{job_id}</a>
+       </div>
+       <div class="endpoint-group"><h3>Ask, sources, and trace</h3>
+        <a class="endpoint-pill" data-api="ask" data-method="POST" href="#op-ask"><span class="method">POST</span>/api/v1/ask</a>
+        <a class="endpoint-pill" data-api="ask" data-method="GET" href="#op-sources"><span class="method">GET</span>/api/v1/runs/{run_id}/sources</a>
+        <a class="endpoint-pill" data-api="ask" data-method="GET" href="#op-trace"><span class="method">GET</span>/api/v1/dev/traces/{trace_id}</a>
+       </div>
+       <div class="endpoint-group"><h3>Quiz</h3>
+        <a class="endpoint-pill" data-api="quiz" data-method="POST" href="#op-quiz-create"><span class="method">POST</span>/api/v1/quiz</a>
+        <a class="endpoint-pill" data-api="quiz" data-method="GET" href="#op-quiz-history"><span class="method">GET</span>/api/v1/projects/{project_id}/quiz</a>
+       </div>
+       <div class="endpoint-group"><h3>Research runs and evidence</h3>
+        <a class="endpoint-pill" data-api="research" data-method="POST" href="#planned-research-run"><span class="method">POST</span>/api/v1/research-runs</a>
+        <a class="endpoint-pill" data-api="research" data-method="GET" href="#planned-run-get"><span class="method">GET</span>/api/v1/runs/{run_id}</a>
+        <a class="endpoint-pill" data-api="research" data-method="GET" href="#planned-run-events"><span class="method">GET</span>/api/v1/runs/{run_id}/events</a>
+        <a class="endpoint-pill" data-api="research" data-method="POST" href="#planned-run-decision"><span class="method">POST</span>/api/v1/runs/{run_id}/decisions</a>
+        <a class="endpoint-pill" data-api="research" data-method="GET" href="#planned-claims"><span class="method">GET</span>/api/v1/projects/{project_id}/claims</a>
+        <a class="endpoint-pill" data-api="research" data-method="GET" href="#planned-claim-relations"><span class="method">GET</span>/api/v1/projects/{project_id}/claim-relations</a>
+        <a class="endpoint-pill" data-api="research" data-method="GET" href="#planned-reports"><span class="method">GET</span>/api/v1/projects/{project_id}/reports</a>
+        <a class="endpoint-pill" data-api="research" data-method="GET" href="#op-report-detail"><span class="method">GET</span>/api/v1/reports/{report_id}</a>
+        <a class="endpoint-pill" data-api="research" data-method="GET" href="#op-pipeline-versions"><span class="method">GET</span>/api/v1/pipeline-versions</a>
+        <a class="endpoint-pill" data-api="research" data-method="POST" href="#planned-report-refresh"><span class="method">POST</span>/api/v1/reports/{report_id}/refresh</a>
+       </div>
+       <div class="endpoint-group"><h3>Evaluation and reliability</h3>
+        <a class="endpoint-pill" data-api="evaluation" data-method="GET" href="#op-evaluation-datasets"><span class="method">GET</span>/api/v1/evaluation-datasets</a>
+        <a class="endpoint-pill" data-api="evaluation" data-method="POST" href="#planned-evaluation-create"><span class="method">POST</span>/api/v1/evaluation-runs</a>
+        <a class="endpoint-pill" data-api="evaluation" data-method="GET" href="#planned-evaluation-get"><span class="method">GET</span>/api/v1/evaluation-runs/{evaluation_run_id}</a>
+        <a class="endpoint-pill" data-api="evaluation" data-method="GET" href="#planned-reliability"><span class="method">GET</span>/api/v1/dev/reliability</a>
+        <a class="endpoint-pill" data-api="evaluation" data-method="POST" href="#planned-fault"><span class="method">POST</span>/api/v1/dev/fault-scenarios</a>
+        <a class="endpoint-pill" data-api="evaluation" data-method="GET" href="#planned-fault-get"><span class="method">GET</span>/api/v1/dev/fault-scenarios/{exercise_id}</a>
+       </div>
+      </div>
+     </div>
+    </section>
+
+    <section id="operations">
+     <p class="eyebrow">Authoritative operation contracts</p>
+     <h2>Inputs, access, outcomes, and failure behavior</h2>
+     <p class="sub">Reusable object shapes are defined once in the <a href="#schemas">schema ledger</a>. “Auth” below means 401 for missing/invalid credentials and 403 for a disabled user unless a stricter role is stated.</p>
+
+     <h3 id="identity-operations">Identity</h3>
+     <details id="op-health" data-api-card data-api="identity" data-method="GET" data-access="public" open><summary><code>GET /api/v1/healthz</code> — check process health</summary><dl class="kv">
+      <dt>Caller / access</dt><dd>Load balancer, local operator, or developer. Public; no bearer token.</dd>
+      <dt>Input</dt><dd>No path, query, or body fields.</dd>
+      <dt>Success</dt><dd>200; a string-valued JSON object reporting service health.</dd>
+      <dt>Failure / semantics</dt><dd>No application error response is declared. Synchronous, safe, and idempotent; it is a liveness check rather than a dependency-readiness contract.</dd>
+      <dt>Evidence</dt><dd><span class="source">routers/health.py · infra/openapi/openapi.yaml</span></dd>
+     </dl></details>
+     <details id="op-ready" data-api-card data-api="identity" data-method="GET" data-access="public"><summary><code>GET /api/v1/readyz</code> — check non-charging dependency readiness</summary><dl class="kv">
+      <dt>Caller / access</dt><dd>Deployment platform, readiness smoke, or operator. Public; no bearer token and no private payload.</dd>
+      <dt>Input</dt><dd>No path, query, or body fields.</dd>
+      <dt>Success</dt><dd><code>200</code> with <code>status:"ready"</code>, environment, component states, and an empty failed-component list. Local/memory dependencies may be <code>not_required</code>.</dd>
+      <dt>Failure / semantics</dt><dd><code>503</code> with <code>status:"not_ready"</code> and safe failed component names. It executes <code>select 1</code> for Postgres, verifies the four SDK-owned checkpoint tables, checks fresh worker/dispatcher heartbeats, rejects stale or exhausted outbox work, pings Redis, and reads Qdrant collection metadata. S3-compatible object storage, LLM, and web search remain configuration checks only, so it never spends NVIDIA or Tavily quota.</dd>
+      <dt>Current boundary</dt><dd>Route and deterministic local/memory tests exist. No managed Postgres/Redis/Qdrant/object-storage/NVIDIA/Tavily readiness response or background heartbeat has been validated.</dd>
+      <dt>Evidence</dt><dd><span class="source">routers/health.py · tests/test_runtime_foundation.py · infra/openapi/openapi.yaml</span></dd>
+     </dl></details>
+     <details id="op-me" data-api-card data-api="identity" data-method="GET" data-access="bearer"><summary><code>GET /api/v1/me</code> — resolve the current identity</summary><dl class="kv">
+      <dt>Caller / access</dt><dd>Authenticated web client. Bearer token required.</dd>
+      <dt>Input</dt><dd>No path, query, or body fields.</dd>
+      <dt>Success</dt><dd>200 <a href="#schema-identity"><code>CurrentUser</code></a>.</dd>
+      <dt>Failure / semantics</dt><dd>Auth failures; OpenAPI also advertises 404. Synchronous, safe, and idempotent. Local token-to-user mapping is development-only.</dd>
+      <dt>Evidence</dt><dd><span class="source">routers/me.py · dependencies.py · schemas/user.py</span></dd>
+     </dl></details>
+
+     <h3 id="project-operations">Projects</h3>
+     <details id="op-project-list" data-api-card data-api="projects" data-method="GET" data-access="owner"><summary><code>GET /api/v1/projects</code> — list owned projects</summary><dl class="kv">
+      <dt>Caller / access</dt><dd>Authenticated web client; results are limited to the current user's non-deleted projects.</dd>
+      <dt>Input</dt><dd>No query or body fields. Pagination and filtering are not defined.</dd>
+      <dt>Success</dt><dd>200 array of <a href="#schema-project"><code>ProjectRecord</code></a>.</dd>
+      <dt>Failure / semantics</dt><dd>Auth failures; OpenAPI advertises 404. Synchronous, safe, and idempotent.</dd>
+      <dt>Evidence</dt><dd><span class="source">routers/projects.py · services/store.py · project workflow tests</span></dd>
+     </dl></details>
+     <details id="op-project-create" data-api-card data-api="projects" data-method="POST" data-access="bearer"><summary><code>POST /api/v1/projects</code> — create a workspace</summary><dl class="kv">
+      <dt>Caller / access</dt><dd>Authenticated web client; the new project is owned by the current user.</dd>
+      <dt>Input</dt><dd>JSON <a href="#schema-project"><code>ProjectCreate</code></a>: <code>name</code>, 1–120 characters.</dd>
+      <dt>Success</dt><dd>201 <a href="#schema-project"><code>ProjectRecord</code></a>.</dd>
+      <dt>Failure / semantics</dt><dd>422 validation plus auth failures; OpenAPI advertises 404. Synchronous and not idempotent; no idempotency key is accepted.</dd>
+      <dt>Evidence</dt><dd><span class="source">routers/projects.py · schemas/project.py · services/store.py</span></dd>
+     </dl></details>
+     <details id="op-project-get" data-api-card data-api="projects" data-method="GET" data-access="owner"><summary><code>GET /api/v1/projects/{project_id}</code> — read one project</summary><dl class="kv">
+      <dt>Caller / access</dt><dd>Project owner. Foreign IDs are concealed as not found.</dd>
+      <dt>Input</dt><dd><code>project_id</code>: UUID path parameter.</dd>
+      <dt>Success</dt><dd>200 <a href="#schema-project"><code>ProjectRecord</code></a>.</dd>
+      <dt>Failure / semantics</dt><dd>404 <code>PROJECT_NOT_FOUND</code>; 422 invalid UUID; auth failures. Synchronous, safe, and idempotent.</dd>
+      <dt>Evidence</dt><dd><span class="source">routers/projects.py · services/store.py · ownership isolation tests</span></dd>
+     </dl></details>
+     <details id="op-project-delete" data-api-card data-api="projects" data-method="DELETE" data-access="owner"><summary><code>DELETE /api/v1/projects/{project_id}</code> — request project deletion</summary><dl class="kv">
+      <dt>Caller / access</dt><dd>Project owner.</dd>
+      <dt>Input</dt><dd><code>project_id</code>: UUID path parameter; no request body.</dd>
+      <dt>Success</dt><dd>202 object containing <code>job_id</code>.</dd>
+      <dt>Failure / semantics</dt><dd>404 <code>PROJECT_NOT_FOUND</code>; 422 invalid UUID; auth failures. The HTTP contract is asynchronous, but the local Store currently marks deletion and completes its job synchronously. Repeated deletion is not specified as idempotent.</dd>
+      <dt>Evidence</dt><dd><span class="source">routers/projects.py · services/store.py · deletion workflow tests</span></dd>
+     </dl></details>
+
+     <h3 id="document-operations">Documents and jobs</h3>
+     <details id="op-upload-url" data-api-card data-api="documents" data-method="POST" data-access="owner"><summary><code>POST /api/v1/documents/upload-url</code> — reserve an upload</summary><dl class="kv">
+      <dt>Caller / access</dt><dd>Project owner.</dd>
+      <dt>Input</dt><dd>JSON <a href="#schema-upload"><code>UploadUrlRequest</code></a>: project, filename, supported file type and MIME type, and byte size.</dd>
+      <dt>Success</dt><dd>200 <a href="#schema-upload"><code>UploadUrlResponse</code></a> with document ID, upload URL, object key, and expiry.</dd>
+      <dt>Failure / semantics</dt><dd>404 project; 422 invalid type, MIME, or size; auth failures. The memory repository returns a local placeholder. The Postgres repository uses the S3-compatible adapter to return a short-lived PUT URL bound to the reserved content type; no managed object-storage call has been validated. No idempotency key is accepted.</dd>
+      <dt>Evidence</dt><dd><span class="source">routers/documents.py · schemas/document.py · persistence/postgres.py · services/object_storage.py</span></dd>
+     </dl></details>
+     <details id="op-document-create" data-api-card data-api="documents" data-method="POST" data-access="owner"><summary><code>POST /api/v1/documents</code> — create document metadata</summary><dl class="kv">
+      <dt>Caller / access</dt><dd>Project owner.</dd>
+      <dt>Input</dt><dd>JSON <a href="#schema-upload"><code>UploadUrlRequest</code></a>.</dd>
+      <dt>Success</dt><dd>201 <a href="#schema-document"><code>DocumentRecord</code></a>.</dd>
+      <dt>Failure / semantics</dt><dd>404 project; 422 validation; auth failures. Synchronous metadata creation; no formal idempotency key. Current Store behavior may reuse a reservation created by the upload-URL flow.</dd>
+      <dt>Evidence</dt><dd><span class="source">routers/documents.py · schemas/document.py · services/store.py</span></dd>
+     </dl></details>
+     <details id="op-document-list" data-api-card data-api="documents" data-method="GET" data-access="owner"><summary><code>GET /api/v1/projects/{project_id}/documents</code> — list project documents</summary><dl class="kv">
+      <dt>Caller / access</dt><dd>Project owner.</dd>
+      <dt>Input</dt><dd><code>project_id</code>: UUID path parameter. No pagination or status filter.</dd>
+      <dt>Success</dt><dd>200 array of non-deleted <a href="#schema-document"><code>DocumentRecord</code></a> objects.</dd>
+      <dt>Failure / semantics</dt><dd>404 project; 422 invalid UUID; auth failures. Synchronous, safe, and idempotent.</dd>
+      <dt>Evidence</dt><dd><span class="source">routers/documents.py · services/store.py · document workflow tests</span></dd>
+     </dl></details>
+     <details id="op-document-get" data-api-card data-api="documents" data-method="GET" data-access="owner"><summary><code>GET /api/v1/documents/{document_id}</code> — read one document</summary><dl class="kv">
+      <dt>Caller / access</dt><dd>Document owner; foreign IDs are concealed as not found.</dd>
+      <dt>Input</dt><dd><code>document_id</code>: UUID path parameter.</dd>
+      <dt>Success</dt><dd>200 <a href="#schema-document"><code>DocumentRecord</code></a>.</dd>
+      <dt>Failure / semantics</dt><dd>404 <code>DOCUMENT_NOT_FOUND</code>; 422 invalid UUID; auth failures. Synchronous, safe, and idempotent.</dd>
+      <dt>Evidence</dt><dd><span class="source">routers/documents.py · services/store.py · ownership isolation tests</span></dd>
+     </dl></details>
+     <details id="op-document-complete" data-api-card data-api="documents" data-method="POST" data-access="owner"><summary><code>POST /api/v1/documents/{document_id}/complete</code> — verify upload and request ingestion</summary><dl class="kv">
+      <dt>Caller / access</dt><dd>Document owner.</dd>
+      <dt>Input</dt><dd><code>document_id</code>: UUID. Body may be omitted or null; when present, <a href="#schema-upload"><code>UploadCompleteRequest</code></a> accepts optional checksum and extracted text.</dd>
+      <dt>Success</dt><dd>202 object containing <code>job_id</code>.</dd>
+      <dt>Failure / semantics</dt><dd>404 <code>DOCUMENT_NOT_FOUND</code>; 409 <code>UPLOAD_SIZE_MISMATCH</code> or <code>UPLOAD_TYPE_MISMATCH</code>; 503 object-storage verification failure; 422 validation; auth failures. The memory repository deliberately keeps the synchronous extracted-text fallback. The Postgres repository verifies S3-compatible metadata, then atomically writes the parsing state, pending job, and unique outbox event; a repeated completion returns the existing job. The worker verifies an optional SHA-256 checksum before parsing.</dd>
+      <dt>Async / recovery</dt><dd>The outbox dispatcher publishes a deterministic task ID. The Celery consumer uses an expiring Postgres lease, deterministic page/chunk IDs, bounded retry, and explicit ready/failed terminal states. Managed Postgres/object-storage/Redis/Qdrant integration is not yet validated.</dd>
+      <dt>Evidence</dt><dd><span class="source">routers/documents.py · persistence/postgres.py · researchmate_worker/outbox.py · researchmate_worker/ingestion.py · tests/test_document_ingestion.py</span></dd>
+     </dl></details>
+     <details id="op-document-delete" data-api-card data-api="documents" data-method="DELETE" data-access="owner"><summary><code>DELETE /api/v1/documents/{document_id}</code> — request document deletion</summary><dl class="kv">
+      <dt>Caller / access</dt><dd>Document owner.</dd>
+      <dt>Input</dt><dd><code>document_id</code>: UUID path parameter; no body.</dd>
+      <dt>Success</dt><dd>202 object containing <code>job_id</code>.</dd>
+      <dt>Failure / semantics</dt><dd>404 <code>DOCUMENT_NOT_FOUND</code>; 422 invalid UUID; auth failures. The local Store completes a soft-delete job immediately. Object-store and vector-index reconciliation, retention, and undelete are not current contracts.</dd>
+      <dt>Evidence</dt><dd><span class="source">routers/documents.py · services/store.py · deletion isolation tests</span></dd>
+     </dl></details>
+     <details id="op-job-get" data-api-card data-api="documents" data-method="GET" data-access="owner"><summary><code>GET /api/v1/jobs/{job_id}</code> — read job state</summary><dl class="kv">
+      <dt>Caller / access</dt><dd>Job owner.</dd>
+      <dt>Input</dt><dd><code>job_id</code>: UUID path parameter.</dd>
+      <dt>Success</dt><dd>200 <a href="#schema-document"><code>JobRecord</code></a>.</dd>
+      <dt>Failure / semantics</dt><dd>404 <code>JOB_NOT_FOUND</code>; 422 invalid UUID; auth failures. Safe and idempotent. Polling interval, expiry, cancellation, retry, and event streaming are not defined.</dd>
+      <dt>Evidence</dt><dd><span class="source">routers/jobs.py · schemas/job.py · ingestion workflow tests</span></dd>
+     </dl></details>
+
+     <h3 id="ask-operations">Ask, sources, and developer trace</h3>
+     <details id="op-ask" data-api-card data-api="ask" data-method="POST" data-access="owner"><summary><code>POST /api/v1/ask</code> — generate a grounded answer</summary><dl class="kv">
+      <dt>Caller / access</dt><dd>Project owner. Current local quota is 200 Ask requests per user per day.</dd>
+      <dt>Input</dt><dd>JSON <a href="#schema-ask"><code>AskRequest</code></a>: project UUID, message, and source mode. There is no conversation or idempotency field.</dd>
+      <dt>Success</dt><dd>200 <a href="#schema-ask"><code>AskResponse</code></a>: answer, selected mode, source summary, citations, run ID, trace ID, and validation status.</dd>
+      <dt>Failure / semantics</dt><dd>404 <code>PROJECT_NOT_FOUND</code>; 422 validation or <code>TASK_ROUTE_MISMATCH</code>; 409 <code>DOCUMENT_NOT_INDEXED</code>, <code>EVIDENCE_NOT_FOUND</code>, or <code>WEB_EVIDENCE_NOT_FOUND</code>; 503 <code>RETRIEVAL_UNAVAILABLE</code>, <code>WEB_SEARCH_NOT_CONFIGURED</code>, <code>WEB_SEARCH_UNAVAILABLE</code>, or <code>LLM_UNAVAILABLE</code>; 429 <code>RATE_LIMITED</code>; auth failures. Web/hybrid modes use the backend-only Tavily adapter and fail explicitly when it is disabled; no live provider request is validated.</dd>
+      <dt>Evidence</dt><dd><span class="source">routers/ask.py · schemas/ask.py · services/grounded_query.py · services/source_policy.py · services/web_search.py · retrieval.py · answering.py · Ask tests</span></dd>
+     </dl></details>
+     <details id="op-sources" data-api-card data-api="ask" data-method="GET" data-access="owner"><summary><code>GET /api/v1/runs/{run_id}/sources</code> — inspect run sources</summary><dl class="kv">
+      <dt>Caller / access</dt><dd>Run owner, resolved through stored response and trace ownership.</dd>
+      <dt>Input</dt><dd><code>run_id</code>: UUID path parameter.</dd>
+      <dt>Success</dt><dd>200 object with <code>run_id</code>, <a href="#schema-evidence"><code>SourceSummary</code></a>, and at most 120 citations.</dd>
+      <dt>Failure / semantics</dt><dd>404 <code>RUN_NOT_FOUND</code>; 422 invalid UUID; auth failures. Safe and idempotent. Records disappear when the in-memory process resets; pagination and retention are undefined.</dd>
+      <dt>Evidence</dt><dd><span class="source">routers/runs.py · schemas/sources.py · services/store.py · Ask workflow tests</span></dd>
+     </dl></details>
+     <details id="op-trace" data-api-card data-api="ask" data-method="GET" data-access="developer"><summary><code>GET /api/v1/dev/traces/{trace_id}</code> — inspect execution evidence</summary><dl class="kv">
+      <dt>Caller / access</dt><dd>Developer or admin role only. An authenticated regular user receives 403 <code>ADMIN_REQUIRED</code>.</dd>
+      <dt>Input</dt><dd><code>trace_id</code>: UUID path parameter.</dd>
+      <dt>Success</dt><dd>200 <a href="#schema-trace"><code>DeveloperTrace</code></a> with plan, routing reason, retrieval, tool calls, validation, latency, and errors.</dd>
+      <dt>Failure / semantics</dt><dd>404 <code>TRACE_NOT_FOUND</code>; 403 role restriction; 422 invalid UUID; 401 auth failure. Safe and idempotent. Production redaction, audit, and retention policies are unresolved.</dd>
+      <dt>Evidence</dt><dd><span class="source">routers/dev_traces.py · schemas/trace.py · trace authorization tests</span></dd>
+     </dl></details>
+
+     <h3 id="quiz-operations">Quiz</h3>
+     <details id="op-quiz-create" data-api-card data-api="quiz" data-method="POST" data-access="owner"><summary><code>POST /api/v1/quiz</code> — generate a cited quiz</summary><dl class="kv">
+      <dt>Caller / access</dt><dd>Project owner. Current local quota is 100 Quiz requests per user per day.</dd>
+      <dt>Input</dt><dd>JSON <a href="#schema-quiz"><code>QuizRequest</code></a>: project, prompt, mode, and requested single-choice/short-answer counts.</dd>
+      <dt>Success</dt><dd>200 <a href="#schema-quiz"><code>QuizResponse</code></a> containing the quiz set, run and trace IDs, and validation status.</dd>
+      <dt>Failure / semantics</dt><dd>404 project; 422 validation or task mismatch; runtime-only 409 when no indexed document exists and 429 quota failure; auth failures. Synchronous and not idempotent.</dd>
+      <dt>Evidence</dt><dd><span class="source">routers/quiz.py · schemas/quiz.py · Quiz workflow tests</span></dd>
+     </dl></details>
+     <details id="op-quiz-history" data-api-card data-api="quiz" data-method="GET" data-access="owner"><summary><code>GET /api/v1/projects/{project_id}/quiz</code> — list quiz history</summary><dl class="kv">
+      <dt>Caller / access</dt><dd>Project owner.</dd>
+      <dt>Input</dt><dd><code>project_id</code>: UUID path parameter. No cursor, filter, or query fields.</dd>
+      <dt>Success</dt><dd>200 <a href="#schema-quiz"><code>QuizHistoryResponse</code></a>, with at most 100 quiz sets in newest local Store insertion order.</dd>
+      <dt>Failure / semantics</dt><dd>404 project; 422 invalid UUID; auth failures. Safe and idempotent; no pagination contract.</dd>
+      <dt>Evidence</dt><dd><span class="source">routers/quiz.py · schemas/quiz.py · Quiz history tests</span></dd>
+     </dl></details>
+    </section>
+
+    <section id="schemas">
+     <p class="eyebrow">Reusable schema ledger</p>
+     <h2>Shared request and response models</h2>
+     <p class="sub">These shapes are defined once and linked from operation contracts. Required/optional markers and limits reflect the current Pydantic/OpenAPI contract.</p>
+     <details id="schema-identity" open><summary><code>CurrentUser</code> and <code>ErrorResponse</code></summary><dl class="kv">
+      <dt>CurrentUser</dt><dd><code>id: UUID</code>; <code>email</code>; <code>role: user|developer|admin</code>; active state as exposed by the identity schema.</dd>
+      <dt>ErrorResponse</dt><dd><code>{ error: { code: string 2..80, message: string 1..300, request_id: string 4..120 } }</code>.</dd>
+      <dt>Drift</dt><dd>OpenAPI-generated 422 bodies currently reference <code>HTTPValidationError</code>, not the runtime envelope.</dd>
+     </dl></details>
+     <details id="schema-project"><summary><code>ProjectCreate</code> and <code>ProjectRecord</code></summary><dl class="kv">
+      <dt>ProjectCreate</dt><dd><code>name: string 1..120</code>.</dd>
+      <dt>ProjectRecord</dt><dd><code>id: UUID</code>; <code>user_id: UUID</code>; name; status; optional <code>expires_at</code>; created/updated timestamps; optional <code>deleted_at</code>.</dd>
+     </dl></details>
+     <details id="schema-upload"><summary><code>UploadUrlRequest</code>, <code>UploadUrlResponse</code>, and <code>UploadCompleteRequest</code></summary><dl class="kv">
+      <dt>UploadUrlRequest</dt><dd><code>project_id: UUID</code>; <code>filename: string 1..240</code>; <code>file_type: pdf|docx|pptx</code>; matching <code>mime_type: string 3..120</code>; <code>size_bytes: 1..26,214,400</code>.</dd>
+      <dt>UploadUrlResponse</dt><dd><code>document_id: UUID</code>; <code>upload_url: string 1..4096</code>; <code>r2_object_key: string 16..512</code>; <code>expires_in_seconds: 60..900</code>.</dd>
+      <dt>UploadCompleteRequest</dt><dd>The whole body is optional/null. When present: <code>checksum_sha256?: exactly 64 characters</code>; <code>extracted_text?: string ≤200,000</code>.</dd>
+     </dl></details>
+     <details id="schema-document"><summary><code>DocumentRecord</code> and <code>JobRecord</code></summary><dl class="kv">
+      <dt>DocumentRecord</dt><dd>Document, owner, and project UUIDs; filename, file type, MIME type, byte size; <code>status: uploaded|parsing|parsed|indexing|ready|failed|expired|deleted</code>; optional error, expiry, and deletion fields; created/updated timestamps.</dd>
+      <dt>JobRecord</dt><dd>Job and owner UUIDs; optional project/document UUIDs; <code>type: string 2..80</code>; <code>status: pending|running|succeeded|failed|cancelled</code>; progress 0–100; optional error; created/updated timestamps.</dd>
+     </dl></details>
+     <details id="schema-evidence"><summary><code>SourceMode</code>, <code>SourceSummary</code>, and <code>Citation</code></summary><dl class="kv">
+      <dt>SourceMode</dt><dd><code>auto|local_only|web_only|hybrid</code>.</dd>
+      <dt>SourceSummary</dt><dd><code>local_chunks: integer 0..50 = 0</code>; <code>web_pages: integer 0..20 = 0</code>.</dd>
+      <dt>Citation</dt><dd>ID and <code>source_type: local_doc|web_page</code>; optional document/chunk UUID, page, slide, URL, and claim ID; required quote of 1–1200 characters.</dd>
+     </dl></details>
+     <details id="schema-ask"><summary><code>AskRequest</code> and <code>AskResponse</code></summary><dl class="kv">
+      <dt>AskRequest</dt><dd><code>project_id: UUID</code>; <code>message: string 1..8000</code>; <code>selected_mode: SourceMode = auto</code>.</dd>
+      <dt>AskResponse</dt><dd>Run UUID; answer 1–16,000 characters; mode; <a href="#schema-evidence"><code>SourceSummary</code></a>; at most 80 citations; trace UUID; <code>validation_status: passed|failed|retrying</code>.</dd>
+      <dt>Not present</dt><dd>No conversation ID, idempotency key, retry token, or asynchronous operation resource.</dd>
+     </dl></details>
+     <details id="schema-quiz"><summary><code>QuizRequest</code>, <code>QuizResponse</code>, <code>QuizSet</code>, and <code>QuizQuestion</code></summary><dl class="kv">
+      <dt>QuizRequest</dt><dd>Project UUID; prompt 1–4000 characters (default <code>/quiz</code>); source mode defaults to <code>local_only</code>; choice and short-answer counts each 0–20.</dd>
+      <dt>QuizResponse</dt><dd>Quiz set; run and trace UUIDs; validation status.</dd>
+      <dt>QuizSet / question</dt><dd>Quiz ID, source mode and summary, and 1–40 questions. A question has type, text, answer, explanation, difficulty, at most 12 citations, and up to four options; single-choice questions require exactly four options.</dd>
+      <dt>QuizHistoryResponse</dt><dd><code>project_id: UUID</code>; <code>quiz_sets: QuizSet[] ≤100</code>.</dd>
+     </dl></details>
+     <details id="schema-trace"><summary><code>ExecutionPlan</code>, <code>ToolCallTrace</code>, and <code>DeveloperTrace</code></summary><dl class="kv">
+      <dt>ExecutionPlan</dt><dd>Source mode; task type; 1–12 allowed tools; local/web requirements; output schema.</dd>
+      <dt>ToolCallTrace</dt><dd>ID, tool name, input summary, optional output summary, status, optional latency and error.</dd>
+      <dt>DeveloperTrace</dt><dd>Trace/user/project/run UUIDs; plan; routing reason; at most 80 retrieved chunks and 40 tool calls; validation; optional latency/tokens; at most 20 errors; creation timestamp.</dd>
+     </dl></details>
+    </section>
+
+    <section id="planned-operations">
+     <p class="eyebrow">Implemented contract evolution</p>
+     <h2>Research, decision, evidence, report, evaluation, reliability, and fault operations</h2>
+     <p class="sub">The 16 advanced REST operations below are present in FastAPI and generated OpenAPI. Together with the original 18 and readiness, the REST total is 35. Their route, schema, ownership/role, idempotency, and deterministic repository behavior have code evidence; managed providers, queue delivery, checkpoint recovery, telemetry export, and deployment remain integration-unvalidated. MCP is a separate protocol boundary and is not counted as REST.</p>
+     <div class="notice"><strong>Shared conventions:</strong> bearer authentication; owner/project permission checks in the API; <code>Idempotency-Key</code> on commands; the current error envelope with a request ID; durable Postgres operation truth; persisted SSE replay; and Redis as delivery rather than irreplaceable state. Supabase JWT, managed Postgres, and distributed delivery are not yet validated.</div>
+     <div class="notice warning"><strong>How to read the rows:</strong> request and success shapes describe the implemented route schemas. Local LangGraph, RAGAS, strict-checkpoint serializer, and MCP initialization tests now pass. Failure/recovery and acceptance rows still name distributed-system gates; they are not evidence that a managed checkpoint, provider, queue, or cloud runtime passed.</div>
+
+     <details id="planned-research-run" data-api-card data-api="research" data-method="POST" open><summary><code>POST /api/v1/research-runs</code> — start an evidence review <span class="status partial">implemented contract · runtime unvalidated</span></summary><dl class="kv">
+      <dt>Caller / access</dt><dd>Authenticated project owner. The route verifies project, accepted pipeline, and every explicitly selected ready document. Daily and concurrent-run quotas remain unvalidated; the worker enforces the per-run cost ceiling before each model call.</dd>
+      <dt>Request</dt><dd><code>{ project_id: UUID, research_goal: string 20..12000, source_scope: {document_ids?: UUID[], allow_web: boolean}, pipeline_version_id: UUID, review_policy: "strict"|"balanced", max_cost_usd?: decimal }</code>; required <code>Idempotency-Key</code>.</dd>
+      <dt>Success / async</dt><dd><code>202</code> <code>{ run_id, status:"pending", status_url, events_url, created_at }</code>. Postgres commits run and outbox intent before queue publication.</dd>
+      <dt>Failure / recovery</dt><dd><code>404 PROJECT_NOT_FOUND</code>; <code>409 PIPELINE_NOT_ACCEPTED</code>, <code>SOURCE_DOCUMENT_NOT_READY</code>, <code>SOURCE_SCOPE_EMPTY</code>, or duplicate key with mismatched body; request validation rejects duplicate document IDs. During execution <code>WORKFLOW_BUDGET_EXCEEDED</code>, invalid pipeline configuration, or provider failures produce a durable failed run. A matching command duplicate returns the original operation.</dd>
+      <dt>Acceptance</dt><dd>One logical run is created for repeated delivery; owner isolation holds; duplicate task delivery acquires at most one expiring workflow lease; an existing checkpoint resumes without replaying initial input; outbox recovery dispatches after an API crash.</dd>
+     </dl></details>
+
+     <details id="planned-run-get" data-api-card data-api="research" data-method="GET"><summary><code>GET /api/v1/runs/{run_id}</code> — read durable workflow state <span class="status partial">implemented contract · runtime unvalidated</span></summary><dl class="kv">
+      <dt>Caller / access</dt><dd>Run owner; developer/admin receives only explicitly authorized, redacted inspection fields.</dd>
+      <dt>Request</dt><dd>Run UUID only; no query or request body. Safe and idempotent.</dd>
+      <dt>Success</dt><dd><code>200</code> with kind, status, pipeline version, progress, current node, review requirement, output/report reference, timestamps, and safe error summary.</dd>
+      <dt>Failure / recovery</dt><dd><code>404 RUN_NOT_FOUND</code>; <code>410 RUN_EXPIRED</code> when retained summary exists but details were purged. Client polls or reconnects to events.</dd>
+      <dt>Usage / acceptance</dt><dd>Read rate limited by user; state survives process restart and matches the last persisted event/checkpoint.</dd>
+     </dl></details>
+
+     <details id="planned-run-events" data-api-card data-api="research" data-method="GET"><summary><code>GET /api/v1/runs/{run_id}/events</code> — replay and stream progress <span class="status partial">implemented contract · reconnect unvalidated</span></summary><dl class="kv">
+      <dt>Caller / access</dt><dd>Run owner; safe summaries only. Developer/admin detail remains a separate privileged trace surface.</dd>
+      <dt>Request</dt><dd>Run UUID; optional integer <code>Last-Event-ID</code> and <code>after_sequence &gt;= -1</code>. The response media type is <code>text/event-stream</code>.</dd>
+      <dt>Success / async</dt><dd><code>200 text/event-stream</code>. Events include <code>run.status</code>, <code>node.started</code>, <code>node.completed</code>, <code>review.required</code>, <code>run.completed</code>, heartbeat, and terminal close.</dd>
+      <dt>Failure / recovery</dt><dd>The route currently returns <code>404 RUN_NOT_FOUND</code> and <code>422 INVALID_EVENT_CURSOR</code>. It polls persisted events, emits heartbeats, and closes after a terminal workflow event or 15 idle cycles. Cursor-ahead, expiry, and stream quota codes are not implemented.</dd>
+      <dt>Acceptance</dt><dd>Deterministic repository replay exists; reconnect, process-restart, ordering, backpressure, and managed-Postgres behavior remain unvalidated.</dd>
+     </dl></details>
+
+     <details id="planned-run-decision" data-api-card data-api="research" data-method="POST"><summary><code>POST /api/v1/runs/{run_id}/decisions</code> — approve, edit, or reject an interrupt <span class="status partial">implemented contract · resume unvalidated</span></summary><dl class="kv">
+      <dt>Caller / access</dt><dd>Run owner or explicitly privileged reviewer; run must be in <code>waiting_human</code>.</dd>
+      <dt>Request</dt><dd><code>{ interrupt_key: string, decision: "approve"|"edit"|"reject", edited_payload?: object, reason?: string }</code>; required <code>Idempotency-Key</code>.</dd>
+      <dt>Success / async</dt><dd><code>202</code> <code>{ decision_id, run_id, status:"accepted", resume_status_url }</code>; decision is durable before resume dispatch.</dd>
+      <dt>Failure / recovery</dt><dd><code>404 RUN_NOT_FOUND</code>; <code>409 RUN_NOT_WAITING</code>, <code>INTERRUPT_ALREADY_RESOLVED</code>, or mismatched duplicate; <code>422 EDIT_SCHEMA_INVALID</code>. Accepted decisions are append-only and auditable.</dd>
+      <dt>Usage / acceptance</dt><dd>Decision limit follows interrupt count; rejected evidence never appears in accepted claims or the report; restart resumes from the same decision once.</dd>
+     </dl></details>
+
+     <details id="planned-claims" data-api-card data-api="research" data-method="GET"><summary><code>GET /api/v1/projects/{project_id}/claims</code> — inspect extracted conclusions <span class="status partial">implemented contract · database unvalidated</span></summary><dl class="kv">
+      <dt>Caller / access</dt><dd>Project owner.</dd>
+      <dt>Request</dt><dd>Project UUID only. Cursor and claim filters are not implemented.</dd>
+      <dt>Success</dt><dd><code>200</code> <code>{ items:[{claim_id,text,stance,confidence,review_status,evidence_summary,relation_counts,source_version}], next_cursor }</code>.</dd>
+      <dt>Failure / recovery</dt><dd><code>404 PROJECT_NOT_FOUND</code> plus auth/UUID validation errors. Safe and idempotent; read throttling and filter errors are not implemented.</dd>
+      <dt>Acceptance</dt><dd>Every accepted claim has at least one resolvable evidence edge; foreign claims cannot be inferred by ID, filter, or count.</dd>
+     </dl></details>
+
+     <details id="planned-claim-relations" data-api-card data-api="research" data-method="GET"><summary><code>GET /api/v1/projects/{project_id}/claim-relations</code> — inspect support and conflict <span class="status partial">implemented contract · database unvalidated</span></summary><dl class="kv">
+      <dt>Caller / access</dt><dd>Project owner.</dd>
+      <dt>Request</dt><dd>Project UUID only. Cursor, claim, and relation filters are not implemented.</dd>
+      <dt>Success</dt><dd><code>200</code> with relation edges, both safe claim summaries, confidence, rationale summary, validity, and next cursor.</dd>
+      <dt>Failure / recovery</dt><dd><code>404 PROJECT_NOT_FOUND</code> plus auth/UUID validation errors. Safe and idempotent; historical/filter modes are not implemented.</dd>
+      <dt>Acceptance</dt><dd>Both claims belong to the same owner/project; contradiction and duplication views reproduce stored edges without an LLM call.</dd>
+     </dl></details>
+
+     <details id="planned-reports" data-api-card data-api="research" data-method="GET"><summary><code>GET /api/v1/projects/{project_id}/reports</code> — list report revisions <span class="status partial">implemented contract · database unvalidated</span></summary><dl class="kv">
+      <dt>Caller / access</dt><dd>Project owner.</dd>
+      <dt>Request</dt><dd>Project UUID only. Cursor, status, and revision filters are not implemented.</dd>
+      <dt>Success</dt><dd><code>200</code> report summaries with revision, status, validation, source run, affected-section count, generation time, and next cursor.</dd>
+      <dt>Failure / recovery</dt><dd><code>404 PROJECT_NOT_FOUND</code> plus auth/UUID validation errors. Safe and idempotent; cursor errors are not part of the current route.</dd>
+      <dt>Acceptance</dt><dd>Revision order is stable; each report links to its producing run and evidence snapshot.</dd>
+     </dl></details>
+
+     <details id="op-report-detail" data-api-card data-api="research" data-method="GET"><summary><code>GET /api/v1/reports/{report_id}</code> — read a complete report revision <span class="status partial">implemented contract · database unvalidated</span></summary><dl class="kv">
+      <dt>Caller / access</dt><dd>Report owner; the owner predicate is applied before any section is returned.</dd>
+      <dt>Request</dt><dd>Report UUID only. Safe and idempotent.</dd>
+      <dt>Success</dt><dd><code>200</code> with report metadata and ordered sections containing key, heading, Markdown body, validation state, and immutable evidence snapshot.</dd>
+      <dt>Failure / recovery</dt><dd><code>404 REPORT_NOT_FOUND</code> conceals absent and foreign reports. The workspace renders Markdown as text rather than injecting provider HTML.</dd>
+      <dt>Acceptance</dt><dd>A generated report can be read without direct database access and every section keeps its stored evidence snapshot.</dd>
+     </dl></details>
+
+     <details id="op-pipeline-versions" data-api-card data-api="research" data-method="GET"><summary><code>GET /api/v1/pipeline-versions</code> — list accepted executable configurations <span class="status partial">implemented catalog · managed database unvalidated</span></summary><dl class="kv">
+      <dt>Caller / access</dt><dd>Any authenticated demo user. Only immutable accepted versions are visible; draft/candidate versions remain creator/admin-only.</dd>
+      <dt>Request</dt><dd>No body or query. Safe and idempotent.</dd>
+      <dt>Success</dt><dd><code>200</code> items expose ID, name, version, non-secret configuration, code SHA, and acceptance time.</dd>
+      <dt>Failure / recovery</dt><dd>An empty list is valid and causes the UI to show a provisioning gate. The guarded <code>bootstrap_demo_catalog.py</code> command creates an idempotent first version after document ingestion.</dd>
+      <dt>Acceptance</dt><dd>The browser selects an accepted server record rather than accepting an arbitrary model or copied UUID.</dd>
+     </dl></details>
+
+     <details id="planned-report-refresh" data-api-card data-api="research" data-method="POST"><summary><code>POST /api/v1/reports/{report_id}/refresh</code> — recompute impacted sections <span class="status partial">incremental code · LangGraph unvalidated</span></summary><dl class="kv">
+      <dt>Caller / access</dt><dd>Report owner with refresh and concurrent-run quota.</dd>
+      <dt>Request</dt><dd><code>{ changed_document_ids?: UUID[], force_sections?: string[], pipeline_version_id: UUID }</code>; required <code>Idempotency-Key</code>.</dd>
+      <dt>Success / async</dt><dd><code>202</code> with refresh run ID, base revision, planned revision, impacted section keys, and event URL.</dd>
+      <dt>Current implementation</dt><dd>The repository validates changed documents as owned/ready, derives directly affected section keys from stored citation edges, and falls back to all existing sections for a newly added document with no prior edge. Worker code restricts Qdrant retrieval to changed document IDs, requires exact generated impacted keys, copies unaffected sections unchanged, and invalidates the prior revision in the same final transaction.</dd>
+      <dt>Failure / recovery</dt><dd><code>404 REPORT_NOT_FOUND</code>; <code>409 REPORT_ALREADY_REFRESHING</code> or pipeline mismatch; invalid documents/sections return domain errors. Failed refresh is designed to leave the published revision unchanged, but this and restart behavior are runtime-unvalidated.</dd>
+      <dt>Acceptance</dt><dd>Impact/filter/preservation code exists; it still needs a real LangGraph/Postgres/Qdrant execution proving only affected work changes and the previous report survives any failure.</dd>
+     </dl></details>
+
+     <details id="planned-evaluation-create" data-api-card data-api="evaluation" data-method="POST"><summary><code>POST /api/v1/evaluation-runs</code> — launch a versioned experiment <span class="status partial">implemented contract · RAGAS import tested</span></summary><dl class="kv">
+      <dt>Caller / access</dt><dd>Developer/admin only in the current router. Dataset-owner execution and separate evaluation cost quota are not implemented.</dd>
+      <dt>Request</dt><dd><code>{ dataset_id: UUID, pipeline_version_id: UUID, metrics: string[], max_parallelism: 1..20, max_cost_usd?: decimal, labels?: string[] }</code>; required <code>Idempotency-Key</code>.</dd>
+      <dt>Success / async</dt><dd><code>202</code> with evaluation run ID, case count, status URL, and a conservative scheduling budget boundary.</dd>
+      <dt>Failure / recovery</dt><dd><code>404 DATASET_NOT_FOUND</code>; <code>409 DATASET_NOT_FROZEN</code> or pipeline not accepted; <code>422 METRIC_UNSUPPORTED</code>; <code>429 EVALUATION_LIMITED</code>. Case tasks retry independently and terminal results are immutable.</dd>
+      <dt>Budget semantics</dt><dd>The worker atomically reserves a conservative per-case estimate before dispatch. <code>budget_reserved_usd</code> prevents new cases from crossing <code>budget_limit_usd</code>; it is not a provider bill, actual spend, or token reconciliation record.</dd>
+      <dt>Acceptance</dt><dd>Reservation/budget-stop code exists. The runner joins the accepted pipeline version, validates its configuration, and applies its retrieval limit plus configured model/prompt compatibility gates; managed concurrency, RAGAS execution, and reconciliation to provider billing remain unvalidated.</dd>
+     </dl></details>
+
+     <details id="op-evaluation-datasets" data-api-card data-api="evaluation" data-method="GET"><summary><code>GET /api/v1/evaluation-datasets</code> — list frozen benchmark datasets <span class="status partial">implemented catalog · managed database unvalidated</span></summary><dl class="kv">
+      <dt>Caller / access</dt><dd>Developer/admin. Results remain owner-scoped.</dd>
+      <dt>Request</dt><dd>Optional <code>project_id: UUID</code> filter. Safe and idempotent.</dd>
+      <dt>Success</dt><dd><code>200</code> items expose dataset ID, project, name, version, description, and stored case count.</dd>
+      <dt>Failure / recovery</dt><dd><code>403 ADMIN_REQUIRED</code>; invalid project UUID returns normalized validation. Empty catalogs are displayed explicitly.</dd>
+      <dt>Acceptance</dt><dd>Evaluation can be started from a frozen, owner-scoped catalog without hand-entered internal IDs.</dd>
+     </dl></details>
+
+     <details id="planned-evaluation-get" data-api-card data-api="evaluation" data-method="GET"><summary><code>GET /api/v1/evaluation-runs/{evaluation_run_id}</code> — inspect experiment results <span class="status partial">implemented contract · runner unvalidated</span></summary><dl class="kv">
+      <dt>Caller / access</dt><dd>Evaluation run owner or developer/admin.</dd>
+      <dt>Request</dt><dd>Evaluation run UUID only. Metric/case filters and pagination are not implemented.</dd>
+      <dt>Success</dt><dd><code>200</code> with immutable version references, progress, aggregate metrics, latency/token/cost summaries, regression decisions, case results, and cursor.</dd>
+      <dt>Failure / recovery</dt><dd><code>404 EVALUATION_RUN_NOT_FOUND</code>; <code>422 INVALID_METRIC_FILTER</code>. Safe/idempotent; partial results declare completeness.</dd>
+      <dt>Acceptance</dt><dd>Aggregates reconcile to stored case scores and CI reads the same accepted result contract.</dd>
+     </dl></details>
+
+     <details id="planned-reliability" data-api-card data-api="evaluation" data-method="GET"><summary><code>GET /api/v1/dev/reliability</code> — aggregate runtime health <span class="status partial">implemented aggregate · telemetry incomplete</span></summary><dl class="kv">
+      <dt>Caller / access</dt><dd>Developer/admin only; all user/source fields redacted or aggregated.</dd>
+      <dt>Request</dt><dd><code>window_hours</code>, default 24 and constrained to 1–168. Pipeline, node, status, and environment filters are not implemented.</dd>
+      <dt>Success</dt><dd><code>200</code> with window, run count, success/error rates, retry count, P50/P95 latency, input/output tokens, cost, and sample trace IDs.</dd>
+      <dt>Failure / recovery</dt><dd><code>403 ADMIN_REQUIRED</code> plus validation errors. A telemetry-unavailable fallback distinction is not implemented; the repository aggregates durable run events.</dd>
+      <dt>Usage / acceptance</dt><dd>Research model calls now persist latency, provider-reported input/output tokens, and configured-price estimates into the event ledger consumed by this aggregate. Rate limits, provider-invoice reconciliation, cross-service correlation, and real trace-volume behavior remain unvalidated.</dd>
+     </dl></details>
+
+     <details id="planned-fault" data-api-card data-api="evaluation" data-method="POST"><summary><code>POST /api/v1/dev/fault-scenarios</code> — execute a bounded failure exercise <span class="status partial">implemented · worker/cloud unvalidated</span></summary><dl class="kv">
+      <dt>Caller / access</dt><dd>Developer/admin in local, test, or isolated preview only; production returns 404 unless a protected maintenance flag and explicit authorization exist.</dd>
+      <dt>Request</dt><dd><code>{ scenario: "llm_timeout"|"qdrant_unavailable"|"worker_interrupt"|"r2_failure", target_run_id?: UUID, duration_seconds: 1..60 }</code>; required idempotency key.</dd>
+      <dt>Success / async</dt><dd><code>202</code> with exercise ID, target, expected recovery state, status URL, and automatic expiry.</dd>
+      <dt>Failure / recovery</dt><dd><code>403 ENVIRONMENT_FORBIDDEN</code>; <code>409 EXERCISE_ACTIVE</code>; <code>422 SCENARIO_INVALID</code>. Faults are time-bounded and must auto-clear even if the caller disconnects.</dd>
+      <dt>Current implementation</dt><dd>The API persists an idempotent, expiring <code>fault_exercises</code> row and outbox intent. A lease-protected Celery task records a bounded, non-destructive safe result; it does not disable real infrastructure.</dd>
+      <dt>Acceptance</dt><dd>Deterministic route/repository/worker code exists; real broker dispatch, lease recovery, expiry, and correlated telemetry remain unvalidated.</dd>
+     </dl></details>
+
+     <details id="planned-fault-get" data-api-card data-api="evaluation" data-method="GET"><summary><code>GET /api/v1/dev/fault-scenarios/{exercise_id}</code> — inspect a failure exercise <span class="status partial">implemented · managed persistence unvalidated</span></summary><dl class="kv">
+      <dt>Caller / access</dt><dd>Developer/admin only. Repository lookup is also scoped to <code>requested_by</code>, concealing another user's exercise.</dd>
+      <dt>Request</dt><dd><code>exercise_id</code>: UUID path parameter; no query or body. Safe and idempotent.</dd>
+      <dt>Success</dt><dd><code>200</code> with exercise ID, scenario, optional target run, <code>pending|running|succeeded|failed</code> status, attempts, expiry, safe result, safe error code, and timestamps.</dd>
+      <dt>Failure / recovery</dt><dd><code>403 ADMIN_REQUIRED</code>; <code>404 FAULT_EXERCISE_NOT_FOUND</code>; UUID validation errors. Clients poll this durable record rather than relying on a broker result backend.</dd>
+      <dt>Acceptance</dt><dd>Route and owner-scoped repository code exist; Supabase RLS, Celery state transitions, restart recovery, and expiry behavior remain unvalidated.</dd>
+     </dl></details>
+
+     <details id="planned-mcp"><summary><code>POST /mcp/</code> — Streamable HTTP MCP gateway <span class="status partial">SDK installed · local bearer initialization passes</span></summary><dl class="kv">
+      <dt>Caller / access</dt><dd>Authenticated MCP client with JWT scopes; tool calls enforce the same owner and developer/admin rules as REST.</dd>
+      <dt>Protocol / capabilities</dt><dd>The stateless JSON Streamable HTTP FastMCP server code defines <code>list_projects</code>, <code>search_project</code>, <code>ask_grounded</code>, <code>get_run_trace</code>, and <code>run_evaluation</code> tools plus owned project-document and run-summary resources.</dd>
+      <dt>Success / async</dt><dd>Protocol responses use MCP result/error envelopes; long work returns operation identity and status resource rather than holding an unbounded request.</dd>
+      <dt>Current proof / boundary</dt><dd>The pinned SDK is installed. A local <code>POST /mcp/</code> Streamable HTTP <code>initialize</code> exchange succeeds only after the same bearer authentication boundary used by REST. Tool/resource calls, Inspector behavior, external host configuration, scope parity, quotas, and tenancy remain unvalidated.</dd>
+      <dt>Failure / recovery</dt><dd>When the runtime is available, authentication, permission, validation, quota, provider, and operation-state errors must map from shared domain errors; no MCP-only bypass or duplicated retrieval logic.</dd>
+      <dt>Usage / acceptance</dt><dd>Prove per-client/per-user limits and MCP Inspector search, grounded Ask, trace, and evaluation flows with permission-parity tests.</dd>
+     </dl></details>
+
+     <div class="notice warning"><strong>Remaining validation gate:</strong> the 16 REST contracts are in FastAPI/OpenAPI but need managed identity/database/queue/provider integration, SSE reconnect, checkpoint recovery, evaluation execution, fault lease/expiry, telemetry export, and consumer tests. MCP needs transport, Inspector, and permission-parity proof before it can be called externally validated.</div>
+    </section>
+
+    <section id="absent-contracts">
+     <p class="eyebrow">Still intentionally absent</p>
+     <h2>Capabilities outside the accepted interface boundary</h2>
+     <div class="notice warning">Billing, subscriptions, payment, CRM, marketing automation, growth experiments, commercial analytics, unrestricted job cancellation, and general autonomous tool execution have no accepted API contract. They are deferred or rejected portfolio scope, not missing implementation of the 35 current REST operations.</div>
+    </section>
+
+    <section id="evidence">
+     <p class="eyebrow">Evidence</p>
+     <h2>Contract sources</h2>
+     <div class="evidence"><strong>Machine-readable:</strong> <span class="source">infra/openapi/openapi.yaml</span><br/><strong>Implementation:</strong> <span class="source">apps/api/src/researchmate_api/routers/** · schemas/** · dependencies.py · services/**</span><br/><strong>Consumer and tests:</strong> <span class="source">apps/web/app/lib/api.ts · tests/test_api_workflow.py · tests/test_frontend_contracts.py</span></div>
+    </section>
+   </div>
+   <aside class="toc">
+    <b>On this page</b>
+    <a href="#conventions">Conventions</a>
+    <a href="#operation-index">Operation index</a>
+    <a href="#operations">Operation contracts</a>
+    <a href="#schemas">Schema ledger</a>
+    <a href="#planned-operations">Evidence-review operations</a>
+    <a href="#absent-contracts">Absent contracts</a>
+    <a href="#evidence">Evidence</a>
+   </aside>
+  </div>
+ </main>
+ <footer class="shell footer">ResearchMate API contract · 35 implemented OpenAPI REST operations · external runtime validation pending</footer>
+ <script src="../../assets/site.js"></script>
+</body>
+</html>
