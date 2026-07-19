@@ -24,16 +24,13 @@ SOURCE_PAGES = (
 SKIP_TAGS = {"code", "pre", "script", "style", "kbd", "samp", "var"}
 TRANSLATABLE_ATTRIBUTES = ("aria-label", "title", "placeholder", "data-title", "data-detail")
 URL_ATTRIBUTES = ("href", "src")
-MAX_BATCH_CHARS = 2800
-MAX_BATCH_ITEMS = 24
-DELIMITER = "\n__RM_TRANSLATION_SEGMENT_8F39C2__\n"
+MAX_BATCH_CHARS = 2600
+MAX_BATCH_ITEMS = 18
 
 
 def is_translatable(text: str) -> bool:
     stripped = text.strip()
-    if not stripped:
-        return False
-    if not re.search(r"[A-Za-z]", stripped):
+    if not stripped or not re.search(r"[A-Za-z]", stripped):
         return False
     if re.fullmatch(r"[A-Za-z0-9_./:@+\-#?=&%<>()[\]{}'\"|* ]+", stripped):
         words = stripped.split()
@@ -55,26 +52,24 @@ def translate_batches(texts: list[str]) -> list[str]:
         size = 0
         while cursor + len(batch) < len(texts) and len(batch) < MAX_BATCH_ITEMS:
             candidate = texts[cursor + len(batch)]
-            projected = size + len(candidate) + len(DELIMITER)
+            projected = size + len(candidate)
             if batch and projected > MAX_BATCH_CHARS:
                 break
             batch.append(candidate)
             size = projected
 
-        joined = DELIMITER.join(batch)
         last_error: Exception | None = None
         for attempt in range(5):
             try:
-                result = translator.translate(joined)
-                pieces = result.split(DELIMITER)
-                if len(pieces) != len(batch):
+                pieces = translator.translate_batch(batch)
+                if not isinstance(pieces, list) or len(pieces) != len(batch):
                     raise RuntimeError(
-                        f"Translation segment mismatch: expected {len(batch)}, got {len(pieces)}"
+                        f"Translation batch mismatch: expected {len(batch)}, got {len(pieces) if isinstance(pieces, list) else type(pieces)}"
                     )
-                translated.extend(pieces)
+                translated.extend(str(piece) for piece in pieces)
                 last_error = None
                 break
-            except Exception as exc:  # network/provider errors are retried in CI
+            except Exception as exc:
                 last_error = exc
                 time.sleep(2 ** attempt)
         if last_error is not None:
@@ -137,11 +132,9 @@ def rewrite_url(value: str, source_rel: Path, output_rel: Path) -> str:
 
 
 def structure_signature(soup: BeautifulSoup) -> tuple[list[str], list[str], int, int, int]:
-    tags = [tag.name for tag in soup.find_all(True)]
-    ids = [str(tag["id"]) for tag in soup.find_all(id=True)]
     return (
-        tags,
-        ids,
+        [tag.name for tag in soup.find_all(True)],
+        [str(tag["id"]) for tag in soup.find_all(id=True)],
         len(soup.find_all("tr")),
         len(soup.find_all("details")),
         len(soup.find_all("a")),
@@ -161,13 +154,13 @@ def translate_page(source_rel: Path) -> Path:
     soup.html["lang"] = "zh-CN"
 
     nodes, node_texts = collect_text_targets(soup)
-    node_translations = translate_batches(node_texts)
-    for node, translated in zip(nodes, node_translations, strict=True):
+    for node, translated in zip(nodes, translate_batches(node_texts), strict=True):
         node.replace_with(preserve_spacing(str(node), translated))
 
     attributes, attribute_texts = collect_attribute_targets(soup)
-    attribute_translations = translate_batches(attribute_texts)
-    for (tag, attribute), translated in zip(attributes, attribute_translations, strict=True):
+    for (tag, attribute), translated in zip(
+        attributes, translate_batches(attribute_texts), strict=True
+    ):
         tag[attribute] = translated.strip()
 
     for tag in soup.find_all(True):
@@ -176,24 +169,20 @@ def translate_page(source_rel: Path) -> Path:
             if isinstance(value, str):
                 tag[attribute] = rewrite_url(value, source_rel, output_rel)
 
-    source_signature = structure_signature(source_soup)
-    output_signature = structure_signature(soup)
-    if source_signature != output_signature:
-        raise RuntimeError(
-            f"Structural parity failed for {source_rel}: {source_signature[2:]} != {output_signature[2:]}"
-        )
+    if structure_signature(source_soup) != structure_signature(soup):
+        raise RuntimeError(f"Structural parity failed for {source_rel}")
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    rendered = "<!DOCTYPE html>\n" + str(soup)
-    output_path.write_text(rendered, encoding="utf-8", newline="\n")
+    output_path.write_text(
+        "<!DOCTYPE html>\n" + str(soup), encoding="utf-8", newline="\n"
+    )
     return output_path
 
 
 def main() -> None:
     if os.environ.get("CI") != "true":
         print("Generating full Chinese documentation from the English source pages.")
-    generated = [translate_page(page) for page in SOURCE_PAGES]
-    for path in generated:
+    for path in (translate_page(page) for page in SOURCE_PAGES):
         print(path.relative_to(ROOT).as_posix())
 
 
