@@ -14,7 +14,7 @@
     <div class="hero">
       <p class="eyebrow">运行时形态 / 技术选择 / 发布边界</p>
       <h1>架构由证据审阅工作流决定，而非堆砌技术名词</h1>
-      <p class="lede">本页说明系统边界与技术决策。本地默认路径仍是小型 Next.js/FastAPI MVP；公开入口则是 Cloudflare Workers 上的浏览器演示包。仓库包含持久化证据审阅设计，但所有后端与云端集成仍未完成端到端验证。</p>
+      <p class="lede">本页说明系统边界与技术决策。本地默认路径仍是小型 Next.js/FastAPI MVP；当前公开入口是托管在 Vercel 的纯浏览器 Next.js 演示，Cloudflare Workers 是已配置的后续目标。仓库包含持久化证据审阅设计，但所有后端与云端集成仍未完成端到端验证。</p>
       <div class="meta"><span class="status local">Implemented · 35 REST operations</span><span class="status partial">Code present · distributed runtime unvalidated</span><span class="status local">AI runtime imports and local smoke pass</span><span class="status unknown">Not configured · cloud runtime</span></div>
     </div>
     <div class="layout"><div class="content">
@@ -30,15 +30,15 @@
           </div>
           <div class="arch-inspector"><h4 data-arch-title>Next.js experience</h4><p data-arch-body>Seven user-facing routes provide portfolio, project, Evidence Review, Ask, Library, Quiz, Evaluation/Reliability Labs, and developer Trace experiences. Supabase Auth REST session code is implemented for preview/production, while server-side ownership and RLS remain the authorization boundary.</p></div>
         </div>
-        <div class="notice warning"><strong>运行时事实：</strong>代码和接口约束覆盖 Postgres/JWT、S3 兼容对象存储、NVIDIA、Qdrant、Tavily、Celery、outbox、LangGraph、RAGAS、评测预算、增量刷新、OTLP/Langfuse 与 MCP。公开 Cloudflare 包改用明确的、只在浏览器运行的确定性适配器：不会访问检查点数据库、消息队列、托管服务商、遥测导出器、迁移、API、worker、上传或会话。Vercel 已不是发布目标；PDF OCR/布局资源仍未能在本机下载，内存路径仍是本地演示默认值。</div>
+        <div class="notice warning"><strong>运行时事实：</strong>代码和接口约束覆盖 Postgres/JWT、S3 兼容对象存储、NVIDIA、Qdrant、Tavily、Celery、outbox、LangGraph、RAGAS、评测预算、增量刷新、OTLP/Langfuse 与 MCP。已上线的 Vercel 公共 MVP 使用明确的、只在浏览器运行的确定性适配器：不会访问检查点数据库、消息队列、托管服务商、遥测导出器、迁移、API、worker、上传或会话。若后续 Cloudflare 发布运行，它使用相同边界。PDF OCR/布局资源仍未能在本机下载，内存路径仍是本地演示默认值。</div>
       </section>
 
       <section id="target-architecture">
-        <p class="eyebrow">拆分后的发布边界</p><h2>当前是 Cloudflare 公开演示；持久化运行时尚未选定宿主</h2>
+        <p class="eyebrow">拆分后的发布边界</p><h2>Vercel 公开演示已上线；持久化运行时尚未选定宿主</h2>
         <div class="visual-panel">
           <div class="visual-head"><div><h3>Multi-source evidence-review runtime</h3><p>This is the target deployed topology, not the current runtime. Application code may exist for a node while configuration, integration, isolation, recovery, and deployment evidence remains absent.</p></div><div class="legend"><span><i class="is-planned"></i>target, not deployed</span></div></div>
           <div class="architecture-map">
-            <div class="arch-column"><span>公开体验</span><div class="arch-node"><b>Cloudflare Workers · Next.js/OpenNext</b><small>公开确定性演示 · 不调用服务商</small></div></div>
+            <div class="arch-column"><span>公开体验</span><div class="arch-node"><b>Vercel Hobby · Next.js</b><small>已上线确定性演示 · 不调用服务商</small></div><div class="arch-node"><b>Cloudflare Workers · OpenNext</b><small>已配置的后续路径 · 不宣称 Worker URL</small></div></div>
             <div class="arch-column"><span>应用控制</span><div class="arch-node"><b>未来支持容器的宿主 · FastAPI</b><small>尚未选定 · JWT · REST/SSE · 权限 · 编排</small></div></div>
             <div class="arch-column"><span>Durable execution</span><div class="arch-node"><b>LangGraph + Celery</b><small>checkpoint · fan-out · HITL · retry · resume</small></div></div>
             <div class="arch-column"><span>State and evidence</span><div class="arch-node"><b>Supabase + S3 storage + Qdrant</b><small>records · objects · dense/sparse projections</small></div></div>
@@ -95,10 +95,17 @@
       </section>
 
       <section id="deployment">
-        <p class="eyebrow">Student-friendly deployment design</p><h2>Scale to zero, cap usage, and keep claims honest</h2>
-        <div class="notice warning"><strong>当前发布状态：</strong><code>apps/web</code> 已能以 <code>NEXT_PUBLIC_DEMO_MODE=true</code> 构建为 Cloudflare Workers/OpenNext 包。这只是公开、确定性的演示：未接入认证会话、托管 API、数据库、对象存储、队列、Qdrant、模型服务商或遥测导出器。受保护的 <code>Production</code> 发布只需要 <code>CLOUDFLARE_API_TOKEN</code>，但尚未执行，因此不宣称存在 Workers URL。Vercel 仅是历史地址，Azure 不是当前目标；Supabase、Upstash 与 Qdrant 资源也不会因这次演示发布而被隐式暴露。</div>
+        <p class="eyebrow">面向学生的发布设计</p><h2>一条已上线的浏览器 MVP；每项持久服务各自独立发布</h2>
+        <div class="notice warning"><strong>当前发布状态：</strong><a href="https://research-mate-web.vercel.app">Vercel Production</a> 正从 <code>main</code> 提供确定性的纯浏览器 MVP。已冒烟验证的路径是：首页 → 工作区 → 创建一个项目 → 模拟证据运行 → 带引文报告。它不会调用认证会话、托管 API、数据库、对象存储、队列、Qdrant、模型服务商或遥测导出器。Cloudflare Workers/OpenNext 已配置为第二个静态演示目标，但首次受保护运行因 GitHub-hosted Runner 调度异常而取消；不宣称存在 Workers URL。Azure 不是目标；Supabase/Upstash/Qdrant 资源未连接，也不会被 Vercel 发布隐式暴露。Cloudflare R2 仍保持未激活，以避免超额计费。</div>
+        <div class="proof-chain" aria-label="当前 MVP 发布路径">
+          <div class="proof-step"><b>1 · 提交到 <code>main</code></b><small>经审查的 Next.js/静态演示代码推送到 GitHub；仓库中不保存运行时密钥。</small></div>
+          <div class="proof-step"><b>2 · Vercel Git 部署</b><small>Vercel Hobby 侦测 <code>main</code> 的提交，构建 <code>apps/web</code>，并把成功构建提升到稳定公开域名。</small></div>
+          <div class="proof-step"><b>3 · 浏览器冒烟验证</b><small>验证公开首页、工作区、一次项目创建、模拟运行状态和带引文报告；UI 会说明其纯浏览器边界。</small></div>
+          <div class="proof-step"><b>4 · 保持持久服务关闭</b><small>FastAPI、Celery、数据库、存储、Redis、Qdrant、服务商与遥测在其托管集成被证明前，始终是独立发布。</small></div>
+        </div>
         <div class="scroll"><table><thead><tr><th>Service / component</th><th>What it does</th><th>Hosted on</th><th>Current status</th><th>Next proof or configuration</th></tr></thead><tbody>
-          <tr><td>Next.js 公开演示</td><td>作品集首页、工作区、资料库、Ask、报告与 Lab 演示。</td><td><a href="https://developers.cloudflare.com/workers/framework-guides/web-apps/nextjs/">Cloudflare Workers via OpenNext</a></td><td><span class="status partial">包已构建，尚未发布</span>。界面明确标注使用确定性样例数据；文档不参与公开构建。</td><td>执行受保护发布并冒烟验证根路由与工作区。真实 API 出现前保持 <code>NEXT_PUBLIC_DEMO_MODE=true</code>。</td></tr>
+          <tr><td>Next.js 公开 MVP</td><td>作品集首页、工作区、资料库、Ask、报告与 Lab 演示；公开模式中的所有样例状态只保留在浏览器内。</td><td><a href="https://vercel.com/docs">Vercel Hobby</a></td><td><span class="status local">已部署并冒烟验证</span>：<a href="https://research-mate-web.vercel.app">research-mate-web.vercel.app</a>，对应 commit <code>826272b</code>。UI 明确说明不会运行登录、上传、服务商调用或托管工作流。</td><td>在独立验证的 API 发布出现前保持公开路径静态；每次 <code>main</code> 部署后重新冒烟验证。</td></tr>
+          <tr><td>Cloudflare Workers / OpenNext</td><td>同一纯浏览器演示的可选第二宿主；不是 Python 后端运行时。</td><td><a href="https://developers.cloudflare.com/workers/framework-guides/web-apps/nextjs/">Cloudflare Workers</a></td><td><span class="status partial">已配置包与受保护的手动工作流</span>；首次运行卡在 GitHub-hosted Runner 调度阶段后被取消。不宣称 Worker URL。</td><td>等待 GitHub Runner 可用后，从当前提交重新运行，并独立冒烟验证 Worker URL。</td></tr>
           <tr><td>FastAPI API</td><td>JWT 认证、项目/文档/研究 REST 接口、存活与就绪检查。</td><td>未来支持容器的宿主</td><td><span class="status unknown">宿主未选定</span>。不把 Cloudflare Workers 表述为 Python ASGI 运行时。</td><td>仅在认证 API 已准备好独立发布时，再选择免费或学生可用的容器宿主。</td></tr>
           <tr><td>Celery Worker</td><td>解析、分块、索引、Agent 工作流和评测任务。</td><td>未来支持容器的宿主</td><td><span class="status unknown">尚未部署</span>。worker 镜像与角色选择目前仅有源代码证据。</td><td>选择支持持久 worker 执行的宿主，并证明一次队列投递与心跳。</td></tr>
           <tr><td>Outbox Dispatcher</td><td>可靠地把已提交的 Postgres 意图送入 Redis。</td><td>未来支持容器的宿主</td><td><span class="status unknown">尚未部署</span>。Cloudflare 发布不会运行 dispatcher。</td><td>与 worker 并行运行，并验证发布、过期认领恢复和 outbox 时效检查。</td></tr>
@@ -111,37 +118,37 @@
           <tr><td>Tavily</td><td>Bounded web search and external evidence.</td><td>Tavily</td><td><span class="status partial">Adapter implemented</span>; provider unconfigured.</td><td>Store a backend-only key and prove timeout, source policy, and injection handling.</td></tr>
           <tr><td>LangGraph</td><td>Checkpointed Agent workflow, human approval, and resume.</td><td>Worker runtime</td><td><span class="status partial">Local fake fan-out passes</span>; durable checkpointed execution is unverified.</td><td>Apply checkpoint migrations and prove interrupt, restart, decision, and resume against Postgres.</td></tr>
           <tr><td>Langfuse + OpenTelemetry</td><td>LLM traces, cost, latency, error, and evaluation observation.</td><td><a href="https://langfuse.com/pricing">Langfuse Cloud</a> / OTLP collector</td><td><span class="status partial">Code and dependencies present</span>; no credentials or export.</td><td>Configure separate observability keys and prove redacted trace propagation and a budget metric.</td></tr>
-          <tr><td>GitHub Actions</td><td>CI 与手动受保护的公开演示发布。</td><td><a href="https://docs.github.com/en/actions/concepts/billing-and-usage">GitHub</a></td><td><span class="status partial">已记录 CI #18 通过；Cloudflare 发布未执行</span>。该演示的 Production 环境只需 Cloudflare token。</td><td>执行首个受保护 Cloudflare 发布，记录 Workers URL，再做浏览器冒烟验证。</td></tr>
+          <tr><td>GitHub Actions</td><td>仓库质量门禁，以及手动受保护的 Cloudflare 后续发布。</td><td><a href="https://docs.github.com/en/actions/concepts/billing-and-usage">GitHub</a></td><td><span class="status partial">CI 已配置</span>。release #1 在首个 job 启动前因 GitHub-hosted Runner 不可用而取消；未发生 Cloudflare 部署。</td><td>当前 MVP 以 Vercel Git 部署为准。仅从当前提交重新运行受保护 Workers 发布，并记录独立冒烟证据。</td></tr>
           <tr><td>GHCR</td><td>未来 API 与 worker 的 OCI 镜像。</td><td>GitHub Container Registry</td><td><span class="status unknown">不属于公开演示发布</span>；尚未发布镜像。</td><td>仅在未来容器运行时发布时，再恢复不可变镜像发布流程。</td></tr>
           <tr><td>Cloudflare R2</td><td>Legacy object-storage alternative.</td><td>Cloudflare</td><td><span class="status unknown">Not used</span>; account exists but R2 remains unactivated.</td><td>Keep disabled: its subscription can bill overages. Supabase Storage is the selected no-card provider.</td></tr>
         </tbody></table></div>
         <div class="access-rails">
           <article class="access-rail"><h3>Development target</h3><p>Native Windows processes will use dedicated free development projects and fake-first tests after the owner provisions credentials.</p></article>
-          <article class="access-rail derived"><h3>预览目标</h3><p>当前未配置预览部署。公开演示先保持一个受保护的 Production 发布，直至独立预览边界确有必要。</p></article>
-          <article class="access-rail unknown"><h3>生产演示目标</h3><p>Cloudflare Workers 是唯一的当前发布目标。该包只在浏览器中运行并使用静态数据；API/worker 发布仍需另选容器宿主并取得托管服务证据。</p></article>
+          <article class="access-rail derived"><h3>预览目标</h3><p>当创建非生产部署时，Vercel 会通过连接的 Git 仓库提供预览；预览不构成托管后端已验证的证据。</p></article>
+          <article class="access-rail"><h3>生产演示目标</h3><p>Vercel Hobby 是已上线的公开 MVP 目标。它只提供浏览器内静态演示数据；API/worker 发布仍需另选容器宿主并取得托管服务证据。</p></article>
           <article class="access-rail unknown"><h3>Readiness boundary</h3><p><code>/api/v1/readyz</code> checks Postgres, Redis, Qdrant, worker and dispatcher heartbeat freshness, outbox backlog, and LangGraph checkpoint tables; object storage/LLM/Tavily remain configuration-only to avoid charged probe calls. Route tests exist; no managed-service readiness evidence exists.</p></article>
         </div>
       </section>
 
       <section id="cicd">
-        <p class="eyebrow">CI/CD target</p><h2>One commit identity from pull request to recovery</h2>
+        <p class="eyebrow">CI/CD 与发布组件</p><h2>从 GitHub 到已验证公开演示的一条提交身份</h2>
         <div class="proof-chain">
-          <div class="proof-step"><b>Pull request gates</b><small>Pytest, Ruff, OpenAPI drift, migration validation, TypeScript/Next.js production build, HTML link/contract tests, and npm dependency audit.</small></div>
-          <div class="proof-step"><b>受保护的公开演示发布</b><small>人工触发的 Production 发布会重复质量检查、构建 OpenNext，并用短期且范围受限的 token 将浏览器演示部署到 Cloudflare Workers。</small></div>
-          <div class="proof-step"><b>未来后端发布</b><small>尚未配置。未来的容器宿主必须构建不可变 API/worker 镜像、运行兼容迁移，并先证明托管服务路径，才可替换演示模式。</small></div>
-          <div class="proof-step"><b>验证与恢复</b><small>冒烟验证 Cloudflare 公开路由，必要时回退 Worker 部署。数据库迁移、API 就绪、队列与追踪恢复测试明确留待未来后端发布。</small></div>
+          <div class="proof-step"><b>仓库门禁</b><small>GitHub Actions 定义 pytest、Ruff、OpenAPI 漂移、迁移验证、TypeScript/Next.js 构建、HTML 链接/契约检查与 npm 依赖审计。最新演示修复前已重新运行本地子集。</small></div>
+          <div class="proof-step"><b>Vercel Production</b><small>GitHub <code>main</code> 是当前线上 MVP 的来源。Vercel 构建 Web 应用，并把 Ready 部署提升到 <code>research-mate-web.vercel.app</code>；部署状态可在 Vercel 查看。</small></div>
+          <div class="proof-step"><b>冒烟与回滚</b><small>每次部署后浏览器验证有边界的演示路径。Vercel 保留先前的生产部署，因此回滚是托管平台操作，而不是数据库回滚。</small></div>
+          <div class="proof-step"><b>未来持久运行时发布</b><small>Cloudflare Workers 仍可作为静态演示宿主。未来容器宿主必须构建 API/worker 镜像、应用兼容迁移并证明托管服务就绪，才可替换演示模式。</small></div>
         </div>
-        <div class="notice warning"><strong>当前状态：</strong><code>.github/workflows/ci.yml</code> 保留了 pull request 与 push 的仓库质量门禁。<code>.github/workflows/release.yml</code> 现在只负责手动、受保护的 Cloudflare 发布：重复质量检查，以 <code>NEXT_PUBLIC_DEMO_MODE=true</code> 构建 OpenNext Worker 包，并使用 GitHub Production 的 <code>CLOUDFLARE_API_TOKEN</code> 部署。它不会部署 Azure、Vercel、容器、GHCR 镜像、迁移、API、Celery、存储或服务商配置。首次发布后仍需冒烟验证；尚未观察到生成的 Workers URL。文档仅保留在仓库中，不进入公开构建。</div>
+        <div class="notice warning"><strong>当前状态：</strong>Vercel Production 是公开演示当前已验证的发布路径，已部署 commit <code>826272b</code>。<code>.github/workflows/ci.yml</code> 定义仓库质量门禁；<code>.github/workflows/release.yml</code> 保留为受保护的手动 Cloudflare 后续流程：重复检查，以 <code>NEXT_PUBLIC_DEMO_MODE=true</code> 构建 OpenNext，并使用 GitHub Production 的 <code>CLOUDFLARE_API_TOKEN</code>。它的首次尝试在 GitHub Runner 调度阶段、尚未开始执行时被取消，因而不提供部署证据。两条路径都不会部署 Azure、容器、GHCR 镜像、迁移、API、Celery、存储或服务商配置。文档只保留在仓库中，不进入公开应用构建。</div>
       </section>
 
       <section id="decisions">
         <p class="eyebrow">Architecture decisions</p><h2>Selected boundaries and reopen triggers</h2>
         <div class="scroll"><table><thead><tr><th>Decision</th><th>Reason</th><th>Consequence</th><th>Reopen trigger</th></tr></thead><tbody>
           <tr><td>Technology-first portfolio, scenario-justified</td><td>The objective is engineering breadth and depth, but every dependency must solve a concrete workflow or failure.</td><td>The scenario is intentionally more complex than a consumer MVP; empty integrations are not acceptable.</td><td>A component cannot produce direct implementation, test, metric, or recovery evidence.</td></tr>
-          <tr><td>原生 Windows 开发；Workers 公开演示</td><td>Node、Python、uv、Celery 与 Git 已存在，本地开发无需 Docker。OpenNext 可生成公开演示所需的 Worker 包，无需 Python 运行时。</td><td>首个公开界面成本低且易于撤回，但这不等于 FastAPI/Celery 已在云端运行。</td><td>真实的认证后端垂直切片已准备好，且另行选定了支持容器的宿主。</td></tr>
+          <tr><td>原生 Windows 开发；Vercel 公开 MVP</td><td>Node、Python、uv、Celery 与 Git 已存在，本地开发无需 Docker。Vercel 可直接从 GitHub 发布 Next.js 的纯浏览器界面，无需 Python 运行时。</td><td>已上线公开界面成本低且易于回滚，但这不等于 FastAPI/Celery 已在云端运行。</td><td>真实的认证后端垂直切片已准备好，且另行选定了支持容器的宿主。</td></tr>
           <tr><td>Postgres is business truth</td><td>Workflow, evidence, report, decision, and evaluation state require transactions and integrity.</td><td>S3-compatible object storage and Qdrant are rebuildable projections; Redis cannot own irreplaceable state.</td><td>Measured access and scale invalidate the relational model.</td></tr>
           <tr><td>Bounded LangGraph plus Celery</td><td>LangGraph owns durable decisions and state transitions; Celery owns parallel, retryable execution.</td><td>Node and task idempotency plus shared run/event contracts are mandatory.</td><td>One runtime can satisfy both orchestration and work execution with less complexity and equal proof.</td></tr>
-          <tr><td>Cloudflare 公开界面；后端宿主暂缓</td><td>Cloudflare Workers 足以承载确定性的公开演示，且在当前选择下无需信用卡。Python 后端需要另一种运行时形态。</td><td>公开发布边界是明确的；不会用模糊表述把 Worker 说成 Celery、ASGI 或持久任务宿主。</td><td>找到无需信用卡或学生可用的容器平台，能证明完整后端垂直切片。</td></tr>
+          <tr><td>Cloudflare 后续路径；后端宿主暂缓</td><td>Cloudflare Workers 是确定性公开演示的可选第二宿主；Python 后端需要另一种运行时形态。</td><td>不会把 Worker 表述为 Celery、ASGI 或持久任务宿主。在获得独立 Workers 证据前，已上线 MVP 仍以 Vercel 为准。</td><td>找到无需信用卡或学生可用的容器平台，能证明完整后端垂直切片。</td></tr>
           <tr><td>No production SLA claim</td><td>Free tiers can cold-start, pause, throttle, or expire.</td><td>The demo publishes quotas, readiness checks, and a read-only degraded mode.</td><td>Paid resources and operational evidence support a measurable SLO.</td></tr>
         </tbody></table></div>
       </section>

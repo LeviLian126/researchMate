@@ -11,7 +11,7 @@
   <header class="mast">
     <div class="shell mast-row">
       <a class="brand" href="index.html">ResearchMate 文档</a>
-      <span class="stamp">证据快照 · 2026 年 7 月 19 日</span>
+      <span class="stamp">证据快照 · 2026 年 7 月 20 日</span>
     </div>
   </header>
   <nav aria-label="文档导航" class="global"><div class="shell">
@@ -36,7 +36,8 @@
           <span class="status partial">已记录 105 个测试用例 · 本机环境尚不完整</span>
           <span class="status local">已实现 35 个 REST 接口</span>
           <span class="status partial">托管运行时集成尚未验证</span>
-          <span class="status partial">Cloudflare 演示包已构建 · 尚未发布</span>
+          <span class="status local">最小 MVP · 已部署到 Vercel</span>
+          <span class="status partial">Cloudflare Workers · 已配置，未发布</span>
         </div>
       </div>
     </section>
@@ -48,10 +49,10 @@
         <div class="snapshot-grid">
           <article class="state-card"><span class="status partial">有记录的证据 · 需要复核</span><b>仓库边界</b><p>仓库包含 105 个 Python 测试用例，并保留 OpenAPI、迁移文件、文档链接、TypeScript、Next.js 与 OpenNext for Cloudflare 的检查。当前 Windows 环境缺少 <code>qdrant_client</code>，完整测试在收集阶段停止，因此不宣称本次复核全绿。</p></article>
           <article class="state-card"><span class="status partial">Implemented, not integrated</span><b>Distributed-system seams</b><p>Postgres/RLS, S3-compatible object storage, Qdrant, Celery/outbox, LangGraph, evaluation, telemetry, and MCP have code and contracts, but no managed end-to-end run.</p></article>
-          <article class="state-card"><span class="status partial">演示包已就绪，尚未发布</span><b>外部证据</b><p>仓库已能构建 OpenNext/Cloudflare Workers 包，并提供确定性的浏览器演示模式。该模式不会登录、上传、访问存储、数据库、队列、模型或其他服务商。旧 Vercel 地址仅作历史记录；在受保护的发布真正完成前，不宣称存在 Workers 地址。</p></article>
-          <article class="state-card"><span class="status planned">下一项需取得的证据</span><b>两条独立的发布路径</b><p>先发布并冒烟验证纯浏览器的 Cloudflare 演示。之后如需暴露现有 FastAPI、Celery 与 dispatcher，须另选支持容器的运行环境；Cloudflare Workers 不被描述为 Python worker 的运行时。</p></article>
+          <article class="state-card"><span class="status local">公开 MVP 已发布并完成冒烟验证</span><b>外部证据</b><p><a href="https://research-mate-web.vercel.app">Vercel Production</a> 已从 <code>main</code> 提供当前纯浏览器演示。已验证路径为：首页 → 工作区 → 创建一个浏览器内项目 → 模拟研究运行 → 带引文报告。该模式不会登录、上传、访问存储、数据库、队列、模型或其他服务商。</p></article>
+          <article class="state-card"><span class="status planned">下一项需取得的证据</span><b>后端与 Workers 的独立发布路径</b><p>受保护的 Cloudflare Workers 发布已配置，但因 GitHub-hosted Runner 调度异常未用于当前公开 MVP；须从当前提交重新运行后才可宣称 Workers 地址。若要暴露 FastAPI、Celery 与 dispatcher，仍须另选支持容器的宿主；Azure 已退出当前方案，Workers 也不被描述为 Python worker 运行时。</p></article>
         </div>
-        <p class="source">Evidence: tests/ · infra/openapi/openapi.yaml · infra/supabase/migrations/ · .github/workflows/ · apps/web · apps/api · workers/ai-worker. Local browser visual and cloud-runtime checks were not performed.</p>
+        <p class="source">证据：commit <code>826272b</code> 的 Vercel Production 部署 · 2026 年 7 月 20 日浏览器冒烟验证 · tests/ · infra/openapi/openapi.yaml · infra/supabase/migrations/ · .github/workflows/ · apps/web · apps/api · workers/ai-worker。Cloudflare 只有构建证据，不宣称已部署 Worker。</p>
       </div>
     </section>
 
@@ -114,7 +115,7 @@
           <article class="access-rail"><h3>Contract surface</h3><p>35 FastAPI/OpenAPI operations provide the original MVP plus research, decision, report, catalog, evaluation, reliability, readiness, and fault contracts.</p><a href="contracts/api/index.html#operations">Read the complete REST ledger →</a></article>
           <article class="access-rail derived"><h3>Runtime seams</h3><p>Postgres/RLS, S3-compatible storage, Qdrant, Celery/outbox, provider adapters, LangGraph, evaluation, telemetry, and MCP are implemented seams. None has completed a managed end-to-end run.</p><a href="architecture/index.html#current-architecture">See the runtime boundary →</a></article>
           <article class="access-rail unknown"><h3>Known local limits</h3><p>LangGraph, RAGAS, MCP, Langfuse, and OpenTelemetry packages now import. A bounded LangGraph graph and authenticated MCP initialization pass locally. The production dependency audit completed with zero vulnerabilities on 18 July 2026. Checkpoint storage, provider evaluation, telemetry export, PDF OCR/layout assets, and browser inspection remain unverified or blocked.</p><a href="product/index.html#validation">Review validation limits →</a></article>
-          <article class="access-rail unknown"><h3>发布边界</h3><p>文档仅保留在仓库中。Cloudflare Workers 的公开演示发布已配置但尚未执行；Azure 已退出当前方案。Supabase、Redis、Qdrant、服务商凭据、迁移、后端连通性、质量、恢复与可用性明确不属于第一轮公开演示的证明范围。</p><a href="architecture/index.html#deployment">查看发布门禁 →</a></article>
+          <article class="access-rail unknown"><h3>发布边界</h3><p>公开 MVP 托管在 Vercel，且只在浏览器中运行；文档仅保留在仓库中。Cloudflare Workers 是已配置的后续路径，并非已宣称的线上端点。Supabase、Redis、Qdrant、服务商凭据、迁移、后端连通性、质量、恢复与可用性明确不属于第一轮公开演示的证明范围。</p><a href="architecture/index.html#deployment">查看发布组件 →</a></article>
         </div>
         <div class="doc-index capability-index" aria-label="Implemented capability deep links">
           <a class="doc-link" href="product/index.html#cap-projects"><b>Projects</b><span>Current owner-scoped workspace contract.</span></a>
@@ -154,7 +155,7 @@
       </div>
     </section>
   </main>
-  <footer class="shell footer">ResearchMate portfolio overview · current evidence snapshot inspected 18 July 2026</footer>
+  <footer class="shell footer">ResearchMate 项目概览 · 当前证据快照更新于 2026 年 7 月 20 日</footer>
   <script src="assets/site.js"></script>
 </body>
 </html>
