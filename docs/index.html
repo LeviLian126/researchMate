@@ -33,7 +33,7 @@
           <a class="button" href="architecture/index.html#target-architecture">Inspect the target architecture</a>
         </div>
         <div class="meta">
-          <span class="status local">Repository-validated · 105 Python tests</span>
+          <span class="status partial">105 test cases recorded · local environment incomplete</span>
           <span class="status local">Implemented contract · 35 REST operations</span>
           <span class="status partial">Integration unvalidated · managed runtime</span>
           <span class="status local">Cloudflare bundle · built locally</span>
@@ -47,7 +47,7 @@
         <p class="eyebrow">Current decision snapshot</p>
         <h2>What can be claimed today</h2>
         <div class="snapshot-grid">
-          <article class="state-card"><span class="status local">Verified locally</span><b>Repository boundary</b><p>Ruff and 105 Python tests pass. OpenAPI, migration-file, documentation-link, TypeScript, Next.js, and OpenNext-for-Cloudflare builds have repository evidence.</p></article>
+          <article class="state-card"><span class="status partial">Recorded evidence · recheck needed</span><b>Repository boundary</b><p>The repository contains 105 Python test cases, plus OpenAPI, migration-file, documentation-link, TypeScript, Next.js, and OpenNext-for-Cloudflare checks. In this Windows environment the full suite currently stops during collection because <code>qdrant_client</code> is missing, so a fresh all-green run is not claimed.</p></article>
           <article class="state-card"><span class="status partial">Implemented, not integrated</span><b>Distributed-system seams</b><p>Postgres/RLS, S3-compatible object storage, Qdrant, Celery/outbox, LangGraph, evaluation, telemetry, and MCP have code and contracts, but no managed end-to-end run.</p></article>
           <article class="state-card"><span class="status partial">Public demo ready, not yet deployed</span><b>External proof</b><p>The repository now has an OpenNext/Cloudflare Workers bundle and a deterministic in-browser demo mode. It deliberately makes no login, upload, storage, database, queue, model, or provider request. The prior Vercel URL is legacy only. A GitHub <code>Production</code> environment holds the Cloudflare deployment secret; no Worker deployment URL is claimed until the protected run completes.</p></article>
           <article class="state-card"><span class="status planned">Next evidence to obtain</span><b>Two separate release paths</b><p>First, deploy and smoke the browser-only Cloudflare demo. Separately, choose a container-capable host before exposing the existing FastAPI/Celery/dispatcher code; Azure is retired and Cloudflare Workers is not presented as a Python-worker runtime.</p></article>
