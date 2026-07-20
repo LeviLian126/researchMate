@@ -19,6 +19,15 @@ Recover from the request and current evidence:
 
 Do not require the user to restate facts available in the repository. Ask only for a decision, authority, or evidence that cannot be discovered safely.
 
+## Maintain source commentary
+
+For every authored source or configuration file touched or created, keep its English commentary useful and current:
+
+- Start the file with a concise English comment that states the file's responsibility or boundary.
+- Add a concise English docstring or documentation comment to every class and function, including frontend components and handlers, explaining its purpose rather than repeating its implementation.
+- Keep comments accurate when behavior changes; prefer intent, invariants, and non-obvious constraints over line-by-line narration.
+- Preserve each format's syntax and tooling contract. Do not inject comments into strict JSON, lockfiles, generated files, or vendor artifacts; use schema-supported descriptive metadata when available instead.
+
 ## Operate through the kernel
 
 1. Read `references/nodes/00-product-delivery-kernel/README.md`.
