@@ -99,6 +99,20 @@ tr:last-child td { border-bottom: 0; }
 th { background: var(--g100); color: var(--g500); font: 10px/1.35 var(--mono); letter-spacing: .045em; text-transform: uppercase; }
 td p { margin: 0 0 5px; }
 td ul { margin: 0; padding-left: 17px; }
+
+/* The stack ledger has six explanatory columns. Letting the generic
+   `overflow-wrap:anywhere` rule define their minimum width collapses headings
+   to single characters beside the table of contents. Keep readable columns
+   and use the existing horizontal scroll affordance when space is limited. */
+#stack .scroll > table { min-width: 1120px; table-layout: fixed; }
+#stack th, #stack td { overflow-wrap: normal; word-break: normal; }
+#stack th:nth-child(1) { width: 15%; }
+#stack th:nth-child(2) { width: 12%; }
+#stack th:nth-child(3) { width: 18%; }
+#stack th:nth-child(4) { width: 19%; }
+#stack th:nth-child(5) { width: 20%; }
+#stack th:nth-child(6) { width: 16%; }
+
 tr:target { background: #fbede8; }
 .dense td, .dense th { padding: 8px 9px; }
 .lane { display: grid; grid-template-columns: 145px minmax(0,1fr); gap: 16px; border-top: 1px solid var(--g300); padding: 14px 0; }
