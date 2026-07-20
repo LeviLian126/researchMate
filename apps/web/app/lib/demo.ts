@@ -182,7 +182,11 @@ export async function demoFetch<T>(rawPath: string, init: globalThis.RequestInit
   const method = (init.method ?? "GET").toUpperCase();
   const body = requestBody(init);
 
-  if (path === "/projects" && method === "GET") return projects as T;
+  // Return a fresh array and records, rather than the module-owned mutable
+  // collection. A first render may be loading this list while the user creates
+  // a project; sharing the array would let a later `unshift` appear twice when
+  // both state updates resolve.
+  if (path === "/projects" && method === "GET") return projects.map((project) => ({ ...project })) as T;
   if (path === "/projects" && method === "POST") {
     const id = makeId("11111111-1111", ++projectSequence);
     const next = { id, user_id: "public-demo", name: typeof body.name === "string" && body.name.trim() ? body.name.trim() : "Untitled walkthrough", status: "active", created_at: timestamp, updated_at: timestamp };
