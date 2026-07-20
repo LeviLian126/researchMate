@@ -1,0 +1,27 @@
+# Packages the pull-request source tree so the authorized implementation can run against a complete local checkout.
+name: researchmate-source-export
+
+on:
+  pull_request:
+    paths:
+      - "**"
+
+permissions:
+  contents: read
+
+jobs:
+  export-source:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out the pull-request source
+        uses: actions/checkout@v4
+      - name: Build a source-only archive
+        run: tar --exclude=.git --exclude=node_modules --exclude='**/.next' --exclude='**/__pycache__' --exclude='.pytest_cache' --exclude='.ruff_cache' -czf researchmate-source.tgz .
+      - name: Upload the source archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: researchmate-source
+          path: researchmate-source.tgz
+          if-no-files-found: error
+          retention-days: 1
