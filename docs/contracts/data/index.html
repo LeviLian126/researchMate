@@ -47,7 +47,7 @@
      Database entities, fields, integrity, and access
     </h1>
     <p class="lede">
-      This is the field-level source of truth for the maintained SQL migrations: 15 initial tables, 16 additive domain tables, and one backend-only operational table. Local/test still defaults to memory. PostgreSQL adapters and worker repositories exist, and the six migrations are applied to the isolated Supabase development project; application integration remains unvalidated.
+      This is the field-level source of truth for the maintained SQL migrations: 15 initial tables, 16 additive domain tables, and one backend-only operational table. Local/test still defaults to memory. PostgreSQL adapters and worker repositories exist; the six migrations are applied to the isolated Supabase development project and a direct pooled psycopg query now succeeds, while authenticated application and RLS integration remain unvalidated.
     </p>
     <div class="meta">
      <span class="status partial">
@@ -733,7 +733,7 @@
       <section id="planned-schema">
        <p class="eyebrow">Additive migration and repository contracts</p>
       <h2>Workflow, evidence, report, outbox, evaluation, and fault entities</h2>
-      <p class="sub">Fifteen additive contracts come from <code>202607150002_evidence_review_schema.sql</code>; <code>202607150005_evaluation_budget_and_fault_exercises.sql</code> adds <code>fault_exercises</code>, bringing the domain total to 31 tables (15 initial + 16 additive). Migration 006 adds one backend-only operational <code>runtime_heartbeats</code> table and workflow lease/budget fields; it is not counted as a domain table. The six migrations are applied to the isolated Supabase development project, but no application-driven managed-Postgres integration has run.</p>
+      <p class="sub">Fifteen additive contracts come from <code>202607150002_evidence_review_schema.sql</code>; <code>202607150005_evaluation_budget_and_fault_exercises.sql</code> adds <code>fault_exercises</code>, bringing the domain total to 31 tables (15 initial + 16 additive). Migration 006 adds one backend-only operational <code>runtime_heartbeats</code> table and workflow lease/budget fields; it is not counted as a domain table. The six migrations are applied to the isolated Supabase project, and a direct pooled psycopg connection verified six ledger rows, ten checkpoint migration rows, and 37 public tables; no authenticated application/RLS transaction has run.</p>
       <div class="notice"><strong>Storage ownership:</strong> PostgreSQL is the source of truth for business state. S3-compatible object storage stores private source bytes and parser artifacts; Qdrant stores rebuildable dense/sparse projections; Redis stores broker and short-lived coordination state only. No irreplaceable business fact may exist only in object storage, Qdrant, or Redis.</div>
       <div class="notice warning"><strong>Checkpoint boundary:</strong> LangGraph Postgres checkpoint tables are SDK-managed infrastructure, not domain tables. A guarded release command runs the SDK-owned schema once before deployment; workers do not execute DDL. The four checkpoint tables now exist in the isolated <code>researchmate-dev</code> Supabase database at schema version 9, but interrupt/resume and restart behavior have not yet been exercised against them. These four tables are not included in the 31-domain-table count.</div>
 
@@ -844,7 +844,7 @@
        <dt>Lifecycle</dt><dd>One row per component is overwritten indefinitely. It can be deleted and reconstructed by a running component.</dd>
       </dl></details>
 
-      <div class="notice warning"><strong>Remaining migration gate:</strong> migration and repository code is implemented, but database operation is not. The additive migrations need an authorized Supabase dry run/application, same-tenant relationship and RLS integration tests, budget/fault lease and restart proof, explicit retention values, and compatibility proof for current <code>ask_runs</code>.</div>
+      <div class="notice warning"><strong>Remaining migration gate:</strong> migration application and direct database connectivity are now verified. FastAPI still needs to use the stored runtime credential, and the project still needs same-tenant relationship and cross-tenant RLS tests, budget/fault lease and restart proof, explicit retention values, and compatibility proof for current <code>ask_runs</code>.</div>
      </section>
      <section id="access">
       <p class="eyebrow">
@@ -1024,7 +1024,7 @@
        <strong>
         High-risk unknown.
        </strong>
-       A separate Supabase Free development project is healthy, with automatic public-table exposure disabled and automatic RLS enabled. On 24 July 2026 the six checksum-tracked application migrations were applied atomically and independently verified as 33 public tables including the migration ledger, 6 applied migration records, and 43 policies. The four LangGraph checkpoint tables were then initialized and verified at checkpoint schema version 9. No application connection, JWT/RLS isolation query, service-role behavior, or restart/resume workflow has run, so the project is still not a validated application data boundary.
+       A separate Supabase Free development project is healthy, with automatic public-table exposure disabled and automatic RLS enabled. On 24 July 2026 a pooled runtime credential stored in Windows Credential Manager completed a real psycopg connection and verified 6 application migration records, 10 checkpoint migration rows (schema version 9), and 37 public tables. The managed Auth JWKS endpoint returned one EC key and admin user creation returned 201, but password token exchange returned 401 <code>Invalid API key</code> and redirect-list writes did not persist. No JWT/RLS isolation query, application service-role transaction, or restart/resume workflow has run, so the project is connected but not yet a validated application data boundary.
       </div>
      </section>
      <section id="evidence">
