@@ -13,22 +13,22 @@ interface ProjectNavProps {
 /** Renders the desktop project rail and its compact mobile navigation fallback. */
 export function ProjectNav({ projectId, current }: ProjectNavProps) {
   const links = [
-    { key: "chat", label: "Research", symbol: "✦", href: `/app/projects/${projectId}/chat` },
-    { key: "evidence", label: "Review", symbol: "◫", href: `/app/projects/${projectId}` },
-    { key: "library", label: "Library", symbol: "▤", href: `/app/projects/${projectId}/library` },
-    { key: "quiz", label: "Quiz", symbol: "?", href: `/app/projects/${projectId}/quiz` },
-    { key: "labs", label: "Labs", symbol: "⌁", href: `/app/projects/${projectId}/labs` },
+    { key: "chat", label: "Research", symbol: "01", href: `/app/projects/${projectId}/chat` },
+    { key: "library", label: "Library", symbol: "02", href: `/app/projects/${projectId}/library` },
+    { key: "evidence", label: "Review", symbol: "03", href: `/app/projects/${projectId}` },
+    { key: "quiz", label: "Quiz", symbol: "04", href: `/app/projects/${projectId}/quiz` },
+    { key: "labs", label: "Labs", symbol: "05", href: `/app/projects/${projectId}/labs` },
   ] as const;
 
   return (
     <aside className="project-sidebar" aria-label="Project workspace">
       <Link className="project-brand" href="/" aria-label="ResearchMate home">
-        <span className="project-brand__mark" aria-hidden="true">⌬</span>
-        <span>ResearchMate</span>
+        <span className="project-brand__mark" aria-hidden="true">R</span>
+        <span>Research<br />Mate</span>
       </Link>
 
       <div className="project-sidebar__context">
-        <span className="project-sidebar__label">Workspace</span>
+        <span className="project-sidebar__label">Project record</span>
         <Link className="project-sidebar__project" href="/app">
           <span aria-hidden="true">←</span>
           All projects

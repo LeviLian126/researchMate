@@ -1,0 +1,98 @@
+<!-- Demonstrates the recommended ResearchMate visual synthesis before it is migrated into the React application. -->
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ResearchMate · Recommended direction</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <a class="brand" href="#" aria-label="ResearchMate home"><span>R</span><b>Research<br />Mate</b></a>
+      <nav aria-label="Primary navigation">
+        <a class="active" href="#"><i>01</i><span>Research</span></a>
+        <a href="#"><i>02</i><span>Library</span><em>12</em></a>
+        <a href="#"><i>03</i><span>Review</span><em>3</em></a>
+        <a href="#"><i>04</i><span>Quiz</span></a>
+      </nav>
+      <div class="workspace">
+        <span>LL</span>
+        <div><b>Local workspace</b><small>Private · on this device</small></div>
+      </div>
+    </aside>
+
+    <div class="workspace-main">
+      <header class="topbar">
+        <div class="breadcrumbs"><span>Projects</span><i>/</i><b>Retrieval reliability</b></div>
+        <aside class="theme-lab" aria-label="Color combinations">
+          <div><span>COLOR STUDY</span><b id="theme-name">Cobalt studio</b></div>
+          <div class="theme-options">
+            <button class="active" type="button" data-theme-option="cobalt" aria-pressed="true"><i><span></span></i><em>Cobalt</em></button>
+            <button type="button" data-theme-option="aubergine" aria-pressed="false"><i><span></span></i><em>Aubergine</em></button>
+            <button type="button" data-theme-option="forest" aria-pressed="false"><i><span></span></i><em>Forest</em></button>
+          </div>
+        </aside>
+        <div class="top-actions"><span class="ready"><i></i>12 sources ready</span><button class="quiet-button">Share record</button><button class="new-button">New inquiry</button></div>
+      </header>
+
+      <main>
+        <section class="record-intro">
+          <div><p class="eyebrow">RESEARCH RECORD 07 · LOCAL CORPUS</p><h1>Build conclusions<br />you can trace.</h1></div>
+          <div class="intro-note"><span>ResearchMate keeps</span><p>the answer, source excerpt, and review state together—so the reasoning remains inspectable.</p></div>
+        </section>
+
+        <section class="inquiry" aria-labelledby="inquiry-title">
+          <header class="question-row"><span>YOUR QUESTION</span><h2 id="inquiry-title">When does retrieval make an answer defensible?</h2><button id="more-button" aria-label="More inquiry options">•••</button></header>
+          <div class="record-grid">
+            <article class="answer-panel">
+              <header class="answer-meta"><div><span>RESEARCHMATE</span><b>Evidence synthesis</b></div><div class="validation"><i></i><span>Validation passed</span></div></header>
+              <p class="answer-lead">Retrieval is useful when evidence is <em>relevant, source-bound, and reviewed.</em></p>
+              <p class="answer-copy">It narrows the material under consideration, but does not guarantee correctness. A defensible answer keeps every important claim attached to an inspectable excerpt, location, and review state.</p>
+              <blockquote>“The useful unit is not an isolated answer, but an answer whose evidence path remains visible.”</blockquote>
+              <button class="source-card" id="source-card" aria-expanded="false" aria-controls="evidence-inspector">
+                <span class="source-number">01</span>
+                <span class="source-copy"><small>PRIMARY SOURCE · PAGE 3</small><b>Grounding and explicit source attribution make unsupported synthesis visible to reviewers.</b><em>retrieval-reliability-brief.pdf</em></span>
+                <span class="inspect-label">Inspect <i>↗</i></span>
+              </button>
+              <div class="followups" aria-label="Suggested follow-up questions">
+                <span>Continue this inquiry</span>
+                <button data-prompt="Where does the corpus disagree?">Find disagreement</button>
+                <button data-prompt="What are the limits of this conclusion?">Test the boundary</button>
+              </div>
+            </article>
+
+            <aside class="record-index">
+              <span>IN THIS RECORD</span>
+              <button class="active" data-record-tab="conclusion"><i>01</i>Conclusion</button>
+              <button data-record-tab="source"><i>02</i>Source excerpt</button>
+              <button data-record-tab="method"><i>03</i>Method</button>
+              <div class="record-tab-panel" data-record-panel="conclusion"><small>Review state</small><b>Supported by 1 primary source</b></div>
+              <div class="record-tab-panel" data-record-panel="source" hidden><small>Source location</small><b>Page 3 · paragraph 2</b></div>
+              <div class="record-tab-panel" data-record-panel="method" hidden><small>Retrieval boundary</small><b>12 local documents · no web</b></div>
+            </aside>
+          </div>
+        </section>
+      </main>
+
+      <form class="composer" id="composer">
+        <label for="prompt">ASK THE SOURCES</label>
+        <div><textarea id="prompt" rows="1">Where does the corpus disagree?</textarea><button type="submit"><span>Run inquiry</span><i>→</i></button></div>
+        <footer><span><i></i>Local sources only</span><span id="composer-status">Answers retain citations and validation state.</span></footer>
+      </form>
+    </div>
+  </div>
+
+  <div class="scrim" id="scrim" hidden></div>
+  <aside class="evidence-inspector" id="evidence-inspector" aria-hidden="true" aria-labelledby="inspector-title">
+    <header><div><span>EVIDENCE 01 / 01</span><h2 id="inspector-title">Source inspection</h2></div><button id="close-inspector" aria-label="Close evidence inspector">×</button></header>
+    <div class="relevance"><div><span>RELEVANCE</span><b>0.87</b></div><i><span></span></i></div>
+    <div class="source-details"><dl><dt>Document</dt><dd>retrieval-reliability-brief.pdf</dd><dt>Location</dt><dd>Page 3 · paragraph 2</dd><dt>Stance</dt><dd><span>Supports conclusion</span></dd><dt>Boundary</dt><dd>Local project corpus</dd></dl></div>
+    <article><span>EXACT EXCERPT</span><p>“Grounding and explicit source attribution make unsupported synthesis visible to reviewers.”</p><small>Matched to the highlighted conclusion using local semantic retrieval.</small></article>
+    <footer><button>Open source context <span>↗</span></button><p>No web sources entered this synthesis.</p></footer>
+  </aside>
+
+  <script src="app.js"></script>
+</body>
+</html>

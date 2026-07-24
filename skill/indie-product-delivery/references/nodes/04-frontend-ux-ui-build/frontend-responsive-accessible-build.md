@@ -94,6 +94,20 @@ dialog/sheet, or moves behind an explicit affordance.
 Never hide a primary action, reduce body text until unreadable, or let a fixed-width
 component create horizontal overflow merely to preserve a desktop composition.
 
+For dense tables and ledgers, choose one deliberate fallback: preserve readable columns
+with horizontal scrolling, reduce to priority columns plus a detail view, or render each
+row as a labelled record. Use records when every column contains prose; use a table when
+cross-row comparison is the reader's job. Preserve normal word and identifier boundaries:
+never split a word merely to make a column fit. Let cells retain their intrinsic word
+width; reserve breaking for a genuinely unbroken overlong token, and disable automatic
+hyphenation unless it is an intentional editorial choice. A `nowrap` chip may wrap,
+truncate with an accessible full value, or grow the table; it must never overlap an
+adjacent cell. When a table must scroll, make the horizontal scrollbar visible and usable.
+Reduce or collapse secondary rails, such as a table of contents, before starving the main
+reading column. Test the widest real cell content, including badges, code, and long
+generated text, at the target desktop width and one narrow viewport before claiming
+responsive proof.
+
 #### 5. Check content, performance, and style health
 
 Test long names, zero results, maximum errors, missing images, generated output, mixed

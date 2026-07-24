@@ -1,3 +1,4 @@
+/* Defines the shared visual, responsive, and accessibility system for the HTML project documentation. */
 :root {
   color-scheme: light;
   --ivory: #faf9f5;
@@ -61,13 +62,13 @@ h4 { margin: 17px 0 6px; font-size: 13px; }
 .button:hover, .button:focus-visible { border-color: var(--clay); color: var(--clay-dark); }
 .button.primary { border-color: var(--ink); background: var(--ink); color: var(--paper); }
 .button.primary:hover, .button.primary:focus-visible { border-color: var(--clay-dark); background: var(--clay-dark); color: var(--paper); }
-.tag, .status { display: inline-block; border: 1px solid var(--g300); border-radius: 999px; background: var(--paper); padding: 5px 9px; color: var(--muted); font: 11px/1.2 var(--mono); white-space: nowrap; }
+.tag, .status { display: inline-block; max-width: 100%; overflow-wrap: anywhere; border: 1px solid var(--g300); border-radius: 999px; background: var(--paper); padding: 5px 9px; color: var(--muted); font: 11px/1.2 var(--mono); white-space: normal; }
 .status.local, .tag.good { border-color: #bdcbb6; background: var(--good-soft); color: #435b39; }
 .status.partial, .tag.warn { border-color: #dac796; background: var(--warn-soft); color: #71551c; }
 .status.planned, .tag.risk { border-color: #dfb5ab; background: var(--risk-soft); color: #813d32; }
 .status.unknown { background: var(--g200); color: var(--g700); }
 
-.layout { display: grid; grid-template-columns: minmax(0, 1fr) 220px; gap: 54px; align-items: start; }
+.layout { display: grid; grid-template-columns: minmax(0, 1fr) 168px; gap: 30px; align-items: start; }
 .content { min-width: 0; }
 .toc { position: sticky; top: 24px; align-self: start; border-left: 1px solid var(--g300); padding: 8px 0 8px 18px; }
 .toc b { display: block; margin-bottom: 10px; color: var(--g500); font: 10px/1.3 var(--mono); letter-spacing: .05em; text-transform: uppercase; }
@@ -91,27 +92,47 @@ section { padding: 58px 0 64px; border-top: 1px solid var(--g300); }
 .warning { border-left-color: var(--warn); background: var(--warn-soft); }
 .riskbox { border-left-color: var(--risk); background: var(--risk-soft); }
 
-.scroll { max-width: 100%; overflow-x: auto; margin-top: 18px; border: 1px solid var(--g300); border-radius: 12px; background: var(--paper); }
+.scroll { max-width: 100%; overflow-x: auto; margin-top: 18px; border: 1px solid var(--g300); border-radius: 12px; background: var(--paper); scrollbar-color: var(--g500) var(--g100); scrollbar-width: thin; }
+.scroll::-webkit-scrollbar { height: 12px; }
+.scroll::-webkit-scrollbar-track { background: var(--g100); border-radius: 0 0 12px 12px; }
+.scroll::-webkit-scrollbar-thumb { border: 3px solid var(--g100); border-radius: 999px; background: var(--g500); }
 table { width: 100%; border-collapse: collapse; font-size: 12px; }
-.scroll > table { min-width: 720px; }
+.scroll > table { min-width: 1080px; }
 th, td { border-bottom: 1px solid var(--g200); padding: 10px 12px; text-align: left; vertical-align: top; }
+.scroll th, .scroll td { overflow-wrap: break-word; word-break: normal; hyphens: none; }
 tr:last-child td { border-bottom: 0; }
 th { background: var(--g100); color: var(--g500); font: 10px/1.35 var(--mono); letter-spacing: .045em; text-transform: uppercase; }
 td p { margin: 0 0 5px; }
 td ul { margin: 0; padding-left: 17px; }
 
-/* The stack ledger has six explanatory columns. Letting the generic
-   `overflow-wrap:anywhere` rule define their minimum width collapses headings
-   to single characters beside the table of contents. Keep readable columns
-   and use the existing horizontal scroll affordance when space is limited. */
-#stack .scroll > table { min-width: 1120px; table-layout: fixed; }
-#stack th, #stack td { overflow-wrap: normal; word-break: normal; }
-#stack th:nth-child(1) { width: 15%; }
-#stack th:nth-child(2) { width: 12%; }
-#stack th:nth-child(3) { width: 18%; }
-#stack th:nth-child(4) { width: 19%; }
-#stack th:nth-child(5) { width: 20%; }
-#stack th:nth-child(6) { width: 16%; }
+/* A six-column prose table has no readable compression point. Present each
+   technology as a labelled decision record: the HTML table preserves its
+   header/cell relationship, while the visual layout follows the real task of
+   reading one technology decision at a time. */
+.stack-ledger { margin-top: 18px; }
+.stack-ledger table, .stack-ledger tbody { display: block; width: 100%; }
+.stack-ledger thead { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
+.stack-ledger tr { display: grid; grid-template-areas: "technology state" "problem why" "validation revisit"; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 32px; border-top: 1px solid var(--g300); padding: 22px 0 24px; }
+.stack-ledger tr:last-child { border-bottom: 1px solid var(--g300); }
+.stack-ledger td { display: block; min-width: 0; border: 0; padding: 12px 0 0; overflow-wrap: normal; word-break: normal; }
+.stack-ledger td::before { display: block; margin-bottom: 5px; color: var(--g500); content: attr(data-label); font: 10px/1.35 var(--mono); letter-spacing: .045em; text-transform: uppercase; }
+.stack-ledger td:nth-child(1) { grid-area: technology; padding-top: 0; font: 500 20px/1.25 var(--serif); }
+.stack-ledger td:nth-child(1)::before { display: none; }
+.stack-ledger td:nth-child(2) { grid-area: state; justify-self: start; padding-top: 2px; }
+.stack-ledger td:nth-child(2)::before { content: "Current state"; }
+.stack-ledger td:nth-child(3) { grid-area: problem; }
+.stack-ledger td:nth-child(3)::before { content: "Problem solved"; }
+.stack-ledger td:nth-child(4) { grid-area: why; }
+.stack-ledger td:nth-child(4)::before { content: "Why this scenario earns it"; }
+.stack-ledger td:nth-child(5) { grid-area: validation; }
+.stack-ledger td:nth-child(5)::before { content: "Validation required"; }
+.stack-ledger td:nth-child(6) { grid-area: revisit; }
+.stack-ledger td:nth-child(6)::before { content: "Remove or revisit when"; }
+.stack-ledger .status { display: block; max-width: none; border: 0; border-left: 3px solid var(--g300); border-radius: 0; background: transparent; padding: 1px 0 1px 9px; color: var(--muted); white-space: normal; overflow-wrap: anywhere; }
+.stack-ledger .status.local { border-left-color: var(--good); background: transparent; color: #435b39; }
+.stack-ledger .status.partial { border-left-color: var(--warn); background: transparent; color: #71551c; }
+.stack-ledger .status.planned { border-left-color: var(--risk); background: transparent; color: #813d32; }
+.stack-ledger .status.unknown { border-left-color: var(--g500); background: transparent; color: var(--g700); }
 
 tr:target { background: #fbede8; }
 .dense td, .dense th { padding: 8px 9px; }
@@ -282,6 +303,12 @@ details > p { color: var(--muted); }
 .relation-edge.cascade { border-left-color: var(--risk); }
 .relation-edge.set-null { border-left-color: var(--warn); }
 .relation-edge code { display: block; margin-bottom: 3px; }
+.runbook-grid { margin-top: 24px; }
+.command-block { max-width: 100%; margin: 16px 0 0; overflow-x: auto; border: 1px solid var(--g300); border-radius: 10px; padding: 15px 16px; background: #f7f6f1; color: var(--ink); font: 12px/1.65 var(--mono); white-space: pre; }
+.command-block code { border-radius: 0; padding: 0; background: transparent; font: inherit; }
+.repo-map { display: grid; grid-template-columns: minmax(145px, .7fr) minmax(0, 1.3fr); gap: 8px 14px; margin: 16px 0 0; }
+.repo-map dt, .repo-map dd { min-width: 0; margin: 0; padding-top: 8px; border-top: 1px solid var(--g300); overflow-wrap: anywhere; }
+.repo-map dd { color: var(--muted); }
 .relation-edge small { color: var(--muted); }
 .entity-record { display: block; border: 1px solid var(--g300); border-radius: 8px; background: var(--ivory); padding: 11px; text-decoration: none; }
 .entity-record:hover, .entity-record:focus-visible, .entity-record:target { border-color: var(--clay); background: #fbede8; }
@@ -360,6 +387,9 @@ html:not(.js) [data-filter-status] { display: none; }
   .proof-step { border-top: 0; border-left: 3px solid var(--g300); padding: 1px 0 1px 13px; }
   .proof-step:not(:last-child)::after { top: auto; right: auto; bottom: -14px; left: -6px; content: "↓"; }
   .bar-row { grid-template-columns: minmax(85px,110px) minmax(60px,1fr) 34px; }
+  .stack-ledger tr { grid-template-areas: "technology" "state" "problem" "why" "validation" "revisit"; grid-template-columns: 1fr; gap: 0; padding: 18px 0 20px; }
+  .stack-ledger td, .stack-ledger td:nth-child(2) { padding-top: 15px; }
+  .stack-ledger td:nth-child(1) { padding-top: 0; font-size: 19px; }
 }
 
 @media (max-width: 520px) {

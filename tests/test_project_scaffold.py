@@ -1,3 +1,4 @@
+# Verifies repository contracts and the authoritative HTML documentation surface.
 from pathlib import Path
 
 
@@ -12,14 +13,15 @@ AUTHORITATIVE_DOCS = [
 
 
 def authoritative_html_files() -> list[Path]:
+    """Return the maintained HTML pages that own durable project facts."""
     return [ROOT / path for path in AUTHORITATIVE_DOCS]
 
 
 def test_required_contract_files_exist() -> None:
+    """Require the implementation contracts and HTML documentation entry points."""
     required_paths = [
         ".gitignore",
         ".env.example",
-        "README.md",
         "docs/index.html",
         "docs/assets/site.css",
         "docs/product/index.html",
@@ -38,16 +40,21 @@ def test_required_contract_files_exist() -> None:
 
 
 def test_docs_local_links_resolve() -> None:
+    """Reject broken local paths and missing HTML fragments across the board."""
     from html.parser import HTMLParser
     from urllib.parse import unquote, urldefrag
 
     class LinkParser(HTMLParser):
+        """Collect local links and fragment targets from one documentation page."""
+
         def __init__(self) -> None:
+            """Initialize empty link and identifier collections."""
             super().__init__()
             self.links: list[str] = []
             self.ids: set[str] = set()
 
         def handle_starttag(self, _: str, attrs: list[tuple[str, str | None]]) -> None:
+            """Record href and id attributes from an HTML start tag."""
             for name, value in attrs:
                 if name == "href" and value:
                     self.links.append(value)
@@ -78,6 +85,7 @@ def test_docs_local_links_resolve() -> None:
 
 
 def test_openapi_contract_declares_mvp_routes() -> None:
+    """Confirm that the generated OpenAPI contract retains the accepted MVP routes."""
     spec = (ROOT / "infra/openapi/openapi.yaml").read_text(encoding="utf-8")
     required_routes = [
         "/api/v1/me",
@@ -103,7 +111,9 @@ def test_openapi_contract_declares_mvp_routes() -> None:
     assert "ErrorResponse" in spec
 
 
-def test_docs_use_english_html_without_separate_planning_markdown() -> None:
+def test_docs_use_english_html_without_parallel_markdown() -> None:
+    """Keep the HTML board authoritative without a root or docs Markdown duplicate."""
+    assert not (ROOT / "README.md").exists()
     markdown_files = sorted(path.relative_to(ROOT).as_posix() for path in (ROOT / "docs").rglob("*.md"))
     assert markdown_files == []
 
@@ -116,6 +126,7 @@ def test_docs_use_english_html_without_separate_planning_markdown() -> None:
 
 
 def test_docs_have_five_page_information_architecture() -> None:
+    """Keep the compact five-page documentation topology free of retired sections."""
     html_files = AUTHORITATIVE_DOCS
 
     combined = "\n".join((ROOT / path).read_text(encoding="utf-8") for path in html_files)
@@ -124,6 +135,7 @@ def test_docs_have_five_page_information_architecture() -> None:
 
 
 def test_database_and_api_docs_reconcile_complete_source_contracts() -> None:
+    """Reconcile rendered database and API counts with their source contracts."""
     import re
 
     migration = (ROOT / "infra/supabase/migrations/202605260001_initial_schema.sql").read_text(
@@ -160,6 +172,7 @@ def test_database_and_api_docs_reconcile_complete_source_contracts() -> None:
 
 
 def test_overview_deep_links_to_authoritative_detail_sections() -> None:
+    """Ensure the overview routes readers to every authoritative detail region."""
     overview = (ROOT / "docs/index.html").read_text(encoding="utf-8")
     expected_links = [
         "product/index.html#cap-projects",
@@ -179,6 +192,7 @@ def test_overview_deep_links_to_authoritative_detail_sections() -> None:
 
 
 def test_docs_have_unique_ids_and_one_page_title() -> None:
+    """Require unique fragment identifiers and one page title per HTML document."""
     import re
 
     for html_file in authoritative_html_files():
@@ -189,6 +203,7 @@ def test_docs_have_unique_ids_and_one_page_title() -> None:
 
 
 def test_quality_scripts_do_not_reference_legacy_handoff_docs() -> None:
+    """Prevent quality tooling from reviving retired documentation artifacts."""
     checked_files = [
         ROOT / "package.json",
         ROOT / "scripts/check_contracts.ps1",
@@ -206,6 +221,7 @@ def test_quality_scripts_do_not_reference_legacy_handoff_docs() -> None:
 
 
 def test_docs_html_do_not_contain_question_mark_garbled_text() -> None:
+    """Detect common replacement-character corruption in maintained HTML pages."""
     html_files = authoritative_html_files()
     garbled_files = [
         path.relative_to(ROOT).as_posix()
@@ -216,6 +232,7 @@ def test_docs_html_do_not_contain_question_mark_garbled_text() -> None:
 
 
 def test_database_schema_has_security_boundaries() -> None:
+    """Confirm that the maintained schema retains its tenant and access controls."""
     migration = (ROOT / "infra/supabase/migrations/202605260001_initial_schema.sql").read_text(encoding="utf-8")
     required_tokens = [
         "create table if not exists profiles",
@@ -234,6 +251,7 @@ def test_database_schema_has_security_boundaries() -> None:
 
 
 def test_shared_contracts_define_core_modes_and_outputs() -> None:
+    """Require shared frontend contracts for accepted modes and response shapes."""
     contracts = (ROOT / "packages/shared/src/contracts.ts").read_text(encoding="utf-8")
     required_tokens = [
         "SourceMode",
@@ -250,6 +268,7 @@ def test_shared_contracts_define_core_modes_and_outputs() -> None:
 
 
 def test_backend_pydantic_contracts_validate_request_shape() -> None:
+    """Exercise backend request validation at the typed Pydantic boundary."""
     import sys
 
     sys.path.insert(0, str(ROOT / "apps/api/src"))

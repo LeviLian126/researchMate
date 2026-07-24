@@ -1,0 +1,93 @@
+<!-- Presents three isolated visual-direction prototypes for ResearchMate design review. -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>ResearchMate · Visual directions</title>
+  <link rel="stylesheet" href="directions.css"/>
+</head>
+<body>
+  <header class="review-bar">
+    <div><strong>ResearchMate</strong><span>Visual direction review · not production UI</span></div>
+    <nav aria-label="Visual directions">
+      <button data-direction="editorial" aria-pressed="true">A · Editorial dossier</button>
+      <button data-direction="workbench" aria-pressed="false">B · Evidence workbench</button>
+      <button data-direction="archive" aria-pressed="false">C · Modern archive</button>
+    </nav>
+  </header>
+
+  <main>
+    <section class="concept concept--editorial is-active" data-concept="editorial" aria-labelledby="editorial-title">
+      <aside class="ed-rail">
+        <a class="ed-brand" href="#">RM<span>ResearchMate</span></a>
+        <div class="ed-volume"><small>ACTIVE DOSSIER</small><b>Retrieval reliability</b><span>12 sources · reviewed today</span></div>
+        <nav aria-label="Editorial project navigation"><a class="active" href="#">01 / Inquiry</a><a href="#">02 / Sources</a><a href="#">03 / Claims</a><a href="#">04 / Review notes</a></nav>
+        <div class="ed-foot"><span>Local evidence only</span><a href="#">All projects ↗</a></div>
+      </aside>
+      <div class="ed-main">
+        <header class="ed-header"><div><small>RESEARCH SESSION 07</small><span>24 JULY 2026</span></div><button>Share dossier</button></header>
+        <article class="ed-document">
+          <div class="ed-kicker">INQUIRY / EVIDENCE SYNTHESIS</div>
+          <h1 id="editorial-title">When does retrieval make an answer defensible?</h1>
+          <p class="ed-deck">A source-bound reading of the project corpus, with each conclusion separated from the evidence that supports it.</p>
+          <div class="ed-rule"><span>ResearchMate response</span><span>Validation passed</span></div>
+          <div class="ed-reading-grid">
+            <div class="ed-answer">
+              <p class="ed-lead">Retrieval is useful when evidence is relevant, source-bound, and reviewed. It is not a correctness guarantee by itself.</p>
+              <p>The strongest finding in this collection is procedural: an answer becomes defensible only when the path from claim to source remains inspectable. Retrieval narrows the material under consideration, but relevance and citation quality still require verification.</p>
+              <blockquote>“Grounding and explicit source attribution make unsupported synthesis visible to reviewers.”</blockquote>
+              <p>This means the useful unit is not an isolated answer. It is an answer paired with the exact excerpt, its location, and a visible statement of uncertainty.</p>
+            </div>
+            <aside class="ed-notes"><small>MARGINALIA</small><ol><li><b>[1] Reliability brief</b><span>Page 3 · local PDF</span><p>Primary support for claim-to-citation traceability.</p></li><li><b>Method note</b><span>Local-only retrieval</span><p>No web sources entered this synthesis.</p></li></ol></aside>
+          </div>
+        </article>
+        <form class="ed-composer"><label for="ed-question">Continue the inquiry</label><div><textarea id="ed-question" rows="2">Which sources disagree with this conclusion?</textarea><button type="button">Ask sources →</button></div><small>Answers retain their source excerpts and validation state.</small></form>
+      </div>
+      <aside class="concept-note"><b>A · Editorial dossier</b><p>Print-editorial hierarchy, warm paper, serif reading voice, and citations as marginalia.</p><span>Best for: trust, long-form synthesis, portfolio distinction</span></aside>
+    </section>
+
+    <section class="concept concept--workbench" data-concept="workbench" aria-labelledby="workbench-title" hidden>
+      <aside class="wb-rail">
+        <a class="wb-brand" href="#"><span>R/M</span> RESEARCHMATE</a>
+        <div class="wb-project"><small>PROJECT / 004</small><b>Retrieval reliability</b><span class="wb-live">● ACTIVE</span></div>
+        <nav aria-label="Workbench project navigation"><a class="active" href="#"><span>01</span>Research</a><a href="#"><span>02</span>Library</a><a href="#"><span>03</span>Evidence</a><a href="#"><span>04</span>Quiz</a><a href="#"><span>05</span>Experiments</a></nav>
+        <div class="wb-system"><small>SYSTEM</small><span>Mode <b>LOCAL</b></span><span>Index <b>READY</b></span><span>Sources <b>12</b></span></div>
+      </aside>
+      <div class="wb-main">
+        <header class="wb-top"><div><span>SESSION 07</span><span>LOCAL CORPUS</span><span>VALIDATED</span></div><button>⌘ K</button></header>
+        <div class="wb-title"><div><small>RESEARCH / SYNTHESIS</small><h1 id="workbench-title">Evidence workbench</h1></div><p>Inspect a conclusion, its provenance, and the next available action without leaving the session.</p></div>
+        <div class="wb-grid">
+          <section class="wb-thread">
+            <div class="wb-query"><span>QUERY 01</span><p>When does retrieval make an answer defensible?</p></div>
+            <article class="wb-response"><header><span>RESPONSE / PASSED</span><span>1 SOURCE · 0 WEB</span></header><h2>Retrieval helps when the evidence path stays inspectable.</h2><p>Relevant retrieval narrows the working set, but does not establish correctness on its own. The defensible unit is a claim attached to a precise source excerpt, location, and review state.</p><div class="wb-quote"><span>EXCERPT 01</span><blockquote>Grounding and explicit source attribution make unsupported synthesis visible to reviewers.</blockquote><small>retrieval-reliability-brief.pdf · p. 3</small></div></article>
+          </section>
+          <aside class="wb-inspector"><header><b>Evidence inspector</b><span>01 / 01</span></header><div class="wb-meter"><small>RELEVANCE</small><b>0.87</b><i><span></span></i></div><dl><dt>Document</dt><dd>retrieval-reliability-brief.pdf</dd><dt>Location</dt><dd>Page 3 · paragraph 2</dd><dt>Stance</dt><dd>Supports conclusion</dd><dt>Boundary</dt><dd>Local project corpus</dd></dl><button>Open source context ↗</button></aside>
+        </div>
+        <form class="wb-composer"><div><label for="wb-question">NEXT QUERY</label><textarea id="wb-question" rows="2">Which evidence contradicts this conclusion?</textarea></div><div class="wb-actions"><button type="button">Attach source</button><button class="primary" type="button">Run inquiry</button></div></form>
+      </div>
+      <aside class="concept-note"><b>B · Evidence workbench</b><p>Industrial instrument panel, disciplined density, squared geometry, and a persistent evidence inspector.</p><span>Best for: expert workflows, engineering credibility, repeat use</span></aside>
+    </section>
+
+    <section class="concept concept--archive" data-concept="archive" aria-labelledby="archive-title" hidden>
+      <aside class="ar-rail">
+        <a class="ar-brand" href="#"><span>R</span><b>Research<br/>Mate</b></a>
+        <nav aria-label="Archive project navigation"><a class="active" href="#"><i>01</i>Research</a><a href="#"><i>02</i>Library</a><a href="#"><i>03</i>Review</a><a href="#"><i>04</i>Quiz</a></nav>
+        <div class="ar-account"><span>LL</span><div><b>Local workspace</b><small>Deterministic demo</small></div></div>
+      </aside>
+      <div class="ar-main">
+        <header class="ar-top"><div><span class="ar-crumb">Projects / Retrieval reliability</span><span class="ar-status">● 12 sources ready</span></div><button>New inquiry</button></header>
+        <div class="ar-hero"><div><small>SESSION 07 · LOCAL CORPUS</small><h1 id="archive-title">Build conclusions<br/>you can trace.</h1></div><p>ResearchMate keeps the answer, the source excerpt, and the review state in one readable record.</p></div>
+        <section class="ar-canvas">
+          <article class="ar-question"><small>YOUR QUESTION</small><p>When does retrieval make an answer defensible?</p></article>
+          <article class="ar-answer"><header><div><span>RESEARCHMATE</span><b>Evidence synthesis</b></div><span class="ar-pass">Passed</span></header><h2>Retrieval is useful when evidence is relevant, source-bound, and reviewed.</h2><p>It narrows the material under consideration, but does not guarantee correctness. A defensible answer keeps every important claim attached to an inspectable excerpt and location.</p><button class="ar-source"><span>01</span><div><small>PRIMARY SOURCE · PAGE 3</small><b>Grounding and explicit source attribution make unsupported synthesis visible to reviewers.</b></div><i>↗</i></button></article>
+          <aside class="ar-index"><small>IN THIS RECORD</small><a class="active" href="#"><span>01</span>Conclusion</a><a href="#"><span>02</span>Source excerpt</a><a href="#"><span>03</span>Method</a><div><small>Retrieval mode</small><b>Local sources</b></div></aside>
+        </section>
+        <form class="ar-composer"><label for="ar-question">Ask a follow-up</label><div><textarea id="ar-question" rows="2">Where does the corpus disagree?</textarea><button type="button">Send</button></div></form>
+      </div>
+      <aside class="concept-note"><b>C · Modern archive</b><p>Contemporary institutional design, pale mineral palette, assertive typography, and numbered record navigation.</p><span>Best for: broad usability, clean brand system, balanced density</span></aside>
+    </section>
+  </main>
+  <script src="directions.js"></script>
+</body>
+</html>

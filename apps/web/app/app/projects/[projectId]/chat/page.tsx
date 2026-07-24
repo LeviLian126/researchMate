@@ -45,9 +45,9 @@ export default function ResearchChatPage() {
       <ProjectNav projectId={projectId} current="chat" />
       <header className="chat-heading">
         <span className="chat-heading__mark" aria-hidden="true">✦</span>
-        <p className="eyebrow">Grounded research session</p>
-        <h1>Ask your evidence</h1>
-        <p>ResearchMate searches the source boundary you choose and keeps the supporting excerpts attached to the answer.</p>
+        <p className="eyebrow">Research record · grounded inquiry</p>
+        <h1>Build conclusions you can trace.</h1>
+        <p>Ask within an explicit source boundary. ResearchMate keeps the answer, supporting excerpts, and validation state in one inspectable record.</p>
       </header>
 
       <section className="chat-thread" aria-live="polite" aria-label="Research conversation">
