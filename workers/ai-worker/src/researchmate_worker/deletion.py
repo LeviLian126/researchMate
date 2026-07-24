@@ -5,10 +5,10 @@ from typing import Protocol
 from uuid import UUID
 
 from pydantic import BaseModel
-from sqlalchemy import Engine, text
-
 from researchmate_api.services.object_storage import ObjectStorageRequestError
 from researchmate_api.services.qdrant_store import VectorStoreRequestError
+from sqlalchemy import Engine, text
+
 from researchmate_worker.ingestion import IngestionFailure
 
 

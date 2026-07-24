@@ -3,7 +3,6 @@ from types import SimpleNamespace
 from uuid import UUID
 
 import pytest
-
 from researchmate_api.schemas.common import SourceType
 from researchmate_api.services.evidence_generation import (
     EvidenceGenerationError,

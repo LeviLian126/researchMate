@@ -5,7 +5,6 @@ from uuid import UUID
 
 import pytest
 from pydantic import SecretStr, ValidationError
-
 from researchmate_api.config import Settings
 
 pytest.importorskip("sqlalchemy", reason="PostgreSQL adapter dependencies are not installed")
@@ -16,7 +15,10 @@ from researchmate_api.persistence.postgres import (
 )
 from researchmate_api.schemas.common import CurrentUser
 from researchmate_api.schemas.document import UploadUrlRequest
-from researchmate_api.services.object_storage import StoredObjectMetadata, UploadVerificationError
+from researchmate_api.services.object_storage import (
+    StoredObjectMetadata,
+    UploadVerificationError,
+)
 
 
 class EmptyResult:

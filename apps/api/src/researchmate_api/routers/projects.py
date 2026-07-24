@@ -7,7 +7,6 @@ from researchmate_api.schemas.common import CurrentUser
 from researchmate_api.schemas.project import ProjectCreate, ProjectRecord
 from researchmate_api.services.store import ResearchMateRepository
 
-
 router = APIRouter()
 
 

@@ -2,9 +2,8 @@ from collections.abc import Generator
 
 import pytest
 from fastapi.testclient import TestClient
-
-from researchmate_api.main import create_app
 from researchmate_api.config import Settings
+from researchmate_api.main import create_app
 from researchmate_api.schemas.common import SourceMode, TaskType
 from researchmate_api.services.source_policy import resolve_intent, validate_tool_policy
 from researchmate_api.services.store import store

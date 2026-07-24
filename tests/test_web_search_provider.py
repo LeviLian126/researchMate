@@ -1,10 +1,12 @@
 from uuid import UUID
 
 import pytest
-
 from researchmate_api.config import Settings
 from researchmate_api.schemas.common import SourceType
-from researchmate_api.services.web_search import TavilyWebSearchProvider, WebSearchRequestError
+from researchmate_api.services.web_search import (
+    TavilyWebSearchProvider,
+    WebSearchRequestError,
+)
 
 
 class FakeResponse:

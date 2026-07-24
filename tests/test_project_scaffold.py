@@ -1,7 +1,6 @@
 # Verifies repository contracts and the authoritative HTML documentation surface.
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[1]
 AUTHORITATIVE_DOCS = [
     "docs/architecture/index.html",

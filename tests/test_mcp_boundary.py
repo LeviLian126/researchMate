@@ -1,10 +1,8 @@
 from uuid import UUID
 
 from fastapi.testclient import TestClient
-
 from researchmate_api.config import Settings
 from researchmate_api.main import create_app
-
 
 ADMIN = UUID("00000000-0000-4000-8000-000000000099")
 

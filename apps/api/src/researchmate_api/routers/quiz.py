@@ -12,7 +12,6 @@ from researchmate_api.services.retrieval import retrieve_local_chunks
 from researchmate_api.services.source_policy import resolve_intent, validate_tool_policy
 from researchmate_api.services.store import ResearchMateRepository
 
-
 router = APIRouter()
 
 

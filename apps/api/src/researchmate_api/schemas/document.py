@@ -6,7 +6,6 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from researchmate_api.schemas.common import DocumentStatus
 
-
 MIME_BY_TYPE = {
     "pdf": {"application/pdf"},
     "docx": {"application/vnd.openxmlformats-officedocument.wordprocessingml.document"},

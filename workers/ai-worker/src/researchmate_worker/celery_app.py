@@ -1,9 +1,10 @@
+import logging
+from functools import lru_cache
+from time import monotonic
+
 from celery import Celery
 from celery.signals import heartbeat_sent, worker_ready, worker_shutdown
-from functools import lru_cache
-import logging
 from sqlalchemy import create_engine
-from time import monotonic
 
 from researchmate_worker.config import WorkerSettings
 

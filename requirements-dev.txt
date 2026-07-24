@@ -23,6 +23,6 @@ ragas==0.4.3
 psycopg[binary]>=3.2.0
 pytest>=9.0.0
 PyYAML>=6.0.0
-ruff>=0.14.0
+ruff==0.16.0
 sqlalchemy>=2.0.46
 uvicorn>=0.40.0

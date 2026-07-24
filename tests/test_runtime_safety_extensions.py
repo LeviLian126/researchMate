@@ -4,7 +4,6 @@ from uuid import uuid4
 
 import pytest
 from pydantic import ValidationError
-
 from researchmate_api.schemas.evidence import SourceScope
 from researchmate_api.services.llm import LLMResult
 from researchmate_worker.budget import BudgetedChatProvider, WorkflowBudgetExceeded
@@ -56,8 +55,8 @@ def _budgeted(engine: _Engine, *, max_prompt_tokens: int = 1024) -> BudgetedChat
         _Provider(),
         engine,  # type: ignore[arg-type]
         reservation_usd=Decimal("0.10"),
-        input_price_per_million_usd=Decimal("1"),
-        output_price_per_million_usd=Decimal("2"),
+        input_price_per_million_usd=Decimal(1),
+        output_price_per_million_usd=Decimal(2),
         max_prompt_tokens=max_prompt_tokens,
     )
     provider.bind_run(uuid4())

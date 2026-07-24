@@ -7,7 +7,6 @@ from uuid import UUID
 from sqlalchemy import Engine, text
 from sqlalchemy.engine import Connection
 
-
 SCENARIO_BOUNDARIES = {
     "llm_timeout": "chat_provider_timeout_boundary",
     "qdrant_unavailable": "vector_projection_unavailable_boundary",

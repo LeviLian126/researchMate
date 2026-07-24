@@ -6,12 +6,11 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from researchmate_api.config import Settings
 from researchmate_api.schemas.common import CurrentUser
-from researchmate_api.services.store import ResearchMateRepository
 from researchmate_api.services.evidence_store import EvidenceRepository
 from researchmate_api.services.llm import ChatProvider
 from researchmate_api.services.qdrant_store import QdrantHybridStore
+from researchmate_api.services.store import ResearchMateRepository
 from researchmate_api.services.web_search import TavilyWebSearchProvider
-
 
 bearer = HTTPBearer(auto_error=False)
 

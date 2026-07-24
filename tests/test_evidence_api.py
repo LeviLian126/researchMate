@@ -1,10 +1,8 @@
 from uuid import uuid4
 
 from fastapi.testclient import TestClient
-
 from researchmate_api.config import Settings
 from researchmate_api.main import create_app
-
 
 HEADERS = {"Authorization": "Bearer dev-user-a"}
 ADMIN_HEADERS = {"Authorization": "Bearer dev-admin"}

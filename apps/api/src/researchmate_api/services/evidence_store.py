@@ -1,9 +1,9 @@
 from __future__ import annotations
 
+import json
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from hashlib import sha256
-import json
 from threading import RLock
 from typing import Protocol
 from uuid import UUID, uuid4
@@ -12,19 +12,19 @@ from researchmate_api.schemas.common import CurrentUser
 from researchmate_api.schemas.evidence import (
     ClaimListResponse,
     ClaimRelationListResponse,
+    EvaluationDatasetListResponse,
     EvaluationRunAccepted,
     EvaluationRunCreate,
     EvaluationRunRecord,
-    EvaluationDatasetListResponse,
     FaultScenarioAccepted,
     FaultScenarioCreate,
     FaultScenarioRecord,
     HumanDecisionAccepted,
     HumanDecisionCreate,
-    ReliabilityResponse,
-    ReportListResponse,
-    ReportDetail,
     PipelineVersionListResponse,
+    ReliabilityResponse,
+    ReportDetail,
+    ReportListResponse,
     ReportRefreshAccepted,
     ReportRefreshCreate,
     ResearchRunAccepted,
@@ -302,7 +302,7 @@ class InMemoryEvidenceRepository:
             retry_count=0,
             input_tokens=0,
             output_tokens=0,
-            cost_usd=Decimal("0"),
+            cost_usd=Decimal(0),
         )
 
     def create_fault_scenario(

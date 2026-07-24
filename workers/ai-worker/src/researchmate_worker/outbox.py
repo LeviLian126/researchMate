@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-from typing import Any, Protocol
+from typing import Any, ClassVar, Protocol
 from uuid import UUID
 
 from sqlalchemy import Engine, text
@@ -153,7 +153,7 @@ class SqlOutboxStore:
 
 
 class CeleryTaskPublisher:
-    TASK_BY_EVENT = {
+    TASK_BY_EVENT: ClassVar[dict[str, str]] = {
         "document.ingest.requested": "researchmate.ingest_document",
         "document.delete.requested": "researchmate.delete_document",
         "workflow.run.requested": "researchmate.run_workflow",

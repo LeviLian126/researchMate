@@ -10,13 +10,12 @@ from researchmate_api.schemas.document import (
     UploadUrlRequest,
     UploadUrlResponse,
 )
-from researchmate_api.services.store import ResearchMateRepository
 from researchmate_api.services.object_storage import (
     ObjectStorageConfigurationError,
     ObjectStorageRequestError,
     UploadVerificationError,
 )
-
+from researchmate_api.services.store import ResearchMateRepository
 
 router = APIRouter()
 

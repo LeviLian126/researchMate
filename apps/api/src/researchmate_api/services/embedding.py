@@ -3,9 +3,8 @@ from __future__ import annotations
 from typing import Any, Literal
 
 from researchmate_api.config import Settings
-from researchmate_api.services.llm import ProviderConfigurationError, ProviderRequestError
 from researchmate_api.observability import provider_observation
-
+from researchmate_api.services.llm import ProviderConfigurationError, ProviderRequestError
 
 EmbeddingInputType = Literal["query", "passage"]
 

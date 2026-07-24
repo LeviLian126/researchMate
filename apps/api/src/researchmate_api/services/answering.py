@@ -4,8 +4,8 @@ from uuid import uuid4
 from pydantic import BaseModel, Field, ValidationError
 
 from researchmate_api.schemas.common import Citation, SourceMode, SourceSummary, SourceType
-from researchmate_api.services.retrieval import snippet
 from researchmate_api.services.llm import ChatProvider
+from researchmate_api.services.retrieval import snippet
 from researchmate_api.services.store import ChunkEntry
 
 

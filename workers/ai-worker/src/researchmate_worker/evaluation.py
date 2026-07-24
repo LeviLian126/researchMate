@@ -7,15 +7,13 @@ from decimal import Decimal
 from typing import Any, Protocol
 from uuid import UUID
 
-from sqlalchemy import Engine, text
 from pydantic import BaseModel, Field
-
 from researchmate_api.schemas.common import SourceMode, SourceType
 from researchmate_api.services.answering import build_llm_grounded_answer
 from researchmate_api.services.llm import ChatProvider
 from researchmate_api.services.qdrant_store import QdrantHybridStore
 from researchmate_api.services.store import ChunkEntry
-
+from sqlalchemy import Engine, text
 
 SUPPORTED_METRICS = {"schema_valid", "citation_precision", "evidence_recall", "faithfulness"}
 
@@ -305,7 +303,7 @@ class EvaluationRunner:
                     ]
                 self._save_scores(claimed.id, case.id, scores, worker_id=worker_id)
         if retryable_codes:
-            code = sorted(set(retryable_codes))[0]
+            code = min(set(retryable_codes))
             if claimed.attempts < self.max_attempts:
                 self._release_for_retry(claimed.id, worker_id, code)
                 raise EvaluationRuntimeError(code, retryable=True)

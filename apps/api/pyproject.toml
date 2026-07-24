@@ -26,3 +26,11 @@ dependencies = [
 
 [tool.ruff]
 line-length = 100
+
+[tool.ruff.lint]
+ignore = [
+  # FastAPI dependency injection is expressed through Depends(...) defaults.
+  "B008",
+  # Readiness and provider boundaries fail closed for unknown SDK exceptions.
+  "BLE001",
+]

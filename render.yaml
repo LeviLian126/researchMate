@@ -1,0 +1,95 @@
+envVarGroups:
+  - name: researchmate-backend
+    envVars:
+      - key: APP_ENV
+        value: preview
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: OBJECT_STORAGE_ENDPOINT_URL
+        value: https://tjdkdganvszqawxspveg.supabase.co/storage/v1/s3
+      - key: OBJECT_STORAGE_ACCESS_KEY_ID
+        sync: false
+      - key: OBJECT_STORAGE_SECRET_ACCESS_KEY
+        sync: false
+      - key: OBJECT_STORAGE_BUCKET
+        value: researchmate-dev
+      - key: OBJECT_STORAGE_REGION
+        value: us-east-1
+      - key: QDRANT_URL
+        sync: false
+      - key: QDRANT_API_KEY
+        sync: false
+      - key: QDRANT_COLLECTION
+        value: researchmate_chunks
+      - key: LLM_PROVIDER
+        value: nvidia
+      - key: EMBEDDING_PROVIDER
+        value: nvidia
+      - key: NVIDIA_API_KEY
+        sync: false
+      - key: NVIDIA_BASE_URL
+        value: https://integrate.api.nvidia.com/v1
+      - key: NVIDIA_MODEL
+        value: z-ai/glm-5.2
+      - key: NVIDIA_EMBEDDING_MODEL
+        value: nvidia/nv-embed-v1
+      - key: EMBEDDING_DIMENSION
+        value: "4096"
+      - key: NVIDIA_INPUT_COST_PER_MILLION_USD
+        sync: false
+      - key: NVIDIA_OUTPUT_COST_PER_MILLION_USD
+        sync: false
+      - key: WEB_SEARCH_PROVIDER
+        value: tavily
+      - key: TAVILY_API_KEY
+        sync: false
+      - key: TAVILY_BASE_URL
+        value: https://api.tavily.com
+      - key: SUPABASE_URL
+        value: https://tjdkdganvszqawxspveg.supabase.co
+      - key: ACCESS_TOKEN_ISSUER
+        value: https://tjdkdganvszqawxspveg.supabase.co/auth/v1
+      - key: LANGFUSE_ENABLED
+        value: "true"
+      - key: LANGFUSE_PUBLIC_KEY
+        sync: false
+      - key: LANGFUSE_SECRET_KEY
+        sync: false
+      - key: LANGFUSE_BASE_URL
+        value: https://cloud.langfuse.com
+      - key: OTEL_ENABLED
+        value: "true"
+      - key: OTEL_SERVICE_NAME
+        value: researchmate-api
+      - key: OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
+        sync: false
+      - key: DOCLING_ARTIFACTS_PATH
+        value: /opt/docling/models
+      - key: LANGGRAPH_STRICT_MSGPACK
+        value: "true"
+      - key: RAGAS_DO_NOT_TRACK
+        value: "true"
+
+services:
+  - type: web
+    name: researchmate-backend-dev
+    runtime: docker
+    plan: free
+    region: oregon
+    branch: main
+    dockerfilePath: ./workers/ai-worker/Dockerfile
+    dockerContext: .
+    dockerCommand: python -m researchmate_worker.render_combined
+    healthCheckPath: /api/v1/healthz
+    autoDeployTrigger: checksPass
+    maxShutdownDelaySeconds: 300
+    envVars:
+      - fromGroup: researchmate-backend
+      - key: AUTH_MODE
+        value: supabase
+      - key: REPOSITORY_BACKEND
+        value: postgres
+      - key: CORS_ALLOWED_ORIGINS
+        value: https://research-mate-web.vercel.app

@@ -1,14 +1,13 @@
 from __future__ import annotations
 
-from decimal import Decimal
 import json
+from collections.abc import Iterable
+from decimal import Decimal
 from time import monotonic
-from typing import Iterable
 from uuid import UUID
 
-from sqlalchemy import Engine, text
-
 from researchmate_api.services.llm import ChatProvider, LLMResult
+from sqlalchemy import Engine, text
 
 
 class WorkflowBudgetExceeded(RuntimeError):

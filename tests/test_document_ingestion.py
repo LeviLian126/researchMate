@@ -2,7 +2,6 @@ from hashlib import sha256
 from uuid import UUID
 
 import pytest
-
 from researchmate_worker.ingestion import (
     DocumentIngestionService,
     IngestionEvent,
@@ -10,7 +9,6 @@ from researchmate_worker.ingestion import (
     IngestionRecord,
     ParsedBlock,
 )
-
 
 EVENT = IngestionEvent(
     job_id=UUID("10000000-0000-4000-8000-000000000001"),

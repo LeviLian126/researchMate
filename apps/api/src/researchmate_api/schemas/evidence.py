@@ -7,7 +7,6 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field, model_validator
 
-
 RunStatus = Literal["pending", "running", "waiting_human", "succeeded", "failed", "cancelled"]
 
 
@@ -16,7 +15,7 @@ class SourceScope(BaseModel):
     allow_web: bool = False
 
     @model_validator(mode="after")
-    def reject_duplicate_documents(self) -> "SourceScope":
+    def reject_duplicate_documents(self) -> SourceScope:
         if len(set(self.document_ids)) != len(self.document_ids):
             raise ValueError("document_ids must be unique")
         return self
@@ -74,7 +73,7 @@ class HumanDecisionCreate(BaseModel):
     reason: str | None = Field(default=None, max_length=2000)
 
     @model_validator(mode="after")
-    def require_edited_payload(self) -> "HumanDecisionCreate":
+    def require_edited_payload(self) -> HumanDecisionCreate:
         if self.decision == "edit" and self.edited_payload is None:
             raise ValueError("edited_payload is required for an edit decision")
         if self.decision != "edit" and self.edited_payload is not None:
@@ -184,7 +183,7 @@ class ReportRefreshCreate(BaseModel):
     pipeline_version_id: UUID
 
     @model_validator(mode="after")
-    def require_change(self) -> "ReportRefreshCreate":
+    def require_change(self) -> ReportRefreshCreate:
         if not self.changed_document_ids and not self.force_sections:
             raise ValueError("at least one changed document or forced section is required")
         return self
@@ -239,7 +238,7 @@ class ReliabilityResponse(BaseModel):
     p95_latency_ms: int | None = None
     input_tokens: int = Field(ge=0)
     output_tokens: int = Field(ge=0)
-    cost_usd: Decimal = Decimal("0")
+    cost_usd: Decimal = Decimal(0)
     sample_trace_ids: list[UUID] = Field(default_factory=list)
 
 

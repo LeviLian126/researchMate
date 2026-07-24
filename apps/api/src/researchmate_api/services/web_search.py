@@ -8,7 +8,6 @@ from researchmate_api.config import Settings
 from researchmate_api.schemas.common import SourceType
 from researchmate_api.services.store import ChunkEntry
 
-
 WEB_EVIDENCE_NAMESPACE = UUID("7fe3d3f1-a008-4f54-93c6-743ca8a2c349")
 
 

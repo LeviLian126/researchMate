@@ -3,7 +3,6 @@ from fastapi import APIRouter, Depends
 from researchmate_api.dependencies import get_current_user
 from researchmate_api.schemas.common import CurrentUser
 
-
 router = APIRouter()
 
 

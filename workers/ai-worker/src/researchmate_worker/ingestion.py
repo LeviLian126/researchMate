@@ -9,12 +9,12 @@ from typing import Any, Protocol
 from uuid import NAMESPACE_URL, UUID, uuid5
 
 from pydantic import BaseModel
-from sqlalchemy import Engine, text
-
 from researchmate_api.schemas.common import SourceType
 from researchmate_api.services.object_storage import ObjectStorageRequestError
 from researchmate_api.services.qdrant_store import VectorStoreRequestError
 from researchmate_api.services.store import ChunkEntry
+from sqlalchemy import Engine, text
+
 from researchmate_worker.jobs import chunk_text_for_index
 
 

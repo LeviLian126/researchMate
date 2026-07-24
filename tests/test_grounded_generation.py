@@ -2,9 +2,11 @@ import json
 from uuid import UUID
 
 import pytest
-
 from researchmate_api.schemas.common import SourceMode, SourceType
-from researchmate_api.services.answering import ProviderOutputError, build_llm_grounded_answer
+from researchmate_api.services.answering import (
+    ProviderOutputError,
+    build_llm_grounded_answer,
+)
 from researchmate_api.services.llm import LLMResult
 from researchmate_api.services.store import ChunkEntry
 

@@ -1,7 +1,6 @@
 from uuid import UUID
 
 import pytest
-
 from researchmate_api.services.object_storage import ObjectStorageRequestError
 from researchmate_worker.deletion import (
     DeletionRecord,
@@ -9,7 +8,6 @@ from researchmate_worker.deletion import (
     DocumentDeletionService,
 )
 from researchmate_worker.ingestion import IngestionFailure
-
 
 EVENT = DocumentDeletionEvent(
     job_id=UUID("30000000-0000-4000-8000-000000000001"),

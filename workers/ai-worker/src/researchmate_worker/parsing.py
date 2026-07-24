@@ -58,7 +58,10 @@ class DoclingDocumentParser:
             try:
                 from docling.datamodel.base_models import InputFormat
                 from docling.datamodel.pipeline_options import PdfPipelineOptions
-                from docling.document_converter import DocumentConverter, PdfFormatOption
+                from docling.document_converter import (
+                    DocumentConverter,
+                    PdfFormatOption,
+                )
             except ImportError as exc:
                 raise ParserAdapterError("PARSER_NOT_INSTALLED") from exc
             pdf_options = PdfPipelineOptions(

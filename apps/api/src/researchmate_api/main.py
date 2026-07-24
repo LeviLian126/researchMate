@@ -1,6 +1,6 @@
 import re
-from time import monotonic
 from contextlib import asynccontextmanager
+from time import monotonic
 from uuid import uuid4
 
 from fastapi import FastAPI, HTTPException, Request
@@ -12,7 +12,6 @@ from researchmate_api.config import Settings, get_settings
 from researchmate_api.dependencies import resolve_bearer_token
 from researchmate_api.mcp_server import MCPRequestIdentity, current_mcp_identity
 from researchmate_api.observability import configure_observability, log_event
-from researchmate_api.schemas.common import ErrorResponse
 from researchmate_api.routers import (
     ask,
     dev_traces,
@@ -25,13 +24,13 @@ from researchmate_api.routers import (
     quiz,
     runs,
 )
-from researchmate_api.services.evidence_store import EvidenceRepository, InMemoryEvidenceRepository
-from researchmate_api.services.store import InMemoryResearchMateStore, ResearchMateRepository
-from researchmate_api.services.llm import NvidiaChatProvider
+from researchmate_api.schemas.common import ErrorResponse
 from researchmate_api.services.embedding import NvidiaEmbeddingProvider
+from researchmate_api.services.evidence_store import EvidenceRepository, InMemoryEvidenceRepository
+from researchmate_api.services.llm import NvidiaChatProvider
 from researchmate_api.services.qdrant_store import QdrantHybridStore
+from researchmate_api.services.store import InMemoryResearchMateStore, ResearchMateRepository
 from researchmate_api.services.web_search import TavilyWebSearchProvider
-
 
 REQUEST_ID_PATTERN = re.compile(r"^[A-Za-z0-9._:-]{4,120}$")
 SECURITY_HEADERS = {

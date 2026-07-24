@@ -4,39 +4,44 @@ from functools import lru_cache
 from uuid import UUID
 
 from pydantic import BaseModel
-from sqlalchemy import create_engine, text
-
 from researchmate_api.services.embedding import NvidiaEmbeddingProvider
 from researchmate_api.services.evidence_generation import EvidenceGenerationError
 from researchmate_api.services.llm import NvidiaChatProvider, ProviderRequestError
 from researchmate_api.services.object_storage import S3CompatibleObjectStorage
-from researchmate_api.services.qdrant_store import QdrantHybridStore
-from researchmate_api.services.qdrant_store import VectorStoreRequestError
+from researchmate_api.services.qdrant_store import (
+    QdrantHybridStore,
+    VectorStoreRequestError,
+)
 from researchmate_api.services.web_search import TavilyWebSearchProvider
-from researchmate_worker.celery_app import celery_app
+from sqlalchemy import create_engine, text
+
 from researchmate_worker.budget import BudgetedChatProvider, WorkflowBudgetExceeded
+from researchmate_worker.celery_app import celery_app
 from researchmate_worker.config import WorkerSettings
 from researchmate_worker.deletion import (
     DocumentDeletionEvent,
     DocumentDeletionService,
     SqlDeletionStore,
 )
+from researchmate_worker.evaluation import (
+    EvaluationRunner,
+    EvaluationRuntimeError,
+    QdrantCaseExecutor,
+    RagasFaithfulnessScorer,
+)
+from researchmate_worker.evidence_graph import build_evidence_graph
+from researchmate_worker.fault_simulation import FaultSimulationService
 from researchmate_worker.ingestion import (
     DocumentIngestionService,
     IngestionEvent,
     IngestionFailure,
     SqlIngestionStore,
 )
-from researchmate_worker.evidence_graph import build_evidence_graph
-from researchmate_worker.evaluation import (
-    EvaluationRuntimeError,
-    EvaluationRunner,
-    QdrantCaseExecutor,
-    RagasFaithfulnessScorer,
-)
-from researchmate_worker.fault_simulation import FaultSimulationService
 from researchmate_worker.parsing import DoclingDocumentParser
-from researchmate_worker.workflow_runtime import SqlEvidenceWorkflowDomain, WorkflowRuntimeError
+from researchmate_worker.workflow_runtime import (
+    SqlEvidenceWorkflowDomain,
+    WorkflowRuntimeError,
+)
 
 
 class WorkflowTaskEvent(BaseModel):

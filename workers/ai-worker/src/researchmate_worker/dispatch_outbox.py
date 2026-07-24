@@ -7,7 +7,11 @@ from sqlalchemy import create_engine
 
 from researchmate_worker.celery_app import celery_app
 from researchmate_worker.config import WorkerSettings
-from researchmate_worker.outbox import CeleryTaskPublisher, OutboxDispatcher, SqlOutboxStore
+from researchmate_worker.outbox import (
+    CeleryTaskPublisher,
+    OutboxDispatcher,
+    SqlOutboxStore,
+)
 from researchmate_worker.runtime_health import record_heartbeat
 
 

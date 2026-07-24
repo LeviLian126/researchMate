@@ -1,16 +1,15 @@
-from uuid import UUID
-from contextlib import contextmanager
 import json
+from contextlib import contextmanager
 from types import SimpleNamespace
+from uuid import UUID
 
 import pytest
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
-
 from researchmate_api.config import Settings
 from researchmate_api.main import create_app
-from researchmate_api.services.store import store
 from researchmate_api.routers.health import readyz
+from researchmate_api.services.store import store
 
 
 def test_production_rejects_development_auth() -> None:

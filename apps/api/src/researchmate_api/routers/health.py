@@ -4,7 +4,6 @@ from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
-
 router = APIRouter()
 
 

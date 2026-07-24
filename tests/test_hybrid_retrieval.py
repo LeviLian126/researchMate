@@ -2,7 +2,6 @@ from types import SimpleNamespace
 from uuid import UUID
 
 from pydantic import SecretStr
-
 from researchmate_api.config import Settings
 from researchmate_api.schemas.common import SourceType
 from researchmate_api.services.embedding import NvidiaEmbeddingProvider

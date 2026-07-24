@@ -13,7 +13,7 @@ class ChatCompletionClient(Protocol):
 
 
 class ChatProvider(Protocol):
-    def complete(self, messages: Iterable[dict[str, str]]) -> "LLMResult": ...
+    def complete(self, messages: Iterable[dict[str, str]]) -> LLMResult: ...
 
 
 @dataclass(frozen=True)

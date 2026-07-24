@@ -26,13 +26,12 @@ from researchmate_api.schemas.project import ProjectCreate, ProjectRecord
 from researchmate_api.schemas.quiz import QuizQuestion, QuizSet
 from researchmate_api.schemas.sources import RunSourcesResponse
 from researchmate_api.schemas.trace import DeveloperTrace, ToolCallTrace
-from researchmate_api.services.store import ChunkEntry
 from researchmate_api.services.object_storage import (
     ObjectStorageConfigurationError,
     StoredObjectMetadata,
     UploadVerificationError,
 )
-
+from researchmate_api.services.store import ChunkEntry
 
 UploadUrlFactory = Callable[[UUID, str, UploadUrlRequest], str]
 ObjectMetadataReader = Callable[[str], StoredObjectMetadata]

@@ -1,13 +1,11 @@
 from __future__ import annotations
 
-from hashlib import sha256
 import json
+from hashlib import sha256
 from typing import Any
 from uuid import NAMESPACE_URL, UUID, uuid5
 
-from sqlalchemy import Engine, text
 from pydantic import BaseModel, Field, ValidationError
-
 from researchmate_api.schemas.common import SourceType
 from researchmate_api.services.evidence_generation import (
     ExtractedClaim,
@@ -20,7 +18,12 @@ from researchmate_api.services.evidence_generation import (
 from researchmate_api.services.llm import ChatProvider
 from researchmate_api.services.qdrant_store import QdrantHybridStore
 from researchmate_api.services.store import ChunkEntry
-from researchmate_api.services.web_search import TavilyWebSearchProvider, WebSearchRequestError
+from researchmate_api.services.web_search import (
+    TavilyWebSearchProvider,
+    WebSearchRequestError,
+)
+from sqlalchemy import Engine, text
+
 from researchmate_worker.evidence_graph import EvidenceWorkflowState
 
 

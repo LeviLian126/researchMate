@@ -1,7 +1,9 @@
 from pydantic import SecretStr
-
 from researchmate_api.config import Settings
-from researchmate_api.services.object_storage import R2ObjectStorage, S3CompatibleObjectStorage
+from researchmate_api.services.object_storage import (
+    R2ObjectStorage,
+    S3CompatibleObjectStorage,
+)
 
 
 class FakeS3Client:

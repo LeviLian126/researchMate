@@ -2,7 +2,6 @@ from types import SimpleNamespace
 
 import pytest
 from pydantic import SecretStr
-
 from researchmate_api.config import Settings
 from researchmate_api.services.llm import (
     NvidiaChatProvider,

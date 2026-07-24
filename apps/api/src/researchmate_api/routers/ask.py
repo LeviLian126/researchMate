@@ -4,8 +4,8 @@ from researchmate_api.dependencies import (
     get_chat_provider,
     get_current_user,
     get_hybrid_store,
-    get_web_search,
     get_store,
+    get_web_search,
     raise_api_error,
 )
 from researchmate_api.schemas.ask import AskRequest, AskResponse
@@ -13,9 +13,8 @@ from researchmate_api.schemas.common import CurrentUser
 from researchmate_api.services.grounded_query import GroundedQueryError, GroundedQueryService
 from researchmate_api.services.llm import ChatProvider
 from researchmate_api.services.qdrant_store import QdrantHybridStore
-from researchmate_api.services.web_search import TavilyWebSearchProvider
 from researchmate_api.services.store import ResearchMateRepository
-
+from researchmate_api.services.web_search import TavilyWebSearchProvider
 
 router = APIRouter()
 

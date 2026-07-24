@@ -44,8 +44,8 @@ def test_langgraph_graph_executes_a_bounded_local_path() -> None:
 
 
 def test_ragas_and_strict_checkpoint_serializer_import_with_pinned_compatibility() -> None:
-    from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
     from langgraph.checkpoint.postgres import PostgresSaver
+    from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
     from ragas.llms import llm_factory
     from ragas.metrics.collections import Faithfulness
 
