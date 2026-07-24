@@ -47,7 +47,7 @@
      Database entities, fields, integrity, and access
     </h1>
     <p class="lede">
-      This is the field-level source of truth for the maintained SQL migrations: 15 initial tables, 16 additive domain tables, and one backend-only operational table. Local/test still defaults to memory. PostgreSQL adapters and worker repositories exist, but no migration has been applied to Supabase.
+      This is the field-level source of truth for the maintained SQL migrations: 15 initial tables, 16 additive domain tables, and one backend-only operational table. Local/test still defaults to memory. PostgreSQL adapters and worker repositories exist, and the six migrations are applied to the isolated Supabase development project; application integration remains unvalidated.
     </p>
     <div class="meta">
      <span class="status partial">
@@ -60,7 +60,7 @@
        31 domain + 1 operational table declared
      </span>
      <span class="status unknown">
-       Managed database · not applied or validated
+       Managed development schema · applied, integration unvalidated
      </span>
     </div>
    </div>
@@ -733,103 +733,103 @@
       <section id="planned-schema">
        <p class="eyebrow">Additive migration and repository contracts</p>
       <h2>Workflow, evidence, report, outbox, evaluation, and fault entities</h2>
-      <p class="sub">Fifteen additive contracts come from <code>202607150002_evidence_review_schema.sql</code>; <code>202607150005_evaluation_budget_and_fault_exercises.sql</code> adds <code>fault_exercises</code>, bringing the domain total to 31 tables (15 initial + 16 additive). Migration 006 adds one backend-only operational <code>runtime_heartbeats</code> table and workflow lease/budget fields; it is not counted as a domain table. FastAPI and worker repositories use these shapes, but no migration has been applied to Supabase and no managed-Postgres integration has run.</p>
+      <p class="sub">Fifteen additive contracts come from <code>202607150002_evidence_review_schema.sql</code>; <code>202607150005_evaluation_budget_and_fault_exercises.sql</code> adds <code>fault_exercises</code>, bringing the domain total to 31 tables (15 initial + 16 additive). Migration 006 adds one backend-only operational <code>runtime_heartbeats</code> table and workflow lease/budget fields; it is not counted as a domain table. The six migrations are applied to the isolated Supabase development project, but no application-driven managed-Postgres integration has run.</p>
       <div class="notice"><strong>Storage ownership:</strong> PostgreSQL is the source of truth for business state. S3-compatible object storage stores private source bytes and parser artifacts; Qdrant stores rebuildable dense/sparse projections; Redis stores broker and short-lived coordination state only. No irreplaceable business fact may exist only in object storage, Qdrant, or Redis.</div>
-      <div class="notice warning"><strong>Checkpoint boundary:</strong> LangGraph Postgres checkpoint tables are SDK-managed infrastructure, not domain tables. A guarded release command now runs the SDK's versioned <code>setup()</code> once before deployment; workers no longer execute DDL. No checkpoint table exists in a validated managed database, and these four tables are not included in the 31-domain-table count.</div>
+      <div class="notice warning"><strong>Checkpoint boundary:</strong> LangGraph Postgres checkpoint tables are SDK-managed infrastructure, not domain tables. A guarded release command runs the SDK-owned schema once before deployment; workers do not execute DDL. The four checkpoint tables now exist in the isolated <code>researchmate-dev</code> Supabase database at schema version 9, but interrupt/resume and restart behavior have not yet been exercised against them. These four tables are not included in the 31-domain-table count.</div>
 
-      <details id="planned-workflow-runs" data-contract="declared" open><summary><code>workflow_runs</code> · durable orchestration root <span class="status partial">migration + repository code · not applied</span></summary><dl class="kv">
+      <details id="planned-workflow-runs" data-contract="declared" open><summary><code>workflow_runs</code> · durable orchestration root <span class="status partial">schema applied · repository integration unvalidated</span></summary><dl class="kv">
        <dt>Fields</dt><dd><code>id uuid PK default gen_random_uuid()</code>; <code>user_id uuid not null FK profiles(id) cascade</code>; <code>project_id uuid not null FK projects(id) cascade</code>; <code>conversation_id uuid null FK conversations(id) set null</code>; <code>pipeline_version_id uuid not null FK pipeline_versions(id) restrict</code>; <code>kind text not null</code>; <code>status text not null default 'pending'</code>; <code>idempotency_key text not null</code>; <code>checkpoint_ref text null</code>; <code>input jsonb not null</code>; <code>output jsonb null</code>; <code>error_code text null</code>; delivery fields <code>delivery_attempts integer not null default 0</code>, <code>lease_owner text null</code>, <code>lease_expires_at timestamptz null</code>; budget fields <code>budget_limit_usd numeric(12,6) not null default 1</code>, <code>budget_reserved_usd numeric(12,6) not null default 0</code>, <code>actual_cost_usd numeric(12,6) not null default 0</code>; <code>created_at</code>, <code>started_at</code>, <code>completed_at timestamptz</code>.</dd>
        <dt>Integrity / indexes</dt><dd>CHECK kind in <code>ask|evidence_review|report_refresh</code>; CHECK status in <code>pending|running|waiting_human|succeeded|failed|cancelled</code>; unique <code>(user_id,idempotency_key)</code>; indexes <code>(project_id,created_at desc)</code> and <code>(status,created_at)</code>.</dd>
        <dt>Access</dt><dd>Direct owner RLS for SELECT/INSERT; owner may cancel or submit a decision only through API invariants; worker service role advances execution state.</dd>
        <dt>Lifecycle / writers / readers</dt><dd>FastAPI creates; LangGraph/worker update; web, MCP, evaluation, and audit readers consume. Terminal rows are retained with their pipeline version; deletion follows project policy.</dd>
       </dl></details>
 
-      <details id="planned-run-events" data-contract="declared"><summary><code>run_events</code> · ordered replay and telemetry ledger <span class="status partial">migration + repository code · not applied</span></summary><dl class="kv">
+      <details id="planned-run-events" data-contract="declared"><summary><code>run_events</code> · ordered replay and telemetry ledger <span class="status partial">schema applied · repository integration unvalidated</span></summary><dl class="kv">
        <dt>Fields</dt><dd><code>id bigint generated always as identity PK</code>; <code>run_id uuid not null FK workflow_runs(id) cascade</code>; <code>sequence integer not null</code>; <code>node_key text not null</code>; <code>event_type text not null</code>; <code>attempt integer not null default 1</code>; <code>status text not null</code>; <code>safe_payload jsonb not null default '{}'</code>; <code>latency_ms integer null</code>; <code>input_tokens integer null</code>; <code>output_tokens integer null</code>; <code>cost_usd numeric(12,6) null</code>; <code>created_at timestamptz not null default now()</code>.</dd>
        <dt>Integrity / indexes</dt><dd>Unique <code>(run_id,sequence)</code>; non-negative attempt/latency/token/cost checks; event/status enums constrained by migration; indexes <code>(run_id,node_key,attempt)</code> and <code>(created_at)</code>.</dd>
        <dt>Access</dt><dd>RLS derived through owned run; only worker/service role inserts. Payload is a redacted event contract, never raw private source text or provider secrets.</dd>
        <dt>Lifecycle / readers</dt><dd>Append-only after insertion; consumed by SSE replay, Trace Graph, reliability metrics, incident analysis, and evaluation correlation.</dd>
       </dl></details>
 
-      <details id="planned-research-questions" data-contract="planned"><summary><code>research_questions</code> · decomposed research plan <span class="status partial">migration + writer code · not applied</span></summary><dl class="kv">
+      <details id="planned-research-questions" data-contract="planned"><summary><code>research_questions</code> · decomposed research plan <span class="status partial">schema applied · writer integration unvalidated</span></summary><dl class="kv">
        <dt>Fields</dt><dd><code>id uuid PK</code>; <code>user_id uuid not null FK profiles cascade</code>; <code>project_id uuid not null FK projects cascade</code>; <code>parent_id uuid null FK research_questions set null</code>; <code>source_run_id uuid not null FK workflow_runs cascade</code>; <code>question text not null</code>; <code>status text not null default 'planned'</code>; <code>priority smallint not null default 0</code>; <code>plan_order integer not null</code>; <code>created_at</code>, <code>updated_at timestamptz</code>.</dd>
        <dt>Integrity / indexes</dt><dd>CHECK non-empty question and status in <code>planned|active|answered|blocked|cancelled</code>; unique <code>(source_run_id,parent_id,plan_order)</code>; indexes <code>(project_id,status)</code> and <code>(parent_id)</code>.</dd>
        <dt>Access / lifecycle</dt><dd>Direct owner RLS; planner writes and review UI reads. Rows survive report revisions for audit and are deleted with the project.</dd>
       </dl></details>
 
-      <details id="planned-claims" data-contract="planned"><summary><code>claims</code> · normalized evidence conclusions <span class="status partial">migration + repository code · not applied</span></summary><dl class="kv">
+      <details id="planned-claims" data-contract="planned"><summary><code>claims</code> · normalized evidence conclusions <span class="status partial">schema applied · repository integration unvalidated</span></summary><dl class="kv">
        <dt>Fields</dt><dd><code>id uuid PK</code>; <code>user_id uuid not null FK profiles cascade</code>; <code>project_id uuid not null FK projects cascade</code>; <code>question_id uuid null FK research_questions set null</code>; <code>source_run_id uuid not null FK workflow_runs cascade</code>; <code>text text not null</code>; <code>normalized_key text not null</code>; <code>stance text not null default 'neutral'</code>; <code>confidence numeric(5,4) not null</code>; <code>review_status text not null default 'pending'</code>; <code>source_version integer not null default 1</code>; <code>invalidated_at timestamptz null</code>; <code>created_at</code>, <code>updated_at timestamptz</code>.</dd>
        <dt>Integrity / indexes</dt><dd>Confidence between 0 and 1; stance in <code>supports|opposes|neutral</code>; review status in <code>pending|accepted|edited|rejected|invalidated</code>; unique <code>(project_id,normalized_key,source_version)</code>; indexes for question, review state, and invalidation.</dd>
        <dt>Access / lifecycle</dt><dd>Direct owner RLS. Extractor creates; review decisions change status; report synthesis reads accepted, non-invalidated claims only. Source changes invalidate rather than silently overwrite.</dd>
       </dl></details>
 
-      <details id="planned-claim-evidence" data-contract="planned"><summary><code>claim_evidence</code> · claim-to-citation support edge <span class="status partial">migration + writer code · not applied</span></summary><dl class="kv">
+      <details id="planned-claim-evidence" data-contract="planned"><summary><code>claim_evidence</code> · claim-to-citation support edge <span class="status partial">schema applied · writer integration unvalidated</span></summary><dl class="kv">
        <dt>Fields</dt><dd><code>claim_id uuid not null FK claims cascade</code>; <code>citation_id uuid not null FK citations cascade</code>; <code>relation text not null</code>; <code>extraction_score numeric(5,4) not null</code>; <code>extractor_version text not null</code>; <code>created_at timestamptz not null default now()</code>; composite PK <code>(claim_id,citation_id,relation)</code>.</dd>
        <dt>Integrity / indexes</dt><dd>Relation in <code>supports|contradicts|mentions</code>; score between 0 and 1; reverse index on <code>citation_id</code>.</dd>
        <dt>Access / lifecycle</dt><dd>RLS derived through claim and citation ownership; extractor writes and review/report/impact services read. Deleting either parent removes the edge and triggers impact evaluation.</dd>
       </dl></details>
 
-      <details id="planned-claim-relations" data-contract="planned"><summary><code>claim_relations</code> · cross-source reasoning edge <span class="status partial">migration + repository code · not applied</span></summary><dl class="kv">
+      <details id="planned-claim-relations" data-contract="planned"><summary><code>claim_relations</code> · cross-source reasoning edge <span class="status partial">schema applied · repository integration unvalidated</span></summary><dl class="kv">
        <dt>Fields</dt><dd><code>source_claim_id uuid not null FK claims cascade</code>; <code>target_claim_id uuid not null FK claims cascade</code>; <code>relation text not null</code>; <code>confidence numeric(5,4) not null</code>; <code>rationale_summary text null</code>; <code>created_at timestamptz not null default now()</code>; composite PK <code>(source_claim_id,target_claim_id,relation)</code>.</dd>
        <dt>Integrity / indexes</dt><dd>Claims must differ; relation in <code>supports|contradicts|duplicates</code>; confidence between 0 and 1; reverse index on target claim. Application enforces same project/owner.</dd>
        <dt>Access / lifecycle</dt><dd>RLS derived through both claims; reconciliation worker writes, graph/report UI reads, invalidation service re-evaluates when either claim changes.</dd>
       </dl></details>
 
-      <details id="planned-reports" data-contract="planned"><summary><code>reports</code> · versioned synthesis root <span class="status partial">migration + repository code · not applied</span></summary><dl class="kv">
+      <details id="planned-reports" data-contract="planned"><summary><code>reports</code> · versioned synthesis root <span class="status partial">schema applied · repository integration unvalidated</span></summary><dl class="kv">
        <dt>Fields</dt><dd><code>id uuid PK</code>; <code>user_id uuid not null FK profiles cascade</code>; <code>project_id uuid not null FK projects cascade</code>; <code>source_run_id uuid not null FK workflow_runs restrict</code>; <code>title text not null</code>; <code>status text not null default 'draft'</code>; <code>revision integer not null</code>; <code>validation_status text not null default 'pending'</code>; <code>generated_at timestamptz null</code>; <code>created_at</code>, <code>updated_at timestamptz</code>.</dd>
        <dt>Integrity / indexes</dt><dd>Status in <code>draft|review|published|invalidated</code>; unique <code>(project_id,revision)</code>; indexes <code>(project_id,status)</code> and <code>(source_run_id)</code>.</dd>
        <dt>Access / lifecycle</dt><dd>Direct owner RLS; synthesis service creates, owner publishes, refresh creates a new revision rather than mutating published evidence.</dd>
       </dl></details>
 
-      <details id="planned-report-sections" data-contract="planned"><summary><code>report_sections</code> · ordered report snapshot <span class="status partial">migration + writer code · not applied</span></summary><dl class="kv">
+      <details id="planned-report-sections" data-contract="planned"><summary><code>report_sections</code> · ordered report snapshot <span class="status partial">schema applied · writer integration unvalidated</span></summary><dl class="kv">
        <dt>Fields</dt><dd><code>id uuid PK</code>; <code>report_id uuid not null FK reports cascade</code>; <code>parent_section_id uuid null FK report_sections set null</code>; <code>section_key text not null</code>; <code>position integer not null</code>; <code>heading text not null</code>; <code>body_markdown text not null</code>; <code>evidence_snapshot jsonb not null</code>; <code>validation_status text not null</code>; <code>created_at</code>, <code>updated_at timestamptz</code>.</dd>
        <dt>Integrity / indexes</dt><dd>Unique <code>(report_id,section_key)</code> and <code>(report_id,position)</code>; non-negative position; index on parent. Evidence snapshot contains accepted claim/citation IDs and hashes for reproducibility.</dd>
        <dt>Access / lifecycle</dt><dd>RLS derived through report; synthesis writes, report UI reads, impact service marks affected sections for a new revision. Published snapshots remain immutable.</dd>
       </dl></details>
 
-      <details id="planned-human-decisions" data-contract="planned"><summary><code>human_decisions</code> · durable approve/edit/reject input <span class="status partial">migration + repository code · not applied</span></summary><dl class="kv">
+      <details id="planned-human-decisions" data-contract="planned"><summary><code>human_decisions</code> · durable approve/edit/reject input <span class="status partial">schema applied · repository integration unvalidated</span></summary><dl class="kv">
        <dt>Fields</dt><dd><code>id uuid PK</code>; <code>run_id uuid not null FK workflow_runs cascade</code>; <code>event_id bigint null FK run_events set null</code>; <code>user_id uuid not null FK profiles restrict</code>; <code>interrupt_key text not null</code>; <code>decision text not null</code>; <code>proposed_payload jsonb not null</code>; <code>final_payload jsonb null</code>; <code>reason text null</code>; <code>created_at timestamptz not null default now()</code>.</dd>
        <dt>Integrity / indexes</dt><dd>Decision in <code>approve|edit|reject</code>; unique <code>(run_id,interrupt_key)</code>; index <code>(user_id,created_at desc)</code>.</dd>
        <dt>Access / lifecycle</dt><dd>Run owner or privileged reviewer may insert once; worker reads to resume. Append-only audit record retained with the run and redacted from ordinary telemetry.</dd>
       </dl></details>
 
-      <details id="planned-outbox-events" data-contract="partial"><summary><code>outbox_events</code> · transaction-to-queue bridge <span class="status partial">migration + runtime adapter · not applied</span></summary><dl class="kv">
+      <details id="planned-outbox-events" data-contract="partial"><summary><code>outbox_events</code> · transaction-to-queue bridge <span class="status partial">schema applied · runtime integration unvalidated</span></summary><dl class="kv">
        <dt>Fields</dt><dd><code>id uuid PK</code>; <code>aggregate_type text not null</code>; <code>aggregate_id uuid not null</code>; <code>event_type text not null</code>; <code>payload jsonb not null</code>; <code>idempotency_key text not null unique</code>; <code>status text not null default 'pending'</code>; <code>attempts integer not null default 0</code>; <code>available_at timestamptz not null default now()</code>; <code>published_at timestamptz null</code>; <code>last_error text null</code>; <code>created_at timestamptz not null default now()</code>.</dd>
        <dt>Integrity / indexes</dt><dd>Status in <code>pending|publishing|published|failed</code>; attempts non-negative; dispatch index <code>(status,available_at)</code>.</dd>
        <dt>Access / lifecycle</dt><dd>Service-role only. Document completion now writes this row in the same transaction as job intent; the SKIP LOCKED dispatcher implements publish, backoff, and stale-claim recovery. Supabase application, Redis delivery, crash recovery, and terminal purge remain unvalidated.</dd>
       </dl></details>
 
-      <details id="planned-pipeline-versions" data-contract="planned"><summary><code>pipeline_versions</code> · immutable execution configuration <span class="status partial">migration + repository code · not applied</span></summary><dl class="kv">
+      <details id="planned-pipeline-versions" data-contract="planned"><summary><code>pipeline_versions</code> · immutable execution configuration <span class="status partial">schema applied · repository integration unvalidated</span></summary><dl class="kv">
        <dt>Fields</dt><dd><code>id uuid PK</code>; <code>name text not null</code>; <code>version integer not null</code>; <code>status text not null default 'draft'</code>; <code>configuration jsonb not null</code>; <code>prompt_hash text not null</code>; <code>code_sha text not null</code>; <code>created_by uuid not null FK profiles restrict</code>; <code>created_at timestamptz not null default now()</code>; <code>accepted_at timestamptz null</code>.</dd>
        <dt>Integrity / indexes</dt><dd>Unique <code>(name,version)</code>; status in <code>draft|candidate|accepted|retired</code>; accepted versions are immutable.</dd>
        <dt>Access / lifecycle</dt><dd>Developer/admin write; authenticated users may read versions referenced by their runs. Evaluation promotes a version; historical runs keep their original reference.</dd>
       </dl></details>
 
-      <details id="planned-evaluation-datasets" data-contract="planned"><summary><code>evaluation_datasets</code> · versioned benchmark collection <span class="status partial">migration + repository code · not applied</span></summary><dl class="kv">
+      <details id="planned-evaluation-datasets" data-contract="planned"><summary><code>evaluation_datasets</code> · versioned benchmark collection <span class="status partial">schema applied · repository integration unvalidated</span></summary><dl class="kv">
        <dt>Fields</dt><dd><code>id uuid PK</code>; <code>user_id uuid not null FK profiles cascade</code>; <code>project_id uuid null FK projects set null</code>; <code>name text not null</code>; <code>version integer not null</code>; <code>status text not null default 'draft'</code>; <code>description text null</code>; <code>created_at timestamptz not null default now()</code>.</dd>
        <dt>Integrity / indexes</dt><dd>Unique <code>(user_id,name,version)</code>; status in <code>draft|frozen|retired</code>; frozen datasets are immutable.</dd>
        <dt>Access / lifecycle</dt><dd>Direct owner RLS; evaluation UI writes drafts and freezes versions; runs read frozen datasets only.</dd>
       </dl></details>
 
-      <details id="planned-evaluation-cases" data-contract="planned"><summary><code>evaluation_cases</code> · reproducible input and expectation <span class="status partial">migration + runner code · not applied</span></summary><dl class="kv">
+      <details id="planned-evaluation-cases" data-contract="planned"><summary><code>evaluation_cases</code> · reproducible input and expectation <span class="status partial">schema applied · runner integration unvalidated</span></summary><dl class="kv">
        <dt>Fields</dt><dd><code>id uuid PK</code>; <code>dataset_id uuid not null FK evaluation_datasets cascade</code>; <code>case_key text not null</code>; <code>input jsonb not null</code>; <code>expected_output jsonb null</code>; <code>expected_evidence jsonb not null</code>; <code>labels text[] not null default '{}'</code>; <code>created_at timestamptz not null default now()</code>.</dd>
        <dt>Integrity / indexes</dt><dd>Unique <code>(dataset_id,case_key)</code>; GIN index on labels when filtering is measured as useful.</dd>
        <dt>Access / lifecycle</dt><dd>RLS derived through dataset; editable only while dataset is draft; retained unchanged for all referencing runs.</dd>
       </dl></details>
 
-      <details id="planned-evaluation-runs" data-contract="planned"><summary><code>evaluation_runs</code> · batch experiment identity <span class="status partial">migration + budgeted runner code · not applied</span></summary><dl class="kv">
+      <details id="planned-evaluation-runs" data-contract="planned"><summary><code>evaluation_runs</code> · batch experiment identity <span class="status partial">schema applied · runner integration unvalidated</span></summary><dl class="kv">
        <dt>Fields</dt><dd><code>id uuid PK</code>; <code>user_id uuid not null FK profiles cascade</code>; <code>project_id uuid null FK projects set null</code>; <code>dataset_id uuid not null FK evaluation_datasets restrict</code>; <code>pipeline_version_id uuid not null FK pipeline_versions restrict</code>; <code>status text not null default 'pending'</code>; <code>idempotency_key text not null</code>; <code>summary jsonb null</code>; <code>started_at</code>, <code>completed_at</code>, <code>created_at timestamptz</code>; delivery fields <code>attempts integer not null default 0</code>, <code>lease_owner text null</code>, <code>lease_expires_at timestamptz null</code>; budget fields <code>budget_limit_usd numeric(12,6) not null default 1.000000</code>, <code>budget_reserved_usd numeric(12,6) not null default 0</code>, <code>last_error_code text null</code>.</dd>
        <dt>Integrity / indexes</dt><dd>Unique <code>(user_id,idempotency_key)</code>; status in <code>pending|running|succeeded|failed|cancelled</code>; attempts and reservation non-negative; budget limit positive; <code>budget_reserved_usd &lt;= budget_limit_usd</code>; indexes by dataset, pipeline, creation, and <code>idx_evaluation_runs_dispatch_lease(status,lease_expires_at,created_at)</code>.</dd>
        <dt>Access / lifecycle</dt><dd>Direct owner RLS; API creates, Celery claims and atomically reserves a conservative per-case allowance before dispatch, and Evaluation Lab reads. Reservation is a fail-closed scheduler ceiling—not a provider bill. Results are immutable after terminal completion except explicit cancellation/error state.</dd>
       </dl></details>
 
-      <details id="planned-evaluation-scores" data-contract="planned"><summary><code>evaluation_scores</code> · case-level metric result <span class="status partial">migration + runner code · not applied</span></summary><dl class="kv">
+      <details id="planned-evaluation-scores" data-contract="planned"><summary><code>evaluation_scores</code> · case-level metric result <span class="status partial">schema applied · runner integration unvalidated</span></summary><dl class="kv">
        <dt>Fields</dt><dd><code>id uuid PK</code>; <code>evaluation_run_id uuid not null FK evaluation_runs cascade</code>; <code>case_id uuid not null FK evaluation_cases restrict</code>; <code>metric_name text not null</code>; <code>metric_version text not null</code>; <code>value numeric null</code>; <code>passed boolean null</code>; <code>details jsonb not null default '{}'</code>; <code>judge_model text null</code>; <code>created_at timestamptz not null default now()</code>.</dd>
        <dt>Integrity / indexes</dt><dd>Unique <code>(evaluation_run_id,case_id,metric_name,metric_version)</code>; at least one of value/passed required; indexes by metric and case.</dd>
        <dt>Access / lifecycle</dt><dd>RLS derived through evaluation run; evaluator writes once; dashboards and CI readers aggregate without rewriting historical scores.</dd>
       </dl></details>
 
-      <details id="planned-fault-exercises" data-contract="partial"><summary><code>fault_exercises</code> · auditable bounded reliability simulation <span class="status partial">migration + REST + worker code · not applied</span></summary><dl class="kv">
+      <details id="planned-fault-exercises" data-contract="partial"><summary><code>fault_exercises</code> · auditable bounded reliability simulation <span class="status partial">schema applied · REST/worker integration unvalidated</span></summary><dl class="kv">
        <dt>Fields</dt><dd><code>id uuid PK</code>; <code>requested_by uuid not null FK profiles(id) cascade</code>; <code>target_run_id uuid null FK workflow_runs(id) set null</code>; <code>scenario text not null</code>; <code>duration_seconds integer not null</code>; <code>status text not null default 'pending'</code>; <code>request_hash text not null</code>; <code>idempotency_key text not null</code>; <code>attempts integer not null default 0</code>; <code>lease_owner text null</code>; <code>lease_expires_at timestamptz null</code>; <code>expires_at timestamptz not null</code>; <code>safe_result jsonb not null default '{}'</code>; <code>last_error_code text null</code>; <code>started_at</code>, <code>completed_at</code>, <code>created_at timestamptz not null default now()</code>.</dd>
        <dt>Integrity / indexes</dt><dd>Scenario in <code>llm_timeout|qdrant_unavailable|worker_interrupt|r2_failure</code>; duration 1–60 seconds; status in <code>pending|running|succeeded|failed</code>; attempts non-negative; unique <code>(requested_by,idempotency_key)</code>; dispatch index <code>(status,lease_expires_at,created_at)</code>; target history index <code>(target_run_id,created_at desc)</code>.</dd>
        <dt>Ownership / RLS</dt><dd>Owner SELECT uses <code>requested_by = auth.uid()</code>; owner INSERT uses the same check. The API also requires developer/admin and hides creation outside local, test, or isolated preview. Service-role worker updates bypass owner RLS only for leased execution.</dd>
@@ -837,7 +837,7 @@
        <dt>Current boundary</dt><dd>Migration, repository, POST/GET routes, dispatcher mapping, and worker code exist. Supabase, Redis delivery, lease recovery, automatic expiry, and correlated telemetry have not run.</dd>
       </dl></details>
 
-      <details id="runtime-heartbeats" data-contract="partial"><summary><code>runtime_heartbeats</code> · deploy readiness signal <span class="status partial">migration + producer/reader code · not applied</span></summary><dl class="kv">
+      <details id="runtime-heartbeats" data-contract="partial"><summary><code>runtime_heartbeats</code> · deploy readiness signal <span class="status partial">schema applied · producer/reader integration unvalidated</span></summary><dl class="kv">
        <dt>Fields</dt><dd><code>component text PK</code> constrained to <code>worker|dispatcher</code>; <code>instance_id text not null</code>; <code>status text not null</code> constrained to <code>ready|degraded|stopping</code>; <code>safe_metadata jsonb not null default '{}'</code>; <code>updated_at timestamptz not null default now()</code>.</dd>
        <dt>Writer / reader</dt><dd>Celery worker signals and the dispatcher polling loop upsert backend-only rows. Public <code>/readyz</code> returns only ready/unavailable status after checking freshness; it never exposes instance identity or metadata.</dd>
        <dt>Access / integrity</dt><dd>RLS enabled, all browser roles revoked, server database role only. This is recoverable operational state, not business truth; a stale or missing heartbeat fails deployment readiness.</dd>
@@ -1024,7 +1024,7 @@
        <strong>
         High-risk unknown.
        </strong>
-       A separate Supabase Free development project is healthy, with automatic public-table exposure disabled and automatic RLS enabled. The migration has not been applied, no RLS query or service-role behavior has run, and the project is not yet a validated application data boundary.
+       A separate Supabase Free development project is healthy, with automatic public-table exposure disabled and automatic RLS enabled. On 24 July 2026 the six checksum-tracked application migrations were applied atomically and independently verified as 33 public tables including the migration ledger, 6 applied migration records, and 43 policies. The four LangGraph checkpoint tables were then initialized and verified at checkpoint schema version 9. No application connection, JWT/RLS isolation query, service-role behavior, or restart/resume workflow has run, so the project is still not a validated application data boundary.
       </div>
      </section>
      <section id="evidence">
@@ -1064,7 +1064,7 @@
    </div>
   </main>
   <footer class="shell footer">
-   ResearchMate database contract · 31 domain tables plus 1 operational readiness table (implemented in code, not applied to a managed database)
+   ResearchMate database contract · 31 domain tables plus 1 operational readiness table (managed development schema applied; runtime integration unvalidated)
   </footer>
   <script src="../../assets/site.js">
   </script>
