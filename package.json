@@ -8,7 +8,13 @@
     "packages/shared"
   ],
   "overrides": {
-    "postcss": "8.5.10"
+    "next@16.2.11": {
+      "postcss": "8.5.22",
+      "sharp": "0.35.3"
+    },
+    "miniflare": {
+      "sharp": "0.35.3"
+    }
   },
   "scripts": {
     "check:contracts": "python -m pytest tests/test_project_scaffold.py tests/test_api_workflow.py tests/test_frontend_contracts.py -q",

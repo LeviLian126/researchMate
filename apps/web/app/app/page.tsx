@@ -1,3 +1,4 @@
+// Coordinates project discovery and creation for authenticated and public-demo workspaces.
 "use client";
 
 import Link from "next/link";
@@ -6,6 +7,7 @@ import { apiFetch, describeApiError, ProjectRecord, setDevToken } from "../lib/a
 import { isLocalDevelopment } from "../lib/supabase";
 import { isPublicDemo } from "../lib/demo";
 
+/** Renders the project list and its bounded create-project interaction. */
 export default function ProjectListPage() {
   const local = isLocalDevelopment();
   const publicDemo = isPublicDemo();
@@ -15,6 +17,7 @@ export default function ProjectListPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
+  /** Reloads projects for the active authenticated or demo identity. */
   async function loadProjects() {
     setError(null);
     setLoading(true);
@@ -32,6 +35,7 @@ export default function ProjectListPage() {
     void loadProjects();
   }, [local]);
 
+  /** Creates a project through the shared API client and prepends the committed result. */
   async function createProject(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
@@ -47,6 +51,7 @@ export default function ProjectListPage() {
     }
   }
 
+  /** Persists a local-only development identity before reloading its isolated projects. */
   function saveToken() {
     setDevToken(token);
     void loadProjects();
@@ -87,7 +92,7 @@ export default function ProjectListPage() {
                   <span>{project.status}</span>
                 </div>
                 <div className="row-actions">
-                  <Link href={`/app/projects/${project.id}`}>Evidence review</Link>
+                  <Link href={`/app/projects/${project.id}/chat`}>Open workspace</Link>
                   <Link href={`/app/projects/${project.id}/library`}>Library</Link>
                   <Link href={`/app/projects/${project.id}/labs`}>Labs</Link>
                 </div>
