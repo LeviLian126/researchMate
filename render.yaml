@@ -87,7 +87,6 @@ services:
     dockerCommand: python -m researchmate_worker.render_combined
     healthCheckPath: /api/v1/healthz
     autoDeployTrigger: checksPass
-    maxShutdownDelaySeconds: 300
     envVars:
       - fromGroup: researchmate-backend
       - key: AUTH_MODE
