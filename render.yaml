@@ -1,3 +1,4 @@
+# Defines the single sleeping Render Free service and its managed dependency boundary.
 envVarGroups:
   - name: researchmate-backend
     envVars:
@@ -64,6 +65,8 @@ envVarGroups:
       - key: OTEL_SERVICE_NAME
         value: researchmate-api
       - key: OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
+        value: https://cloud.langfuse.com/api/public/otel/v1/traces
+      - key: OTEL_EXPORTER_OTLP_TRACES_HEADERS
         sync: false
       - key: DOCLING_ARTIFACTS_PATH
         value: /opt/docling/models

@@ -1,3 +1,4 @@
+# Builds the CPU-only combined backend runtime for constrained free-tier hosts.
 FROM python:3.13-slim AS runtime
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -14,7 +15,11 @@ RUN apt-get update \
 WORKDIR /app
 COPY apps/api /app/apps/api
 COPY workers/ai-worker /app/workers/ai-worker
-RUN python -m pip install --no-cache-dir /app/apps/api /app/workers/ai-worker \
+RUN python -m pip install --no-cache-dir \
+      --index-url https://download.pytorch.org/whl/cpu \
+      torch==2.13.0+cpu \
+      torchvision==0.28.0+cpu \
+    && python -m pip install --no-cache-dir /app/apps/api /app/workers/ai-worker \
     && docling-tools models download layout tableformer rapidocr -o /opt/docling/models \
     && chown -R researchmate:researchmate /opt/docling
 
