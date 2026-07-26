@@ -12,7 +12,7 @@
   <header class="mast">
     <div class="shell mast-row">
       <a class="brand" href="index.html">ResearchMate documentation</a>
-      <span class="stamp">Evidence snapshot · 25 July 2026</span>
+      <span class="stamp">Evidence snapshot · 26 July 2026</span>
     </div>
   </header>
   <nav aria-label="Documentation" class="global"><div class="shell">
@@ -27,8 +27,8 @@
     <section class="landing-hero">
       <div class="shell">
         <p class="eyebrow">Personal AI engineering portfolio / public technical demo</p>
-        <h1>Evidence review, built as an inspectable AI system.</h1>
-        <p class="lede">ResearchMate is a personal AI engineering portfolio for a production-oriented Agentic RAG workflow. It turns a bounded source collection into claims, citations, decisions, and report revisions—and makes the contracts, test evidence, and unproven runtime boundaries visible to an interviewer.</p>
+        <h1>ResearchMate evidence-review system</h1>
+        <p class="lede">ResearchMate demonstrates a production-oriented Agentic RAG workflow. It turns a bounded source collection into claims, citations, decisions, and report revisions. This documentation records the system contracts, test evidence, and runtime boundaries that remain unproven.</p>
         <div class="actions" aria-label="Primary documentation actions">
           <a class="button primary" href="product/index.html#scenario">Follow the evidence-review scenario</a>
           <a class="button" href="architecture/index.html#target-architecture">Inspect the target architecture</a>
@@ -38,30 +38,30 @@
           <span class="status local">Implemented contract · 35 REST operations</span>
           <span class="status partial">Integration unvalidated · managed runtime</span>
           <span class="status local">Public MVP · deployed on Vercel</span>
-          <span class="status partial">Final backend topology · frozen, not deployed</span>
+          <span class="status partial">Render service provisioned · runtime unverified</span>
         </div>
       </div>
     </section>
 
     <section id="snapshot" class="snapshot-section">
       <div class="shell">
-        <p class="eyebrow">Current decision snapshot</p>
-        <h2>What can be claimed today</h2>
+        <p class="eyebrow">Current evidence snapshot</p>
+        <h2>Verified behavior and remaining limits</h2>
         <div class="snapshot-grid">
           <article class="state-card"><span class="status local">Fresh repository evidence</span><b>Repository boundary</b><p>The repository contains 107 Python tests, plus OpenAPI, migration-file, documentation-link, TypeScript, Next.js, and production dependency checks. On 25 July 2026 the project environment completed all 107 tests, Ruff, OpenAPI drift, migration validation, and the Next.js 16.2.11 production build; the network-backed production dependency audit reported zero vulnerabilities. No local application service was started for this gate.</p></article>
-          <article class="state-card"><span class="status local">Cobalt Studio UI · locally browser verified</span><b>User-facing workspace</b><p>The production Next.js application now applies one evidence-first design system across the landing page, project discovery, Research, Library, Review, Quiz, Labs, authentication, and shared state surfaces. The redesign preserves the typed API and demo contracts while replacing the earlier dark glass treatment with a light neutral canvas, cobalt actions, vermilion evidence labels, numbered navigation, and record-oriented layouts. Local Chrome checks across 1920, 1440, 1280, 1024, 768, 430, 390, and 360 px covered every formal route, current navigation state, fixed research input, horizontal overflow, and long unbroken content; deployed-API interaction remains unproven.</p></article>
-          <article class="state-card"><span class="status partial">Two managed boundaries reached</span><b>Distributed-system seams</b><p>A direct psycopg connection now verifies the Supabase database, six application migrations, ten checkpoint migration rows, and 37 public tables. A credentialed Supabase S3 smoke also completed PUT, HEAD, and DELETE against the private development bucket. The application API, RLS session path, queue, Qdrant, providers, telemetry, and full managed journey remain unvalidated.</p></article>
+          <article class="state-card"><span class="status local">Cobalt Studio UI · locally browser verified</span><b>User-facing workspace</b><p>The production Next.js application uses one evidence-first design system across the landing page, project discovery, Research, Library, Review, Quiz, Labs, authentication, and shared state surfaces. It preserves the typed API and demo contracts. Local Chrome checks at 1920, 1440, 1280, 1024, 768, 430, 390, and 360 px covered every formal route, current navigation state, fixed research input, horizontal overflow, and long unbroken content. Interaction with a deployed API remains unproven.</p></article>
+          <article class="state-card"><span class="status partial">Managed resources partially provisioned</span><b>Distributed-system seams</b><p>A direct psycopg connection verifies the Supabase database, six application migrations, ten checkpoint migration rows, and 37 public tables. Supabase S3 PUT, HEAD, and DELETE passed against the private development bucket. The Qdrant Free cluster now contains <code>researchmate_chunks</code> with named dense/sparse vectors and 12 payload indexes. Application identity/RLS, queue delivery, protected runtime secret transfer, vector filtering/query, providers, telemetry, and the full managed journey remain unvalidated.</p></article>
           <article class="state-card"><span class="status local">Public MVP deployed and smoke-tested</span><b>External proof</b><p><a href="https://research-mate-web.vercel.app">Vercel Production</a> serves the current browser-only demo from <code>main</code>. Its verified path is landing page → workspace → create one in-browser project → simulated research run → cited report. It deliberately makes no login, upload, storage, database, queue, model, or provider request.</p></article>
-          <article class="state-card"><span class="status planned">Topology frozen · execution pending</span><b>Two application deployments, zero required monthly fee</b><p>Vercel remains the sole Next.js host. Exactly one sleeping Render Free Web Service will start FastAPI, a Celery <code>solo</code> worker, and the Outbox Dispatcher together. It reuses one synthetic-data Supabase project, one Upstash database, one Qdrant Free cluster, and one Langfuse Hobby project; NVIDIA and Tavily are bounded on-demand APIs. Cloudflare, GHCR, R2, a standalone telemetry collector, and separate API/worker deployments are excluded. Cold starts, low concurrency, single-instance interruption, free-resource suspension, and bounded PDF capacity are accepted.</p></article>
+          <article class="state-card"><span class="status partial">Topology frozen · service provisioned</span><b>Two application deployments, zero required monthly fee</b><p>Vercel remains the sole Next.js host. One Render Free Web Service named <code>researchmate-backend-dev</code> is linked to <code>main</code> and configured to supervise FastAPI, a Celery <code>solo</code> worker, and the Outbox Dispatcher together. Its public endpoint has only shown the platform loading boundary; no successful health, readiness, secret-backed startup, or managed workflow is claimed. Cold starts, low concurrency, single-instance interruption, free-resource suspension, and bounded PDF capacity are accepted.</p></article>
         </div>
-        <p class="source">Evidence: public Vercel endpoint smoke · GitHub CI #43 success for repository commit <code>83c2eba</code> · direct Supabase PostgreSQL and S3 smokes · current Upstash and Qdrant dashboards · <code>render.yaml</code> · <code>workers/ai-worker/Dockerfile</code> · tests/ · infra/openapi/openapi.yaml · infra/supabase/migrations/ · apps/web · apps/api · workers/ai-worker · <a href="architecture/index.html#deployment">frozen deployment ledger</a>. Cloudflare release #4 failed at provider authorization and is explicitly outside the final topology. The Render service and managed backend journey remain unverified.</p>
+        <p class="source">Evidence: public Vercel endpoint smoke · pushed repository ref <code>ccbc5d2</code> · latest separately verified GitHub CI #43 success for older ref <code>83c2eba</code> · current targeted Render/release/documentation checks · direct Supabase PostgreSQL and S3 smokes · authorized Render, Upstash, and Qdrant console/API observations · <code>render.yaml</code> · <code>workers/ai-worker/Dockerfile</code> · tests/ · infra/openapi/openapi.yaml · infra/supabase/migrations/ · apps/web · apps/api · workers/ai-worker · <a href="architecture/index.html#deployment">frozen deployment ledger</a>. A current-ref CI pass, successful Render health/readiness response, and managed backend journey are not yet verified.</p>
       </div>
     </section>
 
     <section id="portfolio-boundary">
       <div class="shell">
-        <p class="eyebrow">Why this project exists</p>
-        <h2>An engineering portfolio, not a commercial SaaS</h2>
+        <p class="eyebrow">Project purpose</p>
+        <h2>Portfolio scope</h2>
         <div class="comparison-rail">
           <div class="comparison-side">
             <h3>Portfolio objective</h3>
@@ -72,15 +72,15 @@
             <p>Customer acquisition, revenue, pricing, subscriptions, billing, CRM, marketing automation, and growth analytics are not success criteria and will not drive the roadmap.</p>
           </div>
         </div>
-        <div class="notice"><strong>Reader action:</strong> recruiters can assess scope quickly; engineers can follow the linked contracts and evidence; demo users exercise system behavior rather than a conversion funnel.</div>
+        <div class="notice"><strong>How to use these documents:</strong> recruiters can review the project scope, engineers can inspect the linked contracts and evidence, and demo users can exercise the system behavior. The project does not include a commercial conversion funnel.</div>
       </div>
     </section>
 
     <section id="pipeline">
       <div class="shell">
-        <p class="eyebrow">The scenario that earns the stack</p>
+        <p class="eyebrow">Primary engineering scenario</p>
         <h2>From a source collection to an auditable evidence report</h2>
-        <p class="sub">A simple document chatbot would not justify the target architecture. The committed scenario coordinates long-running ingestion, parallel evidence work, stateful review, incremental recomputation, and measurable quality.</p>
+        <p class="sub">The primary scenario requires long-running ingestion, parallel evidence work, stateful review, incremental recomputation, and measurable quality. These requirements define the target architecture.</p>
         <div class="journey-map">
           <article class="journey-step partial"><span class="step-no">01 / INGEST</span><b>Build the source corpus</b><small>Upload tens to hundreds of documents and web sources; parse, deduplicate, version, chunk, and index them asynchronously.</small></article>
           <article class="journey-step partial"><span class="step-no">02 / PLAN</span><b>Decompose the research goal</b><small>LangGraph turns a broad question into bounded sub-questions and persists checkpoints for interruption and resume.</small></article>
@@ -98,8 +98,8 @@
 
     <section id="surfaces">
       <div class="shell">
-        <p class="eyebrow">Two connected product surfaces</p>
-        <h2>The user workflow creates the workload; the engineering lab proves it</h2>
+        <p class="eyebrow">Product and engineering surfaces</p>
+        <h2>User workflow and engineering validation</h2>
         <div class="doc-index capability-index">
           <a class="doc-link" href="product/index.html#cap-research-workspace"><b>Research Workspace</b><span>Projects, source library, grounded Ask, claims, contradictions, human review, and cited reports.</span></a>
           <a class="doc-link" href="product/index.html#cap-evidence-agent"><b>Evidence Review Agent</b><span>Bounded LangGraph orchestration, parallel work, checkpoints, quality gates, and incremental refresh.</span></a>
@@ -111,13 +111,13 @@
 
     <section id="current-boundary">
       <div class="shell">
-        <p class="eyebrow">Honest delivery boundary</p>
-        <h2>Code, proof, and target design are deliberately separate</h2>
+        <p class="eyebrow">Delivery boundary</p>
+        <h2>Implemented contracts, local proof, and target runtime</h2>
         <div class="access-rails">
           <article class="access-rail"><h3>Contract surface</h3><p>35 FastAPI/OpenAPI operations provide the original MVP plus research, decision, report, catalog, evaluation, reliability, readiness, and fault contracts.</p><a href="contracts/api/index.html#operations">Read the complete REST ledger →</a></article>
           <article class="access-rail derived"><h3>Runtime seams</h3><p>Postgres/RLS, S3-compatible storage, Qdrant, Celery/outbox, provider adapters, LangGraph, evaluation, telemetry, and MCP are implemented seams. None has completed a managed end-to-end run.</p><a href="architecture/index.html#current-architecture">See the runtime boundary →</a></article>
           <article class="access-rail unknown"><h3>Known local limits</h3><p>LangGraph, RAGAS, MCP, Langfuse, and OpenTelemetry packages now import. A bounded LangGraph graph and authenticated MCP initialization pass locally. The Cobalt Studio React application completed desktop and narrow-browser route, navigation, state, and overflow checks, but the available local service had no API connection for a fresh end-to-end request. The production dependency audit completed with zero vulnerabilities on 24 July 2026. Checkpoint storage, provider evaluation, telemetry export, and PDF OCR/layout assets remain unverified or blocked.</p><a href="product/index.html#validation">Review validation limits →</a></article>
-          <article class="access-rail unknown"><h3>Release boundary</h3><p>The public MVP is Vercel-hosted and browser-only; documentation remains repository-only. The final backend target is one combined Render Free service, not Cloudflare or multiple worker deployments. Supabase migrations, direct database connectivity, Auth JWKS, S3 object CRUD, and healthy free Redis/Qdrant resources have isolated evidence, but Auth token exchange, RLS isolation, queue/vector use, providers, telemetry, deployed backend connectivity, recovery, and uptime remain unvalidated.</p><a href="architecture/index.html#deployment">Review the frozen deployment plan →</a></article>
+          <article class="access-rail unknown"><h3>Release boundary</h3><p>The public MVP is Vercel-hosted and browser-only; documentation remains repository-only. The combined Render Free service is provisioned but has not returned verified application health or readiness. Supabase database/object smokes and Qdrant collection/index provisioning have isolated evidence, while Auth token exchange, RLS isolation, secret-backed startup, queue/vector use, providers, telemetry, recovery, and uptime remain unvalidated.</p><a href="architecture/index.html#deployment">Review the frozen deployment plan →</a></article>
         </div>
         <div class="doc-index capability-index" aria-label="Implemented capability deep links">
           <a class="doc-link" href="product/index.html#cap-projects"><b>Projects</b><span>Current owner-scoped workspace contract.</span></a>
@@ -132,13 +132,13 @@
 
     <section id="contracts">
       <div class="shell">
-        <p class="eyebrow">Contract proof</p>
-        <h2>Inspect the current ledger and its validation boundary</h2>
+        <p class="eyebrow">Contract inventory</p>
+        <h2>Current contracts and validation status</h2>
         <p class="sub">Implementation counts are tied to repository and OpenAPI evidence. Applied-database, background-runtime, MCP-runtime, and deployment claims remain separate.</p>
         <div class="signal-grid">
           <a class="signal signal-link" href="contracts/data/index.html#tables"><span class="number">15</span><b>initial migration tables</b><small>Complete field, relationship, integrity, and RLS ledger.</small></a>
           <a class="signal signal-link" href="contracts/api/index.html#operations"><span class="number">35</span><b>implemented REST operations</b><small>Original 18, one non-charging readiness probe, and 16 advanced contracts.</small></a>
-          <a class="signal signal-link" href="contracts/data/index.html#planned-schema"><span class="number">16</span><b>additive domain tables</b><small>Declared in maintained migrations; no managed database has applied or validated them.</small></a>
+          <a class="signal signal-link" href="contracts/data/index.html#planned-schema"><span class="number">16</span><b>additive domain tables</b><small>Applied in the isolated Supabase development schema; authenticated application use remains unvalidated.</small></a>
           <a class="signal signal-link" href="contracts/api/index.html#planned-mcp"><span class="number">1</span><b>MCP gateway boundary</b><small>Authenticated local protocol initialization passes; Inspector and consumer parity remain unverified.</small></a>
         </div>
       </div>
@@ -146,18 +146,19 @@
 
     <section id="reading-paths">
       <div class="shell">
-        <p class="eyebrow">Choose a technical reading path</p>
-        <h2>Jump to the authoritative detail instead of reading repeated summaries</h2>
+        <p class="eyebrow">Documentation index</p>
+        <h2>Authoritative technical references</h2>
         <div class="doc-index">
           <a class="doc-link" href="product/index.html#capabilities"><b>Feature and roadmap review</b><span>Scenario, current capabilities, committed work, acceptance, dependencies, and non-goals.</span></a>
-          <a class="doc-link" href="architecture/index.html#stack"><b>Architecture interview</b><span>Runtime boundaries, stack justification, failure recovery, local environment, deployment, and CI/CD.</span></a>
+          <a class="doc-link" href="architecture/index.html#stack"><b>Architecture reference</b><span>Runtime boundaries, stack justification, failure recovery, local environment, deployment, and CI/CD.</span></a>
           <a class="doc-link" href="contracts/data/index.html#planned-schema"><b>Data design review</b><span>Initial and additive migration contracts for workflow, evidence, reports, outbox, and evaluation.</span></a>
           <a class="doc-link" href="contracts/api/index.html#planned-operations"><b>API design review</b><span>Thirty-five implemented REST contracts, their integration gaps, and the separately reported MCP runtime boundary.</span></a>
+          <a class="doc-link" href="archive/cloudflare/index.html"><b>Archived deployment plan</b><span>Historical alternative, evidence, residual code, and reopen triggers.</span></a>
         </div>
       </div>
     </section>
   </main>
-  <footer class="shell footer">ResearchMate portfolio overview · current evidence snapshot inspected 25 July 2026</footer>
+  <footer class="shell footer">ResearchMate overview · evidence inspected 26 July 2026</footer>
   <script src="assets/site.js"></script>
 </body>
 </html>

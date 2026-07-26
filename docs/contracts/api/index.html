@@ -26,7 +26,7 @@
   <div class="hero">
    <p class="eyebrow">FastAPI / JSON over HTTP</p>
    <h1>API contracts</h1>
-    <p class="lede">This page is the single operation ledger: 35 maintained FastAPI REST operations—18 MVP operations, one non-charging readiness probe, and 16 evidence-review, catalog, report, evaluation, reliability, and fault operations. A route and OpenAPI record prove a contract, not a managed background or cloud integration.</p>
+    <p class="lede">This page records 35 maintained FastAPI REST operations: 18 MVP operations, one non-charging readiness probe, and 16 operations for evidence review, catalogs, reports, evaluation, reliability, and fault exercises. A route and OpenAPI record prove the contract only. They do not prove a managed background process or cloud integration.</p>
    <div class="meta">
      <span class="status local">35 implemented REST operations</span>
      <span class="status local">107 test cases · fresh repository pass</span>
@@ -39,20 +39,20 @@
   <div class="layout">
    <div class="content">
     <section id="conventions">
-     <p class="eyebrow">Conventions</p>
-     <h2>Transport, identity, and ownership</h2>
+     <p class="eyebrow">Request conventions</p>
+     <h2>Authentication, ownership, and errors</h2>
      <div class="grid">
       <div class="fact"><b>Authentication</b><p><code>GET /api/v1/healthz</code> and <code>GET /api/v1/readyz</code> are public for platform probes. Every other REST operation declares HTTP bearer authentication. Local/test mode accepts only named or explicit <code>dev:</code> identities; unknown tokens fail closed. Preview/production requires Supabase JWT mode. The managed JWKS endpoint returned HTTP 200 with one EC key and admin user creation returned 201, but password token exchange returned 401 <code>Invalid API key</code>; issuer/audience/session/RLS behavior therefore remains provider-unvalidated.</p></div>
       <div class="fact"><b>Ownership</b><p>Handlers resolve a <code>CurrentUser</code>; Store lookups scope resources to that user. A missing resource and another user's resource both return 404 to avoid disclosing identifiers.</p></div>
       <div class="fact"><b>Error envelope</b><p>Runtime failures use <code>{"error":{"code","message","request_id"}}</code>. Request validation is normalized to <code>VALIDATION_FAILED</code>; the same validated/generated request ID is returned in <code>X-Request-ID</code>.</p></div>
      </div>
-     <div class="notice warning"><strong>Known machine/runtime drift.</strong> OpenAPI still declares generated <code>HTTPValidationError</code> bodies for some 422 responses while runtime handlers normalize validation to the project error envelope. Ask and Quiz can also return runtime 409 and 429 responses not present in their OpenAPI response maps.</div>
+     <div class="notice warning"><strong>Known OpenAPI/runtime difference.</strong> OpenAPI still declares generated <code>HTTPValidationError</code> bodies for some 422 responses while runtime handlers normalize validation to the project error envelope. Ask and Quiz can also return runtime 409 and 429 responses not present in their OpenAPI response maps.</div>
     </section>
 
     <section id="operation-index">
      <p class="eyebrow">Operation index</p>
-     <h2>All current operations</h2>
-     <p class="sub">Use the filters to find an operation, then follow its link to the single authoritative contract below.</p>
+     <h2>REST operation index</h2>
+     <p class="sub">Filter the operations, then open the corresponding contract below.</p>
      <div class="visual-panel">
       <div class="explorer-tools">
        <label class="sr-only" for="endpoint-search">Search endpoints</label>
@@ -121,8 +121,8 @@
     </section>
 
     <section id="operations">
-     <p class="eyebrow">Authoritative operation contracts</p>
-     <h2>Inputs, access, outcomes, and failure behavior</h2>
+     <p class="eyebrow">Operation contracts</p>
+     <h2>Requests, access, responses, and failures</h2>
      <p class="sub">Reusable object shapes are defined once in the <a href="#schemas">schema ledger</a>. “Auth” below means 401 for missing/invalid credentials and 403 for a disabled user unless a stricter role is stated.</p>
 
      <h3 id="identity-operations">Identity</h3>
@@ -317,10 +317,10 @@
     </section>
 
     <section id="planned-operations">
-     <p class="eyebrow">Implemented contract evolution</p>
-     <h2>Research, decision, evidence, report, evaluation, reliability, and fault operations</h2>
+     <p class="eyebrow">Extended contracts</p>
+     <h2>Evidence-review, evaluation, reliability, and MCP operations</h2>
      <p class="sub">The 16 advanced REST operations below are present in FastAPI and generated OpenAPI. Together with the original 18 and readiness, the REST total is 35. Their route, schema, ownership/role, idempotency, and deterministic repository behavior have code evidence; managed providers, queue delivery, checkpoint recovery, telemetry export, and deployment remain integration-unvalidated. MCP is a separate protocol boundary and is not counted as REST.</p>
-     <div class="notice"><strong>Shared conventions:</strong> bearer authentication; owner/project permission checks in the API; <code>Idempotency-Key</code> on commands; the current error envelope with a request ID; durable Postgres operation truth; persisted SSE replay; and Redis as delivery rather than irreplaceable state. Direct Supabase Postgres connectivity is now validated, while Supabase JWT/RLS application behavior and distributed delivery are not.</div>
+     <div class="notice"><strong>Shared conventions:</strong> bearer authentication; owner/project permission checks in the API; <code>Idempotency-Key</code> on commands; the current error envelope with a request ID; authoritative operation state in Postgres; persisted SSE replay; and Redis as delivery rather than irreplaceable state. Direct Supabase Postgres connectivity is now validated, while Supabase JWT/RLS application behavior and distributed delivery are not.</div>
      <div class="notice warning"><strong>How to read the rows:</strong> request and success shapes describe the implemented route schemas. Local LangGraph, RAGAS, strict-checkpoint serializer, and MCP initialization tests now pass. Failure/recovery and acceptance rows still name distributed-system gates; they are not evidence that a managed checkpoint, provider, queue, or cloud runtime passed.</div>
 
      <details id="planned-research-run" data-api-card data-api="research" data-method="POST" open><summary><code>POST /api/v1/research-runs</code> — start an evidence review <span class="status partial">implemented contract · runtime unvalidated</span></summary><dl class="kv">
@@ -467,8 +467,8 @@
     </section>
 
     <section id="absent-contracts">
-     <p class="eyebrow">Still intentionally absent</p>
-     <h2>Capabilities outside the accepted interface boundary</h2>
+     <p class="eyebrow">Out of scope</p>
+     <h2>API capabilities not accepted for this release</h2>
      <div class="notice warning">Billing, subscriptions, payment, CRM, marketing automation, growth experiments, commercial analytics, unrestricted job cancellation, and general autonomous tool execution have no accepted API contract. They are deferred or rejected portfolio scope, not missing implementation of the 35 current REST operations.</div>
     </section>
 
@@ -490,7 +490,7 @@
    </aside>
   </div>
  </main>
- <footer class="shell footer">ResearchMate API contract · 35 implemented OpenAPI REST operations · external runtime validation pending</footer>
+ <footer class="shell footer">ResearchMate API contracts · 35 OpenAPI REST operations · external runtime validation pending</footer>
  <script src="../../assets/site.js"></script>
 </body>
 </html>
