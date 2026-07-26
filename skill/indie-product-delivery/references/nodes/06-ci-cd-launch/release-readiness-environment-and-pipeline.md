@@ -42,16 +42,16 @@ Use this guide to establish the exact release target, source artifact, authority
    environment, ref/tag/artifact, commands or workflow inputs allowed, and exclusions.
 2. Confirm that the authorization covers migrations, provider calls, DNS, payment,
    storage, data writes, traffic changes, rollback, or disable actions when applicable.
-3. Do not override Node05 `BLOCKED`, `NEEDS_PREVIOUS_NODE`, or `NEEDS_AUTHORIZATION`.
-   A release plan may continue, but execution may not.
-4. Set one status:
+3. Do not override a Node05 blocker, owner route, or authorization gap. A release plan
+   may continue, but execution may not.
+4. Describe readiness with the clearest applicable result:
 
 | Status | Use when |
 | --- | --- |
-| `PLAN_ONLY` | scope, target, Node05, or authorization is incomplete. |
-| `READY_TO_EXECUTE` | all required facts and gates are current and authority is exact. |
-| `BLOCKED` | a required gate, recovery condition, or release fact is missing or fails. |
-| `NEEDS_AUTHORIZATION` | the plan is clear but an external action remains unapproved. |
+| preparation only | scope, target, Node05 evidence, or authorization is incomplete |
+| ready to execute | all required facts and gates are current and authority is exact |
+| blocked | a required gate, recovery condition, or release fact is missing or fails |
+| needs authorization | the plan is clear but an external action remains unapproved |
 
 #### 4. Build the release readiness matrix
 
@@ -123,5 +123,6 @@ Use this guide to establish the exact release target, source artifact, authority
    rerun every required release gate from the current source/artifact.
 3. Preserve original evidence and record what changed, why it was safe, and which fresh
    output proves the gate now passes.
-4. After three focused attempts that expose shared coupling or unclear ownership, stop and
-   return to Node02/03/04/05 rather than accumulating pipeline patches.
+4. When another focused attempt would add no new evidence, or the evidence exposes shared
+   coupling or unclear ownership, stop and return to Node02/03/04/05 rather than
+   accumulating pipeline patches.

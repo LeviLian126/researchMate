@@ -45,15 +45,15 @@ actual output/limit.
 State unverified remote, production, load, browser, security, or release facts as gaps
 with owner. Never disguise absence of evidence as a concern-free result.
 
-#### 3. Apply the risk-tiered decision
+#### 3. Apply a risk-tiered decision
 
 | Status | Allowed only when |
 | --- | --- |
 | SHIP | required claims pass, no blocker/Critical/High issue remains, sensitive evidence is sufficient |
 | SHIP_WITH_CONCERNS | acceptance and sensitive paths pass; each residual risk is non-critical, bounded, owned, mitigated, and has a trigger/follow-up |
 | BLOCKED | acceptance fails, required evidence is missing, reliability/security issue blocks, or a required environment is unavailable |
-| NEEDS_PREVIOUS_NODE | product, contract, implementation, architecture, or recovery truth must be corrected upstream |
-| NEEDS_AUTHORIZATION | required dynamic/security/release evidence exceeds granted scope |
+| NEEDS_OWNER | product, contract, implementation, architecture, recovery, or environment truth must be corrected by its owner |
+| NEEDS_AUTHORIZATION | required dynamic, security, or release evidence exceeds granted scope |
 
 Never issue SHIP_WITH_CONCERNS for failed acceptance, Critical/High security, missing
 auth/payment/tenant/PII/provider/migration proof, failed production build, or unknown
@@ -84,7 +84,7 @@ unverified items, residual risks, rollback/forward-fix assumptions from Node02/0
 exact authorization still required. Node06 decides release readiness and executes only
 authorized actions.
 
-For BLOCKED or NEEDS_PREVIOUS_NODE, name the smallest blocking claim and its owner:
+For a blocked result or one that needs another owner, name the smallest blocking claim and its owner:
 Node01 for acceptance, Node02 for contract/trust/compatibility, Node03/04 for
 implementation, Node05 for unfinished evidence, or Node06 for release/environment
 truth. Do not make a release handoff look like a ship approval.

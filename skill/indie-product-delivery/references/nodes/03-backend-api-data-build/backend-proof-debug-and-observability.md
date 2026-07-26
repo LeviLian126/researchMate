@@ -81,9 +81,9 @@ remove or convert temporary instrumentation into useful bounded observability.
 | browser/full-system/security/ship evidence is needed | Node05 |
 | production rollout, environment, migration execution, or rollback is implicated | Node06 |
 
-After three focused attempts on one blocker, stop local patching. If the attempts reveal
+Stop local patching when another attempt would add no new evidence. If the evidence reveals
 shared state, cross-module coupling, incompatible runtime assumptions, or repeated new
-symptoms, return to Node02 with evidence rather than attempting a fourth fix.
+symptoms, return to Node02 with that evidence rather than continuing speculative fixes.
 
 #### 4. Add safe observability and performance signals
 

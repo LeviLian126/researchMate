@@ -172,7 +172,7 @@ Apply four founder decision lenses before recommending the posture:
 
 #### 6. Confirm or fast-track
 
-Restate intent in the user's language. Require confirmation before final scope or Node02 handoff. If the user
+Restate intent using the user's product vocabulary. Require confirmation before final scope or Node02 handoff. If the user
 chooses speed, list defaults, unresolved risks, and revisit triggers. Do not fast-track payments, PII, auth,
 deletion, regulated data, irreversible actions, or production-risk requirements.
 

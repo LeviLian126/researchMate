@@ -2,13 +2,21 @@
 
 Use this reference to turn Node01 product truth and Node02 architecture truth into a complete HTML documentation set. Show the current summary immediately; put dense records on focused linked pages and use disclosure controls inside those pages where helpful.
 
-## Purpose
+## Sections
 
-Provide the evidence model for a serious, complete project documentation set.
+- [Documentation topology](#documentation-topology)
+- [Workflow](#workflow)
+- [Coverage manifest](#coverage-manifest)
+- [Evidence record](#evidence-record)
+- [Project summary and market reality](#1-project-summary-and-market-reality--node01)
+- [Capability map and delivery](#2-capability-map-and-delivery--node01-with-implementation-evidence)
+- [Architecture and runtime shape](#3-architecture-and-runtime-shape--node02)
+- [Technology and data contracts](#4-technology-and-data-contracts--node02)
+- [Control room](#5-control-room)
 
 ## Documentation topology
 
-Default to English and choose page boundaries by information responsibility:
+Choose page boundaries by information responsibility:
 
 | Surface | Responsibility |
 | --- | --- |
@@ -40,7 +48,9 @@ Build a countable inventory before composing pages. This is a completion boundar
 | tests and configuration | every result or setting used to support a shipped, validated, environment, dependency, or operational claim |
 | architecture and decision records | every material component, boundary, handoff, failure/recovery path, selected option, rejected alternative, and revisit trigger |
 
-Record expected and rendered counts by category. Include every inventory item in a full ledger, or record an explicit exclusion with its reason and source. A diagram or summary may precede the ledger, but it never replaces it. Examples may explain a pattern only after complete coverage exists. If the evidence volume is large, split it across linked pages or generate compact expandable records; do not sample it down to a demo.
+Record expected and rendered counts by category. Include every inventory item in a full ledger, or record an explicit exclusion with its reason and source. A diagram or summary may precede the ledger but cannot replace it.
+
+Use examples to explain a pattern only after complete coverage exists. If the evidence volume is large, split it across linked pages or generate compact expandable records instead of sampling it down to a demo.
 
 ## Evidence record
 

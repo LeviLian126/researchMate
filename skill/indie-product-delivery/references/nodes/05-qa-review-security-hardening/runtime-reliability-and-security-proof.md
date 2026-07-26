@@ -10,9 +10,9 @@ Use this guide when direct runtime behavior, compatibility, reliability, perform
 
 ## Runtime, Browser QA, and Root-Cause Debug
 
-#### 1. Select QA and mutation mode
+#### 1. Select QA depth and change authority
 
-Use REPORT_ONLY for exploratory QA. Use CHANGE_AND_VERIFY only when fixes are explicitly
+Keep exploratory QA read-only. Make and verify fixes only when they are explicitly
 authorized. Select depth from the quality gate and changed risk.
 
 | Mode | Use when | Scope |
@@ -84,16 +84,16 @@ When runtime evidence fails:
 | local quality finding/retest remains | Node05 |
 | environment/release/rollout behavior | Node06 |
 
-Do not make multiple speculative fixes at once. After three focused attempts, stop and
-return to the owner if evidence suggests shared state, cross-module coupling, wrong
-contract, or environment/architecture failure.
+Do not make multiple speculative fixes at once. When another attempt would add no new
+evidence, stop and return to the owner if the evidence suggests shared state,
+cross-module coupling, a wrong contract, or environment/architecture failure.
 
 #### 5. Repair only within authority
 
-In CHANGE_AND_VERIFY mode, Node05 may repair a narrow fixture/isolation issue, obvious
-changed-code guard/error, a focused frontend state, docs/evidence, or other mechanical
-defect that preserves product and contract behavior. It must not alter product flow,
-public API, auth/billing policy, lifecycle, dependency, broad refactor, or deployment.
+When fixes are explicitly authorized, Node05 may repair a narrow fixture/isolation issue,
+obvious changed-code guard/error, a focused frontend state, docs/evidence, or other
+mechanical defect that preserves product and contract behavior. It must not alter product
+flow, public API, auth/billing policy, lifecycle, dependency, broad refactor, or deployment.
 
 Capture before/after evidence for meaningful visual/interaction fixes. Add regression
 proof for durable behavior bugs when a fitting existing layer exists; pure visual CSS

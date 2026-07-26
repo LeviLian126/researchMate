@@ -1,12 +1,6 @@
 # HTML Project Command Board
 
-Build browser-openable project documentation that lets a founder, developer, or incoming agent understand the project without reconstructing it from chat, Markdown, and source trees. The landing board is the authoritative current evidence-backed snapshot. Use focused child pages for durable detail and a separate activity page for material version changes so neither density nor history obscures current truth.
-
-Write documentation in English by default. Use the simplest clear file structure that fits the evidence volume. Keep the landing page compact and split substantial product, delivery, architecture, database, API, or operations material into directly linked topic pages. Do not force every project into the same tree, but do not compress a serious project into one low-density page merely to minimize file count. Use one shared local stylesheet when multiple pages need the same document system.
-
-## Purpose
-
-Make product, commercial, architecture, contract, and delivery truth legible as one coherent documentation set.
+Build browser-openable project documentation that a founder, developer, or incoming agent can understand without reconstructing the project from chat, Markdown, and source trees. The landing board is the authoritative, evidence-backed snapshot. Put durable detail on focused child pages and material version changes on a separate activity page.
 
 ## Load the right reference
 
@@ -14,20 +8,23 @@ Read these files before building the corresponding part of a board:
 
 | Need | Read |
 | --- | --- |
-| document contract, professional-neutral prose, section refinement, reader testing, and handoff | `references/durable-document-quality.md` |
+| readable prose and document structure | `references/human-readable-document-writing.md` |
+| document contract, section refinement, reader testing, and handoff | `references/durable-document-quality.md` |
 | project, market, feature, roadmap, architecture, database, or API coverage | `references/agent-context-html/references/content-model.md` |
 | HTML Effectiveness reconstruction, spatial forms, layout safety, and interaction | `references/agent-context-html/references/visual-interaction.md` |
 | evidence, completeness, privacy, browser, and accessibility checks | `references/agent-context-html/references/validation.md` |
 
-For the default HTML Effectiveness document system, copy `references/agent-context-html/assets/document-system.css` into the output and adapt it instead of regenerating a generic dashboard stylesheet. It contains the inspected palette, typography, document geometry, spatial components, contract explorers, and nested-layout fixes from the validated implementation. When the user supplies another reference, use the asset only as a layout-safety base and replace its visual parameters with the inspected reference values.
+For the default HTML Effectiveness document system, copy `references/agent-context-html/assets/document-system.css` into the output and adapt it instead of regenerating a generic dashboard stylesheet. The file contains the inspected palette, typography, document geometry, spatial components, contract explorers, and nested-layout fixes.
+
+When the user supplies another reference, use this asset only as a layout-safety base. Replace its visual parameters with values inspected from the supplied reference.
 
 Use Node01 as the authority for product meaning, target user, buyer, value, MVP/MAP boundary, pricing, acceptance, and demand evidence. Use Node02 as the authority for system boundaries, contracts, data, trust, runtime shape, technology decisions, and architecture handoff. Do not replace either with a simplified assumption merely because the board needs a concise summary.
 
 ## Workflow
 
-1. Establish the durable-document contract: target reader and decision, maintenance owner, language, existing template/terminology, fact sources, unknowns/conflicts, disclosure boundaries, required sections, and reader-test availability. Use the shared quality protocol for the complete draft, section refinement, style audit, and reader-test record.
+1. Establish the durable-document contract: target reader and decision, maintenance owner, existing template/terminology, fact sources, unknowns/conflicts, disclosure boundaries, required sections, and reader-test availability. Use the shared writing and quality protocols for the complete draft, section refinement, writing audit, and reader-test record.
 2. Inspect the complete relevant evidence surfaces: code, tests, configuration, migrations/schema, routes or OpenAPI, maintained product documents, runtime-safe observations, and approved external sources. Prefer them in that order when claims conflict.
-3. Build a source inventory before writing. Count the capabilities, routes/actions, schemas, database entities and all evidenced fields, relationships, policies, architecture components, decisions, risks, and roadmap records in scope. Use this inventory as the coverage manifest; every item must be rendered, marked unknown, or explicitly excluded with a reason.
+3. Build a source inventory before writing. Count the capabilities, routes/actions, schemas, database entities and evidenced fields, relationships, policies, architecture components, decisions, risks, and roadmap records in scope. Use this inventory as the coverage manifest. Render every item, mark it unknown, or exclude it with a reason.
 4. Assemble the board facts using the content model. Record each material claim with an evidence path or an explicit `unknown`; preserve IDs, field names, commands, versions, routes, and caveats that make verification possible. Do not substitute one or two illustrative examples for an available complete ledger.
 5. Organize the documentation in this reading order:
    - **Project summary** — what the product is, who it serves, the current problem, promised outcome, first success, commercial state, and pricing.
@@ -39,7 +36,7 @@ Use Node01 as the authority for product meaning, target user, buyer, value, MVP/
 7. Give every required region either source-grounded content or a visible unknown state. Do not omit pricing, API, database, or delivery coverage merely because the project has no evidence yet. Prefer complete ledgers over illustrative samples: document every evidenced route, entity, field, capability, risk, and decision in scope.
 8. Keep every current-state page synchronized. For a major release, version, migration, incident, security review, or approved milestone, create or update the local activity page with date/version, changed scope, evidence, impact, and follow-up. Do not add routine refreshes or duplicate current-state prose there.
 9. Apply the visual and interaction reference. When the user supplies a reference site, inspect its real DOM, computed styles, dimensions, breakpoints, component states, and interactions instead of approximating its mood from memory. Reconstruct the selected page archetype faithfully while replacing its subject matter with project documentation. Keep essential content visible without JavaScript.
-10. Run the validation reference and the shared prose audit. Reconcile source-inventory counts against rendered counts, open every page in a browser when available, correct missing records, overflow, nested-grid collisions, keyboard traps, cross-page drift, misleading status wording, unsupported claims, and generic filler before handoff. Record whether independent reader testing ran; if it did not, state that limitation.
+10. Run the validation reference and shared writing audit. Reconcile source-inventory counts against rendered counts. Open every page in a browser when available, then correct missing records, overflow, nested-grid collisions, keyboard traps, cross-page drift, misleading status wording, unsupported claims, and generic filler. Read the rendered page as a whole and remove repeated section openings, heading restatements, card-per-fact layouts, and other template residue. Record whether independent reader testing ran and state the limitation when it did not.
 
 ## Status and evidence discipline
 
@@ -53,6 +50,8 @@ Use Node01 as the authority for product meaning, target user, buyer, value, MVP/
 
 Use semantic HTML, inline or local CSS, inline SVG, and minimal vanilla JavaScript by default. Avoid remote runtime dependencies, frameworks, remote fonts, and network calls unless the existing project or user explicitly requires them.
 
-Do not declare a reference-driven result complete after changing only colors, fonts, or card styling. Match the reference's information geometry: content width, section rhythm, type scale, navigation, borders, radii, spacing, component composition, disclosure patterns, responsive transitions, and focus/interaction states. Reuse source code or assets only when their license or the user's authorization permits it; otherwise implement the observed design independently at equivalent visual fidelity.
+Changing only colors, fonts, or card styling does not complete a reference-driven task. Match the reference's information geometry: content width, section rhythm, type scale, navigation, borders, radii, spacing, component composition, disclosure patterns, responsive transitions, and focus or interaction states.
 
-In the final response, name the changed board, document type, evidence and validation checked, completed style audit, reader-test status, visible high-risk unknowns or reader-comprehension risks, and the next recommended action. Do not paste the generated HTML into chat.
+Reuse source code or assets only when their license or the user's authorization permits it. Otherwise implement the observed design independently at equivalent visual fidelity.
+
+In the final response, name the changed board, document type, evidence and validation checked, completed writing audit, reader-test status, visible high-risk unknowns or reader-comprehension risks, and the next recommended action. Do not paste the generated HTML into chat.

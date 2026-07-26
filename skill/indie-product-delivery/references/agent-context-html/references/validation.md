@@ -2,19 +2,16 @@
 
 Use this checklist after generating or refreshing a project HTML documentation set. It is useful only if a new reader can distinguish facts, gaps, contracts, and decisions without re-reading the conversation or source tree.
 
-## Purpose
-
-Verify that the board is complete, evidence-grounded, safe to share, and usable in a browser.
-
 ## Workflow
 
 Run the content, evidence, and browser checks below after writing; repair blockers before handoff and state any check that could not be performed.
 
 ## Content coverage
 
-- Confirm English is the default output language unless the user or established project requirement explicitly selected another language.
 - Confirm the landing page remains a compact current snapshot and substantial product, delivery, architecture, database, API, or operations detail has a clear topic page instead of being reduced to a superficial summary.
 - Confirm global navigation reaches every topic page, each child page links back to the current snapshot, page titles are unambiguous, and the same fact does not drift across pages.
+- Read each page in rendered order. Remove heading restatements, generic introductions or conclusions, repeated section openings, mechanical label lists, and card-per-fact layouts that make the reader reconstruct a simple explanation.
+- Confirm prose uses stable project terms, concrete subjects and actions, source-backed claims, and visible limits. Do not treat punctuation, technical vocabulary, tables, or lists as defects by themselves.
 
 Check that each required region contains evidence-backed content or an explicit unknown state:
 

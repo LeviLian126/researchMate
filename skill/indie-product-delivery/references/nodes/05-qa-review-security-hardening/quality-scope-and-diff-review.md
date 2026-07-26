@@ -39,13 +39,13 @@ cookies, tokens, secret values, or real PII.
 | --- | --- |
 | target | branch/commit/build/environment under review |
 | intent | requirement, plan, bug report, or acceptance source |
-| mutation mode | REVIEW_ONLY, CHANGE_AND_VERIFY, or PLAN_ONLY |
+| change authority | read-only review, explicitly authorized narrow fixes, or planning only |
 | data/auth | test account, mock, local/staging scope, and prohibited production actions |
 | available proof | tests, browser, API, logs, dry run, static review, CI/build |
 | sensitive trigger | auth, tenant, payment, PII, secret, upload, provider, migration, public API |
 | stop condition | missing contract, unsafe target, unavailable role, blocked environment, authorization gap |
 
-A review request is REVIEW_ONLY by default. Quality may repair only when the user
+A review request is read-only by default. Quality may repair only when the user
 explicitly authorizes fixes and the repair remains narrow and contract-preserving.
 
 #### 3. Choose the proportional gate
@@ -93,9 +93,9 @@ the active risk demands it.
 
 #### 1. Establish review mode and intent
 
-Use REVIEW_ONLY for review/check/assessment requests. Use CHANGE_AND_VERIFY only when the
-user asks to fix findings. Identify a meaningful base and include relevant committed and
-uncommitted changes; stop cleanly if there is no diff to review.
+Keep review/check/assessment requests read-only. Change files only when the user asks to
+fix findings. Identify a meaningful base and include relevant committed and uncommitted
+changes; stop cleanly if there is no diff to review.
 
 Recover intent in authority order: approved Node01/02 output, explicit request,
 accepted plan, issue/PR description, acceptance criteria, relevant commit messages, and

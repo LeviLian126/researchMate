@@ -115,8 +115,9 @@ Use this record before making a post-launch claim:
    collection or authorized repair that could disprove it.
 3. Recheck the affected path and adjacent regression after each change. Preserve original
    evidence and distinguish a symptom workaround from root-cause resolution.
-4. After three focused attempts expose shared coupling, a contract conflict, or a false
-   runtime premise, stop local repair and return to Node02/03/04/05.
+4. When another attempt would add no new evidence, or the evidence exposes shared coupling,
+   a contract conflict, or a false runtime premise, stop local repair and return to
+   Node02/03/04/05.
 
 #### 5. Turn repeated support into a learning candidate
 

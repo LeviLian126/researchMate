@@ -1,1 +1,0 @@
-Change the existing auth page label from “Sign in” to “Log in”. Preserve routes, authentication behavior, analytics, and layout. This is only a copy edit.

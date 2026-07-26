@@ -2,10 +2,6 @@
 
 Use HTML as a working surface for information that is hard to understand as a linear Markdown document. Use [HTML Effectiveness](https://thariqs.github.io/html-effectiveness/) as the default frontend reference: render comparisons, flows, timelines, dependency maps, annotated evidence, and status lanes in the form that lets a reader see their shape at a glance. Keep the current snapshot directly openable and link focused topic pages with ordinary local navigation.
 
-## Purpose
-
-Make dense, serious project documentation scannable, calm, and directly usable without inventing a separate product visual identity. Default navigation, headings, labels, captions, and explanatory prose to English unless the user explicitly requests another language.
-
 ## Workflow
 
 Choose the spatial form that matches each information relationship, reconstruct the selected HTML Effectiveness page archetype, then add only interactions that improve navigation or density while preserving a no-JavaScript reading path.

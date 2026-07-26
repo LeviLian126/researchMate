@@ -162,6 +162,10 @@ and a button states the result of pressing it.
 | destructive action | states scope and consequence before confirmation |
 | long/generated text | remains readable, bounded, and recoverable when missing or malformed |
 
+When the surface contains long-form help, explanation, or documentation, also apply
+`references/human-readable-document-writing.md`. Keep short interface copy focused on
+the action and state instead of forcing it through a long-form prose style.
+
 Before completion, read all visible strings for vague claims, AI-style filler, fake
 confidence, inconsistent action names, unclear referents, forced metaphors, and
 unverified numbers. Rewrite toward plain, functional language.

@@ -1,56 +1,81 @@
 ---
 name: indie-product-delivery
-description: "Use for evidence-backed delivery of bootstrapped software products, including durable project documentation that must stay aligned with repository truth. Apply when work spans product scope, architecture, implementation, quality, release, or operations; when ownership is unclear; or when creating or materially revising an HTML project board, README, PRD, design document, or release note with verified facts, contracts, risks, and reader-ready wording. Do not auto-trigger for isolated specified local edits, mechanical doc fixes, small UI copy, general questions, or work fully covered by a specialized skill."
+description: "Use for outcome-first, evidence-backed delivery of bootstrapped software products when work spans product scope, system design, backend or frontend implementation, quality, release, or substantive Markdown or HTML project documentation. Apply when ownership or boundaries are unclear, when several product-delivery concerns interact, or when a maintained README, PRD, design document, release note, or HTML project board must remain aligned with repository truth. Do not auto-trigger for isolated specified local edits, mechanical documentation fixes, small UI copy changes, general questions, or work fully covered by a specialized skill."
 ---
 
 # Indie Product Delivery
 
-Drive the user's requested product outcome to an evidence-backed terminal result. Support web apps, APIs, CLIs, SDKs, packages, and related software-product surfaces without assuming that every task should continue to release.
+## Context
 
-## Establish the working contract
+Inspect the smallest set of current facts that can change the result:
 
-Recover from the request and current evidence:
-
-- the original goal and the result that would satisfy it;
 - the repository, product surface, environment, and relevant existing behavior;
 - confirmed requirements, non-goals, acceptance, and unresolved decisions;
-- authority for local changes and any external effects;
-- available tools, credentials, runtime, and evidence.
+- current source, configuration, tests, maintained documentation, and applicable repository instructions;
+- available tools, credentials, runtime, accounts, data, and evidence.
 
-Do not require the user to restate facts available in the repository. Ask only for a decision, authority, or evidence that cannot be discovered safely.
+Do not ask the user to restate facts that can be discovered safely. Prefer current user instructions, repository instructions, source and configuration, tests, and maintained local documentation. For version-sensitive provider or framework behavior, use the installed version and its official documentation. Surface conflicts instead of silently choosing the convenient source.
 
-## Maintain source commentary
+Load only the current owner's README and the workflow guide needed for the present task. Read another node only when a real product, contract, implementation, quality, release, operations, or documentation boundary requires it.
 
-For every authored source or configuration file touched or created, keep its English commentary useful and current:
+## Boundaries
 
-- Start the file with a concise English comment that states the file's responsibility or boundary.
-- Add a concise English docstring or documentation comment to every class and function, including frontend components and handlers, explaining its purpose rather than repeating its implementation.
-- Keep comments accurate when behavior changes; prefer intent, invariants, and non-obvious constraints over line-by-line narration.
-- Preserve each format's syntax and tooling contract. Do not inject comments into strict JSON, lockfiles, generated files, or vendor artifacts; use schema-supported descriptive metadata when available instead.
+Preserve the user's stated constraints and distinguish local work from external effects.
 
-## Operate through the kernel
+- Confirm an unresolved product direction, public contract, or low-reversibility architecture choice before landing it when the request has not decided the outcome and impact.
+- Require exact authorization before deployment, production migration, real charges or messages, customer or shared-data writes, destructive operations, credential rotation, history rewrite, DNS or traffic changes, rollback, or another external effect.
+- Dynamic security testing requires an owned target, allowed methods, account and data scope, and meaningful exclusions. Static review and local analysis do not require that additional authority.
 
-1. Read `references/nodes/00-product-delivery-kernel/README.md`.
-2. Initialize its compact delivery state and select one current owner.
-3. Read the owner's README and only the workflow guide needed for the present decision or slice.
-4. Execute toward the terminal target set by the original request. Load another node only when a named precondition, failed gate, or newly discovered boundary requires a handoff.
-5. Verify the narrowest evidence that directly supports the claimed result. Do not infer browser, runtime, security, persistence, or release proof from weaker substitutes.
-6. Finish with a global terminal status. An internal route or next node is not task completion.
+Use the relevant workflow for authentication, authorization, tenancy, private data, money, secrets, destructive data evolution, public compatibility, and low-reversibility choices. When production behavior may be harming users, data, money, privacy, security, or availability, contain the harm and gather direct evidence before pursuing growth or polish.
 
-A request to plan may finish with an actionable plan. A request to implement may finish with a verified local change. Review-only work must not edit. Release preparation and verified release are distinct targets.
+You may investigate, implement, test, or improve quality beyond the listed steps when that work helps complete the request. Do not silently expand product meaning, external effects, or collaboration-system scope.
 
-## Use references progressively
+## Output
 
-- Node01: product, market, pricing, MVP, positioning, and acceptance.
-- Node02: system boundaries, data, trust, interfaces, architecture, evolution, and build plans.
-- Node03: backend, API, data, provider, async, and observability implementation.
-- Node04: frontend experience, visual direction, responsive/accessibility implementation, and browser proof.
-- Node05: review, runtime evidence, reliability, security, and ship judgment.
-- Node06: release readiness, CI/CD, rollout, recovery, and release verification.
-- Node07: production health, customer evidence, experiments, and the next operating decision.
-- Durable documentation: read `references/durable-document-quality.md` when creating or substantially updating a README, PRD, design document, release/change note, HTML project board, or another maintained project source of truth. It is a quality gate inside the current owner, never a routing owner or replacement for product, architecture, authority, or evidence decisions. Do not require its full workflow for a mechanical correction, isolated UI copy, or ordinary chat response.
-- Project documentation: additionally read `references/agent-context-html/instructions.md` when the durable document is an HTML project board or an established board owns facts changed by the work.
+Produce a result the user can use, supported by the narrowest meaningful evidence.
 
-## Return the result naturally
+- Without a required runtime, account, data set, browser, or environment, make only the claims the available evidence supports.
+- Without deploy access and exact authorization, do not describe release preparation as an executed release.
+- Label time-sensitive market or provider conclusions as assumptions when current research is unavailable.
 
-Do not force a checkpoint or fixed heading template. Make the final response clear about the actual deliverable or decision, acceptance evidence, external effects performed, and any residual concern, missing authority, missing evidence, or user decision. For durable documentation, also identify the document type, fact sources, completed style audit, reader-test status, and any remaining reader-comprehension risk. Use the user's language for chat while preserving durable project language and source literals.
+Do not repeat a failed command, repair, or route without new evidence and a falsifiable reason. When no authorized evidence-producing action remains, stop and state the concrete missing decision, authority, environment, or evidence.
+
+Return the result naturally. Make clear what was delivered or decided, what evidence supports it, what external effects were performed, and what concern or blocker remains. Do not expose internal routing notes unless they help the user understand a decision.
+
+## Choose the current owner
+
+Choose the owner of the present decision or action. Node numbers identify domains, not a mandatory lifecycle.
+
+| Present need | Read |
+|---|---|
+| target user, problem, promise, pricing, positioning, MVP/MAP, validation, acceptance | `references/nodes/01-market-mvp-scope/README.md` |
+| system boundary, API/data/permission/provider contract, architecture, compatibility, migration or build plan | `references/nodes/02-architecture-contracts-plan/README.md` |
+| backend, API, data, auth, job, provider, async, reconciliation or observability implementation | `references/nodes/03-backend-api-data-build/README.md` |
+| frontend flow, content, visual direction, components, responsive/accessibility behavior or browser proof | `references/nodes/04-frontend-ux-ui-build/README.md` |
+| review, test strategy, runtime QA, reliability, security/privacy, evidence or ship judgment | `references/nodes/05-qa-review-security-hardening/README.md` |
+| CI/CD, release preparation, deploy, rollout, migration execution, recovery or production verification | `references/nodes/06-ci-cd-launch/README.md` |
+| production health, customer evidence, experiments, learning or the next operating decision | `references/nodes/07-ops-growth-iteration/README.md` |
+
+
+For any Markdown or HTML document created or materially edited, read `references/human-readable-document-writing.md`. A spelling fix, link repair, or request to preserve the original wording does not authorize a broader rewrite.
+
+For a maintained README, PRD, design document, release note, change note, HTML project board, or similar project source of truth, also read `references/durable-document-quality.md`. When the deliverable is an HTML project board, or an established board owns facts changed by the work, additionally read `references/agent-context-html/instructions.md`.
+
+## Apply the minimum delivery standard
+
+The applicable requirements in the selected workflow are the minimum delivery standard, not optional suggestions and not a required final-response format.
+
+- Complete every requirement that applies to the current task, facts, and authorization limits.
+- Skip checks that are genuinely inapplicable; do not perform them merely to complete a ritual.
+- Do not use a task's small size to skip applicable security, permission, state, error, accessibility, compatibility, recovery, or verification requirements.
+- Go beyond the workflow when additional work materially improves the requested result and remains authorized.
+- Do not recite the workflow checklist to the user; satisfy it and report the result and evidence.
+
+## Maintain useful source commentary
+
+Follow the repository's established documentation style for every authored source or configuration file touched or created:
+
+- Start the file with a concise comment that states its primary responsibility or boundary.
+- Add a concise docstring or documentation comment before every major class and function, including frontend components and handlers, explaining its purpose rather than narrating its implementation.
+- Keep comments and documentation accurate for public contracts, invariants, and non-obvious constraints, and update stale commentary when behavior changes.
+- Do not inject comments into strict JSON, lockfiles, generated files, or vendor artifacts. Use schema-supported descriptive metadata when available instead.

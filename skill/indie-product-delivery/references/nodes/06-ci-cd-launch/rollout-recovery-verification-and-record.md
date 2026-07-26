@@ -108,9 +108,10 @@ Use this guide to execute an authorized rollout or migration, verify the actual 
 3. For a non-critical failure, reproduce once, compare the nearest working path or prior
    release, trace the data/request boundary, form one hypothesis, and perform the smallest
    authorized verification or repair.
-4. Re-run the affected smoke plus nearby regression proof after every repair. Three focused
-   attempts that reveal shared coupling, a contract conflict, or an invalid runtime premise
-   require a return to Node02/03/04/05 rather than another release patch.
+4. Re-run the affected smoke plus nearby regression proof after every repair. When another
+   attempt would add no new evidence, or the evidence reveals shared coupling, a contract
+   conflict, or an invalid runtime premise, return to Node02/03/04/05 rather than adding
+   another release patch.
 5. A production incident becomes Node07 work after immediate containment, release-state
    capture, and owner routing are complete.
 
@@ -139,11 +140,12 @@ Use this guide to execute an authorized rollout or migration, verify the actual 
 
 #### 2. Write the release record
 
-1. Choose one factual status:
+1. Describe the factual release result. The following vocabulary is available when useful,
+   but it is not a required global status schema:
 
 | Status | Meaning |
 | --- | --- |
-| `PLAN_ONLY` | no external release action occurred. |
+| preparation only | no external release action occurred. |
 | `READY_TO_EXECUTE` | all known gates pass but action awaits authorization. |
 | `EXECUTED_AND_VERIFIED` | authorized action and required immediate proof passed. |
 | `EXECUTED_WITH_NAMED_CONCERNS` | bounded concern has owner, trigger, mitigation, and watch. |
