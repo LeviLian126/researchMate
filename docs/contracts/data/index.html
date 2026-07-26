@@ -47,7 +47,7 @@
      Database entities, fields, integrity, and access
     </h1>
     <p class="lede">
-      This page records the field-level contract for the maintained SQL migrations: 15 initial tables, 16 additive domain tables, and one backend-only operational table. Local and test environments still default to memory. PostgreSQL adapters and worker repositories exist. The six migrations are applied to the isolated Supabase development project, and a direct pooled psycopg query succeeds. Authenticated application access and RLS integration remain unvalidated.
+      This page records the field-level contract for the maintained SQL migrations: 15 initial tables, 16 additive domain tables, and one backend-only operational table. Hermetic tests default to in-process memory; this fallback is not a local integration environment. PostgreSQL adapters and worker repositories exist. The six migrations are applied to the isolated Supabase development project, and a direct pooled psycopg query succeeds. Authenticated application access and RLS integration remain unvalidated.
     </p>
     <div class="meta">
      <span class="status partial">

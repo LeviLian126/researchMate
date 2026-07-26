@@ -28,6 +28,8 @@ Preserve the user's stated constraints and distinguish local work from external 
 
 Use the relevant workflow for authentication, authorization, tenancy, private data, money, secrets, destructive data evolution, public compatibility, and low-reversibility choices. When production behavior may be harming users, data, money, privacy, security, or availability, contain the harm and gather direct evidence before pursuing growth or polish.
 
+Respect the repository's execution-environment policy. When the repository or user reserves integration testing for deployed/server environments, limit local evidence to the smallest hermetic unit, domain, contract, schema, import, static, and build checks. Do not start local applications, databases, brokers, vector stores, object stores, provider simulators, or containers to approximate integration. Route modular and cross-service proof to the authorized deployed/server environment with protected configuration and safe test data.
+
 You may investigate, implement, test, or improve quality beyond the listed steps when that work helps complete the request. Do not silently expand product meaning, external effects, or collaboration-system scope.
 
 ## Output

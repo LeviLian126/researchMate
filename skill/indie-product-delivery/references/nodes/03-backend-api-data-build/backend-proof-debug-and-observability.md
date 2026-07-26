@@ -8,24 +8,41 @@ Use this guide to prove an implemented backend slice, debug failures from the re
 
 ## Backend Proof, Debug, Observability, and Handoff
 
-#### 1. Build a local proof matrix
+#### 1. Split hermetic and deployed proof before testing
 
 Start from the Node02 contract and implementation spine. For each changed behavior,
 choose the smallest proof that can demonstrate the actual boundary. Prefer existing
 test framework, fixtures, helpers, and commands; do not install a framework or invent
 a cross-system QA plan just to make Node03 look complete.
 
-| Case | Required when | Typical local proof |
-| --- | --- | --- |
-| success | every changed capability | unit/service/API behavior through real owner |
-| validation | untrusted input or field mapping | rejected/normalized input behavior |
-| authentication/access | protected/owned/tenant data | denied, wrong owner, private omission behavior |
-| conflict/duplicate | stateful write, retry, webhook, job, or payment | durable duplicate/conflict outcome |
-| provider failure | remote dependency or async work | fake/sandbox timeout, malformed response, error mapping |
-| transaction rollback | multi-write invariant | failure leaves durable state consistent |
-| migration/recovery | schema/data evolution | dry-run/backfill/preflight/repair evidence |
-| performance trigger | new list/search/export/fanout/query shape | bounded query/limit/index or measured signal |
-| regression | previously working behavior broke | minimal reproduction that fails before the fix |
+Read and obey the repository's execution-environment policy before running anything.
+When integration is reserved for deployed/server environments, local proof must be
+hermetic: no application listener, database, broker, vector store, object store,
+provider simulator, container, or managed-service network call. An in-process fake is
+valid only when it proves a domain or contract boundary without creating a substitute
+integration environment.
+
+| Case | Required when | Hermetic local proof | Deployed/server proof |
+| --- | --- | --- | --- |
+| success | every changed capability | unit/domain/contract behavior through the real owner with in-process fakes | accepted request or job crosses the deployed modules that own the outcome |
+| validation | untrusted input or field mapping | rejected/normalized input and schema behavior | deployed boundary rejects the same unsafe input without state leakage |
+| authentication/access | protected/owned/tenant data | permission policy and concealed-resource contract | real identity, session, RLS, and cross-user denial in the authorized environment |
+| conflict/duplicate | stateful write, retry, webhook, job, or payment | deterministic idempotency and transition rules | durable duplicate/conflict outcome across deployed state and work executors |
+| provider failure | remote dependency or async work | fixture-driven timeout, malformed response, and error mapping | bounded provider or managed-sandbox failure through deployed protected configuration |
+| transaction rollback | multi-write invariant | repository/transaction contract with isolated in-process state | managed database failure leaves durable deployed state consistent |
+| migration/recovery | schema/data evolution | migration-file validation, dry-run, or pure backfill transform | authorized deployed migration, restart, repair, and recovery evidence |
+| performance trigger | new list/search/export/fanout/query shape | bounds, limits, query-shape contract, or deterministic benchmark | measured deployed latency, resource, quota, or queue signal |
+| regression | previously working behavior broke | smallest network-free reproduction that fails before the fix | repeat only when the regression depends on a real deployed boundary |
+
+Never let a test silently choose its environment. Name the deployed commit, environment,
+safe data set, protected dependencies, quota bound, and cleanup/recovery expectation in
+integration evidence. If authorization or the deployed environment is unavailable, keep
+the integration claim explicitly unverified instead of starting equivalent services
+locally.
+
+For repositories without a server-only integration policy, use the smallest authorized
+proof environment and keep local infrastructure proportional. Do not weaken an explicit
+server-only rule for convenience.
 
 A test is useful when it exercises production behavior through a meaningful boundary.
 Do not test mocks, private implementation trivia, or test-only production seams instead
@@ -48,7 +65,7 @@ reported symptom from a guess and become the guard against recurrence.
 | new endpoint/domain behavior | behavior test before or alongside minimal implementation, then targeted pass |
 | changed access/data/error contract | negative/edge proof for the changed boundary |
 | bug/regression | reproduce first, then prove the fix |
-| migration/provider/async | local/sandbox behavior plus failure/retry/recovery proof appropriate to risk |
+| migration/provider/async | hermetic contract behavior plus authorized deployed/server failure, retry, and recovery proof appropriate to risk |
 | local helper with no new behavior | follow nearby convention; do not force ceremonial red-green work |
 | no existing test framework | use the smallest executable contract proof and name the coverage limitation |
 | new test framework/dependency | return to Node02/05 for approval and test-strategy ownership |
@@ -115,8 +132,8 @@ result and exit code, then report only what the evidence establishes.
 | --- | --- |
 | targeted behavior works | relevant test/reproduction/command shows expected result |
 | no regression in scope | affected existing test or characterization proof passes |
-| migration mechanism is ready | preflight/dry-run/local verification meets the stated condition |
-| provider path is safe locally | fake/sandbox/fixture proves signature, mapping, failure, or dedupe behavior |
+| migration mechanism is ready | hermetic file/preflight proof plus any required deployed migration evidence meets the stated condition |
+| provider contract is safe | network-free fake/fixture proves signature, mapping, failure, or dedupe behavior; deployed proof remains separate |
 | refactor preserved behavior | locked baseline evidence before/after or focused characterization proof |
 | docs reflect current truth | affected module/API/backend state page was updated or consciously not needed |
 
@@ -136,8 +153,8 @@ Set one implementation status:
 
 | Status | Meaning |
 | --- | --- |
-| BUILT | requested implementation and required local proof are complete |
-| BUILT_WITH_NAMED_GAPS | local behavior is built; bounded remote/QA/release facts remain named |
+| BUILT | requested implementation and required hermetic proof are complete |
+| BUILT_WITH_NAMED_GAPS | local contract behavior is built; bounded deployed/QA/release facts remain named |
 | BLOCKED | a required implementation fact or safe proof is unavailable |
 | NEEDS_NODE02 | contract, boundary, runtime, compatibility, or recovery design must change |
 | NEEDS_AUTHORIZATION | a needed side effect requires explicit user/environment authorization |
