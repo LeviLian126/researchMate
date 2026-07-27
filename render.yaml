@@ -38,10 +38,6 @@ envVarGroups:
         value: nvidia/nv-embed-v1
       - key: EMBEDDING_DIMENSION
         value: "4096"
-      - key: NVIDIA_INPUT_COST_PER_MILLION_USD
-        sync: false
-      - key: NVIDIA_OUTPUT_COST_PER_MILLION_USD
-        sync: false
       - key: WEB_SEARCH_PROVIDER
         value: tavily
       - key: TAVILY_API_KEY

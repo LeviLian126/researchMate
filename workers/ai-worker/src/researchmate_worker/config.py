@@ -25,8 +25,6 @@ class WorkerSettings(BaseSettings):
         default=Decimal("0.250000"), gt=0, le=5
     )
     workflow_max_prompt_tokens: int = Field(default=32768, ge=1024, le=131072)
-    nvidia_input_cost_per_million_usd: Decimal | None = Field(default=None, gt=0)
-    nvidia_output_cost_per_million_usd: Decimal | None = Field(default=None, gt=0)
     langgraph_strict_msgpack: bool = True
     parser_max_pages: int = Field(default=300, ge=1, le=1000)
     docling_artifacts_path: Path | None = None
@@ -139,21 +137,6 @@ class WorkerSettings(BaseSettings):
                 raise ValueError("preview and production workers require NVIDIA embeddings")
             if self.llm_provider != "nvidia":
                 raise ValueError("preview and production workers require NVIDIA chat")
-            if (
-                self.nvidia_input_cost_per_million_usd is None
-                or self.nvidia_output_cost_per_million_usd is None
-            ):
-                raise ValueError("preview and production workers require explicit NVIDIA token prices")
-            worst_case = (
-                Decimal(self.workflow_max_prompt_tokens)
-                * self.nvidia_input_cost_per_million_usd
-                + Decimal(self.llm_max_tokens)
-                * self.nvidia_output_cost_per_million_usd
-            ) / Decimal(1_000_000)
-            if self.workflow_call_budget_reservation_usd < worst_case:
-                raise ValueError(
-                    "WORKFLOW_CALL_BUDGET_RESERVATION_USD must cover the configured token ceiling"
-                )
             if self.embedding_dimension != 4096:
                 raise ValueError("NVIDIA nv-embed-v1 must use 4096 dimensions")
             if not self.qdrant_url or self.qdrant_api_key is None:

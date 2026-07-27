@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from decimal import Decimal
 from functools import lru_cache
 from uuid import UUID
 
@@ -125,12 +126,8 @@ def build_workflow_domain(settings: WorkerSettings) -> SqlEvidenceWorkflowDomain
         NvidiaChatProvider(settings),  # type: ignore[arg-type]
         engine,
         reservation_usd=settings.workflow_call_budget_reservation_usd,
-        input_price_per_million_usd=(
-            settings.nvidia_input_cost_per_million_usd or settings.workflow_call_budget_reservation_usd
-        ),
-        output_price_per_million_usd=(
-            settings.nvidia_output_cost_per_million_usd or settings.workflow_call_budget_reservation_usd
-        ),
+        input_price_per_million_usd=Decimal(0),
+        output_price_per_million_usd=Decimal(0),
         max_prompt_tokens=settings.workflow_max_prompt_tokens,
     )
     return SqlEvidenceWorkflowDomain(

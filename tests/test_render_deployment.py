@@ -29,6 +29,21 @@ def test_render_blueprint_uses_one_shared_free_service_and_secret_prompts() -> N
         "value: https://cloud.langfuse.com/api/public/otel/v1/traces"
         in source
     )
+    assert "NVIDIA_INPUT_COST_PER_MILLION_USD" not in source
+    assert "NVIDIA_OUTPUT_COST_PER_MILLION_USD" not in source
+
+
+def test_nvidia_free_endpoint_has_no_runtime_price_fields() -> None:
+    config_source = (
+        ROOT / "workers" / "ai-worker" / "src" / "researchmate_worker" / "config.py"
+    ).read_text(encoding="utf-8")
+    tasks_source = (
+        ROOT / "workers" / "ai-worker" / "src" / "researchmate_worker" / "tasks.py"
+    ).read_text(encoding="utf-8")
+    assert "nvidia_input_cost_per_million_usd" not in config_source
+    assert "nvidia_output_cost_per_million_usd" not in config_source
+    assert "input_price_per_million_usd=Decimal(0)" in tasks_source
+    assert "output_price_per_million_usd=Decimal(0)" in tasks_source
 
 
 def test_render_runtime_starts_api_worker_and_dispatcher() -> None:
