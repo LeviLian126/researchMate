@@ -9,7 +9,7 @@ envVarGroups:
       - key: REDIS_URL
         sync: false
       - key: OBJECT_STORAGE_ENDPOINT_URL
-        value: https://tjdkdganvszqawxspveg.supabase.co/storage/v1/s3
+        value: https://tjdkdganvszqawxspveg.storage.supabase.co/storage/v1/s3
       - key: OBJECT_STORAGE_ACCESS_KEY_ID
         sync: false
       - key: OBJECT_STORAGE_SECRET_ACCESS_KEY
@@ -17,7 +17,7 @@ envVarGroups:
       - key: OBJECT_STORAGE_BUCKET
         value: researchmate-dev
       - key: OBJECT_STORAGE_REGION
-        value: us-east-1
+        value: ca-central-1
       - key: QDRANT_URL
         sync: false
       - key: QDRANT_API_KEY
