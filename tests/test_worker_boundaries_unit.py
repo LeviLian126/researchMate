@@ -8,6 +8,7 @@ from uuid import UUID
 
 import pytest
 from researchmate_worker import dispatch_outbox, tasks
+from researchmate_worker.config import psycopg_database_url
 from researchmate_worker.evaluation import EvaluationRuntimeError
 from researchmate_worker.ingestion import IngestionFailure, ParserAdapterError
 from researchmate_worker.parsing import DoclingDocumentParser, _serialize_provenance
@@ -17,6 +18,18 @@ JOB_ID = UUID("00000000-0000-4000-8000-000000000201")
 USER_ID = UUID("00000000-0000-4000-8000-000000000202")
 PROJECT_ID = UUID("00000000-0000-4000-8000-000000000203")
 DOCUMENT_ID = UUID("00000000-0000-4000-8000-000000000204")
+
+
+@pytest.mark.parametrize(
+    ("database_url", "expected"),
+    [
+        ("postgres://user:pass@host/db", "postgresql+psycopg://user:pass@host/db"),
+        ("postgresql://user:pass@host/db", "postgresql+psycopg://user:pass@host/db"),
+        ("postgresql+psycopg://user:pass@host/db", "postgresql+psycopg://user:pass@host/db"),
+    ],
+)
+def test_worker_database_urls_select_psycopg3(database_url: str, expected: str) -> None:
+    assert psycopg_database_url(database_url) == expected
 
 
 class RecordingConnection:

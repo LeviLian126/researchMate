@@ -6,7 +6,7 @@ import time
 from sqlalchemy import create_engine
 
 from researchmate_worker.celery_app import celery_app
-from researchmate_worker.config import WorkerSettings
+from researchmate_worker.config import WorkerSettings, psycopg_database_url
 from researchmate_worker.outbox import (
     CeleryTaskPublisher,
     OutboxDispatcher,
@@ -18,7 +18,7 @@ from researchmate_worker.runtime_health import record_heartbeat
 def build_dispatcher(settings: WorkerSettings) -> OutboxDispatcher:
     if not settings.database_url:
         raise RuntimeError("DATABASE_URL is required to dispatch outbox events")
-    engine = create_engine(settings.database_url, pool_pre_ping=True)
+    engine = create_engine(psycopg_database_url(settings.database_url), pool_pre_ping=True)
     return OutboxDispatcher(
         SqlOutboxStore(engine),
         CeleryTaskPublisher(celery_app, queue=settings.ingestion_queue),

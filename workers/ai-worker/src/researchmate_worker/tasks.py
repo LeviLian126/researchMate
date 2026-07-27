@@ -18,7 +18,7 @@ from sqlalchemy import create_engine, text
 
 from researchmate_worker.budget import BudgetedChatProvider, WorkflowBudgetExceeded
 from researchmate_worker.celery_app import celery_app
-from researchmate_worker.config import WorkerSettings
+from researchmate_worker.config import WorkerSettings, psycopg_database_url
 from researchmate_worker.deletion import (
     DocumentDeletionEvent,
     DocumentDeletionService,
@@ -72,7 +72,7 @@ def build_ingestion_service() -> DocumentIngestionService:
         raise RuntimeError("NVIDIA embeddings are required to execute ingestion tasks")
     if not settings.qdrant_url:
         raise RuntimeError("Qdrant is required to execute ingestion tasks")
-    engine = create_engine(settings.database_url, pool_pre_ping=True)
+    engine = create_engine(psycopg_database_url(settings.database_url), pool_pre_ping=True)
     embedding = NvidiaEmbeddingProvider(settings)  # type: ignore[arg-type]
     vector_projection = QdrantHybridStore(  # type: ignore[arg-type]
         settings,
@@ -99,7 +99,7 @@ def build_deletion_service() -> DocumentDeletionService:
     settings = WorkerSettings()
     if not settings.database_url or not settings.object_storage_configured or not settings.qdrant_url:
         raise RuntimeError("Database, S3-compatible object storage, and Qdrant are required for deletion tasks")
-    engine = create_engine(settings.database_url, pool_pre_ping=True)
+    engine = create_engine(psycopg_database_url(settings.database_url), pool_pre_ping=True)
     embedding = NvidiaEmbeddingProvider(settings)  # type: ignore[arg-type]
     vector_store = QdrantHybridStore(settings, embedding)  # type: ignore[arg-type]
     return DocumentDeletionService(
@@ -120,7 +120,7 @@ def build_workflow_domain(settings: WorkerSettings) -> SqlEvidenceWorkflowDomain
         or settings.llm_provider != "nvidia"
     ):
         raise RuntimeError("NVIDIA chat and embedding providers are required for workflow tasks")
-    engine = create_engine(settings.database_url, pool_pre_ping=True)
+    engine = create_engine(psycopg_database_url(settings.database_url), pool_pre_ping=True)
     embedding = NvidiaEmbeddingProvider(settings)  # type: ignore[arg-type]
     provider = BudgetedChatProvider(
         NvidiaChatProvider(settings),  # type: ignore[arg-type]
@@ -146,7 +146,7 @@ def build_workflow_domain(settings: WorkerSettings) -> SqlEvidenceWorkflowDomain
 def build_evaluation_runner(settings: WorkerSettings) -> EvaluationRunner:
     if not settings.database_url or not settings.qdrant_url or settings.nvidia_api_key is None:
         raise RuntimeError("Database, Qdrant, and NVIDIA are required for evaluation tasks")
-    engine = create_engine(settings.database_url, pool_pre_ping=True)
+    engine = create_engine(psycopg_database_url(settings.database_url), pool_pre_ping=True)
     embedding = NvidiaEmbeddingProvider(settings)  # type: ignore[arg-type]
     provider = NvidiaChatProvider(settings)  # type: ignore[arg-type]
     return EvaluationRunner(
@@ -167,13 +167,15 @@ def build_evaluation_runner(settings: WorkerSettings) -> EvaluationRunner:
 def build_fault_simulation_service(settings: WorkerSettings) -> FaultSimulationService:
     if not settings.database_url:
         raise RuntimeError("Database is required for reliability simulations")
-    return FaultSimulationService(create_engine(settings.database_url, pool_pre_ping=True))
+    return FaultSimulationService(
+        create_engine(psycopg_database_url(settings.database_url), pool_pre_ping=True)
+    )
 
 
 def _mark_workflow_bootstrap_failed(settings: WorkerSettings, run_id: UUID, code: str) -> None:
     if not settings.database_url:
         return
-    engine = create_engine(settings.database_url, pool_pre_ping=True)
+    engine = create_engine(psycopg_database_url(settings.database_url), pool_pre_ping=True)
     with engine.begin() as connection:
         connection.execute(
             text(

@@ -6,7 +6,7 @@ from celery import Celery
 from celery.signals import heartbeat_sent, worker_ready, worker_shutdown
 from sqlalchemy import create_engine
 
-from researchmate_worker.config import WorkerSettings
+from researchmate_worker.config import WorkerSettings, psycopg_database_url
 
 
 def create_celery_app(settings: WorkerSettings | None = None) -> Celery:
@@ -44,7 +44,7 @@ logger = logging.getLogger(__name__)
 
 @lru_cache(maxsize=1)
 def _heartbeat_engine(database_url: str):
-    return create_engine(database_url, pool_pre_ping=True)
+    return create_engine(psycopg_database_url(database_url), pool_pre_ping=True)
 
 
 def _worker_heartbeat(status: str) -> None:
