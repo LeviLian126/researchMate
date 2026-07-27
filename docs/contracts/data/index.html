@@ -844,7 +844,7 @@
        <dt>Lifecycle</dt><dd>One row per component is overwritten indefinitely. It can be deleted and reconstructed by a running component.</dd>
       </dl></details>
 
-      <div class="notice warning"><strong>Remaining migration gate:</strong> migration application, direct database connectivity, and deployed FastAPI/worker/dispatcher readiness are verified on <code>d7197f1</code>. The project still needs authenticated same-tenant relationship and cross-tenant RLS tests, budget/fault lease and restart proof, explicit retention values, and compatibility proof for current <code>ask_runs</code>.</div>
+      <div class="notice warning"><strong>Remaining migration gate:</strong> migration application, direct database connectivity, and deployed FastAPI/worker/dispatcher readiness are verified on <code>b80150a</code>. Two real identities prove independent project writes and concealed cross-user API reads, but the project still needs a direct cross-tenant RLS query, same-tenant relationship tests, budget/fault lease and restart proof, explicit retention values, and compatibility proof for current <code>ask_runs</code>.</div>
      </section>
      <section id="access">
       <p class="eyebrow">
@@ -1028,7 +1028,7 @@
        <strong>
         Partially validated authentication boundary.
        </strong>
-       A separate Supabase Free development project is healthy, with automatic public-table exposure disabled and automatic RLS enabled. Direct psycopg verification found 6 application migration records, 10 checkpoint migration rows (schema version 9), and 37 public tables. On 27 July 2026 the Live Render service used the pooled connection successfully; readiness executed SQL, verified the checkpoint tables, and observed fresh worker/dispatcher heartbeats. A real Vercel user then authenticated through Supabase, created an owner-scoped project through Render, refreshed, listed the persisted row, and opened the project route. This proves one JWT-backed application transaction path; it does not prove second-user denial, direct PostgREST behavior, session refresh/revocation, or restart/resume.
+       A separate Supabase Free development project is healthy, with automatic public-table exposure disabled and automatic RLS enabled. Direct psycopg verification found 6 application migration records, 10 checkpoint migration rows (schema version 9), and 37 public tables. On 27 July 2026 the Live Render service used the pooled connection successfully; readiness executed SQL, verified the checkpoint tables, and observed fresh worker/dispatcher heartbeats. A password identity and a distinct GitHub OAuth identity each created and refreshed an owner-scoped PostgreSQL project. The GitHub identity initially listed no projects and a direct request for the password user's Library returned the concealed not-found response while its own Library loaded. This proves deployed API/transaction isolation for two JWT subjects; it does not independently prove direct PostgREST/RLS behavior, session expiry/revocation, or restart/resume.
       </div>
      </section>
      <section id="evidence">
