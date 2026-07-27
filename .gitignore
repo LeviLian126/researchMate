@@ -36,9 +36,8 @@ build/
 .uv-cache/
 .turbo/
 .open-next/
-.wrangler/
-apps/web/.wrangler/
 coverage/
+.coverage*
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*

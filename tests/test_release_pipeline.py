@@ -7,7 +7,10 @@ def test_ci_runs_the_full_test_build_contract_and_security_gate() -> None:
     package = (ROOT / "package.json").read_text(encoding="utf-8")
     workflow = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
 
-    assert '"test": "python -m pytest -q"' in package
+    assert '"test": "npm run test:python && npm run test:web"' in package
+    assert '"test:python": "python -m coverage run --branch' in package
+    assert "coverage report --fail-under=50" in package
+    assert '"test:web": "npm --workspace @researchmate/web run test"' in package
     assert "scripts/export_openapi.py --check" in package
     assert "scripts/apply_migrations.py --check-files" in package
     assert "npm ci" in workflow
@@ -15,21 +18,39 @@ def test_ci_runs_the_full_test_build_contract_and_security_gate() -> None:
     assert "permissions:\n      contents: read" in workflow
 
 
-def test_release_is_manual_protected_and_deploys_the_cloudflare_demo() -> None:
-    workflow = (ROOT / ".github/workflows/release.yml").read_text(encoding="utf-8")
+def test_retired_delivery_paths_are_inert_and_cloudflare_sources_are_archived() -> None:
+    active_workflows = "\n".join(
+        path.read_text(encoding="utf-8")
+        for path in (ROOT / ".github/workflows").glob("*.yml")
+    )
+    web_package = (ROOT / "apps/web/package.json").read_text(encoding="utf-8")
+    package_lock = (ROOT / "package-lock.json").read_text(encoding="utf-8")
+    archive = ROOT / "docs/archive/cloudflare"
 
-    assert "workflow_dispatch:" in workflow
-    assert "environment: ${{ inputs.environment }}" in workflow
-    assert "options: [Production]" in workflow
-    assert "researchmate-cloudflare-${{ inputs.environment }}" in workflow
-    assert "CLOUDFLARE_API_TOKEN" in workflow
-    assert "opennextjs-cloudflare" in workflow
-    assert "wrangler deploy --config wrangler.jsonc" in workflow
-    assert 'NEXT_PUBLIC_DEMO_MODE: "true"' in workflow
-    assert "AZURE_" not in workflow
-    assert "vercel" not in workflow.lower()
-    assert "scripts/apply_migrations.py --apply" not in workflow
-    assert "push:" not in workflow.split("jobs:", 1)[0]
+    assert "cloudflare" not in active_workflows.lower()
+    assert "generate chinese documentation" not in active_workflows.lower()
+    assert not (ROOT / ".github/workflows/release.yml").exists()
+    assert not (ROOT / ".github/workflows/translate-docs.yml").exists()
+    assert not (ROOT / "scripts/generate_zh_docs.py").exists()
+    assert not (ROOT / "docs/zh").exists()
+    assert not (ROOT / "apps/web/open-next.config.ts").exists()
+    assert not (ROOT / "apps/web/wrangler.jsonc").exists()
+    assert "opennextjs-cloudflare" not in web_package
+    assert "wrangler" not in web_package.lower()
+    assert 'node_modules/@opennextjs/cloudflare' not in package_lock
+    assert 'node_modules/wrangler' not in package_lock
+
+    release_snapshot = (archive / "release-workflow.yml").read_text(encoding="utf-8")
+    assert "workflow_dispatch:" in release_snapshot
+    assert "CLOUDFLARE_API_TOKEN" in release_snapshot
+    assert "wrangler deploy --config wrangler.jsonc" in release_snapshot
+    for name in (
+        "release-workflow.yml",
+        "open-next.config.ts",
+        "wrangler.jsonc",
+        "web-package-fragment.json",
+    ):
+        assert (archive / name).is_file()
 
 
 def test_container_images_are_non_root_and_worker_prefetches_pdf_models() -> None:

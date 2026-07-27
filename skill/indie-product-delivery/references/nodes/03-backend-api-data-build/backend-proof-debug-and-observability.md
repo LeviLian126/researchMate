@@ -73,6 +73,28 @@ reported symptom from a guess and become the guard against recurrence.
 This is not a promise of exhaustive coverage for every function. It prevents
 implementation-shaped tests from being the only definition of a new backend contract.
 
+Maintain a line or statement coverage baseline of at least 50% across production code
+whose behavior can be isolated without falsifying the real boundary. Use the
+repository's existing higher threshold when one exists. Measure an explicit scope and
+report the command, result, and exclusions; do not improve the number by narrowing the
+denominator without a technical reason.
+
+Coverage is a floor, not the test plan. Give the most important code stronger proof
+even after the aggregate target passes:
+
+| Code or boundary | Testing expectation |
+| --- | --- |
+| domain rules, authorization, money/quota, state transitions, idempotency, retry, reconciliation, and recovery decisions | cover meaningful success, denial/failure, boundary, and state-change paths as far as practical |
+| deterministic validation, mapping, calculation, and transformation | prefer focused unit tests with representative edge cases |
+| database, queue, provider, filesystem, framework, or process behavior | unit-test owned decisions around the seam; use contract or authorized integration proof for behavior that depends on the real system |
+| generated/vendor code, declarative schema, framework bootstrap, or configuration-only wiring | exclude from unit-coverage scope only when the reason is explicit and another fitting validation layer covers it |
+| trivial accessors, constants, or private implementation details | do not add tests solely to increase the percentage |
+
+When an existing repository is below 50%, a bounded change must not reduce the baseline
+and must cover the core behavior it changes. Raise the deficit during an authorized
+quality or test-hardening task and report the remaining gap; do not silently turn an
+unrelated small fix into a repository-wide test rewrite.
+
 #### 3. Debug from root cause
 
 When behavior, test, migration, provider, or performance evidence fails, do not stack

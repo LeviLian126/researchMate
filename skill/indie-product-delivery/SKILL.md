@@ -70,6 +70,8 @@ The applicable requirements in the selected workflow are the minimum delivery st
 - Complete every requirement that applies to the current task, facts, and authorization limits.
 - Skip checks that are genuinely inapplicable; do not perform them merely to complete a ritual.
 - Do not use a task's small size to skip applicable security, permission, state, error, accessibility, compatibility, recovery, or verification requirements.
+- Keep line or statement coverage at 50% or higher for product code whose behavior is suitable for unit testing. An existing higher repository threshold takes precedence.
+- Prioritize core business rules, authorization, state transitions, failure handling, and changed branches. Do not write low-value tests or distort the measured scope merely to raise the percentage; use the fitting contract, integration, browser, or runtime proof when a unit test would misrepresent the real boundary.
 - Go beyond the workflow when additional work materially improves the requested result and remains authorized.
 - Do not recite the workflow checklist to the user; satisfy it and report the result and evidence.
 

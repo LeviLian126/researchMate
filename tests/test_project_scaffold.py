@@ -136,7 +136,7 @@ def test_docs_separate_current_truth_from_archived_plans() -> None:
 
     archive = (ROOT / "docs/archive/cloudflare/index.html").read_text(encoding="utf-8")
     assert "not current guidance" in archive
-    assert ".github/workflows/release.yml" in archive
+    assert "release-workflow.yml" in archive
 
     current_pages = [
         (ROOT / "docs/index.html").read_text(encoding="utf-8"),

@@ -132,9 +132,26 @@ or implementation detail.
 | real boundary | mock only where external/non-deterministic edge requires it |
 | coverage | changed public behavior and new branch have a fitting proof layer |
 
-Node03 owns implementation-time contract proof. Node05 asks whether the selected layer
-can support the quality claim; it does not impose universal function-level coverage or
-a new framework.
+Measure line or statement coverage over an explicit production-code scope. Unit-test-
+suitable product code must reach at least 50%, or the repository's existing higher
+threshold. Record the command, measured scope, result, and justified exclusions.
+Generated/vendor code, declarative schemas, framework bootstrap, and behavior that only
+a real database, queue, provider, browser, or process can prove may use another fitting
+evidence layer instead. Do not exclude difficult core code, create tests for trivial
+accessors, or assert mock interactions merely to improve the number.
+
+Treat coverage below 50% as a quality GAP for a full quality or release-readiness
+decision. In a legacy repository already below the baseline, a bounded change must not
+reduce coverage and must add meaningful proof for the core behavior it changes; record
+the remaining project-wide deficit rather than expanding an unrelated request without
+authorization. Passing the percentage never compensates for missing proof of
+authorization, state transitions, money/quota rules, idempotency, retries, recovery, or
+other high-impact behavior.
+
+Node03 owns implementation-time contract proof. Node05 decides whether the coverage
+scope, exclusions, and selected proof layers support the quality claim; it does not
+impose a uniform quota on every function or require a new framework solely for the
+metric.
 
 #### 3. Review compatibility and recovery behavior
 

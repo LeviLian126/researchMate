@@ -404,12 +404,23 @@ class SqlEvidenceWorkflowDomain:
                 and not rejected_chunks.intersection(claim.get("chunk_ids", []))
             ]
         elif value == "edit":
-            edits = decision.get("edited_payload", {}).get("claim_text_edits", {})
+            edited_payload = decision.get("edited_payload")
+            if not isinstance(edited_payload, dict):
+                raise WorkflowRuntimeError("EDIT_SCHEMA_INVALID")
+            edits = edited_payload.get("claim_text_edits", {})
             if not isinstance(edits, dict):
                 raise WorkflowRuntimeError("EDIT_SCHEMA_INVALID")
             for raw_index, new_text in edits.items():
-                index = int(raw_index) - 1
-                if index < 0 or index >= len(claims) or not isinstance(new_text, str):
+                try:
+                    index = int(raw_index) - 1
+                except (TypeError, ValueError) as exc:
+                    raise WorkflowRuntimeError("EDIT_SCHEMA_INVALID") from exc
+                if (
+                    index < 0
+                    or index >= len(claims)
+                    or not isinstance(new_text, str)
+                    or not new_text.strip()
+                ):
                     raise WorkflowRuntimeError("EDIT_SCHEMA_INVALID")
                 claims[index] = {**claims[index], "text": new_text.strip(), "review_status": "edited"}
         if not claims:
