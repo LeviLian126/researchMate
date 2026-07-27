@@ -119,6 +119,8 @@ legend { padding: 0 7px; color: var(--ink); }
 .auth-divider { display: flex; align-items: center; gap: 12px; }
 .auth-divider::before, .auth-divider::after { flex: 1; height: 1px; background: var(--line); content: ""; }
 .auth-divider span { color: var(--ink-faint); font-size: .7rem; text-transform: uppercase; }
+.github-auth-button { border-color: #24292f; background: #24292f; color: #fff; font-weight: 650; }
+.github-auth-button:hover { border-color: #000; background: #000; color: #fff; }
 .session-bar { display: flex; align-items: center; justify-content: flex-end; gap: 12px; width: min(1220px, calc(100% - 40px)); margin: 12px auto -15px; font-size: .78rem; }
 .session-bar strong { color: var(--ink); }
 .session-bar button { min-height: 34px; padding: 5px 11px; }

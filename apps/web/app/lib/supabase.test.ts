@@ -78,7 +78,7 @@ describe("managed browser sessions", () => {
     unsubscribe();
   });
 
-  it("restores a magic-link session and removes tokens from the address", async () => {
+  it("restores a magic-link or OAuth session and removes tokens from the address", async () => {
     vi.useFakeTimers();
     const auth = await loadConfiguredModule();
     window.history.replaceState(
@@ -92,6 +92,28 @@ describe("managed browser sessions", () => {
       refresh_token: "refresh-1",
     });
     expect(window.location.hash).toBe("");
+  });
+
+  it("builds a GitHub authorization URL with a same-origin app callback", async () => {
+    const auth = await loadConfiguredModule();
+    window.history.replaceState(null, "", "/app");
+
+    const callback = `${window.location.origin}/app`;
+    const authorize = new URL(auth.getGitHubOAuthUrl(callback));
+
+    expect(authorize.origin).toBe("https://auth.example.test");
+    expect(authorize.pathname).toBe("/auth/v1/authorize");
+    expect(authorize.searchParams.get("provider")).toBe("github");
+    expect(authorize.searchParams.get("redirect_to")).toBe(callback);
+  });
+
+  it("rejects cross-origin and non-workspace GitHub callbacks", async () => {
+    const auth = await loadConfiguredModule();
+
+    expect(() => auth.getGitHubOAuthUrl("https://attacker.example/app"))
+      .toThrow("redirect must remain inside");
+    expect(() => auth.getGitHubOAuthUrl(`${window.location.origin}/application`))
+      .toThrow("redirect must remain inside");
   });
 
   it("refreshes an expired stored session", async () => {

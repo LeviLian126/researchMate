@@ -9,6 +9,7 @@ import {
   isSupabaseConfigured,
   onAuthStateChange,
   sendMagicLink,
+  signInWithGitHub,
   signInWithPassword,
   signOut,
 } from "../lib/supabase";
@@ -78,7 +79,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
 function SignInPanel() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [busy, setBusy] = useState<"password" | "magic" | null>(null);
+  const [busy, setBusy] = useState<"password" | "magic" | "github" | null>(null);
   const [message, setMessage] = useState<{ title: string; detail: string; kind: string } | null>(null);
 
   async function submitPassword(event: FormEvent<HTMLFormElement>) {
@@ -109,17 +110,29 @@ function SignInPanel() {
     setBusy(null);
   }
 
+  function submitGitHub() {
+    setBusy("github");
+    setMessage(null);
+    try {
+      signInWithGitHub(`${window.location.origin}/app`);
+    } catch {
+      setMessage({ title: "GitHub sign-in is unavailable", detail: "Retry after checking the GitHub provider and production redirect configuration in Supabase.", kind: "provider" });
+      setBusy(null);
+    }
+  }
+
   return (
     <main className="auth-shell">
       <form className="glass-panel auth-panel stack" onSubmit={submitPassword}>
         <div><p className="eyebrow">ResearchMate portfolio demo</p><h1>Sign in to the workspace</h1><p>Preview and production require a verified Supabase session. Development identities are never used here.</p></div>
         {message && <StateNotice state={message} />}
+        <button className="github-auth-button" type="button" onClick={submitGitHub} disabled={busy !== null}>{busy === "github" ? "Opening GitHub…" : "Continue with GitHub"}</button>
+        <div className="auth-divider"><span>or use email</span></div>
         <label htmlFor="auth-email">Email</label>
         <input id="auth-email" type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
         <label htmlFor="auth-password">Password</label>
         <input id="auth-password" type="password" autoComplete="current-password" minLength={6} value={password} onChange={(event) => setPassword(event.target.value)} required />
         <button className="primary-button" type="submit" disabled={busy !== null}>{busy === "password" ? "Signing in…" : "Sign in with password"}</button>
-        <div className="auth-divider"><span>or</span></div>
         <button type="button" onClick={() => void submitMagicLink()} disabled={busy !== null}>{busy === "magic" ? "Sending link…" : "Email a magic link"}</button>
       </form>
     </main>

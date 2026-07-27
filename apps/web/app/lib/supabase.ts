@@ -80,7 +80,7 @@ function toSession(payload: Record<string, unknown>): BrowserAuthSession {
   };
 }
 
-function restoreMagicLinkSession(): BrowserAuthSession | null {
+function restoreRedirectSession(): BrowserAuthSession | null {
   if (typeof window === "undefined" || !window.location.hash) return null;
   const values = new URLSearchParams(window.location.hash.slice(1));
   const accessToken = values.get("access_token");
@@ -146,7 +146,7 @@ async function refreshSession(refreshToken: string): Promise<BrowserAuthSession 
 export async function getSupabaseSession(): Promise<BrowserAuthSession | null> {
   if (!configuration()) return null;
   if (currentSession === undefined) {
-    const restored = restoreMagicLinkSession() ?? restoreStoredSession();
+    const restored = restoreRedirectSession() ?? restoreStoredSession();
     currentSession = restored;
     if (restored) persist(restored);
   }
@@ -172,6 +172,26 @@ export async function sendMagicLink(email: string, redirectTo: string): Promise<
     method: "POST",
     body: JSON.stringify({ email, create_user: false }),
   });
+}
+
+export function getGitHubOAuthUrl(redirectTo: string): string {
+  const config = configuration();
+  if (!config) throw new Error("Supabase Auth is not configured.");
+  if (typeof window === "undefined") throw new Error("GitHub sign-in requires a browser.");
+  const redirect = new URL(redirectTo, window.location.origin);
+  const isWorkspacePath = redirect.pathname === "/app" || redirect.pathname.startsWith("/app/");
+  if (redirect.origin !== window.location.origin || !isWorkspacePath) {
+    throw new Error("GitHub sign-in redirect must remain inside this application's /app workspace.");
+  }
+  redirect.hash = "";
+  const authorize = new URL(`${config.url}/auth/v1/authorize`);
+  authorize.searchParams.set("provider", "github");
+  authorize.searchParams.set("redirect_to", redirect.toString());
+  return authorize.toString();
+}
+
+export function signInWithGitHub(redirectTo: string): void {
+  window.location.assign(getGitHubOAuthUrl(redirectTo));
 }
 
 export async function signOut(): Promise<void> {

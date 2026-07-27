@@ -15,7 +15,7 @@
      ResearchMate documentation
     </a>
      <span class="stamp">
-      Database contracts · evidence snapshot 18 July 2026
+      Database contracts · runtime evidence 27 July 2026
      </span>
    </div>
   </header>
@@ -844,7 +844,7 @@
        <dt>Lifecycle</dt><dd>One row per component is overwritten indefinitely. It can be deleted and reconstructed by a running component.</dd>
       </dl></details>
 
-      <div class="notice warning"><strong>Remaining migration gate:</strong> migration application and direct database connectivity are now verified. FastAPI still needs to use the stored runtime credential, and the project still needs same-tenant relationship and cross-tenant RLS tests, budget/fault lease and restart proof, explicit retention values, and compatibility proof for current <code>ask_runs</code>.</div>
+      <div class="notice warning"><strong>Remaining migration gate:</strong> migration application, direct database connectivity, and deployed FastAPI/worker/dispatcher readiness are verified on <code>d7197f1</code>. The project still needs authenticated same-tenant relationship and cross-tenant RLS tests, budget/fault lease and restart proof, explicit retention values, and compatibility proof for current <code>ask_runs</code>.</div>
      </section>
      <section id="access">
       <p class="eyebrow">
@@ -927,6 +927,10 @@
       <div class="notice warning">
        <strong>Lifecycle is application-driven.</strong>
        The migration defines enum values, timestamps, expiry fields, and defaults, but no state-transition constraints, expiry worker, or automatic <code>updated_at</code> trigger. Code or workers must advance these fields; deployment proof is absent.
+      </div>
+      <div class="notice">
+       <strong>Federated login does not redefine tenancy.</strong>
+       Password, magic-link, GitHub, and any later Google provider all resolve to a Supabase user. Database ownership remains the immutable JWT <code>sub</code> UUID; email and provider usernames are profile attributes, never authorization keys. The existing API owner predicate plus PostgreSQL RLS is the defense-in-depth boundary.
       </div>
       <div class="scroll">
        <table>
@@ -1022,9 +1026,9 @@
       </div>
       <div class="notice riskbox">
        <strong>
-        Unvalidated authentication boundary.
+        Partially validated authentication boundary.
        </strong>
-       A separate Supabase Free development project is healthy, with automatic public-table exposure disabled and automatic RLS enabled. On 24 July 2026 a pooled runtime credential stored in Windows Credential Manager completed a real psycopg connection and verified 6 application migration records, 10 checkpoint migration rows (schema version 9), and 37 public tables. The managed Auth JWKS endpoint returned one EC key and admin user creation returned 201, but password token exchange returned 401 <code>Invalid API key</code> and redirect-list writes did not persist. No JWT/RLS isolation query, application service-role transaction, or restart/resume workflow has run, so the project is connected but not yet a validated application data boundary.
+       A separate Supabase Free development project is healthy, with automatic public-table exposure disabled and automatic RLS enabled. Direct psycopg verification found 6 application migration records, 10 checkpoint migration rows (schema version 9), and 37 public tables. On 27 July 2026 the Live Render service used the pooled connection successfully; readiness executed SQL, verified the checkpoint tables, and observed fresh worker/dispatcher heartbeats. A real Vercel user then authenticated through Supabase, created an owner-scoped project through Render, refreshed, listed the persisted row, and opened the project route. This proves one JWT-backed application transaction path; it does not prove second-user denial, direct PostgREST behavior, session refresh/revocation, or restart/resume.
       </div>
      </section>
      <section id="evidence">
@@ -1064,7 +1068,7 @@
    </div>
   </main>
   <footer class="shell footer">
-   ResearchMate database contracts · 31 domain tables and 1 operational readiness table · managed schema applied, runtime integration unvalidated
+   ResearchMate database contracts · 31 domain tables and 1 operational readiness table · managed schema and runtime readiness verified, authenticated RLS pending
   </footer>
   <script src="../../assets/site.js">
   </script>

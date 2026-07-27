@@ -10,7 +10,7 @@
  <header class="mast">
   <div class="shell mast-row">
    <a class="brand" href="../../index.html">ResearchMate documentation</a>
-    <span class="stamp">API contracts · OpenAPI 3.1 / v0.1.0 · 18 July 2026</span>
+    <span class="stamp">API contracts · OpenAPI 3.1 / v0.1.0 · runtime evidence 27 July 2026</span>
   </div>
  </header>
  <nav aria-label="Documentation" class="global">
@@ -42,10 +42,11 @@
      <p class="eyebrow">Request conventions</p>
      <h2>Authentication, ownership, and errors</h2>
      <div class="grid">
-      <div class="fact"><b>Authentication</b><p><code>GET /api/v1/healthz</code> and <code>GET /api/v1/readyz</code> are public for platform probes. Every other REST operation declares HTTP bearer authentication. Local/test mode accepts only named or explicit <code>dev:</code> identities; unknown tokens fail closed. Preview/production requires Supabase JWT mode. The managed JWKS endpoint returned HTTP 200 with one EC key and admin user creation returned 201, but password token exchange returned 401 <code>Invalid API key</code>; issuer/audience/session/RLS behavior therefore remains provider-unvalidated.</p></div>
+      <div class="fact"><b>Authentication</b><p><code>GET /api/v1/healthz</code> and <code>GET /api/v1/readyz</code> are public for platform probes. Every other REST operation declares HTTP bearer authentication. Local/test mode accepts only named or explicit <code>dev:</code> identities; unknown tokens fail closed. Preview/production requires Supabase JWT mode. On 27 July 2026 a real Vercel session authenticated to the Live Render API and completed owner-scoped project create/list/read across a browser refresh. Session expiry/refresh, OAuth, and cross-user RLS denial remain provider-unvalidated.</p></div>
       <div class="fact"><b>Ownership</b><p>Handlers resolve a <code>CurrentUser</code>; Store lookups scope resources to that user. A missing resource and another user's resource both return 404 to avoid disclosing identifiers.</p></div>
       <div class="fact"><b>Error envelope</b><p>Runtime failures use <code>{"error":{"code","message","request_id"}}</code>. Request validation is normalized to <code>VALIDATION_FAILED</code>; the same validated/generated request ID is returned in <code>X-Request-ID</code>.</p></div>
      </div>
+     <div class="notice"><strong>Federated identity rule.</strong> Adding GitHub through Supabase Auth does not change authorization semantics: the verified JWT <code>sub</code> UUID is the only tenant identity. Email address, GitHub login, display name, and provider metadata must never be used as an ownership predicate.</div>
      <div class="notice warning"><strong>Known OpenAPI/runtime difference.</strong> OpenAPI still declares generated <code>HTTPValidationError</code> bodies for some 422 responses while runtime handlers normalize validation to the project error envelope. Ask and Quiz can also return runtime 409 and 429 responses not present in their OpenAPI response maps.</div>
     </section>
 
@@ -138,7 +139,7 @@
       <dt>Input</dt><dd>No path, query, or body fields.</dd>
       <dt>Success</dt><dd><code>200</code> with <code>status:"ready"</code>, environment, component states, and an empty failed-component list. Local/memory dependencies may be <code>not_required</code>.</dd>
       <dt>Failure / semantics</dt><dd><code>503</code> with <code>status:"not_ready"</code> and safe failed component names. It executes <code>select 1</code> for Postgres, verifies the four SDK-owned checkpoint tables, checks fresh worker/dispatcher heartbeats, rejects stale or exhausted outbox work, pings Redis, and reads Qdrant collection metadata. S3-compatible object storage, LLM, and web search remain configuration checks only, so it never spends NVIDIA or Tavily quota.</dd>
-      <dt>Current boundary</dt><dd>Route and deterministic local/memory tests exist. Direct managed Postgres queries and S3 object CRUD now pass independently; no combined managed readiness response, Redis/Qdrant probe, or worker/dispatcher heartbeat has been validated.</dd>
+      <dt>Current boundary</dt><dd>Route and deterministic local/memory tests exist. On deployed ref <code>d7197f1</code>, public liveness and combined readiness return HTTP 200; Postgres, Redis, Qdrant collection access, worker/dispatcher heartbeats, outbox state, and checkpoint tables are ready. Object storage, model, and web search remain configuration-only in readiness, and no authenticated business operation or complete managed workflow is claimed.</dd>
       <dt>Evidence</dt><dd><span class="source">routers/health.py · tests/test_runtime_foundation.py · infra/openapi/openapi.yaml</span></dd>
      </dl></details>
      <details id="op-me" data-api-card data-api="identity" data-method="GET" data-access="bearer"><summary><code>GET /api/v1/me</code> — resolve the current identity</summary><dl class="kv">
@@ -320,7 +321,7 @@
      <p class="eyebrow">Extended contracts</p>
      <h2>Evidence-review, evaluation, reliability, and MCP operations</h2>
      <p class="sub">The 16 advanced REST operations below are present in FastAPI and generated OpenAPI. Together with the original 18 and readiness, the REST total is 35. Their route, schema, ownership/role, idempotency, and deterministic repository behavior have code evidence; managed providers, queue delivery, checkpoint recovery, telemetry export, and deployment remain integration-unvalidated. MCP is a separate protocol boundary and is not counted as REST.</p>
-     <div class="notice"><strong>Shared conventions:</strong> bearer authentication; owner/project permission checks in the API; <code>Idempotency-Key</code> on commands; the current error envelope with a request ID; authoritative operation state in Postgres; persisted SSE replay; and Redis as delivery rather than irreplaceable state. Direct Supabase Postgres connectivity is now validated, while Supabase JWT/RLS application behavior and distributed delivery are not.</div>
+     <div class="notice"><strong>Shared conventions:</strong> bearer authentication; owner/project permission checks in the API; <code>Idempotency-Key</code> on commands; the current error envelope with a request ID; authoritative operation state in Postgres; persisted SSE replay; and Redis as delivery rather than irreplaceable state. Supabase JWT-backed project create/list/read is now validated for one user; cross-user RLS denial and distributed delivery are not.</div>
      <div class="notice warning"><strong>How to read the rows:</strong> request and success shapes describe the implemented route schemas. Local LangGraph, RAGAS, strict-checkpoint serializer, and MCP initialization tests now pass. Failure/recovery and acceptance rows still name distributed-system gates; they are not evidence that a managed checkpoint, provider, queue, or cloud runtime passed.</div>
 
      <details id="planned-research-run" data-api-card data-api="research" data-method="POST" open><summary><code>POST /api/v1/research-runs</code> — start an evidence review <span class="status partial">implemented contract · runtime unvalidated</span></summary><dl class="kv">
@@ -490,7 +491,7 @@
    </aside>
   </div>
  </main>
- <footer class="shell footer">ResearchMate API contracts · 35 OpenAPI REST operations · external runtime validation pending</footer>
+ <footer class="shell footer">ResearchMate API contracts · 35 OpenAPI REST operations · managed readiness verified, authenticated operations pending</footer>
  <script src="../../assets/site.js"></script>
 </body>
 </html>
