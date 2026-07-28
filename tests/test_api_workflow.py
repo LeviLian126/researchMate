@@ -197,6 +197,76 @@ def test_conversation_resume_and_cross_user_concealment(client: TestClient) -> N
     )
 
 
+def test_conversation_rename_delete_and_cross_user_concealment(client: TestClient) -> None:
+    project = client.post(
+        "/api/v1/projects", json={"name": "Managed conversations"}, headers=USER_A_HEADERS
+    ).json()
+    conversation_id = client.post(
+        "/api/v1/ask",
+        json={"project_id": project["id"], "message": "Original title"},
+        headers=USER_A_HEADERS,
+    ).json()["conversation_id"]
+
+    assert client.patch(
+        f"/api/v1/conversations/{conversation_id}",
+        json={"title": "Other user's attempt"},
+        headers=USER_B_HEADERS,
+    ).status_code == 404
+    renamed = client.patch(
+        f"/api/v1/conversations/{conversation_id}",
+        json={"title": "Renamed session"},
+        headers=USER_A_HEADERS,
+    )
+    assert renamed.status_code == 200
+    assert renamed.json()["title"] == "Renamed session"
+    assert client.patch(
+        f"/api/v1/conversations/{conversation_id}",
+        json={"title": "   "},
+        headers=USER_A_HEADERS,
+    ).status_code == 422
+
+    assert client.delete(
+        f"/api/v1/conversations/{conversation_id}",
+        headers=USER_B_HEADERS,
+    ).status_code == 404
+    assert client.delete(
+        f"/api/v1/conversations/{conversation_id}",
+        headers=USER_A_HEADERS,
+    ).status_code == 204
+    assert client.get(
+        f"/api/v1/conversations/{conversation_id}/messages",
+        headers=USER_A_HEADERS,
+    ).status_code == 404
+
+
+def test_deleted_project_conceals_its_conversation_management(client: TestClient) -> None:
+    project = client.post(
+        "/api/v1/projects", json={"name": "Deleted project"}, headers=USER_A_HEADERS
+    ).json()
+    conversation_id = client.post(
+        "/api/v1/ask",
+        json={"project_id": project["id"], "message": "Conversation before deletion"},
+        headers=USER_A_HEADERS,
+    ).json()["conversation_id"]
+    assert client.delete(
+        f"/api/v1/projects/{project['id']}", headers=USER_A_HEADERS
+    ).status_code == 202
+
+    assert client.patch(
+        f"/api/v1/conversations/{conversation_id}",
+        json={"title": "Should stay concealed"},
+        headers=USER_A_HEADERS,
+    ).status_code == 404
+    assert client.delete(
+        f"/api/v1/conversations/{conversation_id}",
+        headers=USER_A_HEADERS,
+    ).status_code == 404
+    assert client.get(
+        f"/api/v1/conversations/{conversation_id}/messages",
+        headers=USER_A_HEADERS,
+    ).status_code == 404
+
+
 def test_runtime_rerank_config_is_admin_versioned(client: TestClient) -> None:
     assert (
         client.get(

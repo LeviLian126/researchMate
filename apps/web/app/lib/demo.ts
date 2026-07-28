@@ -23,6 +23,8 @@ let projectSequence = 1;
 let runSequence = 1;
 let evaluationSequence = 1;
 let documentSequence = 1;
+let conversationTitle = "Walkthrough conversation";
+let latestJob: Json | null = null;
 
 const projects: Json[] = [{
   id: DEMO_PROJECT_ID,
@@ -170,11 +172,10 @@ function demoRun(projectId: string, kind: string): Json {
 /**
  * Public static-demo mode is intentionally a browser-only walkthrough. It has
  * deterministic sample evidence and never sends credentials or requests to a
- * managed API. Real release builds set NEXT_PUBLIC_DEMO_MODE=false.
+ * managed API. It is enabled only by an explicit deployment setting.
  */
 export function isPublicDemo(): boolean {
-  const configured = process.env.NEXT_PUBLIC_DEMO_MODE;
-  return configured === "true" || (configured !== "false" && process.env.NODE_ENV === "production");
+  return process.env.NEXT_PUBLIC_DEMO_MODE === "true";
 }
 
 export async function demoFetch<T>(rawPath: string, init: globalThis.RequestInit = {}): Promise<T> {
@@ -197,6 +198,9 @@ export async function demoFetch<T>(rawPath: string, init: globalThis.RequestInit
 
   const projectMatch = path.match(/^\/projects\/([^/]+)/);
   const projectId = projectMatch?.[1] ?? DEMO_PROJECT_ID;
+  if (projectMatch && !path.slice(projectMatch[0].length).includes("/") && method === "GET") {
+    return projects.find((project) => project.id === projectId) as T;
+  }
   if (path.endsWith("/documents") && method === "GET") return projectDocuments(projectId) as T;
   if (path.endsWith("/claims") && method === "GET") return { items: claims } as T;
   if (path.endsWith("/claim-relations") && method === "GET") return { items: relations } as T;
@@ -207,7 +211,7 @@ export async function demoFetch<T>(rawPath: string, init: globalThis.RequestInit
       items: chatMessages.length ? [{
         id: "abababab-abab-4bab-8bab-abababababab",
         project_id: projectId,
-        title: "Walkthrough conversation",
+        title: conversationTitle,
         created_at: timestamp,
         updated_at: timestamp,
       }] : [],
@@ -218,6 +222,21 @@ export async function demoFetch<T>(rawPath: string, init: globalThis.RequestInit
       conversation_id: "abababab-abab-4bab-8bab-abababababab",
       messages: chatMessages,
     } as T;
+  }
+  if (path.startsWith("/conversations/") && method === "PATCH") {
+    conversationTitle = typeof body.title === "string" ? body.title : conversationTitle;
+    return {
+      id: "abababab-abab-4bab-8bab-abababababab",
+      project_id: projectId,
+      title: conversationTitle,
+      created_at: timestamp,
+      updated_at: timestamp,
+    } as T;
+  }
+  if (path.startsWith("/conversations/") && method === "DELETE") {
+    chatMessages = [];
+    conversationTitle = "Walkthrough conversation";
+    return {} as T;
   }
 
   if (path === "/documents/upload-url" && method === "POST") {
@@ -260,6 +279,25 @@ export async function demoFetch<T>(rawPath: string, init: globalThis.RequestInit
       fallback_reason: null,
     } as T;
   }
+  const deleteDocumentMatch = path.match(/^\/documents\/([^/]+)$/);
+  if (deleteDocumentMatch && method === "DELETE") {
+    const index = documents.findIndex((item) => item.id === deleteDocumentMatch[1]);
+    if (index >= 0) documents.splice(index, 1);
+    latestJob = {
+      id: "71717171-7171-4717-8717-717171717171",
+      user_id: "public-demo",
+      project_id: projectId,
+      document_id: deleteDocumentMatch[1],
+      type: "delete_document",
+      status: "succeeded",
+      progress: 100,
+      error_message: null,
+      created_at: timestamp,
+      updated_at: timestamp,
+    };
+    return { job_id: latestJob.id, status: latestJob.status } as T;
+  }
+  if (path.startsWith("/jobs/") && method === "GET" && latestJob) return latestJob as T;
 
   if (path.startsWith("/reports/") && path.endsWith("/refresh") && method === "POST") {
     const run = demoRun(DEMO_PROJECT_ID, "report_refresh");

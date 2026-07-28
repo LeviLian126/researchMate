@@ -146,6 +146,12 @@ class ResearchMateRepository(Protocol):
         self, user: CurrentUser, conversation_id: UUID
     ) -> list[ConversationMessage] | None: ...
 
+    def rename_conversation(
+        self, user: CurrentUser, conversation_id: UUID, title: str
+    ) -> ConversationSummary | None: ...
+
+    def delete_conversation(self, user: CurrentUser, conversation_id: UUID) -> bool: ...
+
     def get_runtime_rerank_config(self) -> RuntimeRerankConfig: ...
 
     def update_runtime_rerank_config(
@@ -614,6 +620,29 @@ class InMemoryResearchMateStore:
             if conversation is None or self.get_project(user, conversation.project_id) is None:
                 return None
             return list(self.conversation_items.get(conversation_id, []))
+
+    def rename_conversation(
+        self, user: CurrentUser, conversation_id: UUID, title: str
+    ) -> ConversationSummary | None:
+        with self._lock:
+            conversation = self.conversations.get(conversation_id)
+            if conversation is None or self.get_project(user, conversation.project_id) is None:
+                return None
+            updated = conversation.model_copy(
+                update={"title": title.strip(), "updated_at": datetime.now(UTC)}
+            )
+            self.conversations[conversation_id] = updated
+            return updated
+
+    def delete_conversation(self, user: CurrentUser, conversation_id: UUID) -> bool:
+        with self._lock:
+            conversation = self.conversations.get(conversation_id)
+            if conversation is None or self.get_project(user, conversation.project_id) is None:
+                return False
+            self.conversations.pop(conversation_id, None)
+            self.conversation_items.pop(conversation_id, None)
+            self.conversation_summaries.pop(conversation_id, None)
+            return True
 
     def get_runtime_rerank_config(self) -> RuntimeRerankConfig:
         with self._lock:

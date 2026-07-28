@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from researchmate_api.schemas.common import Citation
 
@@ -17,6 +17,20 @@ class ConversationSummary(BaseModel):
 
 class ConversationListResponse(BaseModel):
     items: list[ConversationSummary] = Field(default_factory=list, max_length=100)
+
+
+class ConversationUpdate(BaseModel):
+    title: str = Field(min_length=1, max_length=120)
+
+    model_config = ConfigDict(extra="forbid")
+
+    @field_validator("title")
+    @classmethod
+    def normalize_title(cls, value: str) -> str:
+        title = value.strip()
+        if not title:
+            raise ValueError("Conversation title must contain visible text.")
+        return title
 
 
 class ConversationMessage(BaseModel):

@@ -14,6 +14,13 @@ interface UploadUrlResponse {
   expires_in_seconds: number;
 }
 
+interface DeletionJob {
+  id: string;
+  status: "pending" | "running" | "succeeded" | "failed" | "cancelled";
+  progress: number;
+  error_message?: string | null;
+}
+
 /** Presents source upload, ingestion feedback, search, and document status in one operational view. */
 export default function LibraryPage() {
   const params = useParams<{ projectId: string }>();
@@ -27,6 +34,8 @@ export default function LibraryPage() {
   const [status, setStatus] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [deleteConfirmationId, setDeleteConfirmationId] = useState<string | null>(null);
+  const mounted = useRef(true);
 
   const filteredDocuments = useMemo(
     () => documents.filter((document) => document.filename.toLowerCase().includes(query.trim().toLowerCase())),
@@ -47,7 +56,9 @@ export default function LibraryPage() {
   }
 
   useEffect(() => {
+    mounted.current = true;
     void loadDocuments();
+    return () => { mounted.current = false; };
   }, [projectId]);
 
   /** Stores only supported file selections so invalid input never reaches the upload contract. */
@@ -107,6 +118,55 @@ export default function LibraryPage() {
     }
   }
 
+  /** Queues canonical source deletion and refreshes the visible project collection. */
+  async function deleteDocument(documentId: string) {
+    setError(null);
+    setStatus("Scheduling source removal…");
+    try {
+      const accepted = await apiFetch<{ job_id: string; status: string }>(
+        `/documents/${documentId}`,
+        { method: "DELETE" },
+      );
+      setStatus(`Source removal job ${accepted.job_id} is ${accepted.status}.`);
+      setDeleteConfirmationId(null);
+      await loadDocuments();
+      await pollDeletionJob(accepted.job_id);
+    } catch (err) {
+      setStatus(null);
+      setError(err instanceof Error ? err.message : "Source removal could not be scheduled.");
+    }
+  }
+
+  /** Polls the durable deletion job so object/vector cleanup failures stay visible. */
+  async function pollDeletionJob(jobId: string) {
+    for (let attempt = 0; attempt < 20 && mounted.current; attempt += 1) {
+      let job: DeletionJob;
+      try {
+        job = await apiFetch<DeletionJob>(`/jobs/${jobId}`);
+      } catch {
+        if (mounted.current) {
+          setStatus(`Source removal was accepted, but job ${jobId} status is temporarily unavailable.`);
+        }
+        return;
+      }
+      if (!mounted.current) return;
+      if (job.status === "succeeded") {
+        setStatus("Source removal completed, including the durable cleanup job.");
+        return;
+      }
+      if (job.status === "failed" || job.status === "cancelled") {
+        setStatus(null);
+        setError(job.error_message || `Source removal job ${jobId} ${job.status}. Retry the removal or contact an administrator.`);
+        return;
+      }
+      setStatus(`Source removal is ${job.status} (${job.progress}%).`);
+      await new Promise((resolve) => window.setTimeout(resolve, 1500));
+    }
+    if (mounted.current) {
+      setStatus(`Source removal is still processing. Track job ${jobId} from the project status API.`);
+    }
+  }
+
   return (
     <main className="app-shell workspace-shell">
       <ProjectNav projectId={projectId} current="library" />
@@ -150,7 +210,17 @@ export default function LibraryPage() {
               <article className={`document-row document-row--${document.status}`} key={document.id}>
                 <span className="document-row__type" aria-hidden="true">{document.file_type.toUpperCase()}</span>
                 <div><strong>{document.filename}</strong><small>{formatBytes(document.size_bytes)} · {document.error_message || "Stored in this project"}</small></div>
-                <span className={`status-badge status-badge--${document.status}`}>{document.status}</span>
+                <div className="document-row__actions">
+                  <span className={`status-badge status-badge--${document.status}`}>{document.status}</span>
+                  {deleteConfirmationId === document.id ? (
+                    <span className="document-delete-confirm">
+                      <button type="button" onClick={() => void deleteDocument(document.id)}>Confirm remove</button>
+                      <button type="button" onClick={() => setDeleteConfirmationId(null)}>Cancel</button>
+                    </span>
+                  ) : (
+                    <button type="button" onClick={() => setDeleteConfirmationId(document.id)}>Remove</button>
+                  )}
+                </div>
               </article>
             ))}
           </div>

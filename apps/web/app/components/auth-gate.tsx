@@ -11,6 +11,7 @@ import {
   sendMagicLink,
   signInWithGitHub,
   signInWithPassword,
+  signUpWithPassword,
   signOut,
 } from "../lib/supabase";
 import { isPublicDemo } from "../lib/demo";
@@ -77,6 +78,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
 }
 
 function SignInPanel() {
+  const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState<"password" | "magic" | "github" | null>(null);
@@ -87,9 +89,26 @@ function SignInPanel() {
     setBusy("password");
     setMessage(null);
     try {
-      await signInWithPassword(email, password);
+      if (mode === "signin") {
+        await signInWithPassword(email, password);
+      } else {
+        const result = await signUpWithPassword(email, password);
+        if (result === "confirmation_required") {
+          setMessage({
+            title: "Confirm your email",
+            detail: "Open the confirmation link from Supabase, then return here to sign in.",
+            kind: "success",
+          });
+        }
+      }
     } catch {
-      setMessage({ title: "Sign-in failed", detail: "Check the email and password, or use a magic link. No protected request was sent.", kind: "auth" });
+      setMessage({
+        title: mode === "signin" ? "Sign-in failed" : "Account could not be created",
+        detail: mode === "signin"
+          ? "Check the email and password, or use a magic link. No protected request was sent."
+          : "Check the email, use at least six password characters, or sign in if the account already exists.",
+        kind: "auth",
+      });
     }
     setBusy(null);
   }
@@ -124,17 +143,27 @@ function SignInPanel() {
   return (
     <main className="auth-shell">
       <form className="glass-panel auth-panel stack" onSubmit={submitPassword}>
-        <div><p className="eyebrow">ResearchMate portfolio demo</p><h1>Sign in to the workspace</h1><p>Preview and production require a verified Supabase session. Development identities are never used here.</p></div>
+        <div className="auth-brand"><span aria-hidden="true">R</span><strong>ResearchMate</strong></div>
+        <div>
+          <p className="eyebrow">Your research workspace</p>
+          <h1>{mode === "signin" ? "Welcome back" : "Create your account"}</h1>
+          <p>{mode === "signin" ? "Continue your projects, conversations, sources, and quizzes." : "Create one secure workspace for your research projects and source-backed conversations."}</p>
+        </div>
+        <div className="auth-mode-switch" role="tablist" aria-label="Authentication mode">
+          <button type="button" role="tab" aria-selected={mode === "signin"} onClick={() => { setMode("signin"); setMessage(null); }}>Sign in</button>
+          <button type="button" role="tab" aria-selected={mode === "signup"} onClick={() => { setMode("signup"); setMessage(null); }}>Sign up</button>
+        </div>
         {message && <StateNotice state={message} />}
         <button className="github-auth-button" type="button" onClick={submitGitHub} disabled={busy !== null}>{busy === "github" ? "Opening GitHub…" : "Continue with GitHub"}</button>
         <div className="auth-divider"><span>or use email</span></div>
         <label htmlFor="auth-email">Email</label>
         <input id="auth-email" type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
         <label htmlFor="auth-password">Password</label>
-        <input id="auth-password" type="password" autoComplete="current-password" minLength={6} value={password} onChange={(event) => setPassword(event.target.value)} required />
-        <button className="primary-button" type="submit" disabled={busy !== null}>{busy === "password" ? "Signing in…" : "Sign in with password"}</button>
-        <button type="button" onClick={() => void submitMagicLink()} disabled={busy !== null}>{busy === "magic" ? "Sending link…" : "Email a magic link"}</button>
+        <input id="auth-password" type="password" autoComplete={mode === "signin" ? "current-password" : "new-password"} minLength={6} value={password} onChange={(event) => setPassword(event.target.value)} required />
+        <button className="primary-button" type="submit" disabled={busy !== null}>{busy === "password" ? (mode === "signin" ? "Signing in…" : "Creating account…") : (mode === "signin" ? "Sign in" : "Create account")}</button>
+        {mode === "signin" && <button type="button" onClick={() => void submitMagicLink()} disabled={busy !== null}>{busy === "magic" ? "Sending link…" : "Email a magic link"}</button>}
       </form>
+      <a className="auth-source-link" href="https://github.com/LeviLian126/researchMate">GitHub ↗</a>
     </main>
   );
 }

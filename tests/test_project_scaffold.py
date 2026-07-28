@@ -188,7 +188,7 @@ def test_database_and_api_docs_reconcile_complete_source_contracts() -> None:
     documented_operations = set(
         re.findall(r"<code>(GET|POST|PUT|PATCH|DELETE) (/api/v1/[^<]+)</code> —", api_docs)
     )
-    assert len(spec_operations) == 39
+    assert len(spec_operations) == 41
     assert documented_operations == spec_operations
 
 
@@ -299,6 +299,16 @@ def test_backend_pydantic_contracts_validate_request_shape() -> None:
         web_enabled=False,
     )
     assert request.web_enabled is False
+
+
+def test_postgres_conversation_commit_rechecks_active_project() -> None:
+    """Keep deletion and Ask commits serialized at the durable tenant boundary."""
+    source = (
+        ROOT / "apps/api/src/researchmate_api/persistence/postgres.py"
+    ).read_text(encoding="utf-8")
+    assert "p.status='active'" in source
+    assert "for update of c,p" in source
+    assert source.count("p.status='active'") >= 7
 
 
 def test_local_verification_policy_keeps_integration_on_deployed_environment() -> None:

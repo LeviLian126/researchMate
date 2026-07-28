@@ -1,8 +1,8 @@
 // Implements the unified persistent chat with optional web evidence.
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { FormEvent, Suspense, useEffect, useRef, useState } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { ProjectNav } from "../../../../components/project-nav";
 import { StateNotice } from "../../../../components/state-notice";
 import {
@@ -19,46 +19,92 @@ const STARTERS = [
   "What should I verify before citing this research?",
 ];
 
+/** Supplies the static-render boundary required by query-backed conversation selection. */
 export default function ResearchChatPage() {
+  return <Suspense fallback={<main className="app-shell"><div className="empty-state" role="status">Loading conversation…</div></main>}><ResearchChatWorkspace /></Suspense>;
+}
+
+/** Coordinates one project conversation and its optional web evidence. */
+function ResearchChatWorkspace() {
   const params = useParams<{ projectId: string }>();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const projectId = params.projectId;
   const [message, setMessage] = useState("");
   const [webEnabled, setWebEnabled] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
-  const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [messages, setMessages] = useState<ConversationMessage[]>([]);
   const [error, setError] = useState<ReturnType<typeof describeApiError> | null>(null);
   const [loading, setLoading] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(true);
   const [degraded, setDegraded] = useState(false);
+  const routeRequest = useRef(0);
+  const historyRequest = useRef(0);
 
   async function loadMessages(id: string) {
-    const body = await apiFetch<{ messages: ConversationMessage[] }>(
-      `/conversations/${id}/messages`,
-    );
-    setMessages(body.messages);
+    const requestId = ++historyRequest.current;
+    setHistoryLoading(true);
+    try {
+      const body = await apiFetch<{ messages: ConversationMessage[] }>(
+        `/conversations/${id}/messages`,
+      );
+      if (requestId === historyRequest.current) {
+        setMessages(body.messages);
+      }
+    } finally {
+      if (requestId === historyRequest.current) {
+        setHistoryLoading(false);
+      }
+    }
   }
 
   useEffect(() => {
-    let cancelled = false;
+    const requestId = ++routeRequest.current;
+    historyRequest.current += 1;
+    setHistoryLoading(true);
+    setLoading(false);
+    setMessages([]);
+    const requestedConversation = searchParams.get("conversation");
+    if (searchParams.get("new") === "1") {
+      setConversationId(null);
+      setHistoryLoading(false);
+      return () => { routeRequest.current += 1; };
+    }
     apiFetch<{ items: ConversationSummary[] }>(`/projects/${projectId}/conversations`)
       .then(async (body) => {
-        if (cancelled) return;
-        setConversations(body.items);
-        if (body.items[0]) {
-          setConversationId(body.items[0].id);
-          await loadMessages(body.items[0].id);
+        if (requestId !== routeRequest.current) return;
+        const selected = requestedConversation
+          ? body.items.find((item) => item.id === requestedConversation)
+          : body.items[0];
+        if (selected) {
+          setConversationId(selected.id);
+          await loadMessages(selected.id);
+          if (requestId !== routeRequest.current) return;
+          if (!requestedConversation) {
+            router.replace(`/app/projects/${projectId}/chat?conversation=${selected.id}`);
+          }
+        } else {
+          setConversationId(null);
+          setHistoryLoading(false);
         }
       })
       .catch((requestError) => {
-        if (!cancelled) setError(describeApiError(requestError));
+        if (requestId === routeRequest.current) {
+          setHistoryLoading(false);
+          setError(describeApiError(requestError));
+        }
       });
-    return () => { cancelled = true; };
-  }, [projectId]);
+    return () => {
+      routeRequest.current += 1;
+      historyRequest.current += 1;
+    };
+  }, [projectId, searchParams]);
 
   async function submitQuestion(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const prompt = message.trim();
-    if (!prompt) return;
+    if (!prompt || historyLoading) return;
+    const requestId = routeRequest.current;
     setError(null);
     setLoading(true);
     try {
@@ -71,27 +117,23 @@ export default function ResearchChatPage() {
           web_enabled: webEnabled,
         }),
       });
+      if (requestId !== routeRequest.current) return;
       setConversationId(answer.conversation_id);
       setDegraded(answer.rerank_degraded);
       setMessage("");
       await loadMessages(answer.conversation_id);
-      const list = await apiFetch<{ items: ConversationSummary[] }>(
-        `/projects/${projectId}/conversations`,
-      );
-      setConversations(list.items);
+      if (requestId !== routeRequest.current) return;
+      router.replace(`/app/projects/${projectId}/chat?conversation=${answer.conversation_id}`);
+      window.dispatchEvent(new Event("researchmate:sidebar-refresh"));
     } catch (requestError) {
-      setError(describeApiError(requestError));
+      if (requestId === routeRequest.current) {
+        setError(describeApiError(requestError));
+      }
     } finally {
-      setLoading(false);
+      if (requestId === routeRequest.current) {
+        setLoading(false);
+      }
     }
-  }
-
-  function startNewChat() {
-    setConversationId(null);
-    setMessages([]);
-    setMessage("");
-    setError(null);
-    setDegraded(false);
   }
 
   return (
@@ -104,27 +146,8 @@ export default function ResearchChatPage() {
         <p>Chat directly, use uploaded documents automatically, or add current web evidence with one switch.</p>
       </header>
 
-      <div className="chat-session-bar">
-        <label>
-          <span className="sr-only">Conversation</span>
-          <select
-            value={conversationId ?? ""}
-            onChange={(event) => {
-              const id = event.target.value;
-              if (!id) return startNewChat();
-              setConversationId(id);
-              void loadMessages(id);
-            }}
-          >
-            <option value="">New conversation</option>
-            {conversations.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}
-          </select>
-        </label>
-        <button type="button" onClick={startNewChat}>New chat</button>
-      </div>
-
       <section className="chat-thread" aria-live="polite" aria-label="Conversation">
-        {!messages.length && !loading && (
+        {!messages.length && !loading && !historyLoading && (
           <div className="chat-starters" aria-label="Suggested questions">
             {STARTERS.map((starter) => (
               <button type="button" key={starter} onClick={() => setMessage(starter)}>
@@ -202,10 +225,10 @@ export default function ResearchChatPage() {
           <button
             className="primary-button"
             type="submit"
-            disabled={loading || !message.trim()}
+            disabled={loading || historyLoading || !message.trim()}
             aria-label="Send message"
           >
-            {loading ? "…" : "Send"}
+            {loading || historyLoading ? "…" : "Send"}
           </button>
         </div>
       </form>

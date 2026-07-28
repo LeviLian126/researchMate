@@ -1,7 +1,9 @@
-// Provides the persistent project workspace navigation shared by every authenticated product surface.
+// Provides the compact project header and its chat, source, quiz, and review actions.
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
+import { apiFetch, ProjectRecord } from "../lib/api";
 
 type ProjectSurface = "chat" | "evidence" | "library" | "quiz" | "labs";
 
@@ -10,44 +12,45 @@ interface ProjectNavProps {
   current: ProjectSurface;
 }
 
-/** Renders the desktop project rail and its compact mobile navigation fallback. */
+/** Renders project context without exposing internal engineering tools as user navigation. */
 export function ProjectNav({ projectId, current }: ProjectNavProps) {
+  const [project, setProject] = useState<ProjectRecord | null>(null);
   const links = [
-    { key: "chat", label: "Research", symbol: "01", href: `/app/projects/${projectId}/chat` },
-    { key: "library", label: "Library", symbol: "02", href: `/app/projects/${projectId}/library` },
-    { key: "evidence", label: "Review", symbol: "03", href: `/app/projects/${projectId}` },
-    { key: "quiz", label: "Quiz", symbol: "04", href: `/app/projects/${projectId}/quiz` },
-    { key: "labs", label: "Labs", symbol: "05", href: `/app/projects/${projectId}/labs` },
+    { key: "chat", label: "Chats", href: `/app/projects/${projectId}/chat` },
+    { key: "library", label: "Sources", href: `/app/projects/${projectId}/library` },
+    { key: "evidence", label: "Review", href: `/app/projects/${projectId}` },
   ] as const;
 
+  useEffect(() => {
+    let current = true;
+    setProject(null);
+    void apiFetch<ProjectRecord>(`/projects/${projectId}`)
+      .then((record) => {
+        if (current) setProject(record);
+      })
+      .catch(() => undefined);
+    return () => { current = false; };
+  }, [projectId]);
+
   return (
-    <aside className="project-sidebar" aria-label="Project workspace">
-      <Link className="project-brand" href="/" aria-label="ResearchMate home">
-        <span className="project-brand__mark" aria-hidden="true">R</span>
-        <span>Research<br />Mate</span>
-      </Link>
-
-      <div className="project-sidebar__context">
-        <span className="project-sidebar__label">Project record</span>
-        <Link className="project-sidebar__project" href="/app">
-          <span aria-hidden="true">←</span>
-          All projects
-        </Link>
+    <header className="project-workspace-header">
+      <div className="project-workspace-header__title">
+        <span aria-hidden="true">□</span>
+        <h1>{project?.name ?? "Project"}</h1>
       </div>
-
-      <nav className="project-sidebar__nav" aria-label="Project navigation">
+      <div className="project-workspace-header__actions">
+        <Link href={`/app/projects/${projectId}/chat?new=1`}>＋ New chat</Link>
+        <Link href={`/app/projects/${projectId}/quiz?new=1`}>＋ Quiz</Link>
+      </div>
+      <nav className="project-workspace-tabs" aria-label="Project navigation">
         {links.map((link) => (
           <Link key={link.key} href={link.href} aria-current={current === link.key ? "page" : undefined}>
-            <span className="project-sidebar__icon" aria-hidden="true">{link.symbol}</span>
             {link.label}
           </Link>
         ))}
+        {current === "quiz" && <Link href={`/app/projects/${projectId}/quiz`} aria-current="page">Quiz</Link>}
+        {current === "labs" && <span aria-current="page">Engineering</span>}
       </nav>
-
-      <div className="project-sidebar__footer">
-        <a href="https://github.com/LeviLian126/researchMate/tree/main/docs">Documentation</a>
-        <a href="https://github.com/LeviLian126/researchMate">Source code</a>
-      </div>
-    </aside>
+    </header>
   );
 }

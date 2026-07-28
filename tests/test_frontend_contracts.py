@@ -13,6 +13,7 @@ def test_frontend_mvp_pages_exist() -> None:
         "apps/web/app/app/projects/[projectId]/quiz/page.tsx",
         "apps/web/app/app/projects/[projectId]/labs/page.tsx",
         "apps/web/app/components/project-nav.tsx",
+        "apps/web/app/components/app-sidebar.tsx",
         "apps/web/app/components/state-notice.tsx",
         "apps/web/app/components/auth-gate.tsx",
         "apps/web/app/app/layout.tsx",
@@ -38,6 +39,7 @@ def test_frontend_calls_mvp_api_contracts() -> None:
             ROOT / "apps/web/app/app/projects/[projectId]/library/page.tsx",
             ROOT / "apps/web/app/app/projects/[projectId]/quiz/page.tsx",
             ROOT / "apps/web/app/app/projects/[projectId]/labs/page.tsx",
+            ROOT / "apps/web/app/components/app-sidebar.tsx",
             ROOT / "apps/web/app/dev/traces/[traceId]/page.tsx",
             ROOT / "apps/web/app/lib/api.ts",
         ]
@@ -62,6 +64,8 @@ def test_frontend_calls_mvp_api_contracts() -> None:
         "/evaluation-runs",
         "/dev/reliability",
         "/dev/fault-scenarios",
+        'method: "PATCH"',
+        'method: "DELETE"',
     ]
 
     for token in required_tokens:
@@ -146,6 +150,7 @@ def test_frontend_uses_supabase_session_outside_local_development() -> None:
         "NEXT_PUBLIC_SUPABASE_ANON_KEY",
         "onAuthStateChange",
         "signInWithPassword",
+        "signUpWithPassword",
         "signInWithGitHub",
         "getGitHubOAuthUrl",
         'searchParams.set("provider", "github")',
@@ -154,6 +159,7 @@ def test_frontend_uses_supabase_session_outside_local_development() -> None:
         "getSupabaseSession",
         "session.access_token",
         '"/token?grant_type=password"',
+        '"/signup"',
         '"/token?grant_type=refresh_token"',
         '"/logout?scope=local"',
         '"apikey"',
@@ -168,3 +174,38 @@ def test_frontend_uses_supabase_session_outside_local_development() -> None:
     assert "if (!session?.access_token)" in api
     assert 'return window.localStorage.getItem("researchmate_token") || "dev"' in api
     assert 'if (!isLocalDevelopment()) throw new ApiError' in api
+
+
+def test_sidebar_has_real_project_session_source_quiz_and_engineering_boundaries() -> None:
+    sidebar = (ROOT / "apps/web/app/components/app-sidebar.tsx").read_text(encoding="utf-8")
+    chat = (ROOT / "apps/web/app/app/projects/[projectId]/chat/page.tsx").read_text(
+        encoding="utf-8"
+    )
+    project_nav = (ROOT / "apps/web/app/components/project-nav.tsx").read_text(
+        encoding="utf-8"
+    )
+    labs = (ROOT / "apps/web/app/app/projects/[projectId]/labs/page.tsx").read_text(
+        encoding="utf-8"
+    )
+
+    for token in [
+        "researchmate_sidebar_collapsed",
+        "/conversations/${managedConversationId}",
+        'method: "PATCH"',
+        'method: "DELETE"',
+        "New chat",
+        "New project",
+        "Manage project sources",
+        "Create a new quiz",
+        "Engineering evaluation and reliability",
+        'role === "developer"',
+        'role === "admin"',
+    ]:
+        assert token in sidebar
+    assert "Developer access required" in labs
+    assert 'session?.user?.role' in labs
+    assert "navigationRequest.current" in sidebar
+    assert "routeRequest.current" in chat
+    assert "historyRequest.current" in chat
+    assert "historyLoading || !message.trim()" in chat
+    assert "if (current) setProject(record)" in project_nav

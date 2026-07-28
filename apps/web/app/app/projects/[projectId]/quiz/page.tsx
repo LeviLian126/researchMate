@@ -1,8 +1,8 @@
 // Implements grounded quiz generation and answer review against the authenticated quiz API.
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { useParams } from "next/navigation";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { ProjectNav } from "../../../../components/project-nav";
 import { StateNotice } from "../../../../components/state-notice";
 import { apiFetch, describeApiError, QuizSet } from "../../../../lib/api";
@@ -20,9 +20,19 @@ interface QuizGenerationResponse {
 }
 
 /** Coordinates quiz history, generation, answer drafts, and citation-backed review. */
+/** Supplies the static-render boundary required by query-triggered quiz creation. */
 export default function QuizPage() {
+  return <Suspense fallback={<main className="app-shell"><div className="empty-state" role="status">Loading quiz…</div></main>}><QuizWorkspace /></Suspense>;
+}
+
+/** Coordinates quiz history, generation, answer drafts, and citation-backed review. */
+function QuizWorkspace() {
   const params = useParams<{ projectId: string }>();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const projectId = params.projectId;
+  const requestedQuizCreation = searchParams.get("new") === "1";
+  const creationProject = useRef<string | null>(null);
   const [quizSets, setQuizSets] = useState<QuizSet[]>([]);
   const [activeQuizId, setActiveQuizId] = useState<string | null>(null);
   const [answers, setAnswers] = useState<Record<string, string>>({});
@@ -52,8 +62,19 @@ export default function QuizPage() {
   }
 
   useEffect(() => {
-    void loadHistory();
-  }, [projectId]);
+    void (async () => {
+      await loadHistory();
+      if (requestedQuizCreation && creationProject.current !== projectId) {
+        creationProject.current = projectId;
+        router.replace(`/app/projects/${projectId}/quiz`);
+        try {
+          await generateQuiz();
+        } finally {
+          creationProject.current = null;
+        }
+      }
+    })();
+  }, [projectId, requestedQuizCreation]);
 
   /** Requests one source-grounded review set and selects it when the API commits it. */
   async function generateQuiz() {
@@ -74,6 +95,8 @@ export default function QuizPage() {
       setActiveQuizId(quiz.id);
       setAnswers({});
       setReviewed(false);
+      router.replace(`/app/projects/${projectId}/quiz`);
+      window.dispatchEvent(new Event("researchmate:sidebar-refresh"));
     } catch (err) {
       setError(describeApiError(err).detail);
     } finally {

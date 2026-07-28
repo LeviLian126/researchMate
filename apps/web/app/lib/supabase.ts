@@ -4,7 +4,7 @@ export interface BrowserAuthSession {
   access_token: string;
   refresh_token: string;
   expires_at: number;
-  user: { email?: string } | null;
+  user: { email?: string; role?: string } | null;
 }
 
 type SessionListener = (session: BrowserAuthSession | null) => void;
@@ -54,15 +54,22 @@ function persist(session: BrowserAuthSession | null) {
   notify(session);
 }
 
-function emailFromAccessToken(token: string): string | undefined {
+function identityFromAccessToken(token: string): { email?: string; role?: string } {
   try {
     const segment = token.split(".")[1];
     const normalized = segment.replaceAll("-", "+").replaceAll("_", "/");
     const padded = normalized + "=".repeat((4 - normalized.length % 4) % 4);
-    const decoded = JSON.parse(atob(padded)) as { email?: unknown };
-    return typeof decoded.email === "string" ? decoded.email : undefined;
+    const decoded = JSON.parse(atob(padded)) as {
+      email?: unknown;
+      app_metadata?: { role?: unknown };
+    };
+    const role = decoded.app_metadata?.role;
+    return {
+      email: typeof decoded.email === "string" ? decoded.email : undefined,
+      role: typeof role === "string" ? role : undefined,
+    };
   } catch {
-    return undefined;
+    return {};
   }
 }
 
@@ -71,12 +78,18 @@ function toSession(payload: Record<string, unknown>): BrowserAuthSession {
     throw new Error("Supabase Auth returned an invalid session payload.");
   }
   const expiresIn = typeof payload.expires_in === "number" ? payload.expires_in : 3600;
-  const user = payload.user && typeof payload.user === "object" ? payload.user as { email?: string } : null;
+  const tokenIdentity = identityFromAccessToken(payload.access_token);
+  const user = payload.user && typeof payload.user === "object"
+    ? payload.user as { email?: string; app_metadata?: { role?: string } }
+    : null;
   return {
     access_token: payload.access_token,
     refresh_token: payload.refresh_token,
     expires_at: Date.now() + expiresIn * 1000,
-    user: user?.email ? { email: user.email } : { email: emailFromAccessToken(payload.access_token) },
+    user: {
+      email: user?.email ?? tokenIdentity.email,
+      role: user?.app_metadata?.role ?? tokenIdentity.role,
+    },
   };
 }
 
@@ -91,7 +104,7 @@ function restoreRedirectSession(): BrowserAuthSession | null {
     access_token: accessToken,
     refresh_token: refreshToken,
     expires_at: Date.now() + (Number.isFinite(expiresIn) ? expiresIn : 3600) * 1000,
-    user: { email: emailFromAccessToken(accessToken) },
+    user: identityFromAccessToken(accessToken),
   };
   window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
   return session;
@@ -104,7 +117,16 @@ function restoreStoredSession(): BrowserAuthSession | null {
     if (!raw) return null;
     const value = JSON.parse(raw) as Partial<BrowserAuthSession>;
     if (typeof value.access_token !== "string" || typeof value.refresh_token !== "string" || typeof value.expires_at !== "number") return null;
-    return { access_token: value.access_token, refresh_token: value.refresh_token, expires_at: value.expires_at, user: value.user ?? null };
+    const tokenIdentity = identityFromAccessToken(value.access_token);
+    return {
+      access_token: value.access_token,
+      refresh_token: value.refresh_token,
+      expires_at: value.expires_at,
+      user: {
+        email: value.user?.email ?? tokenIdentity.email,
+        role: tokenIdentity.role,
+      },
+    };
   } catch {
     window.localStorage.removeItem(STORAGE_KEY);
     return null;
@@ -165,6 +187,22 @@ export async function signInWithPassword(email: string, password: string): Promi
   const session = toSession(payload);
   persist(session);
   return session;
+}
+
+/** Creates an email/password identity and persists a session when email confirmation is disabled. */
+export async function signUpWithPassword(
+  email: string,
+  password: string,
+): Promise<"signed_in" | "confirmation_required"> {
+  const payload = await authRequest("/signup", {
+    method: "POST",
+    body: JSON.stringify({ email, password }),
+  });
+  if (typeof payload.access_token !== "string" || typeof payload.refresh_token !== "string") {
+    return "confirmation_required";
+  }
+  persist(toSession(payload));
+  return "signed_in";
 }
 
 export async function sendMagicLink(email: string, redirectTo: string): Promise<void> {

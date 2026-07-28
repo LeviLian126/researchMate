@@ -14,11 +14,42 @@ import {
   ReliabilityMetrics,
   PipelineVersionSummary,
 } from "../../../../lib/api";
+import { getSupabaseSession, isLocalDevelopment } from "../../../../lib/supabase";
 
 const UUID_PATTERN = "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}";
 const metricOptions = ["schema_valid", "citation_precision", "evidence_recall", "faithfulness"] as const;
 
+/** Prevents ordinary users from rendering developer controls before backend enforcement. */
 export default function EngineeringLabsPage() {
+  const { projectId } = useParams<{ projectId: string }>();
+  const [access, setAccess] = useState<"loading" | "allowed" | "denied">(
+    isLocalDevelopment() ? "allowed" : "loading",
+  );
+
+  useEffect(() => {
+    if (isLocalDevelopment()) return;
+    void getSupabaseSession().then((session) => {
+      setAccess(["developer", "admin"].includes(session?.user?.role ?? "") ? "allowed" : "denied");
+    }).catch(() => setAccess("denied"));
+  }, []);
+
+  if (access !== "allowed") {
+    return (
+      <main className="app-shell">
+        <ProjectNav projectId={projectId} current="labs" />
+        {access === "loading" ? (
+          <div className="empty-state" role="status">Checking Engineering access…</div>
+        ) : (
+          <StateNotice state={{ title: "Developer access required", detail: "Evaluation, reliability, and fault controls are not part of the normal project workspace.", kind: "permission" }} />
+        )}
+      </main>
+    );
+  }
+  return <EngineeringLabsWorkspace />;
+}
+
+/** Runs the role-restricted evaluation, reliability, and fault-control workspace. */
+function EngineeringLabsWorkspace() {
   const { projectId } = useParams<{ projectId: string }>();
   const [datasetId, setDatasetId] = useState("");
   const [pipelineVersionId, setPipelineVersionId] = useState("");

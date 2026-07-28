@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Response, status
 
 from researchmate_api.dependencies import (
     get_current_user,
@@ -13,6 +13,8 @@ from researchmate_api.schemas.common import CurrentUser
 from researchmate_api.schemas.conversation import (
     ConversationListResponse,
     ConversationMessagesResponse,
+    ConversationSummary,
+    ConversationUpdate,
     RuntimeRerankConfig,
     RuntimeRerankConfigUpdate,
 )
@@ -53,6 +55,36 @@ def list_messages(
         conversation_id=conversation_id,
         messages=messages[-200:],
     )
+
+
+@router.patch(
+    "/conversations/{conversation_id}",
+    response_model=ConversationSummary,
+)
+def rename_conversation(
+    conversation_id: UUID,
+    payload: ConversationUpdate,
+    user: CurrentUser = Depends(get_current_user),
+    repository: ResearchMateRepository = Depends(get_store),
+) -> ConversationSummary:
+    conversation = repository.rename_conversation(user, conversation_id, payload.title)
+    if conversation is None:
+        raise_api_error(404, "CONVERSATION_NOT_FOUND", "Conversation was not found.")
+    return conversation
+
+
+@router.delete(
+    "/conversations/{conversation_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def delete_conversation(
+    conversation_id: UUID,
+    user: CurrentUser = Depends(get_current_user),
+    repository: ResearchMateRepository = Depends(get_store),
+) -> Response:
+    if not repository.delete_conversation(user, conversation_id):
+        raise_api_error(404, "CONVERSATION_NOT_FOUND", "Conversation was not found.")
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.get("/admin/runtime-config/rerank", response_model=RuntimeRerankConfig)

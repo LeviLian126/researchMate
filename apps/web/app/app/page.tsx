@@ -2,7 +2,7 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { apiFetch, describeApiError, ProjectRecord, setDevToken } from "../lib/api";
 import { isLocalDevelopment } from "../lib/supabase";
 import { isPublicDemo } from "../lib/demo";
@@ -12,7 +12,6 @@ export default function ProjectListPage() {
   const local = isLocalDevelopment();
   const publicDemo = isPublicDemo();
   const [projects, setProjects] = useState<ProjectRecord[]>([]);
-  const [name, setName] = useState("Research workspace");
   const [token, setToken] = useState("dev");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -35,22 +34,6 @@ export default function ProjectListPage() {
     void loadProjects();
   }, [local]);
 
-  /** Creates a project through the shared API client and prepends the committed result. */
-  async function createProject(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setError(null);
-    try {
-      const project = await apiFetch<ProjectRecord>("/projects", {
-        method: "POST",
-        body: JSON.stringify({ name }),
-      });
-      setProjects((current) => [project, ...current]);
-      setName("");
-    } catch (err) {
-      setError(describeApiError(err).detail);
-    }
-  }
-
   /** Persists a local-only development identity before reloading its isolated projects. */
   function saveToken() {
     setDevToken(token);
@@ -72,16 +55,11 @@ export default function ProjectListPage() {
         </div>}
       </section>
 
-      <section className="content-grid two-columns">
-        <form className="glass-panel stack" onSubmit={createProject}>
-          <h2>Create a project</h2>
-          <input value={name} onChange={(event) => setName(event.target.value)} placeholder="Project name" />
-          <button className="primary-button" type="submit">Create project</button>
-          {error && <p className="error-banner">{error}</p>}
-        </form>
-
-        <div className="glass-panel stack">
+      <section className="content-grid">
+        <div className="glass-panel stack project-index-panel">
           <h2>Available projects</h2>
+          <p>Create a project from the sidebar, then keep its conversations, sources, and quizzes together.</p>
+          {error && <p className="error-banner">{error}</p>}
           {loading && <p role="status">Loading owned projects…</p>}
           {!loading && projects.length === 0 && <p className="empty-state">No projects for this identity. Create one, then add sources.</p>}
           <div className="card-list">
@@ -93,8 +71,7 @@ export default function ProjectListPage() {
                 </div>
                 <div className="row-actions">
                   <Link href={`/app/projects/${project.id}/chat`}>Open workspace</Link>
-                  <Link href={`/app/projects/${project.id}/library`}>Library</Link>
-                  <Link href={`/app/projects/${project.id}/labs`}>Labs</Link>
+                  <Link href={`/app/projects/${project.id}/library`}>Sources</Link>
                 </div>
               </article>
             ))}

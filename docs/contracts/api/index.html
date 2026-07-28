@@ -26,10 +26,10 @@
   <div class="hero">
    <p class="eyebrow">FastAPI / JSON over HTTP</p>
    <h1>API contracts</h1>
-    <p class="lede">This page records 35 maintained FastAPI REST operations: 18 MVP operations, one non-charging readiness probe, and 16 operations for evidence review, catalogs, reports, evaluation, reliability, and fault exercises. A route and OpenAPI record prove the contract only. They do not prove a managed background process or cloud integration.</p>
+    <p class="lede">This page records 41 maintained FastAPI REST operations across unified chat, conversations, projects, sources, quiz, readiness, evidence review, evaluation, reliability, and administration. A route and OpenAPI record prove the contract only. They do not prove a managed background process or cloud integration.</p>
    <div class="meta">
-     <span class="status local">35 implemented REST operations</span>
-     <span class="status local">108 tests collected · targeted 27 pass</span>
+     <span class="status local">41 implemented REST operations</span>
+     <span class="status partial">Current-ref CI evidence pending</span>
     <span class="status partial">Bearer · local development identity</span>
     <span class="status partial">Runtime/OpenAPI error drift</span>
     <span class="status partial">16 advanced contracts · integration unvalidated</span>
@@ -242,6 +242,8 @@
      </dl></details>
      <details id="op-conversation-list" data-api-card data-api="ask" data-method="GET" data-access="owner"><summary><code>GET /api/v1/projects/{project_id}/conversations</code> — list project conversations</summary><dl class="kv"><dt>Caller / access</dt><dd>Project owner.</dd><dt>Success</dt><dd>Newest 100 owned conversation summaries.</dd><dt>Failure / semantics</dt><dd>404 conceals absent and foreign projects.</dd></dl></details>
      <details id="op-conversation-messages" data-api-card data-api="ask" data-method="GET" data-access="owner"><summary><code>GET /api/v1/conversations/{conversation_id}/messages</code> — restore a conversation</summary><dl class="kv"><dt>Caller / access</dt><dd>Conversation owner.</dd><dt>Success</dt><dd>Up to 200 user/assistant messages with citations.</dd><dt>Failure / semantics</dt><dd>404 conceals absent and foreign conversations.</dd></dl></details>
+     <details id="op-conversation-rename" data-api-card data-api="ask" data-method="PATCH" data-access="owner"><summary><code>PATCH /api/v1/conversations/{conversation_id}</code> — rename a conversation</summary><dl class="kv"><dt>Caller / access</dt><dd>Conversation owner.</dd><dt>Input</dt><dd>Strict <code>ConversationUpdate</code> with a 1–120 character title.</dd><dt>Success</dt><dd>Updated conversation summary and timestamp.</dd><dt>Failure / semantics</dt><dd>404 conceals absent and foreign conversations.</dd></dl></details>
+     <details id="op-conversation-delete" data-api-card data-api="ask" data-method="DELETE" data-access="owner"><summary><code>DELETE /api/v1/conversations/{conversation_id}</code> — remove a conversation from the workspace</summary><dl class="kv"><dt>Caller / access</dt><dd>Conversation owner.</dd><dt>Success</dt><dd>204 after soft deletion; message/run records remain audit data and are no longer readable through the conversation route.</dd><dt>Failure / semantics</dt><dd>404 conceals absent and foreign conversations.</dd></dl></details>
      <details id="op-rerank-config-get" data-api-card data-api="ask" data-method="GET" data-access="developer"><summary><code>GET /api/v1/admin/runtime-config/rerank</code> — inspect reranking configuration</summary><dl class="kv"><dt>Caller / access</dt><dd>Developer or admin.</dd><dt>Success</dt><dd>Active provider, optimistic version, timestamp, and actor.</dd></dl></details>
      <details id="op-rerank-config-put" data-api-card data-api="ask" data-method="PUT" data-access="developer"><summary><code>PUT /api/v1/admin/runtime-config/rerank</code> — switch reranking without restart</summary><dl class="kv"><dt>Caller / access</dt><dd>Developer or admin.</dd><dt>Input</dt><dd><code>provider: auto|qdrant|nvidia|deterministic</code> plus the expected configuration version.</dd><dt>Success</dt><dd>Optimistic version update is visible to new requests without a restart.</dd><dt>Failure / semantics</dt><dd>409 on a concurrent update or when Qdrant lacks a completely indexed, explicitly verified free late-interaction model. Environment values are startup defaults; Postgres is the runtime switch.</dd></dl></details>
      <details id="op-sources" data-api-card data-api="ask" data-method="GET" data-access="owner"><summary><code>GET /api/v1/runs/{run_id}/sources</code> — inspect run sources</summary><dl class="kv">
@@ -322,7 +324,7 @@
     <section id="planned-operations">
      <p class="eyebrow">Extended contracts</p>
      <h2>Evidence-review, evaluation, reliability, and MCP operations</h2>
-     <p class="sub">The generated OpenAPI now contains 39 REST operations, including four unified conversation and runtime-rerank operations. Their route, schema, ownership/role, idempotency, and deterministic repository behavior have code evidence; managed providers, queue delivery, checkpoint recovery, telemetry export, and deployment remain integration-unvalidated. MCP is a separate protocol boundary and is not counted as REST.</p>
+     <p class="sub">The generated OpenAPI now contains 41 REST operations, including owner-scoped conversation list/read/rename/delete and two runtime-rerank operations. Their route, schema, ownership/role, idempotency, and deterministic repository behavior have code evidence; managed providers, queue delivery, checkpoint recovery, telemetry export, and deployment remain integration-unvalidated. MCP is a separate protocol boundary and is not counted as REST.</p>
      <div class="notice"><strong>Shared conventions:</strong> bearer authentication; owner/project permission checks in the API; <code>Idempotency-Key</code> on commands; the current error envelope with a request ID; authoritative operation state in Postgres; persisted SSE replay; and Redis as delivery rather than irreplaceable state. Supabase JWT-backed project create/list/read is validated for password and GitHub identities and cross-user API concealment passes. A direct RLS query and distributed delivery are not yet validated.</div>
      <div class="notice warning"><strong>How to read the rows:</strong> request and success shapes describe the implemented route schemas. Local LangGraph, RAGAS, strict-checkpoint serializer, and MCP initialization tests now pass. Failure/recovery and acceptance rows still name distributed-system gates; they are not evidence that a managed checkpoint, provider, queue, or cloud runtime passed.</div>
 
@@ -493,7 +495,7 @@
    </aside>
   </div>
  </main>
- <footer class="shell footer">ResearchMate API contracts · 35 OpenAPI REST operations · managed readiness verified, authenticated operations pending</footer>
+ <footer class="shell footer">ResearchMate API contracts · 41 OpenAPI REST operations · managed readiness verified, authenticated operations pending</footer>
  <script src="../../assets/site.js"></script>
 </body>
 </html>

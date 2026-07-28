@@ -13,13 +13,13 @@ afterEach(() => {
 });
 
 describe("demo mode selection", () => {
-  it("honors an explicit setting and defaults production builds to demo mode", () => {
+  it("enables the browser-only walkthrough only when explicitly requested", () => {
     expect(isPublicDemo()).toBe(true);
     vi.stubEnv("NEXT_PUBLIC_DEMO_MODE", "false");
     expect(isPublicDemo()).toBe(false);
     vi.stubEnv("NEXT_PUBLIC_DEMO_MODE", "");
     vi.stubEnv("NODE_ENV", "production");
-    expect(isPublicDemo()).toBe(true);
+    expect(isPublicDemo()).toBe(false);
   });
 });
 
@@ -59,6 +59,25 @@ describe("demoFetch", () => {
       filename: "source.docx",
       status: "ready",
     }));
+  });
+
+  it("supports project, conversation, document deletion, and job management contracts", async () => {
+    await expect(demoFetch("/projects/11111111-1111-4111-8111-111111111111"))
+      .resolves.toMatchObject({ name: "Evidence review walkthrough" });
+    await expect(demoFetch("/conversations/demo", {
+      method: "PATCH",
+      body: JSON.stringify({ title: "Renamed walkthrough" }),
+    })).resolves.toMatchObject({ title: "Renamed walkthrough" });
+    await expect(demoFetch("/conversations/demo", { method: "DELETE" }))
+      .resolves.toEqual({});
+    const deletion = await demoFetch<{ job_id: string }>(
+      "/documents/22222222-2222-4222-8222-222222222222",
+      { method: "DELETE" },
+    );
+    await expect(demoFetch(`/jobs/${deletion.job_id}`)).resolves.toMatchObject({
+      status: "succeeded",
+      type: "delete_document",
+    });
   });
 
   it("creates runs and exposes their canonical state", async () => {

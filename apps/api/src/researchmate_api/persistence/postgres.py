@@ -708,10 +708,14 @@ class PostgresResearchMateRepository:
                 conversation = connection.execute(
                     text(
                         """
-                        select project_id from conversations
-                        where id=:id and project_id=:project_id and user_id=:user_id
-                          and deleted_at is null
-                        for update
+                        select c.project_id
+                        from conversations c
+                        join projects p on p.id=c.project_id
+                        where c.id=:id and c.project_id=:project_id and c.user_id=:user_id
+                          and c.deleted_at is null
+                          and p.user_id=:user_id and p.status='active'
+                          and p.deleted_at is null
+                        for update of c,p
                         """
                     ),
                     {
@@ -903,6 +907,12 @@ class PostgresResearchMateRepository:
                         from conversations
                         where id=:id and project_id=:project_id and user_id=:user_id
                           and deleted_at is null
+                          and exists (
+                            select 1 from projects p
+                            where p.id=conversations.project_id
+                              and p.user_id=:user_id and p.status='active'
+                              and p.deleted_at is null
+                          )
                         """
                     ),
                     {
@@ -918,7 +928,8 @@ class PostgresResearchMateRepository:
                         insert into conversations (id,user_id,project_id,title)
                         select :id,:user_id,p.id,:title
                         from projects p
-                        where p.id=:project_id and p.user_id=:user_id and p.deleted_at is null
+                        where p.id=:project_id and p.user_id=:user_id
+                          and p.status='active' and p.deleted_at is null
                         returning id,project_id,title,created_at,updated_at
                         """
                     ),
@@ -934,9 +945,19 @@ class PostgresResearchMateRepository:
     def list_conversations(
         self, user: CurrentUser, project_id: UUID
     ) -> list[ConversationSummary] | None:
-        if self.get_project(user, project_id) is None:
-            return None
         with self._transaction(user) as connection:
+            project = connection.execute(
+                text(
+                    """
+                    select 1 from projects
+                    where id=:project_id and user_id=:user_id
+                      and status='active' and deleted_at is null
+                    """
+                ),
+                {"project_id": project_id, "user_id": user.id},
+            ).one_or_none()
+            if project is None:
+                return None
             rows = connection.execute(
                 text(
                     """
@@ -959,6 +980,12 @@ class PostgresResearchMateRepository:
                     """
                     select 1 from conversations
                     where id=:id and user_id=:user_id and deleted_at is null
+                      and exists (
+                        select 1 from projects p
+                        where p.id=conversations.project_id
+                          and p.user_id=:user_id and p.status='active'
+                          and p.deleted_at is null
+                      )
                     """
                 ),
                 {"id": conversation_id, "user_id": user.id},
@@ -1008,6 +1035,50 @@ class PostgresResearchMateRepository:
                 )
             return result
 
+    def rename_conversation(
+        self, user: CurrentUser, conversation_id: UUID, title: str
+    ) -> ConversationSummary | None:
+        with self._transaction(user) as connection:
+            row = connection.execute(
+                text(
+                    """
+                    update conversations
+                    set title=:title,updated_at=now()
+                    where id=:id and user_id=:user_id and deleted_at is null
+                      and exists (
+                        select 1 from projects p
+                        where p.id=conversations.project_id
+                          and p.user_id=:user_id and p.status='active'
+                          and p.deleted_at is null
+                      )
+                    returning id,project_id,title,created_at,updated_at
+                    """
+                ),
+                {"id": conversation_id, "user_id": user.id, "title": title.strip()},
+            ).mappings().one_or_none()
+        return ConversationSummary.model_validate(row) if row else None
+
+    def delete_conversation(self, user: CurrentUser, conversation_id: UUID) -> bool:
+        with self._transaction(user) as connection:
+            row = connection.execute(
+                text(
+                    """
+                    update conversations
+                    set deleted_at=now(),updated_at=now()
+                    where id=:id and user_id=:user_id and deleted_at is null
+                      and exists (
+                        select 1 from projects p
+                        where p.id=conversations.project_id
+                          and p.user_id=:user_id and p.status='active'
+                          and p.deleted_at is null
+                      )
+                    returning id
+                    """
+                ),
+                {"id": conversation_id, "user_id": user.id},
+            ).one_or_none()
+        return row is not None
+
 
     def get_runtime_rerank_config(self) -> RuntimeRerankConfig:
         with self.engine.begin() as connection:
@@ -1052,6 +1123,12 @@ class PostgresResearchMateRepository:
                     select summary_text,summary_message_count
                     from conversations
                     where id=:id and user_id=:user_id and deleted_at is null
+                      and exists (
+                        select 1 from projects p
+                        where p.id=conversations.project_id
+                          and p.user_id=:user_id and p.status='active'
+                          and p.deleted_at is null
+                      )
                     """
                 ),
                 {"id": conversation_id, "user_id": user.id},
@@ -1079,6 +1156,12 @@ class PostgresResearchMateRepository:
                         summary_message_count=:message_count,
                         summary_updated_at=now()
                     where id=:id and user_id=:user_id and deleted_at is null
+                      and exists (
+                        select 1 from projects p
+                        where p.id=conversations.project_id
+                          and p.user_id=:user_id and p.status='active'
+                          and p.deleted_at is null
+                      )
                     """
                 ),
                 {

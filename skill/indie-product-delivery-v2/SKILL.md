@@ -29,6 +29,15 @@ When production behavior may be harming users, data, money, privacy, security, o
 
 Follow the repository's execution-environment policy. Where it's silent: default to local, hermetic unit, domain, contract, schema, import, static, and build checks — proof you can run without external services. Defer cross-module and integration proof to the authorized deployed/server environment, because standing up databases, brokers, providers, or containers locally usually doesn't reproduce the real boundary anyway and adds cost. Install a new environment or dependency only when the user explicitly allows it. Node03 expands the hermetic-vs-deployed split.
 
+## Subagent policy
+
+Default to one primary agent. System, developer, repository, and user instructions always take precedence; this skill never overrides a higher-priority instruction that disables or limits delegation. Use subagents only in these two cases:
+
+1. **Independent QA after a major cross-module change.** Require one read-only reviewer when one delivery round implements several requirements and crosses multiple modules or product boundaries. This includes changes such as frontend plus auth, API/data plus migration, or runtime behavior plus deployment and durable documentation. Complete the implementation first. Give the reviewer the user request, review base, raw diff, tests, and relevant source—not the intended answer, suspected bugs, or the primary agent's conclusions. Require Node05 risk-order findings with file/line evidence. The reviewer must not edit files. Return every finding to the primary agent, which classifies it as **accept and repair**, **reject with evidence**, or **discuss with the user because it changes product intent or authority**. The primary agent owns repairs, reruns, integration, and the final ship decision.
+2. **Rare large-scale parallel implementation.** Consider multiple implementation subagents only when the business-code rewrite is exceptionally large, splits into genuinely independent bounded slices, and sequential work is impractical. Obtain explicit user authorization before parallelizing. Give each subagent a separate worktree, an exclusive file/module ownership boundary, a shared frozen contract, and a no-cross-edit rule. Keep migrations, shared contracts, integration order, conflict resolution, release, and rollback under the primary agent.
+
+Do not start a subagent for a button move, copy or style edit, mechanical documentation change, isolated bug fix, or small single-module feature. Do not use subagents merely to appear thorough, repeat the same review, or hide an unclear plan. A QA reviewer does not need a worktree because it is read-only; an implementation subagent does.
+
 ## Output
 
 Produce a result the user can use, supported by the narrowest meaningful evidence.

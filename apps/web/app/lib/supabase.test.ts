@@ -78,6 +78,40 @@ describe("managed browser sessions", () => {
     unsubscribe();
   });
 
+  it("creates an account and reports when email confirmation is required", async () => {
+    const auth = await loadConfiguredModule();
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ user: { email: "new@example.test" } }), { status: 200 }),
+    );
+
+    await expect(auth.signUpWithPassword("new@example.test", "secret"))
+      .resolves.toBe("confirmation_required");
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe("https://auth.example.test/auth/v1/signup");
+    expect(JSON.parse(String(init?.body))).toEqual({
+      email: "new@example.test",
+      password: "secret",
+    });
+    expect(window.localStorage.getItem("researchmate_supabase_session")).toBeNull();
+  });
+
+  it("persists an immediate signup session and its privileged app role", async () => {
+    vi.useFakeTimers();
+    const auth = await loadConfiguredModule();
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({
+      access_token: "header.payload.signature",
+      refresh_token: "refresh-signup",
+      expires_in: 3600,
+      user: { email: "developer@example.test", app_metadata: { role: "developer" } },
+    }), { status: 200 }));
+
+    await expect(auth.signUpWithPassword("developer@example.test", "secret"))
+      .resolves.toBe("signed_in");
+    await expect(auth.getSupabaseSession()).resolves.toMatchObject({
+      user: { email: "developer@example.test", role: "developer" },
+    });
+  });
+
   it("restores a magic-link or OAuth session and removes tokens from the address", async () => {
     vi.useFakeTimers();
     const auth = await loadConfiguredModule();
