@@ -62,6 +62,10 @@ class WorkerSettings(BaseSettings):
     qdrant_url: str | None = None
     qdrant_api_key: SecretStr | None = None
     qdrant_collection: str = "researchmate_chunks"
+    qdrant_rerank_collection: str = "researchmate_chunks_v2"
+    qdrant_rerank_model: str | None = None
+    qdrant_rerank_model_is_free: bool = False
+    qdrant_rerank_dimension: int = Field(default=96, ge=16, le=4096)
     web_search_provider: Literal["disabled", "tavily"] = "disabled"
     tavily_api_key: SecretStr | None = None
     tavily_base_url: str = "https://api.tavily.com"

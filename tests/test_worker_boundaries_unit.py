@@ -32,6 +32,20 @@ def test_worker_database_urls_select_psycopg3(database_url: str, expected: str) 
     assert psycopg_database_url(database_url) == expected
 
 
+def test_worker_settings_accept_the_shared_qdrant_rerank_projection_contract() -> None:
+    settings = tasks.WorkerSettings(
+        app_env="test",
+        qdrant_rerank_collection="project-rerank",
+        qdrant_rerank_model="free/model",
+        qdrant_rerank_model_is_free=True,
+        qdrant_rerank_dimension=96,
+    )
+
+    assert settings.qdrant_rerank_collection == "project-rerank"
+    assert settings.qdrant_rerank_model == "free/model"
+    assert settings.qdrant_rerank_model_is_free is True
+
+
 class RecordingConnection:
     """Records SQLAlchemy-style execute calls for boundary assertions."""
 
