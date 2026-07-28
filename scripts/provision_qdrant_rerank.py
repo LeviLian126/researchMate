@@ -1,6 +1,10 @@
 from __future__ import annotations
 
+from hashlib import sha256
 import os
+
+
+BACKFILL_VERSION = "20260728_answerai_colbert_small_v1"
 
 
 def main() -> None:
@@ -40,6 +44,30 @@ def main() -> None:
         )
 
     with psycopg.connect(database_url) as connection:
+        connection.execute(
+            """
+            create table if not exists researchmate_vector_migrations (
+              version text primary key,
+              model text not null,
+              chunk_count integer not null,
+              checksum_sha256 text not null,
+              applied_at timestamptz not null default now()
+            )
+            """
+        )
+        completed = connection.execute(
+            """
+            select chunk_count from researchmate_vector_migrations
+            where version=%s and model=%s
+            """,
+            (BACKFILL_VERSION, model),
+        ).fetchone()
+        if completed is not None:
+            print(
+                f"Qdrant rerank backfill {BACKFILL_VERSION} already verified "
+                f"for {completed[0]} chunks."
+            )
+            return
         rows = connection.execute(
             """
             select id,user_id,project_id,document_id,source_type,text
@@ -89,6 +117,24 @@ def main() -> None:
         )
         if not sample.points or str(sample.points[0].id) != str(sample_id):
             raise SystemExit("Qdrant rerank tenant-filter sample verification failed")
+    digest = sha256(
+        "\n".join(str(row[0]) for row in rows).encode("utf-8")
+    ).hexdigest()
+    with psycopg.connect(database_url) as connection:
+        connection.execute(
+            """
+            insert into researchmate_vector_migrations(
+              version,model,chunk_count,checksum_sha256
+            ) values (%s,%s,%s,%s)
+            on conflict (version) do update
+            set model=excluded.model,
+                chunk_count=excluded.chunk_count,
+                checksum_sha256=excluded.checksum_sha256,
+                applied_at=now()
+            """,
+            (BACKFILL_VERSION, model, len(rows), digest),
+        )
+        connection.commit()
     print(f"Backfilled {len(rows)} free late-interaction vectors into {collection}.")
 
 

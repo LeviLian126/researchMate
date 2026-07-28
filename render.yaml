@@ -29,7 +29,7 @@ envVarGroups:
       - key: QDRANT_RERANK_MODEL
         value: answerdotai/answerai-colbert-small-v1
       - key: QDRANT_RERANK_MODEL_IS_FREE
-        value: "false"
+        value: "true"
       - key: QDRANT_RERANK_DIMENSION
         value: "96"
       - key: RERANK_PROVIDER_DEFAULT
@@ -93,6 +93,8 @@ envVarGroups:
       - key: RAGAS_DO_NOT_TRACK
         value: "true"
       - key: RUN_SCHEMA_MIGRATIONS
+        value: "1"
+      - key: RUN_QDRANT_RERANK_BACKFILL
         value: "1"
 
 services:

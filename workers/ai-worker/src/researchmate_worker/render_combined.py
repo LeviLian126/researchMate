@@ -22,6 +22,21 @@ def apply_schema_migrations() -> None:
     )
 
 
+def backfill_qdrant_rerank() -> None:
+    """Build and verify the free multivector projection before starting traffic."""
+    if os.getenv("RUN_QDRANT_RERANK_BACKFILL") != "1":
+        return
+    environment = {
+        **os.environ,
+        "ALLOW_QDRANT_RERANK_BACKFILL": "1",
+    }
+    subprocess.run(
+        [sys.executable, "/app/scripts/provision_qdrant_rerank.py"],
+        check=True,
+        env=environment,
+    )
+
+
 def child_commands(port: int) -> list[list[str]]:
     return [
         [
@@ -59,6 +74,7 @@ def stop_children(children: Sequence[subprocess.Popen[bytes]], signum: int) -> N
 
 def run(port: int) -> int:
     apply_schema_migrations()
+    backfill_qdrant_rerank()
     children = [subprocess.Popen(command) for command in child_commands(port)]
 
     def forward(signum: int, _frame: object) -> None:
