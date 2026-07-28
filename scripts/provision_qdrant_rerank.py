@@ -4,6 +4,7 @@ import os
 from hashlib import sha256
 
 BACKFILL_VERSION = "20260728_answerai_colbert_small_v1"
+FILTER_INDEXES = ("user_id", "project_id", "document_id", "source_type")
 
 
 def main() -> None:
@@ -40,6 +41,17 @@ def main() -> None:
                     hnsw_config=models.HnswConfigDiff(m=0),
                 )
             },
+        )
+    info = client.get_collection(collection)
+    payload_schema = getattr(info, "payload_schema", {}) or {}
+    for field_name in FILTER_INDEXES:
+        if field_name in payload_schema:
+            continue
+        client.create_payload_index(
+            collection_name=collection,
+            field_name=field_name,
+            field_schema=models.PayloadSchemaType.KEYWORD,
+            wait=True,
         )
 
     with psycopg.connect(database_url) as connection:

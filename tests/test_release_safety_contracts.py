@@ -3,6 +3,20 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def test_qdrant_rerank_projection_indexes_every_filter_field() -> None:
+    """Keep Qdrant Cloud strict mode compatible for tenant queries and deletion."""
+    source = (ROOT / "scripts" / "provision_qdrant_rerank.py").read_text(
+        encoding="utf-8"
+    )
+
+    assert 'FILTER_INDEXES = ("user_id", "project_id", "document_id", "source_type")' in source
+    assert "create_payload_index(" in source
+    assert "PayloadSchemaType.KEYWORD" in source
+    assert source.index("create_payload_index(") < source.index(
+        "Qdrant rerank backfill {BACKFILL_VERSION} already verified"
+    )
+
+
 def test_evaluation_budget_and_fault_audit_migration_is_fail_closed() -> None:
     source = (
         ROOT
