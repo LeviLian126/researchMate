@@ -56,6 +56,19 @@ def evidence_chunk(text: str) -> ChunkEntry:
     )
 
 
+def web_evidence_chunk(text: str) -> ChunkEntry:
+    return ChunkEntry(
+        id=UUID("60000000-0000-4000-8000-000000000001"),
+        user_id=UUID("20000000-0000-4000-8000-000000000001"),
+        project_id=UUID("30000000-0000-4000-8000-000000000001"),
+        document_id=None,
+        source_type=SourceType.WEB_PAGE,
+        source_title="Official documentation",
+        text=text,
+        url="https://example.test/docs",
+    )
+
+
 def test_model_can_only_select_server_supplied_evidence() -> None:
     provider = FakeProvider(
         {"answer": "RAG retrieves evidence before generation.", "claims": [
@@ -111,3 +124,22 @@ def test_invalid_grounded_output_gets_one_bounded_repair_attempt() -> None:
     assert "previous response was invalid" in provider.calls[1][-1]["content"]
     assert result.prompt_tokens == 20
     assert result.completion_tokens == 10
+
+
+def test_web_citation_does_not_reference_an_ephemeral_chunk_row() -> None:
+    provider = FakeProvider(
+        {
+            "answer": "The official documentation supports this answer.",
+            "claims": [{"text": "Documentation supports it.", "evidence_ids": [1]}],
+        }
+    )
+
+    _answer, citations, summary, _result = build_llm_grounded_answer(
+        provider,
+        "Question",
+        [web_evidence_chunk("Official documentation evidence.")],
+    )
+
+    assert citations[0].chunk_id is None
+    assert citations[0].url == "https://example.test/docs"
+    assert summary.web_pages == 1
