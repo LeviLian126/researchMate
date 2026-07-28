@@ -38,6 +38,7 @@ function ResearchChatWorkspace() {
   const [loading, setLoading] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(true);
   const [degraded, setDegraded] = useState(false);
+  const [slowResponse, setSlowResponse] = useState(false);
   const routeRequest = useRef(0);
   const historyRequest = useRef(0);
 
@@ -99,6 +100,15 @@ function ResearchChatWorkspace() {
       historyRequest.current += 1;
     };
   }, [projectId, searchParams]);
+
+  useEffect(() => {
+    if (!loading) {
+      setSlowResponse(false);
+      return;
+    }
+    const timer = window.setTimeout(() => setSlowResponse(true), 12_000);
+    return () => window.clearTimeout(timer);
+  }, [loading]);
 
   async function submitQuestion(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -178,7 +188,11 @@ function ResearchChatWorkspace() {
         ))}
         {loading && (
           <div className="assistant-loading" role="status">
-            <span aria-hidden="true" />Thinking{webEnabled ? " with web evidence" : ""}…
+            <span aria-hidden="true" />
+            <div>
+              Thinking{webEnabled ? " with web evidence" : ""}…
+              {slowResponse && <small>The current provider is taking longer than usual. You can keep this page open.</small>}
+            </div>
           </div>
         )}
         {error && (

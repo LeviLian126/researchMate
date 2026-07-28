@@ -29,6 +29,7 @@ def create_celery_app(settings: WorkerSettings | None = None) -> Celery:
         task_routes={
             "researchmate.ingest_document": {"queue": runtime.ingestion_queue},
             "researchmate.delete_document": {"queue": "deletion"},
+            "researchmate.delete_project": {"queue": "deletion"},
             "researchmate.run_workflow": {"queue": "workflow"},
             "researchmate.run_evaluation": {"queue": "evaluation"},
             "researchmate.run_fault_simulation": {"queue": "reliability"},

@@ -290,3 +290,28 @@ class QdrantHybridStore:
                 )
             except Exception as exc:
                 raise VectorStoreRequestError("rerank_delete") from exc
+
+    def delete_project_points(self, *, user_id: str, project_id: str) -> None:
+        owner_filter = models.Filter(
+            must=[
+                models.FieldCondition(key="user_id", match=models.MatchValue(value=user_id)),
+                models.FieldCondition(key="project_id", match=models.MatchValue(value=project_id)),
+            ]
+        )
+        try:
+            self.client.delete(
+                collection_name=self.collection,
+                points_selector=models.FilterSelector(filter=owner_filter),
+                wait=True,
+            )
+        except Exception as exc:
+            raise VectorStoreRequestError("project_delete") from exc
+        if self.settings.qdrant_rerank_model and self.settings.qdrant_rerank_model_is_free:
+            try:
+                self.client.delete(
+                    collection_name=self.rerank_collection,
+                    points_selector=models.FilterSelector(filter=owner_filter),
+                    wait=True,
+                )
+            except Exception as exc:
+                raise VectorStoreRequestError("rerank_project_delete") from exc

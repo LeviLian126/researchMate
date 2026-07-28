@@ -22,7 +22,10 @@ from researchmate_worker.config import WorkerSettings, psycopg_database_url
 from researchmate_worker.deletion import (
     DocumentDeletionEvent,
     DocumentDeletionService,
+    ProjectDeletionEvent,
+    ProjectDeletionService,
     SqlDeletionStore,
+    SqlProjectDeletionStore,
 )
 from researchmate_worker.evaluation import (
     EvaluationRunner,
@@ -104,6 +107,25 @@ def build_deletion_service() -> DocumentDeletionService:
     vector_store = QdrantHybridStore(settings, embedding)  # type: ignore[arg-type]
     return DocumentDeletionService(
         store=SqlDeletionStore(engine),
+        object_storage=S3CompatibleObjectStorage(settings),  # type: ignore[arg-type]
+        vector_store=vector_store,
+        lease_seconds=settings.ingestion_lease_seconds,
+        max_attempts=settings.ingestion_max_attempts,
+    )
+
+
+@lru_cache
+def build_project_deletion_service() -> ProjectDeletionService:
+    settings = WorkerSettings()
+    if not settings.database_url or not settings.object_storage_configured or not settings.qdrant_url:
+        raise RuntimeError(
+            "Database, S3-compatible object storage, and Qdrant are required for deletion tasks"
+        )
+    engine = create_engine(psycopg_database_url(settings.database_url), pool_pre_ping=True)
+    embedding = NvidiaEmbeddingProvider(settings)  # type: ignore[arg-type]
+    vector_store = QdrantHybridStore(settings, embedding)  # type: ignore[arg-type]
+    return ProjectDeletionService(
+        store=SqlProjectDeletionStore(engine),
         object_storage=S3CompatibleObjectStorage(settings),  # type: ignore[arg-type]
         vector_store=vector_store,
         lease_seconds=settings.ingestion_lease_seconds,
@@ -209,6 +231,19 @@ def delete_document(self, event: dict[str, str]) -> str:
     worker_id = str(getattr(self.request, "hostname", None) or self.request.id or "worker")
     try:
         return build_deletion_service().handle(payload, worker_id=worker_id)
+    except IngestionFailure as exc:
+        if exc.retryable:
+            countdown = min(300, 2 ** min(int(self.request.retries) + 1, 8))
+            raise self.retry(exc=IngestionFailure(exc.code, retryable=True), countdown=countdown)
+        raise
+
+
+@celery_app.task(bind=True, name="researchmate.delete_project", max_retries=8)
+def delete_project(self, event: dict[str, str]) -> str:
+    payload = ProjectDeletionEvent.model_validate(event)
+    worker_id = str(getattr(self.request, "hostname", None) or self.request.id or "worker")
+    try:
+        return build_project_deletion_service().handle(payload, worker_id=worker_id)
     except IngestionFailure as exc:
         if exc.retryable:
             countdown = min(300, 2 ** min(int(self.request.retries) + 1, 8))

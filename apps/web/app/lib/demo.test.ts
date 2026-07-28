@@ -78,6 +78,24 @@ describe("demoFetch", () => {
       status: "succeeded",
       type: "delete_document",
     });
+    const project = await demoFetch<Record<string, unknown>>("/projects", {
+      method: "POST",
+      body: JSON.stringify({ name: "Disposable project" }),
+    });
+    await demoFetch("/ask", {
+      method: "POST",
+      body: JSON.stringify({
+        project_id: "11111111-1111-4111-8111-111111111111",
+        message: "Keep this chat",
+      }),
+    });
+    await expect(demoFetch(`/projects/${project.id}`, { method: "DELETE" }))
+      .resolves.toMatchObject({ status: "succeeded", type: "delete_project" });
+    const remaining = await demoFetch<Array<Record<string, unknown>>>("/projects");
+    expect(remaining).not.toContainEqual(expect.objectContaining({ id: project.id }));
+    await expect(demoFetch(
+      "/projects/11111111-1111-4111-8111-111111111111/conversations",
+    )).resolves.toMatchObject({ items: [expect.objectContaining({ title: expect.any(String) })] });
   });
 
   it("creates runs and exposes their canonical state", async () => {

@@ -31,6 +31,52 @@ def _extract_json_object(content: str) -> str:
     return content[start : end + 1]
 
 
+def _validate_grounded_proposal(content: str, evidence_count: int) -> GroundedAnswerProposal:
+    try:
+        proposal = GroundedAnswerProposal.model_validate_json(_extract_json_object(content))
+    except ValidationError as exc:
+        raise ProviderOutputError("LLM response failed the grounded answer schema") from exc
+    used_ids = {evidence_id for claim in proposal.claims for evidence_id in claim.evidence_ids}
+    if not used_ids or any(evidence_id < 1 or evidence_id > evidence_count for evidence_id in used_ids):
+        raise ProviderOutputError("LLM response referenced evidence outside the server allowlist")
+    return proposal
+
+
+def _sum_optional_tokens(first: int | None, second: int | None) -> int | None:
+    values = [value for value in (first, second) if value is not None]
+    return sum(values) if values else None
+
+
+def _repair_grounded_result(
+    provider: ChatProvider,
+    messages: list[dict[str, str]],
+    first_result: LLMResult,
+    max_tokens: int | None,
+) -> LLMResult:
+    repair_messages = [
+        *messages,
+        {
+            "role": "user",
+            "content": (
+                "Your previous response was invalid. Return exactly one JSON object and nothing else. "
+                'Use this schema: {"answer":"non-empty string","claims":'
+                '[{"text":"non-empty string","evidence_ids":[1]}]}. '
+                "Every evidence_ids value must be one of the server-supplied evidence_id integers."
+            ),
+        },
+    ]
+    repaired = _complete(provider, repair_messages, max_tokens)
+    return LLMResult(
+        content=repaired.content,
+        reasoning=repaired.reasoning,
+        model=repaired.model,
+        prompt_tokens=_sum_optional_tokens(first_result.prompt_tokens, repaired.prompt_tokens),
+        completion_tokens=_sum_optional_tokens(
+            first_result.completion_tokens, repaired.completion_tokens
+        ),
+    )
+
+
 def build_llm_grounded_answer(
     provider: ChatProvider,
     query: str,
@@ -83,13 +129,11 @@ def build_llm_grounded_answer(
         )
     result = _complete(provider, messages, max_tokens)
     try:
-        proposal = GroundedAnswerProposal.model_validate_json(_extract_json_object(result.content))
-    except ValidationError as exc:
-        raise ProviderOutputError("LLM response failed the grounded answer schema") from exc
-
+        proposal = _validate_grounded_proposal(result.content, len(chunks))
+    except ProviderOutputError:
+        result = _repair_grounded_result(provider, messages, result, max_tokens)
+        proposal = _validate_grounded_proposal(result.content, len(chunks))
     used_ids = {evidence_id for claim in proposal.claims for evidence_id in claim.evidence_ids}
-    if not used_ids or any(evidence_id < 1 or evidence_id > len(chunks) for evidence_id in used_ids):
-        raise ProviderOutputError("LLM response referenced evidence outside the server allowlist")
 
     claim_ids_by_evidence: dict[int, list[str]] = {}
     for index, claim in enumerate(proposal.claims, start=1):

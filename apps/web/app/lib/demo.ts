@@ -23,7 +23,7 @@ let projectSequence = 1;
 let runSequence = 1;
 let evaluationSequence = 1;
 let documentSequence = 1;
-let conversationTitle = "Walkthrough conversation";
+let conversationSequence = 1;
 let latestJob: Json | null = null;
 
 const projects: Json[] = [{
@@ -130,6 +130,7 @@ let latestEvaluation: Json = {
 
 let quizSets: Json[] = [];
 let chatMessages: Json[] = [];
+const conversationTitles = new Map<string, string>();
 
 function makeId(prefix: string, sequence: number): string {
   const suffix = sequence.toString(16).padStart(12, "0");
@@ -201,41 +202,72 @@ export async function demoFetch<T>(rawPath: string, init: globalThis.RequestInit
   if (projectMatch && !path.slice(projectMatch[0].length).includes("/") && method === "GET") {
     return projects.find((project) => project.id === projectId) as T;
   }
+  if (projectMatch && !path.slice(projectMatch[0].length).includes("/") && method === "DELETE") {
+    const projectIndex = projects.findIndex((project) => project.id === projectId);
+    if (projectIndex >= 0) projects.splice(projectIndex, 1);
+    for (let index = documents.length - 1; index >= 0; index -= 1) {
+      if (documents[index].project_id === projectId) documents.splice(index, 1);
+    }
+    chatMessages = chatMessages.filter((message) => message.project_id !== projectId);
+    latestJob = {
+      id: "70707070-7070-4707-8707-707070707070",
+      user_id: "public-demo",
+      project_id: projectId,
+      document_id: null,
+      type: "delete_project",
+      status: "succeeded",
+      progress: 100,
+      error_message: null,
+      created_at: timestamp,
+      updated_at: timestamp,
+    };
+    return latestJob as T;
+  }
   if (path.endsWith("/documents") && method === "GET") return projectDocuments(projectId) as T;
   if (path.endsWith("/claims") && method === "GET") return { items: claims } as T;
   if (path.endsWith("/claim-relations") && method === "GET") return { items: relations } as T;
   if (path.endsWith("/reports") && method === "GET") return { items: [report] } as T;
   if (path.endsWith("/quiz") && method === "GET") return { project_id: projectId, quiz_sets: quizSets } as T;
   if (path.endsWith("/conversations") && method === "GET") {
+    const projectMessages = chatMessages.filter((message) => message.project_id === projectId);
+    const conversationId = projectMessages[0]?.conversation_id;
     return {
-      items: chatMessages.length ? [{
-        id: "abababab-abab-4bab-8bab-abababababab",
+      items: projectMessages.length ? [{
+        id: conversationId,
         project_id: projectId,
-        title: conversationTitle,
+        title: conversationTitles.get(String(conversationId)) ?? "Walkthrough conversation",
         created_at: timestamp,
         updated_at: timestamp,
       }] : [],
     } as T;
   }
-  if (path.startsWith("/conversations/") && path.endsWith("/messages") && method === "GET") {
+  const conversationMatch = path.match(/^\/conversations\/([^/]+)/);
+  const conversationId = conversationMatch?.[1];
+  if (conversationId && path.endsWith("/messages") && method === "GET") {
     return {
-      conversation_id: "abababab-abab-4bab-8bab-abababababab",
-      messages: chatMessages,
+      conversation_id: conversationId,
+      messages: chatMessages.filter((message) => message.conversation_id === conversationId),
     } as T;
   }
-  if (path.startsWith("/conversations/") && method === "PATCH") {
-    conversationTitle = typeof body.title === "string" ? body.title : conversationTitle;
+  if (conversationId && method === "PATCH") {
+    const title = typeof body.title === "string"
+      ? body.title
+      : conversationTitles.get(conversationId) ?? "Walkthrough conversation";
+    conversationTitles.set(conversationId, title);
+    const conversationProjectId = chatMessages.find(
+      (message) => message.conversation_id === conversationId,
+    )?.project_id ?? DEMO_PROJECT_ID;
     return {
-      id: "abababab-abab-4bab-8bab-abababababab",
-      project_id: projectId,
-      title: conversationTitle,
+      id: conversationId,
+      project_id: conversationProjectId,
+      title,
       created_at: timestamp,
       updated_at: timestamp,
     } as T;
   }
-  if (path.startsWith("/conversations/") && method === "DELETE") {
-    chatMessages = [];
-    conversationTitle = "Walkthrough conversation";
+  if (conversationId && method === "DELETE") {
+    chatMessages = chatMessages.filter((message) => message.conversation_id !== conversationId);
+    conversationTitles.delete(conversationId);
     return {} as T;
   }
 
@@ -260,12 +292,21 @@ export async function demoFetch<T>(rawPath: string, init: globalThis.RequestInit
   if (path.startsWith("/runs/") && method === "GET") return latestRun as T;
 
   if (path === "/ask" && method === "POST") {
-    const conversationId = "abababab-abab-4bab-8bab-abababababab";
+    const targetProjectId = typeof body.project_id === "string" ? body.project_id : DEMO_PROJECT_ID;
+    const existingConversation = chatMessages.find(
+      (item) => item.project_id === targetProjectId,
+    )?.conversation_id;
+    const conversationId = String(
+      existingConversation ?? makeId("abababab-abab", conversationSequence++),
+    );
+    if (!conversationTitles.has(conversationId)) {
+      conversationTitles.set(conversationId, "Walkthrough conversation");
+    }
     const answer = "The walkthrough conclusion is conditional: retrieval is useful when evidence is relevant, source-bound, and reviewed; it is not a correctness guarantee by itself.";
     chatMessages = [
       ...chatMessages,
-      { id: makeId("31313131-3131", chatMessages.length + 1), conversation_id: conversationId, role: "user", content: body.message ?? "Explain the evidence.", citations: [], created_at: timestamp },
-      { id: makeId("32323232-3232", chatMessages.length + 2), conversation_id: conversationId, role: "assistant", content: answer, citations: [citation], created_at: timestamp },
+      { id: makeId("31313131-3131", chatMessages.length + 1), project_id: targetProjectId, conversation_id: conversationId, role: "user", content: body.message ?? "Explain the evidence.", citations: [], created_at: timestamp },
+      { id: makeId("32323232-3232", chatMessages.length + 2), project_id: targetProjectId, conversation_id: conversationId, role: "assistant", content: answer, citations: [citation], created_at: timestamp },
     ];
     return {
       run_id: latestRun.run_id,

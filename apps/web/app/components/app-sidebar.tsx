@@ -25,6 +25,9 @@ export function AppSidebar() {
   const [developer, setDeveloper] = useState(isLocalDevelopment());
   const [managedConversationId, setManagedConversationId] = useState<string | null>(null);
   const [deleteConfirmationId, setDeleteConfirmationId] = useState<string | null>(null);
+  const [managedProjectId, setManagedProjectId] = useState<string | null>(null);
+  const [deleteProjectConfirmationId, setDeleteProjectConfirmationId] = useState<string | null>(null);
+  const [deletingProjectId, setDeletingProjectId] = useState<string | null>(null);
   const [conversationTitle, setConversationTitle] = useState("");
   const navigationRequest = useRef(0);
 
@@ -129,6 +132,54 @@ export function AppSidebar() {
     }
   }
 
+  async function deleteProject(projectId: string) {
+    setDeletingProjectId(projectId);
+    try {
+      const accepted = await apiFetch<{ job_id: string }>(
+        `/projects/${projectId}`,
+        { method: "DELETE" },
+      );
+      let completed = false;
+      for (let attempt = 0; attempt < 60; attempt += 1) {
+        const job = await apiFetch<{ status: string; error_message?: string | null }>(
+          `/jobs/${accepted.job_id}`,
+        );
+        if (job.status === "succeeded") {
+          completed = true;
+          break;
+        }
+        if (job.status === "failed") {
+          throw new Error(
+            job.error_message
+              ? `Project deletion failed: ${job.error_message}`
+              : "Project deletion failed. The project is available to retry.",
+          );
+        }
+        await new Promise((resolve) => window.setTimeout(resolve, 1_000));
+      }
+      if (!completed) {
+        throw new Error("Project deletion is still running. Refresh shortly to check its status.");
+      }
+      setProjects((current) => current.filter((project) => project.id !== projectId));
+      setManagedProjectId(null);
+      setDeleteProjectConfirmationId(null);
+      if (projectId === activeProjectId) {
+        setConversations([]);
+        router.push("/app");
+      }
+      window.dispatchEvent(new Event("researchmate:sidebar-refresh"));
+    } catch (requestError) {
+      setError(
+        requestError instanceof Error && requestError.message.startsWith("Project deletion")
+          ? requestError.message
+          : describeApiError(requestError).detail,
+      );
+      await loadNavigation();
+    } finally {
+      setDeletingProjectId(null);
+    }
+  }
+
   return (
     <aside className={`app-sidebar ${collapsed ? "app-sidebar--collapsed" : ""}`} aria-label="Workspace navigation">
       <div className="app-sidebar__top">
@@ -163,9 +214,45 @@ export function AppSidebar() {
         <section>
           <div className="app-sidebar__section-title"><span>Projects</span><Link href="/app" aria-label="View all projects">•••</Link></div>
           {projects.map((project) => (
-            <Link className="app-sidebar__item" aria-current={project.id === activeProjectId ? "page" : undefined} href={`/app/projects/${project.id}/chat`} key={project.id}>
-              <span aria-hidden="true">□</span><b>{project.name}</b>
-            </Link>
+            <div className="app-sidebar__project-row" key={project.id}>
+              {project.status === "active" ? (
+                <Link className="app-sidebar__item" aria-current={project.id === activeProjectId ? "page" : undefined} href={`/app/projects/${project.id}/chat`}>
+                  <span aria-hidden="true">□</span><b>{project.name}</b>
+                </Link>
+              ) : (
+                <div className="app-sidebar__item" aria-disabled="true">
+                  <span aria-hidden="true">!</span><b>{project.name} · deletion pending</b>
+                </div>
+              )}
+              <button
+                type="button"
+                aria-label={`Manage ${project.name}`}
+                onClick={() => {
+                  setManagedProjectId((current) => current === project.id ? null : project.id);
+                  setDeleteProjectConfirmationId(null);
+                }}
+              >•••</button>
+              {managedProjectId === project.id && (
+                <div className="app-sidebar__project-menu">
+                  {deleteProjectConfirmationId === project.id ? (
+                    <>
+                      <p>Delete this project and all of its chats and sources?</p>
+                      <button
+                        className="danger-button"
+                        type="button"
+                        disabled={deletingProjectId === project.id}
+                        onClick={() => void deleteProject(project.id)}
+                      >{deletingProjectId === project.id ? "Deleting…" : "Confirm delete"}</button>
+                      <button type="button" onClick={() => setDeleteProjectConfirmationId(null)}>Cancel</button>
+                    </>
+                  ) : (
+                    <button className="danger-button" type="button" onClick={() => setDeleteProjectConfirmationId(project.id)}>
+                      {project.status === "active" ? "Delete project" : "Retry deletion"}
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
           ))}
         </section>
 

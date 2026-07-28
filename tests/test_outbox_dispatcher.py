@@ -84,3 +84,28 @@ def test_fault_exercise_is_routed_to_bounded_reliability_worker() -> None:
     assert args == ("researchmate.run_fault_simulation",)
     assert kwargs["queue"] == "reliability"
     assert kwargs["task_id"] == "fault:user:key"
+
+
+def test_project_deletion_is_routed_to_the_deletion_queue() -> None:
+    class FakeCelery:
+        def __init__(self):
+            self.calls = []
+
+        def send_task(self, *args, **kwargs):
+            self.calls.append((args, kwargs))
+
+    celery = FakeCelery()
+    publisher = CeleryTaskPublisher(celery)
+    deletion = ClaimedOutboxEvent(
+        id=UUID(int=30),
+        event_type="project.delete.requested",
+        payload={"project_id": str(UUID(int=31))},
+        idempotency_key="project:31:delete:v1",
+        attempts=1,
+    )
+
+    publisher.publish(deletion)
+
+    args, kwargs = celery.calls[0]
+    assert args == ("researchmate.delete_project",)
+    assert kwargs["queue"] == "deletion"

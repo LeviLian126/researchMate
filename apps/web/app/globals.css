@@ -275,6 +275,8 @@ details > summary { color: var(--ink); font-weight: 700; cursor: pointer; }
 .citation-list blockquote { margin: 11px 0 2px; color: var(--ink-soft); font: .88rem/1.55 var(--serif); }
 .assistant-loading { display: flex; align-items: center; gap: 11px; border-bottom: 1px solid var(--line); padding: 20px 0; color: var(--ink-soft); }
 .assistant-loading span { width: 10px; height: 10px; border-radius: 50%; background: var(--cobalt); animation: evidence-pulse 1s ease-in-out infinite alternate; }
+.assistant-loading div { display: grid; gap: 3px; }
+.assistant-loading small { color: var(--ink-faint); font-size: .72rem; }
 .chat-composer { position: fixed; z-index: 30; right: 40px; bottom: 18px; left: 236px; display: grid; gap: 8px; max-width: 930px; margin: auto; border: 1px solid var(--line-strong); border-radius: 8px; padding: 10px 12px; background: rgba(250, 249, 245, .96); box-shadow: var(--shadow); backdrop-filter: blur(14px); }
 .chat-composer__toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 3px 7px; border-bottom: 1px solid var(--line); }
 .chat-composer__toolbar label { width: auto; }
@@ -418,6 +420,12 @@ details > summary { color: var(--ink); font-weight: 700; cursor: pointer; }
 .app-sidebar__section-title a { color: inherit; }
 .app-sidebar__item { display: grid; grid-template-columns: 28px minmax(0, 1fr); align-items: center; min-height: 40px; border-radius: 9px; padding: 0 9px; color: #252525; }
 .app-sidebar__item[aria-current="page"] { background: #e7e7e4; }
+.app-sidebar__project-row { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
+.app-sidebar__project-row > button { width: 34px; min-height: 34px; border: 0; padding: 0; background: transparent; color: var(--ink-faint); }
+.app-sidebar__project-menu { position: relative; z-index: 2; grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; margin: 3px 0 7px; border: 1px solid var(--line); border-radius: 9px; padding: 9px; background: white; box-shadow: 0 8px 25px rgba(0,0,0,.08); }
+.app-sidebar__project-menu p { flex-basis: 100%; margin: 0; color: var(--ink-soft); font-size: .7rem; line-height: 1.4; }
+.app-sidebar__project-menu button { min-height: 32px; padding: 4px 8px; }
+.app-sidebar__project-menu .danger-button { color: var(--danger); }
 .app-sidebar__conversation { display: block; overflow: hidden; border-radius: 9px; padding: 9px; color: #333; font-size: .79rem; text-overflow: ellipsis; white-space: nowrap; }
 .app-sidebar__conversation[aria-current="page"] { background: #e7e7e4; color: #111; font-weight: 700; }
 .app-sidebar__conversation-row { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; }

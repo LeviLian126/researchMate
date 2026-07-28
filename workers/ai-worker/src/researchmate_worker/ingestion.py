@@ -183,10 +183,13 @@ class SqlIngestionStore:
                         started_at = coalesce(j.started_at, now()), updated_at = now(),
                         error_message = null
                     from documents as d
+                    join projects as p on p.id = d.project_id
                     where j.id = :job_id and j.user_id = :user_id
                       and j.project_id = :project_id and j.document_id = :document_id
                       and d.id = j.document_id and d.user_id = j.user_id
                       and d.project_id = j.project_id and d.deleted_at is null
+                      and p.user_id = j.user_id and p.status = 'active'
+                      and p.deleted_at is null
                       and d.status not in ('deleted', 'expired', 'ready')
                       and (
                         j.status = 'pending'

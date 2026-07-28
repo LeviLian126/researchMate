@@ -139,3 +139,19 @@ def test_delete_points_keeps_owner_filter_at_the_vector_boundary() -> None:
     keys = {condition.key for condition in selector.filter.must if hasattr(condition, "key")}
     assert keys == {"user_id", "project_id"}
     assert qdrant.delete_call["wait"] is True
+
+
+def test_delete_project_points_removes_every_point_inside_the_owner_boundary() -> None:
+    qdrant = FakeQdrantClient()
+    store = QdrantHybridStore(
+        settings(), NvidiaEmbeddingProvider(settings(), client=FakeOpenAIClient()), client=qdrant
+    )
+
+    store.delete_project_points(user_id="user-1", project_id="project-1")
+
+    selector = qdrant.delete_call["points_selector"]
+    assert {condition.key for condition in selector.filter.must} == {
+        "user_id",
+        "project_id",
+    }
+    assert qdrant.delete_call["wait"] is True

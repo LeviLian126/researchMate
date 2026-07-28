@@ -164,7 +164,8 @@ class PostgresResearchMateRepository:
                     """
                     select id, user_id, name, status, expires_at, created_at, updated_at, deleted_at
                     from projects
-                    where user_id = :user_id and deleted_at is null
+                    where user_id = :user_id and status in ('active', 'deleting')
+                      and deleted_at is null
                     order by updated_at desc, id
                     """
                 ),
@@ -191,16 +192,76 @@ class PostgresResearchMateRepository:
             project = connection.execute(
                 text(
                     """
-                    update projects
-                    set status = 'deleting', updated_at = now()
-                    where id = :project_id and user_id = :user_id and deleted_at is null
-                    returning id
+                    select status from projects
+                    where id = :project_id and user_id = :user_id
+                      and status in ('active', 'deleting') and deleted_at is null
+                    for update
                     """
                 ),
                 {"project_id": project_id, "user_id": user.id},
-            ).one_or_none()
+            ).mappings().one_or_none()
             if project is None:
                 return None
+            if project["status"] == "deleting":
+                existing = connection.execute(
+                    text(
+                        """
+                        select id, user_id, project_id, document_id, type, status, progress,
+                               error_message, created_at, updated_at
+                        from jobs
+                        where project_id = :project_id and user_id = :user_id
+                          and type = 'delete_project'
+                        order by created_at desc, id desc limit 1
+                        """
+                    ),
+                    {"project_id": project_id, "user_id": user.id},
+                ).mappings().one_or_none()
+                if existing is not None and existing["status"] in {"pending", "running"}:
+                    return JobRecord.model_validate(dict(existing))
+                if existing is None or existing["status"] != "failed":
+                    return None
+            else:
+                connection.execute(
+                    text(
+                        """
+                        update projects set status = 'deleting', updated_at = now()
+                        where id = :project_id and user_id = :user_id and status = 'active'
+                        """
+                    ),
+                    {"project_id": project_id, "user_id": user.id},
+                )
+            connection.execute(
+                text(
+                    """
+                    update jobs
+                    set status = 'failed', error_message = 'PROJECT_DELETING',
+                      completed_at = now(), updated_at = now()
+                    where project_id = :project_id and user_id = :user_id
+                      and type = 'ingest_document' and status = 'pending'
+                    """
+                ),
+                {"project_id": project_id, "user_id": user.id},
+            )
+            object_keys = connection.execute(
+                text(
+                    """
+                    select r2_object_key from documents
+                    where project_id = :project_id and user_id = :user_id
+                      and r2_object_key is not null
+                    """
+                ),
+                {"project_id": project_id, "user_id": user.id},
+            ).scalars().all()
+            point_ids = connection.execute(
+                text(
+                    """
+                    select qdrant_point_id from chunks
+                    where project_id = :project_id and user_id = :user_id
+                      and qdrant_point_id is not null
+                    """
+                ),
+                {"project_id": project_id, "user_id": user.id},
+            ).scalars().all()
             job = self._insert_job(
                 connection,
                 user=user,
@@ -209,6 +270,10 @@ class PostgresResearchMateRepository:
                 job_type="delete_project",
                 status=JobStatus.PENDING,
                 progress=0,
+                payload={
+                    "r2_object_keys": list(object_keys),
+                    "qdrant_point_ids": list(point_ids),
+                },
             )
             connection.execute(
                 text(
@@ -217,7 +282,30 @@ class PostgresResearchMateRepository:
                     values (:id, :user_id, :project_id, 'pending')
                     """
                 ),
-                {"id": uuid4(), "user_id": user.id, "project_id": project_id},
+                {"id": job.id, "user_id": user.id, "project_id": project_id},
+            )
+            connection.execute(
+                text(
+                    """
+                    insert into outbox_events (
+                      aggregate_type, aggregate_id, event_type, payload, idempotency_key
+                    ) values (
+                      'project', :project_id, 'project.delete.requested',
+                      cast(:payload as jsonb), :idempotency_key
+                    ) on conflict (idempotency_key) do nothing
+                    """
+                ),
+                {
+                    "project_id": project_id,
+                    "payload": _json(
+                        {
+                            "job_id": str(job.id),
+                            "user_id": str(user.id),
+                            "project_id": str(project_id),
+                        }
+                    ),
+                    "idempotency_key": f"project:{project_id}:delete:{job.id}",
+                },
             )
             return job
 
@@ -242,7 +330,8 @@ class PostgresResearchMateRepository:
                     select :id, :user_id, p.id, :filename, :file_type, :mime_type, :size_bytes,
                            :object_key, 'uploaded', :expires_at
                     from projects p
-                    where p.id = :project_id and p.user_id = :user_id and p.deleted_at is null
+                    where p.id = :project_id and p.user_id = :user_id
+                      and p.status = 'active' and p.deleted_at is null
                     returning id
                     """
                 ),
@@ -622,7 +711,8 @@ class PostgresResearchMateRepository:
                            :rerank_config_version, :rerank_degraded, :fallback_reason,
                            'succeeded', :validation_status, 0, cast(:token_usage as jsonb)
                     from projects p
-                    where p.id = :project_id and p.user_id = :user_id and p.deleted_at is null
+                    where p.id = :project_id and p.user_id = :user_id
+                      and p.status = 'active' and p.deleted_at is null
                     returning id
                     """
                 ),
@@ -1000,7 +1090,9 @@ class PostgresResearchMateRepository:
                         from messages
                         where conversation_id=:id and user_id=:user_id
                           and role in ('user','assistant')
-                        order by created_at,id
+                        order by created_at,
+                                 case role when 'user' then 0 when 'assistant' then 1 else 2 end,
+                                 id
                         """
                     ),
                     {"id": conversation_id, "user_id": user.id},

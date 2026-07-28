@@ -27,6 +27,22 @@ class FakeProvider:
         )
 
 
+class SequenceFakeProvider:
+    def __init__(self, payloads: list[dict]) -> None:
+        self.payloads = list(payloads)
+        self.calls: list[list[dict[str, str]]] = []
+
+    def complete(self, messages):
+        self.calls.append(list(messages))
+        return LLMResult(
+            content=json.dumps(self.payloads.pop(0)),
+            reasoning=None,
+            model="fake",
+            prompt_tokens=10,
+            completion_tokens=5,
+        )
+
+
 def evidence_chunk(text: str) -> ChunkEntry:
     return ChunkEntry(
         id=UUID("10000000-0000-4000-8000-000000000001"),
@@ -72,3 +88,26 @@ def test_out_of_range_evidence_reference_is_rejected() -> None:
             "Question",
             [evidence_chunk("Only evidence one exists")],
         )
+
+
+def test_invalid_grounded_output_gets_one_bounded_repair_attempt() -> None:
+    provider = SequenceFakeProvider([
+        {"answer": "Missing claims"},
+        {
+            "answer": "The supplied evidence supports the answer.",
+            "claims": [{"text": "Evidence supports it.", "evidence_ids": [1]}],
+        },
+    ])
+
+    answer, citations, _summary, result = build_llm_grounded_answer(
+        provider,
+        "Question",
+        [evidence_chunk("Evidence supports the answer.")],
+    )
+
+    assert answer.startswith("The supplied evidence")
+    assert len(citations) == 1
+    assert len(provider.calls) == 2
+    assert "previous response was invalid" in provider.calls[1][-1]["content"]
+    assert result.prompt_tokens == 20
+    assert result.completion_tokens == 10

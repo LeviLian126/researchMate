@@ -7,6 +7,7 @@ def test_celery_registers_ingestion_task_without_starting_external_services() ->
 
     assert "researchmate.ingest_document" in celery_app.tasks
     assert "researchmate.delete_document" in celery_app.tasks
+    assert "researchmate.delete_project" in celery_app.tasks
     assert "researchmate.run_workflow" in celery_app.tasks
     assert "researchmate.run_evaluation" in celery_app.tasks
     assert "researchmate.run_fault_simulation" in celery_app.tasks

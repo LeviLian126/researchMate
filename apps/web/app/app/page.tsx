@@ -70,8 +70,14 @@ export default function ProjectListPage() {
                   <span>{project.status}</span>
                 </div>
                 <div className="row-actions">
-                  <Link href={`/app/projects/${project.id}/chat`}>Open workspace</Link>
-                  <Link href={`/app/projects/${project.id}/library`}>Sources</Link>
+                  {project.status === "active" ? (
+                    <>
+                      <Link href={`/app/projects/${project.id}/chat`}>Open workspace</Link>
+                      <Link href={`/app/projects/${project.id}/library`}>Sources</Link>
+                    </>
+                  ) : (
+                    <span>Deletion needs attention · use the sidebar to retry</span>
+                  )}
                 </div>
               </article>
             ))}

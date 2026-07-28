@@ -156,6 +156,7 @@ class CeleryTaskPublisher:
     TASK_BY_EVENT: ClassVar[dict[str, str]] = {
         "document.ingest.requested": "researchmate.ingest_document",
         "document.delete.requested": "researchmate.delete_document",
+        "project.delete.requested": "researchmate.delete_project",
         "workflow.run.requested": "researchmate.run_workflow",
         "workflow.resume.requested": "researchmate.run_workflow",
         "evaluation.run.requested": "researchmate.run_evaluation",
@@ -170,7 +171,7 @@ class CeleryTaskPublisher:
         task_name = self.TASK_BY_EVENT.get(event.event_type)
         if task_name is None:
             raise ValueError("unsupported_outbox_event")
-        if event.event_type == "document.delete.requested":
+        if event.event_type in {"document.delete.requested", "project.delete.requested"}:
             queue = "deletion"
         elif event.event_type.startswith("workflow."):
             queue = "workflow"
