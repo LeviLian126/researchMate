@@ -14,6 +14,7 @@ from researchmate_api.mcp_server import MCPRequestIdentity, current_mcp_identity
 from researchmate_api.observability import configure_observability, log_event
 from researchmate_api.routers import (
     ask,
+    conversations,
     dev_traces,
     documents,
     evidence,
@@ -29,6 +30,7 @@ from researchmate_api.services.embedding import NvidiaEmbeddingProvider
 from researchmate_api.services.evidence_store import EvidenceRepository, InMemoryEvidenceRepository
 from researchmate_api.services.llm import NvidiaChatProvider
 from researchmate_api.services.qdrant_store import QdrantHybridStore
+from researchmate_api.services.rerank import RerankCoordinator
 from researchmate_api.services.store import InMemoryResearchMateStore, ResearchMateRepository
 from researchmate_api.services.web_search import TavilyWebSearchProvider
 
@@ -103,6 +105,10 @@ def create_app(
             runtime_settings,
             NvidiaEmbeddingProvider(runtime_settings),
         )
+    app.state.reranker = RerankCoordinator(
+        runtime_settings,
+        qdrant=app.state.hybrid_store,
+    )
     if runtime_settings.web_search_provider == "tavily":
         app.state.web_search = TavilyWebSearchProvider(runtime_settings)
     observability = configure_observability(app, runtime_settings)
@@ -192,6 +198,8 @@ def create_app(
                     chat_provider=app.state.chat_provider,
                     hybrid_store=app.state.hybrid_store,
                     web_search=app.state.web_search,
+                    settings=runtime_settings,
+                    reranker=app.state.reranker,
                 )
             )
         try:
@@ -222,6 +230,7 @@ def create_app(
     app.include_router(documents.router, prefix="/api/v1", tags=["documents"])
     app.include_router(jobs.router, prefix="/api/v1", tags=["jobs"])
     app.include_router(ask.router, prefix="/api/v1", tags=["ask"])
+    app.include_router(conversations.router, prefix="/api/v1", tags=["conversations"])
     app.include_router(quiz.router, prefix="/api/v1", tags=["quiz"])
     app.include_router(runs.router, prefix="/api/v1", tags=["sources"])
     app.include_router(dev_traces.router, prefix="/api/v1", tags=["developer-trace"])

@@ -549,10 +549,10 @@
 <tr id="field-chunks-expires_at"><td><code>expires_at</code></td><td><code>timestamptz</code></td><td>nullable</td><td>none declared</td><td>Expiry intent; cleanup is application/worker-managed.</td></tr>
 <tr id="field-chunks-created_at"><td><code>created_at</code></td><td><code>timestamptz not null default now()</code></td><td>required</td><td>default now()</td><td>Creation timestamp.</td></tr>
 </tbody></table></div></details>
-      <details id="conversations"><summary><code>conversations</code> &middot; 7 fields</summary>
+      <details id="conversations"><summary><code>conversations</code> &middot; 11 fields</summary>
        <div class="grid">
-        <div class="fact"><b>Purpose</b><p>Owner-scoped multi-turn container; not persisted by the current runtime.</p></div>
-        <div class="fact"><b>Integrity and indexes</b><p>Owner/project FKs cascade. No secondary index.</p></div>
+        <div class="fact"><b>Purpose</b><p>Owner-scoped persisted multi-turn container with durable bounded summary state.</p></div>
+        <div class="fact"><b>Integrity and indexes</b><p>Owner/project FKs cascade; message reads use the conversation/created index.</p></div>
         <div class="fact"><b>Access and lifecycle</b><p>RLS: owner ALL. Updates and soft deletion are application-managed.</p></div>
        </div>
        <div class="scroll"><table class="dense"><thead><tr><th>Field</th><th>Exact declaration</th><th>Null</th><th>Key / constraint</th><th>Role</th></tr></thead><tbody>
@@ -563,8 +563,12 @@
 <tr id="field-conversations-created_at"><td><code>created_at</code></td><td><code>timestamptz not null default now()</code></td><td>required</td><td>default now()</td><td>Creation timestamp.</td></tr>
 <tr id="field-conversations-updated_at"><td><code>updated_at</code></td><td><code>timestamptz not null default now()</code></td><td>required</td><td>default now()</td><td>Last-update timestamp; application-managed.</td></tr>
 <tr id="field-conversations-deleted_at"><td><code>deleted_at</code></td><td><code>timestamptz</code></td><td>nullable</td><td>none declared</td><td>Soft-delete timestamp.</td></tr>
+<tr id="field-conversations-summary_text"><td><code>summary_text</code></td><td><code>text</code></td><td>nullable</td><td>none declared</td><td>Durable compressed history, bounded to approximately 1,500 tokens by the application.</td></tr>
+<tr id="field-conversations-summary_token_count"><td><code>summary_token_count</code></td><td><code>integer not null default 0</code></td><td>required</td><td>CHECK ≥ 0</td><td>Estimated summary tokens.</td></tr>
+<tr id="field-conversations-summary_message_count"><td><code>summary_message_count</code></td><td><code>integer not null default 0</code></td><td>required</td><td>CHECK ≥ 0</td><td>Number of compacted messages.</td></tr>
+<tr id="field-conversations-summary_updated_at"><td><code>summary_updated_at</code></td><td><code>timestamptz</code></td><td>nullable</td><td>none declared</td><td>Last successful compaction.</td></tr>
 </tbody></table></div></details>
-      <details id="messages"><summary><code>messages</code> &middot; 7 fields</summary>
+      <details id="messages"><summary><code>messages</code> &middot; 8 fields</summary>
        <div class="grid">
         <div class="fact"><b>Purpose</b><p>Conversation turn with explicit owner/project scope and optional conversation.</p></div>
         <div class="fact"><b>Integrity and indexes</b><p>Owner/project/conversation FKs cascade; role check applies. No secondary index.</p></div>
@@ -575,11 +579,12 @@
 <tr id="field-messages-user_id"><td><code>user_id</code></td><td><code>uuid not null references profiles(id) on delete cascade</code></td><td>required</td><td>FK &middot; profiles.id &middot; CASCADE</td><td>Tenant owner reference.</td></tr>
 <tr id="field-messages-project_id"><td><code>project_id</code></td><td><code>uuid not null references projects(id) on delete cascade</code></td><td>required</td><td>FK &middot; projects.id &middot; CASCADE</td><td>Project/workspace reference.</td></tr>
 <tr id="field-messages-conversation_id"><td><code>conversation_id</code></td><td><code>uuid references conversations(id) on delete cascade</code></td><td>nullable</td><td>FK &middot; conversations.id &middot; CASCADE</td><td>Conversation reference.</td></tr>
+<tr id="field-messages-ask_run_id"><td><code>ask_run_id</code></td><td><code>uuid references ask_runs(id) on delete set null</code></td><td>nullable</td><td>FK &middot; ask_runs.id &middot; SET NULL</td><td>Assistant-turn run and citation correlation.</td></tr>
 <tr id="field-messages-role"><td><code>role</code></td><td><code>text not null check (role in (&#x27;user&#x27;, &#x27;assistant&#x27;, &#x27;system&#x27;))</code></td><td>required</td><td>CHECK</td><td>Authorization or message role.</td></tr>
 <tr id="field-messages-content"><td><code>content</code></td><td><code>text not null</code></td><td>required</td><td>none declared</td><td>Message body.</td></tr>
 <tr id="field-messages-created_at"><td><code>created_at</code></td><td><code>timestamptz not null default now()</code></td><td>required</td><td>default now()</td><td>Creation timestamp.</td></tr>
 </tbody></table></div></details>
-      <details id="ask-runs"><summary><code>ask_runs</code> &middot; 15 fields</summary>
+      <details id="ask-runs"><summary><code>ask_runs</code> &middot; 19 fields</summary>
        <div class="grid">
         <div class="fact"><b>Purpose</b><p>Ask/Quiz ledger for routing, validation, latency, usage, and errors.</p></div>
         <div class="fact"><b>Integrity and indexes</b><p>Owner/project FKs cascade; conversation/message use SET NULL. Index: <code>idx_ask_runs_user_project_created</code>.</p></div>
@@ -592,15 +597,32 @@
 <tr id="field-ask_runs-conversation_id"><td><code>conversation_id</code></td><td><code>uuid references conversations(id) on delete set null</code></td><td>nullable</td><td>FK &middot; conversations.id &middot; SET NULL</td><td>Conversation reference.</td></tr>
 <tr id="field-ask_runs-message_id"><td><code>message_id</code></td><td><code>uuid references messages(id) on delete set null</code></td><td>nullable</td><td>FK &middot; messages.id &middot; SET NULL</td><td>Message reference.</td></tr>
 <tr id="field-ask_runs-message"><td><code>message</code></td><td><code>text not null</code></td><td>required</td><td>none declared</td><td>Original request text.</td></tr>
-<tr id="field-ask_runs-source_mode"><td><code>source_mode</code></td><td><code>text not null check (source_mode in (&#x27;auto&#x27;, &#x27;local_only&#x27;, &#x27;web_only&#x27;, &#x27;hybrid&#x27;))</code></td><td>required</td><td>CHECK</td><td>Requested evidence mode.</td></tr>
 <tr id="field-ask_runs-task_type"><td><code>task_type</code></td><td><code>text not null check (task_type in (&#x27;answer&#x27;, &#x27;quiz&#x27;))</code></td><td>required</td><td>CHECK</td><td>Answer or quiz task.</td></tr>
-<tr id="field-ask_runs-resolved_mode"><td><code>resolved_mode</code></td><td><code>text not null check (resolved_mode in (&#x27;auto&#x27;, &#x27;local_only&#x27;, &#x27;web_only&#x27;, &#x27;hybrid&#x27;))</code></td><td>required</td><td>CHECK</td><td>Effective evidence mode.</td></tr>
+<tr id="field-ask_runs-web_enabled"><td><code>web_enabled</code></td><td><code>boolean not null default false</code></td><td>required</td><td>default false</td><td>Whether current Web evidence was requested.</td></tr>
+<tr id="field-ask_runs-context_strategy"><td><code>context_strategy</code></td><td><code>text not null default 'chat'</code></td><td>required</td><td>CHECK</td><td>Frozen chat, full-context, retrieval, Web, or quiz strategy.</td></tr>
+<tr id="field-ask_runs-rerank_provider"><td><code>rerank_provider</code></td><td><code>text</code></td><td>nullable</td><td>CHECK</td><td>Actual Qdrant, NVIDIA, or deterministic provider.</td></tr>
+<tr id="field-ask_runs-rerank_config_version"><td><code>rerank_config_version</code></td><td><code>integer</code></td><td>nullable</td><td>CHECK ≥ 1</td><td>Runtime configuration snapshot.</td></tr>
+<tr id="field-ask_runs-rerank_degraded"><td><code>rerank_degraded</code></td><td><code>boolean not null default false</code></td><td>required</td><td>default false</td><td>True when provider fallback occurred.</td></tr>
+<tr id="field-ask_runs-fallback_reason"><td><code>fallback_reason</code></td><td><code>text</code></td><td>nullable</td><td>none declared</td><td>Safe provider fallback reason.</td></tr>
 <tr id="field-ask_runs-status"><td><code>status</code></td><td><code>ask_status not null default &#x27;pending&#x27;</code></td><td>required</td><td>default &#x27;pending&#x27;</td><td>Lifecycle state value.</td></tr>
 <tr id="field-ask_runs-validation_status"><td><code>validation_status</code></td><td><code>validation_status not null default &#x27;pending&#x27;</code></td><td>required</td><td>default &#x27;pending&#x27;</td><td>Output validation state.</td></tr>
 <tr id="field-ask_runs-latency_ms"><td><code>latency_ms</code></td><td><code>integer</code></td><td>nullable</td><td>none declared</td><td>Observed duration in milliseconds.</td></tr>
 <tr id="field-ask_runs-token_usage"><td><code>token_usage</code></td><td><code>jsonb not null default &#x27;{}&#x27;::jsonb</code></td><td>required</td><td>default &#x27;{}&#x27;::jsonb</td><td>Provider/model usage metadata.</td></tr>
 <tr id="field-ask_runs-error_message"><td><code>error_message</code></td><td><code>text</code></td><td>nullable</td><td>none declared</td><td>Safe failure summary.</td></tr>
 <tr id="field-ask_runs-created_at"><td><code>created_at</code></td><td><code>timestamptz not null default now()</code></td><td>required</td><td>default now()</td><td>Creation timestamp.</td></tr>
+</tbody></table></div></details>
+      <details id="runtime-ai-config"><summary><code>runtime_ai_config</code> &middot; 5 fields</summary>
+       <div class="grid">
+        <div class="fact"><b>Purpose</b><p>No-restart runtime selection of the rerank provider.</p></div>
+        <div class="fact"><b>Integrity</b><p>The provider is constrained to auto, qdrant, nvidia, or deterministic; optimistic writes increment the version.</p></div>
+        <div class="fact"><b>Access</b><p>RLS read/write policies require developer or admin role. Qdrant activation additionally requires the free-model and index readiness probe.</p></div>
+       </div>
+       <div class="scroll"><table class="dense"><thead><tr><th>Field</th><th>Exact declaration</th><th>Null</th><th>Key / constraint</th><th>Role</th></tr></thead><tbody>
+<tr id="field-runtime_ai_config-config_key"><td><code>config_key</code></td><td><code>text primary key</code></td><td>required</td><td>PK</td><td>Configuration identity; current row is rerank.</td></tr>
+<tr id="field-runtime_ai_config-provider"><td><code>provider</code></td><td><code>text not null</code></td><td>required</td><td>CHECK</td><td>Requested provider policy.</td></tr>
+<tr id="field-runtime_ai_config-version"><td><code>version</code></td><td><code>integer not null default 1</code></td><td>required</td><td>CHECK ≥ 1</td><td>Concurrency and run-snapshot version.</td></tr>
+<tr id="field-runtime_ai_config-updated_at"><td><code>updated_at</code></td><td><code>timestamptz not null default now()</code></td><td>required</td><td>default now()</td><td>Last switch time.</td></tr>
+<tr id="field-runtime_ai_config-updated_by"><td><code>updated_by</code></td><td><code>uuid references profiles(id) on delete set null</code></td><td>nullable</td><td>FK</td><td>Admin actor.</td></tr>
 </tbody></table></div></details>
       <details id="tool-calls"><summary><code>tool_calls</code> &middot; 9 fields</summary>
        <div class="grid">
@@ -638,10 +660,10 @@
 <tr id="field-citations-claim_id"><td><code>claim_id</code></td><td><code>text</code></td><td>nullable</td><td>none declared</td><td>Optional answer-claim correlation.</td></tr>
 <tr id="field-citations-created_at"><td><code>created_at</code></td><td><code>timestamptz not null default now()</code></td><td>required</td><td>default now()</td><td>Creation timestamp.</td></tr>
 </tbody></table></div></details>
-      <details id="quiz-sets"><summary><code>quiz_sets</code> &middot; 8 fields</summary>
+      <details id="quiz-sets"><summary><code>quiz_sets</code> &middot; 7 fields</summary>
        <div class="grid">
         <div class="fact"><b>Purpose</b><p>Owner-scoped generated study artifact and source summary.</p></div>
-        <div class="fact"><b>Integrity and indexes</b><p>Owner/project cascade; run uses SET NULL; source mode check. Index: <code>idx_quiz_sets_user_project_created</code>.</p></div>
+        <div class="fact"><b>Integrity and indexes</b><p>Owner/project cascade; run uses SET NULL. Index: <code>idx_quiz_sets_user_project_created</code>.</p></div>
         <div class="fact"><b>Access and lifecycle</b><p>RLS: owner ALL. Child questions cascade.</p></div>
        </div>
        <div class="scroll"><table class="dense"><thead><tr><th>Field</th><th>Exact declaration</th><th>Null</th><th>Key / constraint</th><th>Role</th></tr></thead><tbody>
@@ -650,7 +672,6 @@
 <tr id="field-quiz_sets-project_id"><td><code>project_id</code></td><td><code>uuid not null references projects(id) on delete cascade</code></td><td>required</td><td>FK &middot; projects.id &middot; CASCADE</td><td>Project/workspace reference.</td></tr>
 <tr id="field-quiz_sets-ask_run_id"><td><code>ask_run_id</code></td><td><code>uuid references ask_runs(id) on delete set null</code></td><td>nullable</td><td>FK &middot; ask_runs.id &middot; SET NULL</td><td>Originating Ask/Quiz run reference.</td></tr>
 <tr id="field-quiz_sets-title"><td><code>title</code></td><td><code>text not null</code></td><td>required</td><td>none declared</td><td>Display title.</td></tr>
-<tr id="field-quiz_sets-source_mode"><td><code>source_mode</code></td><td><code>text not null check (source_mode in (&#x27;local_only&#x27;, &#x27;hybrid&#x27;))</code></td><td>required</td><td>CHECK</td><td>Requested evidence mode.</td></tr>
 <tr id="field-quiz_sets-sources_summary"><td><code>sources_summary</code></td><td><code>jsonb not null default &#x27;{}&#x27;::jsonb</code></td><td>required</td><td>default &#x27;{}&#x27;::jsonb</td><td>Source-count snapshot.</td></tr>
 <tr id="field-quiz_sets-created_at"><td><code>created_at</code></td><td><code>timestamptz not null default now()</code></td><td>required</td><td>default now()</td><td>Creation timestamp.</td></tr>
 </tbody></table></div></details>

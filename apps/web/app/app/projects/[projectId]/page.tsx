@@ -239,7 +239,11 @@ export default function EvidenceReviewPage() {
     try {
       setAskAnswer(await apiFetch<AskResponse>("/ask", {
         method: "POST",
-        body: JSON.stringify({ project_id: projectId, message: askMessage, selected_mode: "local_only" }),
+        body: JSON.stringify({
+          project_id: projectId,
+          message: askMessage,
+          web_enabled: false,
+        }),
       }));
     } catch (error) {
       setNotice(describeApiError(error));

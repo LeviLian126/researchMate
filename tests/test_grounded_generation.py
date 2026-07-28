@@ -2,7 +2,7 @@ import json
 from uuid import UUID
 
 import pytest
-from researchmate_api.schemas.common import SourceMode, SourceType
+from researchmate_api.schemas.common import SourceType
 from researchmate_api.services.answering import (
     ProviderOutputError,
     build_llm_grounded_answer,
@@ -47,10 +47,9 @@ def test_model_can_only_select_server_supplied_evidence() -> None:
         ]}
     )
 
-    answer, citations, summary = build_llm_grounded_answer(
+    answer, citations, summary, _result = build_llm_grounded_answer(
         provider,
         "What is RAG?",
-        SourceMode.LOCAL_ONLY,
         [evidence_chunk("RAG retrieves relevant passages before answer generation.")],
     )
 
@@ -71,6 +70,5 @@ def test_out_of_range_evidence_reference_is_rejected() -> None:
         build_llm_grounded_answer(
             provider,
             "Question",
-            SourceMode.LOCAL_ONLY,
             [evidence_chunk("Only evidence one exists")],
         )

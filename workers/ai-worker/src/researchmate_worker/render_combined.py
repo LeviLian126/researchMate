@@ -10,6 +10,18 @@ from collections.abc import Sequence
 QUEUES = "ingestion,deletion,workflow,evaluation,reliability"
 
 
+def apply_schema_migrations() -> None:
+    """Apply repository migrations before any process can observe the new schema."""
+    if os.getenv("RUN_SCHEMA_MIGRATIONS") != "1":
+        return
+    environment = {**os.environ, "ALLOW_SCHEMA_APPLY": "1"}
+    subprocess.run(
+        [sys.executable, "/app/scripts/apply_migrations.py", "--apply"],
+        check=True,
+        env=environment,
+    )
+
+
 def child_commands(port: int) -> list[list[str]]:
     return [
         [
@@ -46,6 +58,7 @@ def stop_children(children: Sequence[subprocess.Popen[bytes]], signum: int) -> N
 
 
 def run(port: int) -> int:
+    apply_schema_migrations()
     children = [subprocess.Popen(command) for command in child_commands(port)]
 
     def forward(signum: int, _frame: object) -> None:

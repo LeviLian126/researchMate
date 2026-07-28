@@ -11,7 +11,6 @@ from uuid import UUID, uuid4
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Connection, Engine
 
-from researchmate_api.schemas.ask import AskResponse
 from researchmate_api.schemas.common import (
     Citation,
     CurrentUser,
@@ -19,6 +18,11 @@ from researchmate_api.schemas.common import (
     JobStatus,
     SourceSummary,
     SourceType,
+)
+from researchmate_api.schemas.conversation import (
+    ConversationMessage,
+    ConversationSummary,
+    RuntimeRerankConfig,
 )
 from researchmate_api.schemas.document import DocumentRecord, UploadUrlRequest, UploadUrlResponse
 from researchmate_api.schemas.job import JobRecord
@@ -573,6 +577,9 @@ class PostgresResearchMateRepository:
         citations: list[Citation],
         tool_calls: list[ToolCallTrace],
         validation_result: dict,
+        conversation_id: UUID | None = None,
+        runtime_metadata: dict | None = None,
+        assistant_answer: str | None = None,
     ) -> tuple[UUID, UUID]:
         run_id, trace_id = uuid4(), uuid4()
         passed = bool(validation_result.get("passed", False))
@@ -596,7 +603,7 @@ class PostgresResearchMateRepository:
             tool_calls=tool_calls,
             validation_result=validation_result,
             latency_ms=0,
-            token_usage=None,
+            token_usage=runtime_metadata,
             errors=[] if passed else ["validation_failed"],
             created_at=datetime.now(UTC),
         )
@@ -605,10 +612,14 @@ class PostgresResearchMateRepository:
                 text(
                     """
                     insert into ask_runs (
-                      id, user_id, project_id, message, source_mode, task_type, resolved_mode,
-                      status, validation_status, latency_ms, token_usage
+                      id, user_id, project_id, conversation_id, message, task_type,
+                      web_enabled, context_strategy, rerank_provider, rerank_config_version,
+                      rerank_degraded, fallback_reason, status, validation_status,
+                      latency_ms, token_usage
                     )
-                    select :id, :user_id, p.id, :message, :source_mode, :task_type, :resolved_mode,
+                    select :id, :user_id, p.id, :conversation_id, :message, :task_type,
+                           :web_enabled, :context_strategy, :rerank_provider,
+                           :rerank_config_version, :rerank_degraded, :fallback_reason,
                            'succeeded', :validation_status, 0, cast(:token_usage as jsonb)
                     from projects p
                     where p.id = :project_id and p.user_id = :user_id and p.deleted_at is null
@@ -619,13 +630,25 @@ class PostgresResearchMateRepository:
                     "id": run_id,
                     "user_id": user.id,
                     "project_id": project_id,
+                    "conversation_id": conversation_id,
                     "message": message,
-                    "source_mode": _enum_value(plan.source_mode),
                     "task_type": _enum_value(plan.task_type),
-                    "resolved_mode": _enum_value(plan.source_mode),
+                    "web_enabled": bool((runtime_metadata or {}).get("web_enabled", False)),
+                    "context_strategy": plan.context_strategy,
+                    "rerank_provider": (runtime_metadata or {}).get("rerank_provider"),
+                    "rerank_config_version": (runtime_metadata or {}).get(
+                        "rerank_config_version"
+                    ),
+                    "rerank_degraded": bool(
+                        (runtime_metadata or {}).get("rerank_degraded", False)
+                    ),
+                    "fallback_reason": (runtime_metadata or {}).get("fallback_reason"),
                     "validation_status": "passed" if passed else "failed",
                     "token_usage": _json(
-                        {"researchmate_trace": trace.model_dump(mode="json")}
+                        {
+                            **(runtime_metadata or {}),
+                            "researchmate_trace": trace.model_dump(mode="json"),
+                        }
                     ),
                 },
             ).one_or_none()
@@ -681,37 +704,67 @@ class PostgresResearchMateRepository:
                         "claim_id": citation.claim_id,
                     },
                 )
+            if conversation_id is not None and assistant_answer is not None:
+                conversation = connection.execute(
+                    text(
+                        """
+                        select project_id from conversations
+                        where id=:id and project_id=:project_id and user_id=:user_id
+                          and deleted_at is null
+                        for update
+                        """
+                    ),
+                    {
+                        "id": conversation_id,
+                        "project_id": project_id,
+                        "user_id": user.id,
+                    },
+                ).mappings().one_or_none()
+                if conversation is None:
+                    raise ValueError("conversation is not owned by the current user")
+                user_message_id = uuid4()
+                connection.execute(
+                    text(
+                        """
+                        insert into messages (
+                          id,user_id,project_id,conversation_id,ask_run_id,role,content
+                        ) values (
+                          :user_message_id,:user_id,:project_id,:conversation_id,null,'user',:prompt
+                        ),(
+                          :assistant_message_id,:user_id,:project_id,:conversation_id,:run_id,
+                          'assistant',:answer
+                        )
+                        """
+                    ),
+                    {
+                        "user_message_id": user_message_id,
+                        "assistant_message_id": uuid4(),
+                        "user_id": user.id,
+                        "project_id": project_id,
+                        "conversation_id": conversation_id,
+                        "run_id": run_id,
+                        "prompt": message,
+                        "answer": assistant_answer,
+                    },
+                )
+                connection.execute(
+                    text(
+                        """
+                        update ask_runs set message_id=:message_id
+                        where id=:run_id and user_id=:user_id
+                        """
+                    ),
+                    {
+                        "message_id": user_message_id,
+                        "run_id": run_id,
+                        "user_id": user.id,
+                    },
+                )
+                connection.execute(
+                    text("update conversations set updated_at=now() where id=:id"),
+                    {"id": conversation_id},
+                )
         return run_id, trace_id
-
-    def save_ask_response(self, user: CurrentUser, response: AskResponse) -> AskResponse:
-        with self._transaction(user) as connection:
-            run = connection.execute(
-                text(
-                    """
-                    select project_id from ask_runs
-                    where id = :run_id and user_id = :user_id
-                    for update
-                    """
-                ),
-                {"run_id": response.run_id, "user_id": user.id},
-            ).mappings().one_or_none()
-            if run is None:
-                raise ValueError("run is not owned by the current user")
-            connection.execute(
-                text(
-                    """
-                    insert into messages (id, user_id, project_id, role, content)
-                    values (:id, :user_id, :project_id, 'assistant', :content)
-                    """
-                ),
-                {
-                    "id": uuid4(),
-                    "user_id": user.id,
-                    "project_id": run["project_id"],
-                    "content": response.answer,
-                },
-            )
-        return response
 
     def save_quiz_set(
         self, user: CurrentUser, project_id: UUID, run_id: UUID, quiz_set: QuizSet
@@ -732,10 +785,9 @@ class PostgresResearchMateRepository:
                 text(
                     """
                     insert into quiz_sets (
-                      id, user_id, project_id, ask_run_id, title, source_mode, sources_summary
+                      id, user_id, project_id, ask_run_id, title, sources_summary
                     ) values (
-                      :id, :user_id, :project_id, :run_id, :title, :source_mode,
-                      cast(:sources as jsonb)
+                      :id, :user_id, :project_id, :run_id, :title, cast(:sources as jsonb)
                     )
                     """
                 ),
@@ -745,7 +797,6 @@ class PostgresResearchMateRepository:
                     "project_id": project_id,
                     "run_id": run_id,
                     "title": "Generated evidence quiz",
-                    "source_mode": _enum_value(quiz_set.mode),
                     "sources": _json(quiz_set.sources.model_dump(mode="json")),
                 },
             )
@@ -788,7 +839,7 @@ class PostgresResearchMateRepository:
                 connection.execute(
                     text(
                         """
-                        select id, source_mode, sources_summary
+                        select id, sources_summary
                         from quiz_sets
                         where user_id = :user_id and project_id = :project_id
                         order by created_at desc, id
@@ -830,12 +881,215 @@ class PostgresResearchMateRepository:
                 result.append(
                     QuizSet(
                         id=quiz_row["id"],
-                        mode=quiz_row["source_mode"],
                         sources=SourceSummary.model_validate(quiz_row["sources_summary"]),
                         questions=parsed_questions,
                     )
                 )
             return result
+
+    def ensure_conversation(
+        self,
+        user: CurrentUser,
+        project_id: UUID,
+        conversation_id: UUID | None,
+        first_message: str,
+    ) -> ConversationSummary | None:
+        with self._transaction(user) as connection:
+            if conversation_id is not None:
+                row = connection.execute(
+                    text(
+                        """
+                        select id, project_id, title, created_at, updated_at
+                        from conversations
+                        where id=:id and project_id=:project_id and user_id=:user_id
+                          and deleted_at is null
+                        """
+                    ),
+                    {
+                        "id": conversation_id,
+                        "project_id": project_id,
+                        "user_id": user.id,
+                    },
+                ).mappings().one_or_none()
+            else:
+                row = connection.execute(
+                    text(
+                        """
+                        insert into conversations (id,user_id,project_id,title)
+                        select :id,:user_id,p.id,:title
+                        from projects p
+                        where p.id=:project_id and p.user_id=:user_id and p.deleted_at is null
+                        returning id,project_id,title,created_at,updated_at
+                        """
+                    ),
+                    {
+                        "id": uuid4(),
+                        "project_id": project_id,
+                        "user_id": user.id,
+                        "title": (" ".join(first_message.split())[:120] or "New conversation"),
+                    },
+                ).mappings().one_or_none()
+        return ConversationSummary.model_validate(row) if row else None
+
+    def list_conversations(
+        self, user: CurrentUser, project_id: UUID
+    ) -> list[ConversationSummary] | None:
+        if self.get_project(user, project_id) is None:
+            return None
+        with self._transaction(user) as connection:
+            rows = connection.execute(
+                text(
+                    """
+                    select id,project_id,title,created_at,updated_at
+                    from conversations
+                    where project_id=:project_id and user_id=:user_id and deleted_at is null
+                    order by updated_at desc limit 100
+                    """
+                ),
+                {"project_id": project_id, "user_id": user.id},
+            ).mappings()
+            return [ConversationSummary.model_validate(row) for row in rows]
+
+    def conversation_messages(
+        self, user: CurrentUser, conversation_id: UUID
+    ) -> list[ConversationMessage] | None:
+        with self._transaction(user) as connection:
+            owned = connection.execute(
+                text(
+                    """
+                    select 1 from conversations
+                    where id=:id and user_id=:user_id and deleted_at is null
+                    """
+                ),
+                {"id": conversation_id, "user_id": user.id},
+            ).one_or_none()
+            if owned is None:
+                return None
+            rows = list(
+                connection.execute(
+                    text(
+                        """
+                        select id,conversation_id,role,content,ask_run_id,created_at
+                        from messages
+                        where conversation_id=:id and user_id=:user_id
+                          and role in ('user','assistant')
+                        order by created_at,id
+                        """
+                    ),
+                    {"id": conversation_id, "user_id": user.id},
+                ).mappings()
+            )
+            result: list[ConversationMessage] = []
+            for row in rows:
+                citations = []
+                if row["ask_run_id"] is not None:
+                    citation_rows = connection.execute(
+                        text(
+                            """
+                            select id,source_type,document_id,chunk_id,page_no,slide_no,
+                                   url,quote,claim_id
+                            from citations
+                            where ask_run_id=:run_id
+                            order by created_at,id
+                            """
+                        ),
+                        {"run_id": row["ask_run_id"]},
+                    ).mappings()
+                    citations = [Citation.model_validate(item) for item in citation_rows]
+                result.append(
+                    ConversationMessage(
+                        id=row["id"],
+                        conversation_id=row["conversation_id"],
+                        role=row["role"],
+                        content=row["content"],
+                        citations=citations,
+                        created_at=row["created_at"],
+                    )
+                )
+            return result
+
+
+    def get_runtime_rerank_config(self) -> RuntimeRerankConfig:
+        with self.engine.begin() as connection:
+            row = connection.execute(
+                text(
+                    """
+                    select provider,version,updated_at,updated_by
+                    from runtime_ai_config where config_key='rerank'
+                    """
+                )
+            ).mappings().one()
+        return RuntimeRerankConfig.model_validate(row)
+
+    def update_runtime_rerank_config(
+        self, user: CurrentUser, provider: str, expected_version: int
+    ) -> RuntimeRerankConfig | None:
+        with self._transaction(user) as connection:
+            row = connection.execute(
+                text(
+                    """
+                    update runtime_ai_config
+                    set provider=:provider,version=version+1,updated_at=now(),updated_by=:user_id
+                    where config_key='rerank' and version=:expected_version
+                    returning provider,version,updated_at,updated_by
+                    """
+                ),
+                {
+                    "provider": provider,
+                    "user_id": user.id,
+                    "expected_version": expected_version,
+                },
+            ).mappings().one_or_none()
+        return RuntimeRerankConfig.model_validate(row) if row else None
+
+    def conversation_summary(
+        self, user: CurrentUser, conversation_id: UUID
+    ) -> tuple[str | None, int] | None:
+        with self._transaction(user) as connection:
+            row = connection.execute(
+                text(
+                    """
+                    select summary_text,summary_message_count
+                    from conversations
+                    where id=:id and user_id=:user_id and deleted_at is null
+                    """
+                ),
+                {"id": conversation_id, "user_id": user.id},
+            ).mappings().one_or_none()
+        if row is None:
+            return None
+        return row["summary_text"], int(row["summary_message_count"])
+
+    def update_conversation_summary(
+        self,
+        user: CurrentUser,
+        conversation_id: UUID,
+        summary: str,
+        message_count: int,
+    ) -> bool:
+        from researchmate_api.services.retrieval import estimate_tokens
+
+        with self._transaction(user) as connection:
+            updated = connection.execute(
+                text(
+                    """
+                    update conversations
+                    set summary_text=:summary,
+                        summary_token_count=:tokens,
+                        summary_message_count=:message_count,
+                        summary_updated_at=now()
+                    where id=:id and user_id=:user_id and deleted_at is null
+                    """
+                ),
+                {
+                    "summary": summary,
+                    "tokens": estimate_tokens(summary),
+                    "message_count": message_count,
+                    "id": conversation_id,
+                    "user_id": user.id,
+                },
+            )
+        return bool(updated.rowcount)
 
     def increment_usage(self, user: CurrentUser, kind: str, limit: int) -> bool:
         with self._transaction(user) as connection:

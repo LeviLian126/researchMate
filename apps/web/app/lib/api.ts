@@ -1,7 +1,6 @@
 import { getSupabaseSession, isLocalDevelopment } from "./supabase";
 import { demoFetch, demoRunEvents, isPublicDemo } from "./demo";
 
-export type SourceMode = "auto" | "local_only" | "web_only" | "hybrid";
 export type RunStatus = "pending" | "running" | "waiting_human" | "succeeded" | "failed" | "cancelled";
 
 export interface ProjectRecord {
@@ -41,12 +40,14 @@ export interface Citation {
 
 export interface AskResponse {
   run_id: string;
+  conversation_id: string;
   answer: string;
-  mode: SourceMode;
   sources: { local_chunks: number; web_pages: number };
   citations: Citation[];
   trace_id: string;
   validation_status: "passed" | "failed" | "retrying";
+  rerank_degraded: boolean;
+  fallback_reason?: string | null;
 }
 
 export interface QuizQuestion {
@@ -62,9 +63,25 @@ export interface QuizQuestion {
 
 export interface QuizSet {
   id: string;
-  mode: SourceMode;
   sources: { local_chunks: number; web_pages: number };
   questions: QuizQuestion[];
+}
+
+export interface ConversationSummary {
+  id: string;
+  project_id: string;
+  title: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ConversationMessage {
+  id: string;
+  conversation_id: string;
+  role: "user" | "assistant";
+  content: string;
+  citations: Citation[];
+  created_at: string;
 }
 
 export interface DeveloperTrace {

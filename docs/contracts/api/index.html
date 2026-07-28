@@ -232,14 +232,18 @@
       <dt>Evidence</dt><dd><span class="source">routers/jobs.py · schemas/job.py · ingestion workflow tests</span></dd>
      </dl></details>
 
-     <h3 id="ask-operations">Ask, sources, and developer trace</h3>
-     <details id="op-ask" data-api-card data-api="ask" data-method="POST" data-access="owner"><summary><code>POST /api/v1/ask</code> — generate a grounded answer</summary><dl class="kv">
+     <h3 id="ask-operations">Unified chat, conversations, sources, and developer trace</h3>
+     <details id="op-ask" data-api-card data-api="ask" data-method="POST" data-access="owner"><summary><code>POST /api/v1/ask</code> — continue a unified conversation</summary><dl class="kv">
       <dt>Caller / access</dt><dd>Project owner. Current local quota is 200 Ask requests per user per day.</dd>
-      <dt>Input</dt><dd>JSON <a href="#schema-ask"><code>AskRequest</code></a>: project UUID, message, and source mode. There is no conversation or idempotency field.</dd>
-      <dt>Success</dt><dd>200 <a href="#schema-ask"><code>AskResponse</code></a>: answer, selected mode, source summary, citations, run ID, trace ID, and validation status.</dd>
-      <dt>Failure / semantics</dt><dd>404 <code>PROJECT_NOT_FOUND</code>; 422 validation or <code>TASK_ROUTE_MISMATCH</code>; 409 <code>DOCUMENT_NOT_INDEXED</code>, <code>EVIDENCE_NOT_FOUND</code>, or <code>WEB_EVIDENCE_NOT_FOUND</code>; 503 <code>RETRIEVAL_UNAVAILABLE</code>, <code>WEB_SEARCH_NOT_CONFIGURED</code>, <code>WEB_SEARCH_UNAVAILABLE</code>, or <code>LLM_UNAVAILABLE</code>; 429 <code>RATE_LIMITED</code>; auth failures. Web/hybrid modes use the backend-only Tavily adapter and fail explicitly when it is disabled; no live provider request is validated.</dd>
-      <dt>Evidence</dt><dd><span class="source">routers/ask.py · schemas/ask.py · services/grounded_query.py · services/source_policy.py · services/web_search.py · retrieval.py · answering.py · Ask tests</span></dd>
+      <dt>Input</dt><dd>Strict JSON <a href="#schema-ask"><code>AskRequest</code></a>: project UUID, optional conversation UUID, message, and <code>web_enabled</code>. Unknown or retired fields fail validation.</dd>
+      <dt>Success</dt><dd>200 <a href="#schema-ask"><code>AskResponse</code></a>: conversation and run UUIDs, answer, source summary, citations, trace UUID, and validation status.</dd>
+      <dt>Failure / semantics</dt><dd>With no ready documents and Web off, this is ordinary persistent chat and skips embedding, Qdrant, rerank, and citation validation. Ready local documents activate Hybrid RAG; small corpora up to approximately 12,000 tokens use full context, while larger corpora use BM25 plus dense retrieval, RRF, rerank, and an approximately 8,000-token evidence budget. Web adds up to five bounded Tavily results. Uploaded documents still processing return 409 <code>DOCUMENT_PROCESSING</code>. Provider failures are explicit or recorded as degraded deterministic reranking.</dd>
+      <dt>Evidence</dt><dd><span class="source">routers/ask.py · schemas/ask.py · services/grounded_query.py · services/retrieval.py · services/rerank.py · services/web_search.py · services/answering.py · Ask tests</span></dd>
      </dl></details>
+     <details id="op-conversation-list" data-api-card data-api="ask" data-method="GET" data-access="owner"><summary><code>GET /api/v1/projects/{project_id}/conversations</code> — list project conversations</summary><dl class="kv"><dt>Caller / access</dt><dd>Project owner.</dd><dt>Success</dt><dd>Newest 100 owned conversation summaries.</dd><dt>Failure / semantics</dt><dd>404 conceals absent and foreign projects.</dd></dl></details>
+     <details id="op-conversation-messages" data-api-card data-api="ask" data-method="GET" data-access="owner"><summary><code>GET /api/v1/conversations/{conversation_id}/messages</code> — restore a conversation</summary><dl class="kv"><dt>Caller / access</dt><dd>Conversation owner.</dd><dt>Success</dt><dd>Up to 200 user/assistant messages with citations.</dd><dt>Failure / semantics</dt><dd>404 conceals absent and foreign conversations.</dd></dl></details>
+     <details id="op-rerank-config-get" data-api-card data-api="ask" data-method="GET" data-access="developer"><summary><code>GET /api/v1/admin/runtime-config/rerank</code> — inspect reranking configuration</summary><dl class="kv"><dt>Caller / access</dt><dd>Developer or admin.</dd><dt>Success</dt><dd>Active provider, optimistic version, timestamp, and actor.</dd></dl></details>
+     <details id="op-rerank-config-put" data-api-card data-api="ask" data-method="PUT" data-access="developer"><summary><code>PUT /api/v1/admin/runtime-config/rerank</code> — switch reranking without restart</summary><dl class="kv"><dt>Caller / access</dt><dd>Developer or admin.</dd><dt>Input</dt><dd><code>provider: auto|qdrant|nvidia|deterministic</code> plus the expected configuration version.</dd><dt>Success</dt><dd>Optimistic version update is visible to new requests without a restart.</dd><dt>Failure / semantics</dt><dd>409 on a concurrent update or when Qdrant lacks a completely indexed, explicitly verified free late-interaction model. Environment values are startup defaults; Postgres is the runtime switch.</dd></dl></details>
      <details id="op-sources" data-api-card data-api="ask" data-method="GET" data-access="owner"><summary><code>GET /api/v1/runs/{run_id}/sources</code> — inspect run sources</summary><dl class="kv">
       <dt>Caller / access</dt><dd>Run owner, resolved through stored response and trace ownership.</dd>
       <dt>Input</dt><dd><code>run_id</code>: UUID path parameter.</dd>
@@ -258,7 +262,7 @@
      <h3 id="quiz-operations">Quiz</h3>
      <details id="op-quiz-create" data-api-card data-api="quiz" data-method="POST" data-access="owner"><summary><code>POST /api/v1/quiz</code> — generate a cited quiz</summary><dl class="kv">
       <dt>Caller / access</dt><dd>Project owner. Current local quota is 100 Quiz requests per user per day.</dd>
-      <dt>Input</dt><dd>JSON <a href="#schema-quiz"><code>QuizRequest</code></a>: project, prompt, mode, and requested single-choice/short-answer counts.</dd>
+      <dt>Input</dt><dd>JSON <a href="#schema-quiz"><code>QuizRequest</code></a>: project, natural-language prompt, and requested single-choice/short-answer counts. Quiz always uses ready local documents.</dd>
       <dt>Success</dt><dd>200 <a href="#schema-quiz"><code>QuizResponse</code></a> containing the quiz set, run and trace IDs, and validation status.</dd>
       <dt>Failure / semantics</dt><dd>404 project; 422 validation or task mismatch; runtime-only 409 when no indexed document exists and 429 quota failure; auth failures. Synchronous and not idempotent.</dd>
       <dt>Evidence</dt><dd><span class="source">routers/quiz.py · schemas/quiz.py · Quiz workflow tests</span></dd>
@@ -294,24 +298,22 @@
       <dt>DocumentRecord</dt><dd>Document, owner, and project UUIDs; filename, file type, MIME type, byte size; <code>status: uploaded|parsing|parsed|indexing|ready|failed|expired|deleted</code>; optional error, expiry, and deletion fields; created/updated timestamps.</dd>
       <dt>JobRecord</dt><dd>Job and owner UUIDs; optional project/document UUIDs; <code>type: string 2..80</code>; <code>status: pending|running|succeeded|failed|cancelled</code>; progress 0–100; optional error; created/updated timestamps.</dd>
      </dl></details>
-     <details id="schema-evidence"><summary><code>SourceMode</code>, <code>SourceSummary</code>, and <code>Citation</code></summary><dl class="kv">
-      <dt>SourceMode</dt><dd><code>auto|local_only|web_only|hybrid</code>.</dd>
+     <details id="schema-evidence"><summary><code>SourceSummary</code> and <code>Citation</code></summary><dl class="kv">
       <dt>SourceSummary</dt><dd><code>local_chunks: integer 0..50 = 0</code>; <code>web_pages: integer 0..20 = 0</code>.</dd>
       <dt>Citation</dt><dd>ID and <code>source_type: local_doc|web_page</code>; optional document/chunk UUID, page, slide, URL, and claim ID; required quote of 1–1200 characters.</dd>
      </dl></details>
      <details id="schema-ask"><summary><code>AskRequest</code> and <code>AskResponse</code></summary><dl class="kv">
-      <dt>AskRequest</dt><dd><code>project_id: UUID</code>; <code>message: string 1..8000</code>; <code>selected_mode: SourceMode = auto</code>.</dd>
-      <dt>AskResponse</dt><dd>Run UUID; answer 1–16,000 characters; mode; <a href="#schema-evidence"><code>SourceSummary</code></a>; at most 80 citations; trace UUID; <code>validation_status: passed|failed|retrying</code>.</dd>
-      <dt>Not present</dt><dd>No conversation ID, idempotency key, retry token, or asynchronous operation resource.</dd>
+      <dt>AskRequest</dt><dd><code>project_id: UUID</code>; optional <code>conversation_id: UUID</code>; <code>message: string 1..8000</code>; <code>web_enabled: boolean = false</code>. Extra fields are forbidden.</dd>
+      <dt>AskResponse</dt><dd>Run and conversation UUIDs; answer 1–16,000 characters; <a href="#schema-evidence"><code>SourceSummary</code></a>; at most 80 citations; trace UUID; validation status; <code>rerank_degraded</code> and an optional safe fallback reason.</dd>
      </dl></details>
      <details id="schema-quiz"><summary><code>QuizRequest</code>, <code>QuizResponse</code>, <code>QuizSet</code>, and <code>QuizQuestion</code></summary><dl class="kv">
-      <dt>QuizRequest</dt><dd>Project UUID; prompt 1–4000 characters (default <code>/quiz</code>); source mode defaults to <code>local_only</code>; choice and short-answer counts each 0–20.</dd>
+      <dt>QuizRequest</dt><dd>Project UUID; natural-language prompt 1–4000 characters; choice and short-answer counts each 0–20. Extra fields are forbidden.</dd>
       <dt>QuizResponse</dt><dd>Quiz set; run and trace UUIDs; validation status.</dd>
-      <dt>QuizSet / question</dt><dd>Quiz ID, source mode and summary, and 1–40 questions. A question has type, text, answer, explanation, difficulty, at most 12 citations, and up to four options; single-choice questions require exactly four options.</dd>
+      <dt>QuizSet / question</dt><dd>Quiz ID, source summary, and 1–40 questions. A question has type, text, answer, explanation, difficulty, at most 12 citations, and up to four options; single-choice questions require exactly four options.</dd>
       <dt>QuizHistoryResponse</dt><dd><code>project_id: UUID</code>; <code>quiz_sets: QuizSet[] ≤100</code>.</dd>
      </dl></details>
      <details id="schema-trace"><summary><code>ExecutionPlan</code>, <code>ToolCallTrace</code>, and <code>DeveloperTrace</code></summary><dl class="kv">
-      <dt>ExecutionPlan</dt><dd>Source mode; task type; 1–12 allowed tools; local/web requirements; output schema.</dd>
+      <dt>ExecutionPlan</dt><dd>Task type; 1–12 allowed tools; local/web requirements; context strategy; output schema.</dd>
       <dt>ToolCallTrace</dt><dd>ID, tool name, input summary, optional output summary, status, optional latency and error.</dd>
       <dt>DeveloperTrace</dt><dd>Trace/user/project/run UUIDs; plan; routing reason; at most 80 retrieved chunks and 40 tool calls; validation; optional latency/tokens; at most 20 errors; creation timestamp.</dd>
      </dl></details>
@@ -320,7 +322,7 @@
     <section id="planned-operations">
      <p class="eyebrow">Extended contracts</p>
      <h2>Evidence-review, evaluation, reliability, and MCP operations</h2>
-     <p class="sub">The 16 advanced REST operations below are present in FastAPI and generated OpenAPI. Together with the original 18 and readiness, the REST total is 35. Their route, schema, ownership/role, idempotency, and deterministic repository behavior have code evidence; managed providers, queue delivery, checkpoint recovery, telemetry export, and deployment remain integration-unvalidated. MCP is a separate protocol boundary and is not counted as REST.</p>
+     <p class="sub">The generated OpenAPI now contains 39 REST operations, including four unified conversation and runtime-rerank operations. Their route, schema, ownership/role, idempotency, and deterministic repository behavior have code evidence; managed providers, queue delivery, checkpoint recovery, telemetry export, and deployment remain integration-unvalidated. MCP is a separate protocol boundary and is not counted as REST.</p>
      <div class="notice"><strong>Shared conventions:</strong> bearer authentication; owner/project permission checks in the API; <code>Idempotency-Key</code> on commands; the current error envelope with a request ID; authoritative operation state in Postgres; persisted SSE replay; and Redis as delivery rather than irreplaceable state. Supabase JWT-backed project create/list/read is validated for password and GitHub identities and cross-user API concealment passes. A direct RLS query and distributed delivery are not yet validated.</div>
      <div class="notice warning"><strong>How to read the rows:</strong> request and success shapes describe the implemented route schemas. Local LangGraph, RAGAS, strict-checkpoint serializer, and MCP initialization tests now pass. Failure/recovery and acceptance rows still name distributed-system gates; they are not evidence that a managed checkpoint, provider, queue, or cloud runtime passed.</div>
 

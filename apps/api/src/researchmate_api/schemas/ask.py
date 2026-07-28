@@ -3,16 +3,17 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from researchmate_api.schemas.common import Citation, SourceMode, SourceSummary
+from researchmate_api.schemas.common import Citation, SourceSummary
 
 
 # 定义 Ask API 请求体。
 class AskRequest(BaseModel):
     project_id: UUID
+    conversation_id: UUID | None = None
     message: str = Field(min_length=1, max_length=8000)
-    selected_mode: SourceMode = SourceMode.AUTO
+    web_enabled: bool = False
 
-    model_config = ConfigDict(use_enum_values=True)
+    model_config = ConfigDict(extra="forbid")
 
 
 # 定义结构化回答中的单条 claim。
@@ -24,7 +25,6 @@ class Claim(BaseModel):
 
 # 定义 LLM 必须输出的可溯源回答结构。
 class GroundedAnswer(BaseModel):
-    mode: SourceMode
     sources: SourceSummary
     answer: str = Field(min_length=1, max_length=16000)
     claims: list[Claim] = Field(default_factory=list, max_length=80)
@@ -36,12 +36,13 @@ class GroundedAnswer(BaseModel):
 # 定义 Ask API 响应体。
 class AskResponse(BaseModel):
     run_id: UUID
+    conversation_id: UUID
     answer: str = Field(min_length=1, max_length=16000)
-    mode: SourceMode
     sources: SourceSummary
     citations: list[Citation] = Field(default_factory=list, max_length=80)
     trace_id: UUID
     validation_status: Literal["passed", "failed", "retrying"]
+    rerank_degraded: bool = False
+    fallback_reason: str | None = Field(default=None, max_length=300)
 
     model_config = ConfigDict(use_enum_values=True)
-

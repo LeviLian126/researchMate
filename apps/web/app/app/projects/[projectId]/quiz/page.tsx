@@ -64,8 +64,7 @@ export default function QuizPage() {
         method: "POST",
         body: JSON.stringify({
           project_id: projectId,
-          prompt: "/quiz generate a grounded review set",
-          selected_mode: "local_only",
+          prompt: "Generate a grounded review set from my documents.",
           single_choice_count: 3,
           short_answer_count: 2,
         }),
@@ -106,7 +105,7 @@ export default function QuizPage() {
           {!loading && quizSets.length === 0 && <div className="empty-state">No quiz sets yet. Add a ready source in the Library, then generate one.</div>}
           {quizSets.map((quizSet, index) => (
             <button className="quiz-history-card" aria-pressed={activeQuiz?.id === quizSet.id} key={quizSet.id} type="button" onClick={() => chooseQuiz(quizSet.id)}>
-              <small>Set {quizSets.length - index} · {quizSet.mode.replaceAll("_", " ")}</small>
+              <small>Set {quizSets.length - index} · local documents</small>
               <strong>{quizSet.questions[0]?.question || "Grounded review"}</strong>
               <span>{quizSet.questions.length} questions · {quizSet.sources.local_chunks} local sources</span>
             </button>

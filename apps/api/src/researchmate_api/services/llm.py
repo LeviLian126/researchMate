@@ -59,8 +59,15 @@ class NvidiaChatProvider:
             )
         self.client = client
 
-    def _request(self, messages: Iterable[dict[str, str]], *, stream: bool) -> Any:
+    def _request(
+        self,
+        messages: Iterable[dict[str, str]],
+        *,
+        stream: bool,
+        max_tokens: int | None = None,
+    ) -> Any:
         safe_messages = list(messages)
+        output_limit = max_tokens or self.settings.llm_max_tokens
         try:
             with provider_observation(
                 self.settings,
@@ -71,7 +78,7 @@ class NvidiaChatProvider:
                     "message_count": len(safe_messages),
                     "input_chars": sum(len(item.get("content", "")) for item in safe_messages),
                     "stream": stream,
-                    "max_tokens": self.settings.llm_max_tokens,
+                    "max_tokens": output_limit,
                 },
             ) as observation:
                 response = self.client.chat.completions.create(
@@ -79,7 +86,7 @@ class NvidiaChatProvider:
                     messages=safe_messages,
                     temperature=self.settings.llm_temperature,
                     top_p=self.settings.llm_top_p,
-                    max_tokens=self.settings.llm_max_tokens,
+                    max_tokens=output_limit,
                     seed=self.settings.llm_seed,
                     stream=stream,
                 )
@@ -107,6 +114,19 @@ class NvidiaChatProvider:
 
     def complete(self, messages: Iterable[dict[str, str]]) -> LLMResult:
         completion = self._request(messages, stream=False)
+        return self._result(completion)
+
+    def complete_bounded(
+        self,
+        messages: Iterable[dict[str, str]],
+        *,
+        max_tokens: int,
+    ) -> LLMResult:
+        """Complete with a smaller per-request output budget than the provider default."""
+        completion = self._request(messages, stream=False, max_tokens=max_tokens)
+        return self._result(completion)
+
+    def _result(self, completion: Any) -> LLMResult:
         choices = getattr(completion, "choices", None) or []
         if not choices or getattr(choices[0], "message", None) is None:
             raise ValueError("LLM provider returned no completion choice")

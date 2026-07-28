@@ -8,7 +8,7 @@ from typing import Any, Protocol
 from uuid import UUID
 
 from pydantic import BaseModel, Field
-from researchmate_api.schemas.common import SourceMode, SourceType
+from researchmate_api.schemas.common import SourceType
 from researchmate_api.services.answering import build_llm_grounded_answer
 from researchmate_api.services.llm import ChatProvider
 from researchmate_api.services.qdrant_store import QdrantHybridStore
@@ -197,8 +197,8 @@ class QdrantCaseExecutor:
         chunks = self._chunks(run, ids)
         if not chunks:
             raise EvaluationRuntimeError("EVIDENCE_NOT_FOUND")
-        answer, citations, _ = build_llm_grounded_answer(
-            self.provider, question, SourceMode.LOCAL_ONLY, chunks
+        answer, citations, _, _provider_result = build_llm_grounded_answer(
+            self.provider, question, chunks
         )
         return PipelineResult(
             response=answer,

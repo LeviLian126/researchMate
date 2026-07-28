@@ -1,20 +1,38 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
+from researchmate_api.config import Settings
 from researchmate_api.schemas.ask import AskRequest, AskResponse
-from researchmate_api.schemas.common import CurrentUser, SourceMode, SourceType, TaskType
+from researchmate_api.schemas.common import (
+    CurrentUser,
+    DocumentStatus,
+    ExecutionPlan,
+    SourceSummary,
+    SourceType,
+    TaskType,
+)
+from researchmate_api.schemas.conversation import ConversationMessage
 from researchmate_api.schemas.trace import ToolCallTrace
 from researchmate_api.services.answering import (
     ProviderOutputError,
+    build_chat_answer,
     build_grounded_answer,
+    build_llm_chat_answer,
     build_llm_grounded_answer,
 )
 from researchmate_api.services.llm import ChatProvider, ProviderRequestError
 from researchmate_api.services.qdrant_store import QdrantHybridStore, VectorStoreRequestError
-from researchmate_api.services.retrieval import retrieve_local_chunks
-from researchmate_api.services.source_policy import resolve_intent, validate_tool_policy
-from researchmate_api.services.store import ResearchMateRepository
+from researchmate_api.services.rerank import RerankCoordinator
+from researchmate_api.services.retrieval import (
+    RetrievalCandidate,
+    bm25_candidates,
+    estimate_tokens,
+    fuse_candidates,
+    pack_chunks,
+)
+from researchmate_api.services.store import ChunkEntry, ResearchMateRepository
 from researchmate_api.services.web_search import TavilyWebSearchProvider, WebSearchRequestError
 
 
@@ -30,175 +48,392 @@ class GroundedQueryService:
     def __init__(
         self,
         *,
+        settings: Settings,
         repository: ResearchMateRepository,
         chat_provider: ChatProvider | None,
         hybrid_store: QdrantHybridStore | None,
+        reranker: RerankCoordinator,
         web_search: TavilyWebSearchProvider | None = None,
     ) -> None:
+        self.settings = settings
         self.repository = repository
         self.chat_provider = chat_provider
         self.hybrid_store = hybrid_store
+        self.reranker = reranker
         self.web_search = web_search
 
     def execute(self, user: CurrentUser, payload: AskRequest) -> AskResponse:
-        if self.repository.get_project(user, payload.project_id) is None:
+        project = self.repository.get_project(user, payload.project_id)
+        if project is None:
             self._error("PROJECT_NOT_FOUND", "Project was not found.", 404)
         if not self.repository.increment_usage(user, "ask", limit=200):
             self._error("RATE_LIMITED", "Daily ask quota exceeded.", 429)
-        intent = resolve_intent(payload.message, SourceMode(payload.selected_mode), TaskType.ANSWER)
-        if intent.plan.task_type == TaskType.QUIZ:
-            self._error("TASK_ROUTE_MISMATCH", "Use the quiz operation for /quiz requests.", 422)
+        conversation = self.repository.ensure_conversation(
+            user, payload.project_id, payload.conversation_id, payload.message
+        )
+        if conversation is None:
+            self._error("CONVERSATION_NOT_FOUND", "Conversation was not found.", 404)
+        history = self._history_context(
+            user,
+            conversation.id,
+            self.repository.conversation_messages(user, conversation.id) or [],
+        )
+        documents = self.repository.list_project_documents(user, payload.project_id) or []
         chunks = self.repository.project_chunks(user, payload.project_id)
         if chunks is None:
             self._error("PROJECT_NOT_FOUND", "Project was not found.", 404)
-        retrieved = []
+        if documents and not chunks and any(
+            document.status
+            in {
+                DocumentStatus.UPLOADED,
+                DocumentStatus.PARSING,
+                DocumentStatus.PARSED,
+                DocumentStatus.INDEXING,
+            }
+            for document in documents
+        ):
+            self._error(
+                "DOCUMENT_PROCESSING",
+                "Uploaded documents are still being processed.",
+                409,
+            )
+
+        retrieved: list[ChunkEntry] = []
         tool_calls: list[ToolCallTrace] = []
-        if intent.plan.source_mode in {SourceMode.LOCAL_ONLY, SourceMode.HYBRID}:
-            retrieved = self._retrieve_local(user, payload.project_id, intent.clean_message, chunks)
+        local_total = sum(estimate_tokens(chunk.text) for chunk in chunks)
+        full_context = bool(chunks) and local_total <= self.settings.full_context_token_limit
+        candidates: list[RetrievalCandidate] = []
+        if chunks:
+            if full_context:
+                candidates = [
+                    RetrievalCandidate(chunk=chunk, score=1 / index, lexical_rank=index)
+                    for index, chunk in enumerate(chunks, start=1)
+                ]
+                strategy = "full_context"
+            else:
+                lexical = bm25_candidates(chunks, payload.message, limit=30)
+                semantic = self._semantic_candidates(
+                    user, payload.project_id, payload.message, chunks
+                )
+                candidates = fuse_candidates(
+                    lexical,
+                    semantic,
+                    limit=self.settings.rerank_candidate_limit,
+                )
+                strategy = "hybrid_retrieval"
             tool_calls.append(
                 ToolCallTrace(
                     id=uuid4(),
                     tool_name="query_local_docs",
                     input_summary={
                         "project_id": str(payload.project_id),
-                        "query_length": len(intent.clean_message),
+                        "query_length": len(payload.message),
                     },
                     output_summary={
-                        "chunks": len(retrieved),
-                        "retriever": (
-                            "qdrant_hybrid_rrf" if self.hybrid_store else "token_overlap"
-                        ),
+                        "candidates": len(candidates),
+                        "full_context": full_context,
+                        "estimated_tokens": local_total,
                     },
                     status="succeeded",
                     latency_ms=0,
                 )
             )
-            if not retrieved and intent.plan.source_mode == SourceMode.LOCAL_ONLY:
-                self._error(
-                    "EVIDENCE_NOT_FOUND" if chunks else "DOCUMENT_NOT_INDEXED",
-                    (
-                        "No local evidence matched this question."
-                        if chunks
-                        else "No ready local document chunks exist for this project."
-                    ),
-                    409,
-                )
-        if intent.plan.source_mode in {SourceMode.WEB_ONLY, SourceMode.HYBRID}:
-            web_evidence = self._retrieve_web(
-                user, payload.project_id, intent.clean_message, limit=5
+        else:
+            strategy = "web" if payload.web_enabled else "chat"
+
+        if payload.web_enabled:
+            web_chunks = self._retrieve_web(
+                user, payload.project_id, payload.message, limit=5
             )
-            if intent.plan.source_mode == SourceMode.WEB_ONLY:
-                retrieved = web_evidence
-            else:
-                retrieved.extend(web_evidence)
+            candidates.extend(
+                RetrievalCandidate(chunk=chunk, score=1 / (60 + index))
+                for index, chunk in enumerate(web_chunks, start=1)
+            )
+            strategy = "hybrid_retrieval_web" if chunks else "web"
             tool_calls.append(
                 ToolCallTrace(
                     id=uuid4(),
                     tool_name="search_web",
-                    input_summary={"query_length": len(intent.clean_message), "reason": "local_empty"},
-                    output_summary={"provider": "tavily", "results": len(web_evidence)},
+                    input_summary={"query_length": len(payload.message)},
+                    output_summary={"provider": "tavily", "results": len(web_chunks)},
                     status="succeeded",
                     latency_ms=0,
                 )
             )
-        try:
-            answer, citations, summary = (
-                build_llm_grounded_answer(
-                    self.chat_provider,
-                    intent.clean_message,
-                    SourceMode(intent.plan.source_mode),
-                    retrieved,
-                )
-                if self.chat_provider is not None
-                else build_grounded_answer(
-                    intent.clean_message,
-                    SourceMode(intent.plan.source_mode),
-                    retrieved,
+
+        plan = self._execution_plan(strategy, payload.web_enabled, bool(chunks))
+        rerank_config = self.repository.get_runtime_rerank_config()
+        selected_rerank_provider = (
+            rerank_config.provider
+            if rerank_config.version > 1
+            else self.settings.rerank_provider_default
+        )
+        rerank_result = None
+        if candidates:
+            rerank_result = self.reranker.execute(
+                selected_rerank_provider,
+                payload.message,
+                candidates,
+                user_id=str(user.id),
+                project_id=str(payload.project_id),
+                top_n=len(candidates) if full_context and not payload.web_enabled else None,
+            )
+            retrieved = pack_chunks(
+                [item.chunk for item in rerank_result.candidates],
+                (
+                    self.settings.full_context_token_limit
+                    if full_context and not payload.web_enabled
+                    else self.settings.retrieval_evidence_token_budget
+                ),
+            )
+            tool_calls.append(
+                ToolCallTrace(
+                    id=uuid4(),
+                    tool_name="rerank_evidence",
+                    input_summary={
+                        "candidate_count": len(candidates),
+                        "config_version": rerank_config.version,
+                    },
+                    output_summary={
+                        "provider": rerank_result.provider,
+                        "model": rerank_result.model,
+                        "results": len(retrieved),
+                        "degraded": rerank_result.degraded,
+                        "fallback_reason": rerank_result.fallback_reason,
+                    },
+                    status="succeeded",
+                    latency_ms=0,
                 )
             )
+
+        llm_result = None
+        try:
+            if retrieved:
+                if self.chat_provider is not None:
+                    answer, citations, summary, llm_result = build_llm_grounded_answer(
+                        self.chat_provider,
+                        payload.message,
+                        retrieved,
+                        history,
+                        self.settings.ask_max_output_tokens,
+                    )
+                else:
+                    answer, citations, summary = build_grounded_answer(
+                        payload.message, retrieved
+                    )
+            else:
+                if self.chat_provider is not None:
+                    answer, llm_result = build_llm_chat_answer(
+                        self.chat_provider,
+                        payload.message,
+                        history,
+                        self.settings.ask_max_output_tokens,
+                    )
+                else:
+                    answer = build_chat_answer(payload.message)
+                citations = []
+                summary = SourceSummary()
         except ProviderOutputError as exc:
             raise GroundedQueryError(
-                "LLM_OUTPUT_INVALID", "The model response failed grounded-output validation.", 502
+                "LLM_OUTPUT_INVALID",
+                "The model response failed grounded-output validation.",
+                502,
             ) from exc
         except ProviderRequestError as exc:
             raise GroundedQueryError(
                 "LLM_UNAVAILABLE",
-                (
-                    "The model provider is temporarily unavailable. Retry later."
-                    if exc.retryable
-                    else "The model provider rejected the request."
-                ),
+                "The model provider is temporarily unavailable.",
                 503,
             ) from exc
+
         tool_calls.append(
             ToolCallTrace(
                 id=uuid4(),
                 tool_name="generate_answer",
-                input_summary={"schema": "GroundedAnswer", "citation_count": len(citations)},
-                output_summary={"answer_chars": len(answer)},
+                input_summary={
+                    "schema": "GroundedAnswer" if retrieved else "ChatAnswer",
+                    "history_messages": len(history),
+                    "evidence_tokens": sum(estimate_tokens(item.text) for item in retrieved),
+                },
+                output_summary={"answer_chars": len(answer), "citation_count": len(citations)},
                 status="succeeded",
                 latency_ms=0,
             )
         )
-        policy_result = validate_tool_policy(intent.plan, [call.tool_name for call in tool_calls])
         validation_result = {
-            "passed": policy_result["passed"]
-            and (len(citations) > 0 or intent.plan.source_mode == SourceMode.LOCAL_ONLY),
-            "source_policy": policy_result,
+            "passed": bool(answer) and (not retrieved or bool(citations)),
             "citation_count": len(citations),
+            "context_strategy": strategy,
+            "rerank_degraded": rerank_result.degraded if rerank_result else False,
+        }
+        runtime_metadata = {
+            "context_strategy": strategy,
+            "web_enabled": payload.web_enabled,
+            "rerank_provider": rerank_result.provider if rerank_result else None,
+            "rerank_model": rerank_result.model if rerank_result else None,
+            "rerank_config_version": rerank_config.version,
+            "rerank_degraded": rerank_result.degraded if rerank_result else False,
+            "fallback_reason": rerank_result.fallback_reason if rerank_result else None,
+            "candidate_count": len(candidates),
+            "retrieved_count": len(retrieved),
+            "estimated_input_tokens": (
+                estimate_tokens(payload.message)
+                + sum(estimate_tokens(item.content) for item in history)
+                + sum(estimate_tokens(item.text) for item in retrieved)
+            ),
+            "estimated_output_tokens": estimate_tokens(answer),
+            "provider_input_tokens": (
+                llm_result.prompt_tokens if llm_result is not None else None
+            ),
+            "provider_output_tokens": (
+                llm_result.completion_tokens if llm_result is not None else None
+            ),
         }
         run_id, trace_id = self.repository.record_run(
             user=user,
             project_id=payload.project_id,
-            message=intent.clean_message,
-            plan=intent.plan,
-            router_reason=intent.router_reason,
+            message=payload.message,
+            plan=plan,
+            router_reason=f"Unified chat resolved {strategy} from document readiness and web_enabled.",
             retrieved_chunks=retrieved,
             citations=citations,
             tool_calls=tool_calls,
             validation_result=validation_result,
+            conversation_id=conversation.id,
+            runtime_metadata=runtime_metadata,
+            assistant_answer=answer,
         )
         response = AskResponse(
             run_id=run_id,
+            conversation_id=conversation.id,
             answer=answer,
-            mode=intent.plan.source_mode,
             sources=summary,
             citations=citations,
             trace_id=trace_id,
             validation_status="passed" if validation_result["passed"] else "failed",
+            rerank_degraded=rerank_result.degraded if rerank_result else False,
+            fallback_reason=rerank_result.fallback_reason if rerank_result else None,
         )
-        return self.repository.save_ask_response(user, response)
+        return response
 
     def search(self, user: CurrentUser, project_id: UUID, query: str, limit: int = 10):
         if self.repository.get_project(user, project_id) is None:
             self._error("PROJECT_NOT_FOUND", "Project was not found.", 404)
         chunks = self.repository.project_chunks(user, project_id) or []
-        return self._retrieve_local(user, project_id, query, chunks, limit=limit)
+        return [item.chunk for item in bm25_candidates(chunks, query, limit=limit)]
 
-    def _retrieve_local(
+    def _bounded_history(
+        self, messages: list[ConversationMessage]
+    ) -> list[ConversationMessage]:
+        selected: list[ConversationMessage] = []
+        used = 0
+        for message in reversed(messages):
+            size = estimate_tokens(message.content)
+            if selected and used + size > self.settings.chat_recent_token_budget:
+                break
+            selected.append(message)
+            used += size
+        return list(reversed(selected))
+
+    def _history_context(
+        self,
+        user: CurrentUser,
+        conversation_id: UUID,
+        messages: list[ConversationMessage],
+    ) -> list[ConversationMessage]:
+        summary_state = self.repository.conversation_summary(user, conversation_id)
+        summary, summarized_count = summary_state or (None, 0)
+        keep_recent = 8
+        compact_until = max(0, len(messages) - keep_recent)
+        pending = messages[summarized_count:compact_until]
+        if (
+            self.chat_provider is not None
+            and pending
+            and sum(estimate_tokens(item.content) for item in pending)
+            > self.settings.chat_summary_trigger_tokens
+        ):
+            try:
+                summary_messages = [
+                        {
+                            "role": "system",
+                            "content": (
+                                "Compact this conversation into durable factual context. "
+                                "Preserve decisions, constraints, unresolved questions, and user "
+                                "preferences. Do not add facts. Return plain text only."
+                            ),
+                        },
+                        {
+                            "role": "user",
+                            "content": "\n".join(
+                                [
+                                    f"Previous summary:\n{summary}" if summary else "",
+                                    *[
+                                        f"{item.role}: {item.content}"
+                                        for item in pending
+                                    ],
+                                ]
+                            ),
+                        },
+                    ]
+                bounded = getattr(self.chat_provider, "complete_bounded", None)
+                result = (
+                    bounded(
+                        summary_messages,
+                        max_tokens=self.settings.chat_summary_token_budget,
+                    )
+                    if callable(bounded)
+                    else self.chat_provider.complete(summary_messages)
+                )
+                summary = result.content.strip()
+                while (
+                    len(summary) > 1
+                    and estimate_tokens(summary) > self.settings.chat_summary_token_budget
+                ):
+                    summary = summary[: int(len(summary) * 0.9)].rstrip()
+                summarized_count = compact_until
+                self.repository.update_conversation_summary(
+                    user,
+                    conversation_id,
+                    summary,
+                    summarized_count,
+                )
+            except ProviderRequestError:
+                pass
+        recent = self._bounded_history(messages[summarized_count:])
+        if not summary:
+            return recent
+        return [
+            ConversationMessage(
+                id=uuid4(),
+                conversation_id=conversation_id,
+                role="assistant",
+                content=f"Conversation summary:\n{summary}",
+                citations=[],
+                created_at=datetime.now(UTC),
+            ),
+            *recent,
+        ]
+
+    def _semantic_candidates(
         self,
         user: CurrentUser,
         project_id: UUID,
         query: str,
-        chunks,
-        *,
-        limit: int = 5,
-    ):
+        chunks: list[ChunkEntry],
+    ) -> list[ChunkEntry]:
         if self.hybrid_store is None:
-            return retrieve_local_chunks(chunks, query, limit=limit)
+            return []
         try:
-            matches = self.hybrid_store.query(
+            matches = self.hybrid_store.query_dense(
                 user_id=str(user.id),
                 project_id=str(project_id),
                 source_type=SourceType.LOCAL_DOC,
                 text=query,
-                limit=limit,
+                limit=30,
             )
-        except VectorStoreRequestError as exc:
-            raise GroundedQueryError(
-                "RETRIEVAL_UNAVAILABLE", "Hybrid retrieval is temporarily unavailable.", 503
-            ) from exc
-        ids = []
+        except VectorStoreRequestError:
+            return []
+        ids: list[UUID] = []
         for match in matches:
             try:
                 ids.append(UUID(str(match["payload"]["chunk_id"])))
@@ -208,11 +443,11 @@ class GroundedQueryService:
 
     def _retrieve_web(
         self, user: CurrentUser, project_id: UUID, query: str, *, limit: int
-    ):
+    ) -> list[ChunkEntry]:
         if self.web_search is None:
             self._error(
                 "WEB_SEARCH_NOT_CONFIGURED",
-                "Web evidence is unavailable until the backend search provider is configured.",
+                "Web evidence is unavailable until the search provider is configured.",
                 503,
             )
         try:
@@ -231,6 +466,29 @@ class GroundedQueryService:
         if not results:
             self._error("WEB_EVIDENCE_NOT_FOUND", "No usable web evidence was found.", 409)
         return results
+
+    @staticmethod
+    def _execution_plan(
+        strategy: str, web_enabled: bool, has_documents: bool
+    ) -> ExecutionPlan:
+        tools = []
+        if has_documents:
+            tools.append("query_local_docs")
+        if web_enabled:
+            tools.append("search_web")
+        if has_documents or web_enabled:
+            tools.append("rerank_evidence")
+        tools.append("generate_answer")
+        return ExecutionPlan(
+            task_type=TaskType.ANSWER,
+            allowed_tools=tools,
+            requires_local_docs=has_documents,
+            requires_web=web_enabled,
+            context_strategy=strategy,
+            output_schema=(
+                "ChatAnswer" if strategy == "chat" else "GroundedAnswer"
+            ),
+        )
 
     @staticmethod
     def _error(code: str, message: str, status_code: int):

@@ -9,6 +9,7 @@ from researchmate_api.schemas.common import CurrentUser
 from researchmate_api.services.evidence_store import EvidenceRepository
 from researchmate_api.services.llm import ChatProvider
 from researchmate_api.services.qdrant_store import QdrantHybridStore
+from researchmate_api.services.rerank import RerankCoordinator
 from researchmate_api.services.store import ResearchMateRepository
 from researchmate_api.services.web_search import TavilyWebSearchProvider
 
@@ -41,6 +42,10 @@ def get_hybrid_store(request: Request) -> QdrantHybridStore | None:
 
 def get_web_search(request: Request) -> TavilyWebSearchProvider | None:
     return request.app.state.web_search
+
+
+def get_reranker(request: Request) -> RerankCoordinator:
+    return request.app.state.reranker
 
 
 # 生成统一错误 detail，由 FastAPI exception handler 包装成 {"error": ...}。
@@ -147,6 +152,6 @@ def require_admin(user: CurrentUser = Depends(get_current_user)) -> CurrentUser:
         raise_api_error(
             status.HTTP_403_FORBIDDEN,
             "ADMIN_REQUIRED",
-            "Developer trace is visible only to developer or admin users.",
+            "This operation is available only to developer or admin users.",
         )
     return user

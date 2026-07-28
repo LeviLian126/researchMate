@@ -6,7 +6,6 @@ from threading import RLock
 from typing import Protocol
 from uuid import UUID, uuid4
 
-from researchmate_api.schemas.ask import AskResponse
 from researchmate_api.schemas.common import (
     Citation,
     CurrentUser,
@@ -15,6 +14,11 @@ from researchmate_api.schemas.common import (
     JobStatus,
     SourceSummary,
     SourceType,
+)
+from researchmate_api.schemas.conversation import (
+    ConversationMessage,
+    ConversationSummary,
+    RuntimeRerankConfig,
 )
 from researchmate_api.schemas.document import DocumentRecord, UploadUrlRequest, UploadUrlResponse
 from researchmate_api.schemas.job import JobRecord
@@ -103,9 +107,10 @@ class ResearchMateRepository(Protocol):
         citations: list[Citation],
         tool_calls: list[ToolCallTrace],
         validation_result: dict,
+        conversation_id: UUID | None = None,
+        runtime_metadata: dict | None = None,
+        assistant_answer: str | None = None,
     ) -> tuple[UUID, UUID]: ...
-
-    def save_ask_response(self, user: CurrentUser, response: AskResponse) -> AskResponse: ...
 
     def save_quiz_set(
         self, user: CurrentUser, project_id: UUID, run_id: UUID, quiz_set: QuizSet
@@ -125,6 +130,40 @@ class ResearchMateRepository(Protocol):
         self, user: CurrentUser, project_id: UUID, chunk_ids: list[UUID]
     ) -> list[ChunkEntry] | None: ...
 
+    def ensure_conversation(
+        self,
+        user: CurrentUser,
+        project_id: UUID,
+        conversation_id: UUID | None,
+        first_message: str,
+    ) -> ConversationSummary | None: ...
+
+    def list_conversations(
+        self, user: CurrentUser, project_id: UUID
+    ) -> list[ConversationSummary] | None: ...
+
+    def conversation_messages(
+        self, user: CurrentUser, conversation_id: UUID
+    ) -> list[ConversationMessage] | None: ...
+
+    def get_runtime_rerank_config(self) -> RuntimeRerankConfig: ...
+
+    def update_runtime_rerank_config(
+        self, user: CurrentUser, provider: str, expected_version: int
+    ) -> RuntimeRerankConfig | None: ...
+
+    def conversation_summary(
+        self, user: CurrentUser, conversation_id: UUID
+    ) -> tuple[str | None, int] | None: ...
+
+    def update_conversation_summary(
+        self,
+        user: CurrentUser,
+        conversation_id: UUID,
+        summary: str,
+        message_count: int,
+    ) -> bool: ...
+
 
 # 线程安全的本地开发仓库，生产环境可替换为 Supabase/R2/Qdrant/Redis adapter。
 class InMemoryResearchMateStore:
@@ -142,11 +181,17 @@ class InMemoryResearchMateStore:
             self.uploads: dict[UUID, UploadReservation] = {}
             self.chunks: dict[UUID, ChunkEntry] = {}
             self.run_sources: dict[UUID, RunSourcesResponse] = {}
-            self.ask_responses: dict[UUID, AskResponse] = {}
             self.traces: dict[UUID, DeveloperTrace] = {}
             self.quiz_sets: dict[UUID, QuizSet] = {}
             self.project_quiz_sets: dict[UUID, list[UUID]] = {}
             self.api_usage: dict[tuple[UUID, str, str], int] = {}
+            self.conversations: dict[UUID, ConversationSummary] = {}
+            self.conversation_items: dict[UUID, list[ConversationMessage]] = {}
+            self.conversation_summaries: dict[UUID, tuple[str, int]] = {}
+            now = datetime.now(UTC)
+            self.runtime_rerank_config = RuntimeRerankConfig(
+                provider="auto", version=1, updated_at=now, updated_by=None
+            )
 
     # 确保 profile 存在。
     def ensure_user(self, user: CurrentUser) -> CurrentUser:
@@ -365,10 +410,12 @@ class InMemoryResearchMateStore:
     def get_run_sources(self, user: CurrentUser, run_id: UUID) -> RunSourcesResponse | None:
         with self._lock:
             response = self.run_sources.get(run_id)
-            ask_response = self.ask_responses.get(run_id)
-            if response is None or ask_response is None:
+            if response is None:
                 return None
-            trace = self.traces.get(ask_response.trace_id)
+            trace = next(
+                (item for item in self.traces.values() if item.run_id == run_id),
+                None,
+            )
             if trace is None or trace.user_id != user.id:
                 return None
             return response
@@ -395,6 +442,9 @@ class InMemoryResearchMateStore:
         citations: list[Citation],
         tool_calls: list[ToolCallTrace],
         validation_result: dict,
+        conversation_id: UUID | None = None,
+        runtime_metadata: dict | None = None,
+        assistant_answer: str | None = None,
     ) -> tuple[UUID, UUID]:
         with self._lock:
             run_id = uuid4()
@@ -428,17 +478,43 @@ class InMemoryResearchMateStore:
                 tool_calls=tool_calls,
                 validation_result=validation_result,
                 latency_ms=0,
-                token_usage=None,
+                token_usage=runtime_metadata,
                 errors=[] if validation_result.get("passed", True) else ["validation_failed"],
                 created_at=datetime.now(UTC),
             )
+            if conversation_id is not None and assistant_answer is not None:
+                conversation = self.conversations.get(conversation_id)
+                if (
+                    conversation is None
+                    or conversation.project_id != project_id
+                    or self.get_project(user, project_id) is None
+                ):
+                    raise ValueError("conversation is not owned by the current user")
+                now = datetime.now(UTC)
+                self.conversation_items.setdefault(conversation_id, []).extend(
+                    [
+                        ConversationMessage(
+                            id=uuid4(),
+                            conversation_id=conversation_id,
+                            role="user",
+                            content=message,
+                            citations=[],
+                            created_at=now,
+                        ),
+                        ConversationMessage(
+                            id=uuid4(),
+                            conversation_id=conversation_id,
+                            role="assistant",
+                            content=assistant_answer,
+                            citations=citations,
+                            created_at=now,
+                        ),
+                    ]
+                )
+                self.conversations[conversation_id] = conversation.model_copy(
+                    update={"updated_at": now}
+                )
             return run_id, trace_id
-
-    # 保存 Ask 响应。
-    def save_ask_response(self, user: CurrentUser, response: AskResponse) -> AskResponse:
-        with self._lock:
-            self.ask_responses[response.run_id] = response
-            return response
 
     # 保存 QuizSet 并建立 project 索引。
     def save_quiz_set(
@@ -485,6 +561,101 @@ class InMemoryResearchMateStore:
             return None
         by_id = {chunk.id: chunk for chunk in chunks}
         return [by_id[chunk_id] for chunk_id in chunk_ids if chunk_id in by_id]
+
+    def ensure_conversation(
+        self,
+        user: CurrentUser,
+        project_id: UUID,
+        conversation_id: UUID | None,
+        first_message: str,
+    ) -> ConversationSummary | None:
+        with self._lock:
+            if self.get_project(user, project_id) is None:
+                return None
+            if conversation_id is not None:
+                conversation = self.conversations.get(conversation_id)
+                if conversation is None or conversation.project_id != project_id:
+                    return None
+                return conversation
+            now = datetime.now(UTC)
+            title = " ".join(first_message.split())[:120] or "New conversation"
+            conversation = ConversationSummary(
+                id=uuid4(),
+                project_id=project_id,
+                title=title,
+                created_at=now,
+                updated_at=now,
+            )
+            self.conversations[conversation.id] = conversation
+            self.conversation_items[conversation.id] = []
+            return conversation
+
+    def list_conversations(
+        self, user: CurrentUser, project_id: UUID
+    ) -> list[ConversationSummary] | None:
+        with self._lock:
+            if self.get_project(user, project_id) is None:
+                return None
+            return sorted(
+                (
+                    item
+                    for item in self.conversations.values()
+                    if item.project_id == project_id
+                ),
+                key=lambda item: item.updated_at,
+                reverse=True,
+            )[:100]
+
+    def conversation_messages(
+        self, user: CurrentUser, conversation_id: UUID
+    ) -> list[ConversationMessage] | None:
+        with self._lock:
+            conversation = self.conversations.get(conversation_id)
+            if conversation is None or self.get_project(user, conversation.project_id) is None:
+                return None
+            return list(self.conversation_items.get(conversation_id, []))
+
+    def get_runtime_rerank_config(self) -> RuntimeRerankConfig:
+        with self._lock:
+            return self.runtime_rerank_config
+
+    def update_runtime_rerank_config(
+        self, user: CurrentUser, provider: str, expected_version: int
+    ) -> RuntimeRerankConfig | None:
+        with self._lock:
+            current = self.runtime_rerank_config
+            if current.version != expected_version:
+                return None
+            self.runtime_rerank_config = RuntimeRerankConfig(
+                provider=provider,
+                version=current.version + 1,
+                updated_at=datetime.now(UTC),
+                updated_by=user.id,
+            )
+            return self.runtime_rerank_config
+
+    def conversation_summary(
+        self, user: CurrentUser, conversation_id: UUID
+    ) -> tuple[str | None, int] | None:
+        with self._lock:
+            conversation = self.conversations.get(conversation_id)
+            if conversation is None or self.get_project(user, conversation.project_id) is None:
+                return None
+            return self.conversation_summaries.get(conversation_id, (None, 0))
+
+    def update_conversation_summary(
+        self,
+        user: CurrentUser,
+        conversation_id: UUID,
+        summary: str,
+        message_count: int,
+    ) -> bool:
+        with self._lock:
+            conversation = self.conversations.get(conversation_id)
+            if conversation is None or self.get_project(user, conversation.project_id) is None:
+                return False
+            self.conversation_summaries[conversation_id] = (summary, message_count)
+            return True
 
     # 创建 job 记录，调用方需已持锁。
     def _create_job_locked(

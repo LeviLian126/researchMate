@@ -4,8 +4,6 @@ import pytest
 from fastapi.testclient import TestClient
 from researchmate_api.config import Settings
 from researchmate_api.main import create_app
-from researchmate_api.schemas.common import SourceMode, TaskType
-from researchmate_api.services.source_policy import resolve_intent, validate_tool_policy
 from researchmate_api.services.store import store
 
 
@@ -65,13 +63,14 @@ def test_local_ask_sources_and_trace_workflow(client: TestClient) -> None:
 
     ask_response = client.post(
         "/api/v1/ask",
-        json={"project_id": project_id, "message": "/study explain RAG", "selected_mode": "auto"},
+        json={"project_id": project_id, "message": "Explain RAG", "web_enabled": False},
         headers=HEADERS,
     )
 
     assert ask_response.status_code == 200
     body = ask_response.json()
-    assert body["mode"] == "local_only"
+    assert body["conversation_id"]
+    assert "mode" not in body
     assert body["sources"]["local_chunks"] >= 1
     assert body["citations"]
     assert "RAG" in body["answer"]
@@ -83,8 +82,7 @@ def test_local_ask_sources_and_trace_workflow(client: TestClient) -> None:
     trace_response = client.get(f"/api/v1/dev/traces/{body['trace_id']}", headers=HEADERS)
     assert trace_response.status_code == 200
     trace = trace_response.json()
-    assert trace["execution_plan"]["source_mode"] == "local_only"
-    assert trace["validation_result"]["source_policy"]["denied_tools"] == []
+    assert trace["execution_plan"]["context_strategy"] == "full_context"
 
 
 # 验证普通用户无法查看 Developer Trace。
@@ -92,7 +90,7 @@ def test_trace_is_admin_only(client: TestClient) -> None:
     project_id, _ = create_ready_document(client, headers=USER_A_HEADERS)
     ask_response = client.post(
         "/api/v1/ask",
-        json={"project_id": project_id, "message": "/study citation validation", "selected_mode": "auto"},
+        json={"project_id": project_id, "message": "Explain citation validation"},
         headers=USER_A_HEADERS,
     )
     assert ask_response.status_code == 200
@@ -123,8 +121,7 @@ def test_quiz_generation_and_history(client: TestClient) -> None:
         "/api/v1/quiz",
         json={
             "project_id": project_id,
-            "prompt": "/quiz RAG",
-            "selected_mode": "local_only",
+            "prompt": "Generate a RAG quiz",
             "single_choice_count": 2,
             "short_answer_count": 1,
         },
@@ -145,36 +142,102 @@ def test_quiz_generation_and_history(client: TestClient) -> None:
 
 
 # 验证没有本地 indexed chunks 时拒绝 Local Ask，不编造答案。
-def test_local_ask_without_indexed_document_is_rejected(client: TestClient) -> None:
+def test_ask_without_document_is_plain_chat(client: TestClient) -> None:
     project_response = client.post("/api/v1/projects", json={"name": "Empty"}, headers=HEADERS)
     assert project_response.status_code == 201
 
     ask_response = client.post(
         "/api/v1/ask",
-        json={"project_id": project_response.json()["id"], "message": "/study nothing", "selected_mode": "auto"},
+        json={"project_id": project_response.json()["id"], "message": "Hello"},
         headers=HEADERS,
     )
 
-    assert ask_response.status_code == 409
-    assert ask_response.json()["error"]["code"] == "DOCUMENT_NOT_INDEXED"
+    assert ask_response.status_code == 200
+    assert ask_response.json()["sources"] == {"local_chunks": 0, "web_pages": 0}
+    assert ask_response.json()["citations"] == []
+
+
+def test_conversation_resume_and_cross_user_concealment(client: TestClient) -> None:
+    project = client.post(
+        "/api/v1/projects", json={"name": "Conversation"}, headers=USER_A_HEADERS
+    ).json()
+    first = client.post(
+        "/api/v1/ask",
+        json={"project_id": project["id"], "message": "First turn"},
+        headers=USER_A_HEADERS,
+    ).json()
+    second = client.post(
+        "/api/v1/ask",
+        json={
+            "project_id": project["id"],
+            "conversation_id": first["conversation_id"],
+            "message": "Second turn",
+        },
+        headers=USER_A_HEADERS,
+    )
+    assert second.status_code == 200
+
+    messages = client.get(
+        f"/api/v1/conversations/{first['conversation_id']}/messages",
+        headers=USER_A_HEADERS,
+    )
+    assert messages.status_code == 200
+    assert [item["role"] for item in messages.json()["messages"]] == [
+        "user",
+        "assistant",
+        "user",
+        "assistant",
+    ]
+    assert (
+        client.get(
+            f"/api/v1/conversations/{first['conversation_id']}/messages",
+            headers=USER_B_HEADERS,
+        ).status_code
+        == 404
+    )
+
+
+def test_runtime_rerank_config_is_admin_versioned(client: TestClient) -> None:
+    assert (
+        client.get(
+            "/api/v1/admin/runtime-config/rerank", headers=USER_A_HEADERS
+        ).status_code
+        == 403
+    )
+    current = client.get(
+        "/api/v1/admin/runtime-config/rerank", headers=HEADERS
+    ).json()
+    updated = client.put(
+        "/api/v1/admin/runtime-config/rerank",
+        json={"provider": "deterministic", "expected_version": current["version"]},
+        headers=HEADERS,
+    )
+    assert updated.status_code == 200
+    assert updated.json()["version"] == current["version"] + 1
+    conflict = client.put(
+        "/api/v1/admin/runtime-config/rerank",
+        json={"provider": "nvidia", "expected_version": current["version"]},
+        headers=HEADERS,
+    )
+    assert conflict.status_code == 409
+    assert conflict.json()["error"]["code"] == "RUNTIME_CONFIG_VERSION_CONFLICT"
 
 
 # 验证本地文档存在但与问题无词项重合时拒答，不能用无关 chunk 伪造引用。
-def test_local_ask_rejects_unrelated_document_evidence(client: TestClient) -> None:
+def test_small_document_uses_full_context_without_keyword_gate(client: TestClient) -> None:
     project_id, _ = create_ready_document(client)
 
     ask_response = client.post(
         "/api/v1/ask",
         json={
             "project_id": project_id,
-            "message": "/study explain photosynthesis chlorophyll",
-            "selected_mode": "auto",
+            "message": "Explain photosynthesis chlorophyll",
         },
         headers=HEADERS,
     )
 
-    assert ask_response.status_code == 409
-    assert ask_response.json()["error"]["code"] == "EVIDENCE_NOT_FOUND"
+    assert ask_response.status_code == 200
+    assert ask_response.json()["citations"]
 
 
 # 验证上传类型和 MIME 的安全边界。
@@ -222,13 +285,19 @@ def test_upload_completion_rejects_non_hex_checksum(client: TestClient) -> None:
 
 
 # 验证 Source Policy 阻止 local-only 越权调用 web 工具。
-def test_source_policy_validator_blocks_unallowed_tools() -> None:
-    intent = resolve_intent("/study explain retrieval", SourceMode.AUTO, TaskType.ANSWER)
-    result = validate_tool_policy(intent.plan, ["query_local_docs", "search_web", "generate_answer"])
-
-    assert intent.plan.source_mode == "local_only"
-    assert result["passed"] is False
-    assert result["denied_tools"] == ["search_web"]
+def test_removed_source_selector_is_rejected(client: TestClient) -> None:
+    project = client.post("/api/v1/projects", json={"name": "Strict"}, headers=HEADERS)
+    response = client.post(
+        "/api/v1/ask",
+        json={
+            "project_id": project.json()["id"],
+            "message": "Hello",
+            "selected_mode": "local_only",
+        },
+        headers=HEADERS,
+    )
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "VALIDATION_FAILED"
 
 
 def test_executable_catalogs_and_report_detail_fail_closed_locally(client: TestClient) -> None:

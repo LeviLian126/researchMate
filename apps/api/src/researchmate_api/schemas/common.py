@@ -5,14 +5,6 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 
 
-# 定义资料来源模式，Mode 只控制证据来源。
-class SourceMode(str, Enum):
-    AUTO = "auto"
-    LOCAL_ONLY = "local_only"
-    WEB_ONLY = "web_only"
-    HYBRID = "hybrid"
-
-
 # 定义任务类型，Task 只控制执行目标。
 class TaskType(str, Enum):
     ANSWER = "answer"
@@ -93,14 +85,20 @@ class Citation(BaseModel):
     model_config = ConfigDict(use_enum_values=True)
 
 
-# 定义 SourcePolicyResolver 输出。
+# 定义统一聊天入口在服务端解析出的执行计划。
 class ExecutionPlan(BaseModel):
-    source_mode: SourceMode
     task_type: TaskType
     allowed_tools: list[str] = Field(min_length=1, max_length=12)
     requires_local_docs: bool
     requires_web: bool
-    output_schema: Literal["GroundedAnswer", "QuizSet"]
+    context_strategy: Literal[
+        "chat",
+        "full_context",
+        "hybrid_retrieval",
+        "web",
+        "hybrid_retrieval_web",
+        "quiz",
+    ]
+    output_schema: Literal["ChatAnswer", "GroundedAnswer", "QuizSet"]
 
     model_config = ConfigDict(use_enum_values=True)
-

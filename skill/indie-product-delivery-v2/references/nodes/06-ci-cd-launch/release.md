@@ -7,6 +7,7 @@ Execute an authorized release with evidence at each step, contain before broad a
 - [Release-readiness matrix](#release-readiness-matrix)
 - [Action authority and release status](#action-authority-and-release-status)
 - [Environment, pipeline, and CI gates](#environment-pipeline-and-ci-gates)
+- [Default source-to-production sequence](#default-source-to-production-sequence)
 - [Rollout and recovery](#rollout-and-recovery)
 - [Post-deploy smoke, watch, and containment](#post-deploy-smoke-watch-and-containment)
 - [Release record and follow-up](#release-record-and-follow-up)
@@ -50,6 +51,23 @@ Classify a red, missing, or flaky CI gate by what it actually is, not by how con
 | red on unrelated test | confirm genuinely unrelated (no shared state or contract); document and proceed if the change can't touch it |
 
 Repair and reprove the narrow pipeline mechanic rather than nudging a gate green.
+
+## Default source-to-production sequence
+
+Unless the repository defines a stricter order, preserve this evidence chain:
+
+1. Freeze the approved design, public contract, acceptance, migration boundary, and rollback trigger.
+2. Implement source behavior and ownership checks.
+3. Update maintained HTML/Markdown documentation and generated API or schema contracts from the same source state.
+4. Run only local hermetic unit, pure-function, schema, import, and static checks already supported by the machine.
+5. If a local dependency or module is missing, record that limitation and transfer the affected test to CI or the authorized cloud/server environment. Do not install packages, create an environment, download models, or start local infrastructure merely to reproduce the full integration suite unless the user explicitly authorizes it.
+6. Run the complete dependency, module, build, audit, provider, migration, cross-service, and isolation suite in CI or the authorized cloud/server environment.
+7. Commit intentionally and push the authorized release branch only after the local evidence is clean enough to hand off; wait for the exact pushed SHA's required CI gates.
+8. Apply backward-compatible expand migrations before code that requires them. Deploy the same SHA to every selected frontend/backend target and verify artifact identity.
+9. Complete bounded backfills and readiness probes before activating a new provider or projection. Apply contract migrations only after the new runtime is stable and the rollback boundary permits removal.
+10. Run production smoke for the changed primary paths, permissions, persistence/recovery, providers, and rollback signal; contain or roll back on any named release gate failure.
+
+The sequence is not permission to deploy, migrate, switch providers, or push. Those external effects still require the exact authorization described above. Never turn a missing local package into an implicit dependency-install decision.
 
 ## Rollout and recovery
 

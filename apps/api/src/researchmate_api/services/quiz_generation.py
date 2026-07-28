@@ -1,6 +1,6 @@
 from uuid import uuid4
 
-from researchmate_api.schemas.common import Citation, Difficulty, SourceMode, SourceSummary
+from researchmate_api.schemas.common import Citation, Difficulty, SourceSummary
 from researchmate_api.schemas.quiz import QuizQuestion, QuizSet
 from researchmate_api.services.retrieval import snippet
 from researchmate_api.services.store import ChunkEntry
@@ -8,7 +8,6 @@ from researchmate_api.services.store import ChunkEntry
 
 # 基于本地 chunk 生成可溯源测验。
 def generate_quiz_set(
-    mode: SourceMode,
     chunks: list[ChunkEntry],
     citations: list[Citation],
     single_choice_count: int,
@@ -70,7 +69,6 @@ def generate_quiz_set(
         )
     return QuizSet(
         id=uuid4(),
-        mode=mode,
         sources=SourceSummary(local_chunks=len(citations), web_pages=0),
         questions=questions,
     )

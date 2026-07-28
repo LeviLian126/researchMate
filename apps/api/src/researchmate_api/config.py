@@ -39,6 +39,24 @@ class Settings(BaseSettings):
     qdrant_url: str | None = None
     qdrant_api_key: SecretStr | None = None
     qdrant_collection: str = "researchmate_chunks"
+    qdrant_rerank_collection: str = "researchmate_chunks_v2"
+    qdrant_rerank_model: str | None = None
+    qdrant_rerank_model_is_free: bool = False
+    qdrant_rerank_dimension: int = Field(default=96, ge=16, le=4096)
+    rerank_provider_default: Literal["auto", "qdrant", "nvidia", "deterministic"] = "auto"
+    rerank_config_cache_seconds: float = Field(default=5.0, ge=0, le=60)
+    rerank_candidate_limit: int = Field(default=50, ge=1, le=100)
+    rerank_top_n: int = Field(default=10, ge=1, le=30)
+    rerank_timeout_seconds: float = Field(default=20.0, gt=0, le=60)
+    nvidia_rerank_base_url: str = "https://integrate.api.nvidia.com"
+    nvidia_rerank_model: str = "nvidia/llama-nemotron-rerank-1b-v2"
+    chat_history_token_budget: int = Field(default=5000, ge=500, le=20000)
+    chat_recent_token_budget: int = Field(default=3500, ge=500, le=15000)
+    chat_summary_token_budget: int = Field(default=1500, ge=200, le=5000)
+    chat_summary_trigger_tokens: int = Field(default=8000, ge=1000, le=50000)
+    full_context_token_limit: int = Field(default=12000, ge=1000, le=50000)
+    retrieval_evidence_token_budget: int = Field(default=8000, ge=1000, le=30000)
+    ask_max_output_tokens: int = Field(default=2048, ge=128, le=8192)
     web_search_provider: Literal["disabled", "tavily"] = "disabled"
     tavily_api_key: SecretStr | None = None
     tavily_base_url: str = "https://api.tavily.com"
@@ -137,6 +155,14 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_security_boundary(self) -> "Settings":
+        if (
+            self.chat_recent_token_budget + self.chat_summary_token_budget
+            > self.chat_history_token_budget
+        ):
+            raise ValueError(
+                "CHAT_RECENT_TOKEN_BUDGET plus CHAT_SUMMARY_TOKEN_BUDGET "
+                "must not exceed CHAT_HISTORY_TOKEN_BUDGET"
+            )
         if self.app_env in {"preview", "production"} and self.auth_mode != "supabase":
             raise ValueError("preview and production must use Supabase JWT authentication")
         if self.auth_mode == "supabase":

@@ -552,16 +552,18 @@ class SqlEvidenceWorkflowDomain:
             connection.execute(
                 text("delete from research_questions where source_run_id=:id"), {"id": run_id}
             )
-            source_mode = "hybrid" if locked["input"].get("source_scope", {}).get("allow_web") else "local_only"
+            web_enabled = bool(
+                locked["input"].get("source_scope", {}).get("allow_web")
+            )
             connection.execute(
                 text(
                     """
                     insert into ask_runs (
-                      id,user_id,project_id,message,source_mode,task_type,resolved_mode,status,
-                      validation_status,token_usage
+                      id,user_id,project_id,message,task_type,web_enabled,context_strategy,
+                      status,validation_status,token_usage
                     ) values (
-                      :id,:user_id,:project_id,:message,:mode,'answer',:mode,'succeeded',
-                      'passed',cast(:usage as jsonb)
+                      :id,:user_id,:project_id,:message,'answer',:web_enabled,
+                      :context_strategy,'succeeded','passed',cast(:usage as jsonb)
                     ) on conflict (id) do nothing
                     """
                 ),
@@ -570,7 +572,10 @@ class SqlEvidenceWorkflowDomain:
                     "user_id": user_id,
                     "project_id": project_id,
                     "message": state["research_goal"],
-                    "mode": source_mode,
+                    "web_enabled": web_enabled,
+                    "context_strategy": (
+                        "hybrid_retrieval_web" if web_enabled else "hybrid_retrieval"
+                    ),
                     "usage": _json({"workflow_run_id": str(run_id)}),
                 },
             )

@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import Any
 from uuid import UUID
 
+from researchmate_api.config import Settings
 from researchmate_api.schemas.ask import AskRequest
 from researchmate_api.schemas.common import CurrentUser
 from researchmate_api.schemas.evidence import EvaluationRunCreate
@@ -12,6 +13,7 @@ from researchmate_api.services.evidence_store import EvidenceRepository, Evidenc
 from researchmate_api.services.grounded_query import GroundedQueryError, GroundedQueryService
 from researchmate_api.services.llm import ChatProvider
 from researchmate_api.services.qdrant_store import QdrantHybridStore
+from researchmate_api.services.rerank import RerankCoordinator
 from researchmate_api.services.store import ResearchMateRepository
 from researchmate_api.services.web_search import TavilyWebSearchProvider
 
@@ -24,6 +26,8 @@ class MCPRequestIdentity:
     chat_provider: ChatProvider | None
     hybrid_store: QdrantHybridStore | None
     web_search: TavilyWebSearchProvider | None
+    settings: Settings
+    reranker: RerankCoordinator
 
 
 current_mcp_identity: ContextVar[MCPRequestIdentity | None] = ContextVar(
@@ -64,9 +68,11 @@ def build_mcp_server() -> tuple[Any, Any]:
         ctx = _identity()
         try:
             chunks = GroundedQueryService(
+                settings=ctx.settings,
                 repository=ctx.repository,
                 chat_provider=ctx.chat_provider,
                 hybrid_store=ctx.hybrid_store,
+                reranker=ctx.reranker,
                 web_search=ctx.web_search,
             ).search(ctx.user, UUID(project_id), query, max(1, min(20, limit)))
         except (ValueError, GroundedQueryError) as exc:
@@ -85,15 +91,23 @@ def build_mcp_server() -> tuple[Any, Any]:
         ]
 
     @server.tool()
-    def ask_grounded(project_id: str, message: str, mode: str = "auto") -> dict[str, Any]:
-        """Run the same grounded Ask domain service used by REST; returns citations and trace ID."""
+    def ask_grounded(
+        project_id: str, message: str, web_enabled: bool = False
+    ) -> dict[str, Any]:
+        """Run the unified Ask service and return its answer, citations, and trace ID."""
         ctx = _identity()
         try:
-            payload = AskRequest(project_id=UUID(project_id), message=message, selected_mode=mode)
+            payload = AskRequest(
+                project_id=UUID(project_id),
+                message=message,
+                web_enabled=web_enabled,
+            )
             response = GroundedQueryService(
+                settings=ctx.settings,
                 repository=ctx.repository,
                 chat_provider=ctx.chat_provider,
                 hybrid_store=ctx.hybrid_store,
+                reranker=ctx.reranker,
                 web_search=ctx.web_search,
             ).execute(ctx.user, payload)
         except (ValueError, GroundedQueryError) as exc:

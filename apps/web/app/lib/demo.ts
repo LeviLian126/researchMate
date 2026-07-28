@@ -107,7 +107,7 @@ let latestRun: Json = {
   progress: 100,
   current_node: "report_published",
   review_required: false,
-  output: { mode: "static-demo", report_id: DEMO_REPORT_ID },
+  output: { runtime: "static-demo", report_id: DEMO_REPORT_ID },
   created_at: timestamp,
   started_at: timestamp,
   completed_at: timestamp,
@@ -127,6 +127,7 @@ let latestEvaluation: Json = {
 };
 
 let quizSets: Json[] = [];
+let chatMessages: Json[] = [];
 
 function makeId(prefix: string, sequence: number): string {
   const suffix = sequence.toString(16).padStart(12, "0");
@@ -158,7 +159,7 @@ function demoRun(projectId: string, kind: string): Json {
     progress: 100,
     current_node: "report_published",
     review_required: false,
-    output: { mode: "static-demo", report_id: DEMO_REPORT_ID },
+    output: { runtime: "static-demo", report_id: DEMO_REPORT_ID },
     created_at: timestamp,
     started_at: timestamp,
     completed_at: timestamp,
@@ -201,6 +202,23 @@ export async function demoFetch<T>(rawPath: string, init: globalThis.RequestInit
   if (path.endsWith("/claim-relations") && method === "GET") return { items: relations } as T;
   if (path.endsWith("/reports") && method === "GET") return { items: [report] } as T;
   if (path.endsWith("/quiz") && method === "GET") return { project_id: projectId, quiz_sets: quizSets } as T;
+  if (path.endsWith("/conversations") && method === "GET") {
+    return {
+      items: chatMessages.length ? [{
+        id: "abababab-abab-4bab-8bab-abababababab",
+        project_id: projectId,
+        title: "Walkthrough conversation",
+        created_at: timestamp,
+        updated_at: timestamp,
+      }] : [],
+    } as T;
+  }
+  if (path.startsWith("/conversations/") && path.endsWith("/messages") && method === "GET") {
+    return {
+      conversation_id: "abababab-abab-4bab-8bab-abababababab",
+      messages: chatMessages,
+    } as T;
+  }
 
   if (path === "/documents/upload-url" && method === "POST") {
     const id = makeId("22222222-2222", ++documentSequence);
@@ -222,15 +240,26 @@ export async function demoFetch<T>(rawPath: string, init: globalThis.RequestInit
   if (path.startsWith("/runs/") && path.endsWith("/decisions") && method === "POST") return { decision_id: makeId("dddddddd-dddd", runSequence), status: "accepted" } as T;
   if (path.startsWith("/runs/") && method === "GET") return latestRun as T;
 
-  if (path === "/ask" && method === "POST") return {
-    run_id: latestRun.run_id,
-    answer: "The walkthrough conclusion is conditional: retrieval is useful when evidence is relevant, source-bound, and reviewed; it is not a correctness guarantee by itself.",
-    mode: "local_only",
-    sources: { local_chunks: 1, web_pages: 0 },
-    citations: [citation],
-    trace_id: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
-    validation_status: "passed",
-  } as T;
+  if (path === "/ask" && method === "POST") {
+    const conversationId = "abababab-abab-4bab-8bab-abababababab";
+    const answer = "The walkthrough conclusion is conditional: retrieval is useful when evidence is relevant, source-bound, and reviewed; it is not a correctness guarantee by itself.";
+    chatMessages = [
+      ...chatMessages,
+      { id: makeId("31313131-3131", chatMessages.length + 1), conversation_id: conversationId, role: "user", content: body.message ?? "Explain the evidence.", citations: [], created_at: timestamp },
+      { id: makeId("32323232-3232", chatMessages.length + 2), conversation_id: conversationId, role: "assistant", content: answer, citations: [citation], created_at: timestamp },
+    ];
+    return {
+      run_id: latestRun.run_id,
+      conversation_id: conversationId,
+      answer,
+      sources: { local_chunks: 1, web_pages: 0 },
+      citations: [citation],
+      trace_id: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+      validation_status: "passed",
+      rerank_degraded: false,
+      fallback_reason: null,
+    } as T;
+  }
 
   if (path.startsWith("/reports/") && path.endsWith("/refresh") && method === "POST") {
     const run = demoRun(DEMO_PROJECT_ID, "report_refresh");
@@ -242,7 +271,7 @@ export async function demoFetch<T>(rawPath: string, init: globalThis.RequestInit
   } as T;
 
   if (path === "/quiz" && method === "POST") {
-    quizSets = [{ id: "12121212-1212-4212-8212-121212121212", mode: "local_only", sources: { local_chunks: 1, web_pages: 0 }, questions: [{ id: "13131313-1313-4313-8313-131313131313", type: "single_choice", question: "What makes a retrieved conclusion defensible?", options: ["A larger prompt", "A citation-backed relevant source", "A longer answer", "An unbounded web search"], answer: "A citation-backed relevant source", explanation: "The walkthrough records a claim-to-citation relationship rather than treating retrieval as a correctness guarantee.", difficulty: "easy", source_citations: [citation] }] }];
+    quizSets = [{ id: "12121212-1212-4212-8212-121212121212", sources: { local_chunks: 1, web_pages: 0 }, questions: [{ id: "13131313-1313-4313-8313-131313131313", type: "single_choice", question: "What makes a retrieved conclusion defensible?", options: ["A larger prompt", "A citation-backed relevant source", "A longer answer", "An unbounded web search"], answer: "A citation-backed relevant source", explanation: "The walkthrough records a claim-to-citation relationship rather than treating retrieval as a correctness guarantee.", difficulty: "easy", source_citations: [citation] }] }];
     return quizSets[0] as T;
   }
 
@@ -255,7 +284,7 @@ export async function demoFetch<T>(rawPath: string, init: globalThis.RequestInit
   if (path.startsWith("/evaluation-runs/") && method === "GET") return latestEvaluation as T;
   if (path === "/dev/reliability" && method === "GET") return { window_hours: Number(url.searchParams.get("window_hours") ?? 24), run_count: 4, success_rate: 1, error_rate: 0, retry_count: 1, p50_latency_ms: 120, p95_latency_ms: 240, input_tokens: 0, output_tokens: 0, cost_usd: "0.0000", sample_trace_ids: ["eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"] } as T;
   if (path === "/dev/fault-scenarios" && method === "POST") return { exercise_id: "14141414-1414-4414-8414-141414141414", expected_recovery_state: "simulated; canonical state unchanged", expires_at: "2026-07-19T08:00:10.000Z" } as T;
-  if (path.startsWith("/dev/traces/") && method === "GET") return { trace_id: path.split("/").at(-1), user_id: "public-demo", project_id: DEMO_PROJECT_ID, run_id: latestRun.run_id, execution_plan: { mode: "static-demo" }, router_reason: "No external provider called.", retrieved_chunks: [citation], tool_calls: [], validation_result: { status: "passed" }, created_at: timestamp } as T;
+  if (path.startsWith("/dev/traces/") && method === "GET") return { trace_id: path.split("/").at(-1), user_id: "public-demo", project_id: DEMO_PROJECT_ID, run_id: latestRun.run_id, execution_plan: { context_strategy: "chat" }, router_reason: "No external provider called.", retrieved_chunks: [citation], tool_calls: [], validation_result: { status: "passed" }, created_at: timestamp } as T;
 
   throw new Error(`Static demo does not implement ${method} ${path}.`);
 }

@@ -45,12 +45,15 @@ class QdrantHybridStore:
     ) -> None:
         if not settings.qdrant_url:
             raise ValueError("Qdrant URL is not configured")
+        self.settings = settings
         self.collection = settings.qdrant_collection
+        self.rerank_collection = settings.qdrant_rerank_collection
         self.embedding = embedding
         self.client = client or QdrantClient(
             url=settings.qdrant_url,
             api_key=settings.qdrant_api_key.get_secret_value() if settings.qdrant_api_key else None,
             timeout=settings.llm_timeout_seconds,
+            cloud_inference=bool(settings.qdrant_rerank_model),
         )
 
     @staticmethod
@@ -113,6 +116,89 @@ class QdrantHybridStore:
             for point in result.points
         ]
 
+    def query_dense(
+        self,
+        *,
+        user_id: str,
+        project_id: str,
+        source_type: SourceType | str,
+        text: str,
+        limit: int = 30,
+        document_ids: list[str] | None = None,
+    ) -> list[dict[str, Any]]:
+        """Return the semantic channel only; application BM25 is fused separately."""
+        dense = self.embedding.embed([text], input_type="query")[0]
+        query_filter = self.owner_filter(user_id, project_id, source_type, document_ids)
+        try:
+            result = self.client.query_points(
+                collection_name=self.collection,
+                query=dense,
+                using="dense",
+                query_filter=query_filter,
+                limit=limit,
+                with_payload=True,
+            )
+        except Exception as exc:
+            raise VectorStoreRequestError("dense_query") from exc
+        return [
+            {"id": str(point.id), "score": point.score, "payload": dict(point.payload or {})}
+            for point in result.points
+        ]
+
+    def rerank_query(
+        self,
+        *,
+        user_id: str,
+        project_id: str,
+        text: str,
+        candidate_ids: list[str],
+        model: str,
+        limit: int,
+    ) -> list[str]:
+        if not candidate_ids:
+            return []
+        query_filter = self.owner_filter(user_id, project_id, SourceType.LOCAL_DOC)
+        query_filter.must.append(models.HasIdCondition(has_id=candidate_ids))
+        try:
+            result = self.client.query_points(
+                collection_name=self.rerank_collection,
+                query=models.Document(text=text[:1200], model=model),
+                using="multi",
+                query_filter=query_filter,
+                limit=limit,
+                with_payload=True,
+            )
+        except Exception as exc:
+            raise VectorStoreRequestError("rerank") from exc
+        return [str(point.payload.get("chunk_id", point.id)) for point in result.points]
+
+    def rerank_ready(self) -> bool:
+        if not self.settings.qdrant_rerank_model or not self.settings.qdrant_rerank_model_is_free:
+            return False
+        try:
+            info = self.client.get_collection(self.rerank_collection)
+        except Exception:
+            return False
+        vectors = getattr(getattr(info.config, "params", None), "vectors", None)
+        if not isinstance(vectors, dict) or "multi" not in vectors:
+            return False
+        try:
+            primary_count = int(
+                self.client.count(
+                    collection_name=self.collection,
+                    exact=True,
+                ).count
+            )
+            rerank_count = int(
+                self.client.count(
+                    collection_name=self.rerank_collection,
+                    exact=True,
+                ).count
+            )
+        except Exception:
+            return False
+        return primary_count > 0 and rerank_count == primary_count
+
     def upsert_chunks(self, chunks: list[ChunkEntry], *, pipeline_version: str) -> None:
         if not chunks:
             return
@@ -142,6 +228,34 @@ class QdrantHybridStore:
             self.client.upsert(collection_name=self.collection, points=points, wait=True)
         except Exception as exc:
             raise VectorStoreRequestError("upsert") from exc
+        if self.settings.qdrant_rerank_model and self.settings.qdrant_rerank_model_is_free:
+            rerank_points = [
+                models.PointStruct(
+                    id=str(chunk.id),
+                    vector={
+                        "multi": models.Document(
+                            text=chunk.text[:1200],
+                            model=self.settings.qdrant_rerank_model,
+                        )
+                    },
+                    payload={
+                        "user_id": str(chunk.user_id),
+                        "project_id": str(chunk.project_id),
+                        "document_id": str(chunk.document_id) if chunk.document_id else None,
+                        "chunk_id": str(chunk.id),
+                        "source_type": chunk.source_type.value,
+                    },
+                )
+                for chunk in chunks
+            ]
+            try:
+                self.client.upsert(
+                    collection_name=self.rerank_collection,
+                    points=rerank_points,
+                    wait=True,
+                )
+            except Exception as exc:
+                raise VectorStoreRequestError("rerank_upsert") from exc
 
     def delete_points(
         self,
@@ -167,3 +281,12 @@ class QdrantHybridStore:
             )
         except Exception as exc:
             raise VectorStoreRequestError("delete") from exc
+        if self.settings.qdrant_rerank_model and self.settings.qdrant_rerank_model_is_free:
+            try:
+                self.client.delete(
+                    collection_name=self.rerank_collection,
+                    points_selector=models.FilterSelector(filter=owner_filter),
+                    wait=True,
+                )
+            except Exception as exc:
+                raise VectorStoreRequestError("rerank_delete") from exc

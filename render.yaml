@@ -24,6 +24,28 @@ envVarGroups:
         sync: false
       - key: QDRANT_COLLECTION
         value: researchmate_chunks
+      - key: QDRANT_RERANK_COLLECTION
+        value: researchmate_chunks_v2
+      - key: QDRANT_RERANK_MODEL
+        value: answerdotai/answerai-colbert-small-v1
+      - key: QDRANT_RERANK_MODEL_IS_FREE
+        value: "false"
+      - key: QDRANT_RERANK_DIMENSION
+        value: "96"
+      - key: RERANK_PROVIDER_DEFAULT
+        value: auto
+      - key: NVIDIA_RERANK_BASE_URL
+        value: https://integrate.api.nvidia.com
+      - key: NVIDIA_RERANK_MODEL
+        value: nvidia/llama-nemotron-rerank-1b-v2
+      - key: CHAT_HISTORY_TOKEN_BUDGET
+        value: "5000"
+      - key: CHAT_RECENT_TOKEN_BUDGET
+        value: "3500"
+      - key: CHAT_SUMMARY_TOKEN_BUDGET
+        value: "1500"
+      - key: CHAT_SUMMARY_TRIGGER_TOKENS
+        value: "8000"
       - key: LLM_PROVIDER
         value: nvidia
       - key: EMBEDDING_PROVIDER
@@ -70,6 +92,8 @@ envVarGroups:
         value: "true"
       - key: RAGAS_DO_NOT_TRACK
         value: "true"
+      - key: RUN_SCHEMA_MIGRATIONS
+        value: "1"
 
 services:
   - type: web

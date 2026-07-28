@@ -15,6 +15,9 @@ RUN apt-get update \
 WORKDIR /app
 COPY apps/api /app/apps/api
 COPY workers/ai-worker /app/workers/ai-worker
+COPY infra/supabase/migrations /app/infra/supabase/migrations
+COPY scripts/apply_migrations.py /app/scripts/apply_migrations.py
+COPY scripts/provision_qdrant_rerank.py /app/scripts/provision_qdrant_rerank.py
 RUN python -m pip install --no-cache-dir \
       --index-url https://download.pytorch.org/whl/cpu \
       torch==2.13.0+cpu \

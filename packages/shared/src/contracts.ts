@@ -1,6 +1,3 @@
-// 定义资料来源模式，Mode 只决定从哪里取证据。
-export type SourceMode = "auto" | "local_only" | "web_only" | "hybrid";
-
 // 定义任务类型，Task 只决定要做什么。
 export type TaskType = "answer" | "quiz";
 
@@ -10,19 +7,19 @@ export type ToolName =
   | "search_web"
   | "read_url"
   | "crawl_url_optional"
-  | "evidence_fusion"
+  | "rerank_evidence"
   | "generate_answer"
   | "generate_quiz"
   | "save_quiz";
 
 // 定义一次请求解析后的执行计划。
 export interface ExecutionPlan {
-  source_mode: SourceMode;
   task_type: TaskType;
   allowed_tools: ToolName[];
   requires_local_docs: boolean;
   requires_web: boolean;
-  output_schema: "GroundedAnswer" | "QuizSet";
+  context_strategy: "chat" | "full_context" | "hybrid_retrieval" | "web" | "hybrid_retrieval_web" | "quiz";
+  output_schema: "ChatAnswer" | "GroundedAnswer" | "QuizSet";
 }
 
 // 定义回答顶部的来源摘要。
@@ -46,7 +43,6 @@ export interface Citation {
 
 // 定义可溯源回答的结构化输出。
 export interface GroundedAnswer {
-  mode: SourceMode;
   sources: SourceSummary;
   answer: string;
   citations: Citation[];
@@ -57,6 +53,9 @@ export interface GroundedAnswer {
 // 定义 Ask API 响应。
 export interface AskResponse extends GroundedAnswer {
   run_id: string;
+  conversation_id: string;
+  rerank_degraded: boolean;
+  fallback_reason?: string | null;
 }
 
 // 定义 Quiz 题目结构。
@@ -74,7 +73,6 @@ export interface QuizQuestion {
 // 定义 QuizSet 结构化输出。
 export interface QuizSet {
   id: string;
-  mode: SourceMode;
   sources: SourceSummary;
   questions: QuizQuestion[];
 }

@@ -155,8 +155,12 @@ def test_database_and_api_docs_reconcile_complete_source_contracts() -> None:
     """Reconcile rendered database and API counts with their source contracts."""
     import re
 
-    migration = (ROOT / "infra/supabase/migrations/202605260001_initial_schema.sql").read_text(
-        encoding="utf-8"
+    migration = "\n".join(
+        path.read_text(encoding="utf-8")
+        for path in (
+            ROOT / "infra/supabase/migrations/202605260001_initial_schema.sql",
+            ROOT / "infra/supabase/migrations/202607280007_unified_chat_and_runtime_rerank.sql",
+        )
     )
     data_docs = (ROOT / "docs/contracts/data/index.html").read_text(encoding="utf-8")
     migration_tables = set(
@@ -165,7 +169,7 @@ def test_database_and_api_docs_reconcile_complete_source_contracts() -> None:
     documented_tables = set(
         re.findall(r'<details id="[^"]+"><summary><code>([a-z_]+)</code>', data_docs)
     )
-    assert len(migration_tables) == 15
+    assert len(migration_tables) == 16
     assert documented_tables == migration_tables
 
     spec = (ROOT / "infra/openapi/openapi.yaml").read_text(encoding="utf-8")
@@ -184,7 +188,7 @@ def test_database_and_api_docs_reconcile_complete_source_contracts() -> None:
     documented_operations = set(
         re.findall(r"<code>(GET|POST|PUT|PATCH|DELETE) (/api/v1/[^<]+)</code> —", api_docs)
     )
-    assert len(spec_operations) == 35
+    assert len(spec_operations) == 39
     assert documented_operations == spec_operations
 
 
@@ -195,7 +199,7 @@ def test_overview_deep_links_to_authoritative_detail_sections() -> None:
         "product/index.html#cap-projects",
         "product/index.html#cap-documents",
         "product/index.html#cap-grounded-ask",
-        "product/index.html#cap-source-routing",
+        "product/index.html#cap-unified-evidence",
         "product/index.html#cap-sources",
         "product/index.html#cap-quiz",
         "architecture/index.html#current-architecture",
@@ -267,18 +271,16 @@ def test_database_schema_has_security_boundaries() -> None:
         assert token in migration
 
 
-def test_shared_contracts_define_core_modes_and_outputs() -> None:
-    """Require shared frontend contracts for accepted modes and response shapes."""
+def test_shared_contracts_define_unified_chat_outputs() -> None:
+    """Require shared contracts for the unified chat and response shapes."""
     contracts = (ROOT / "packages/shared/src/contracts.ts").read_text(encoding="utf-8")
     required_tokens = [
-        "SourceMode",
         "TaskType",
         "GroundedAnswer",
         "QuizSet",
         "ExecutionPlan",
-        "local_only",
-        "web_only",
-        "hybrid",
+        "conversation_id",
+        "context_strategy",
     ]
     for token in required_tokens:
         assert token in contracts
@@ -293,10 +295,10 @@ def test_backend_pydantic_contracts_validate_request_shape() -> None:
 
     request = AskRequest(
         project_id="00000000-0000-4000-8000-000000000001",
-        message="/study explain RAG",
-        selected_mode="auto",
+        message="Explain RAG",
+        web_enabled=False,
     )
-    assert request.selected_mode == "auto"
+    assert request.web_enabled is False
 
 
 def test_local_verification_policy_keeps_integration_on_deployed_environment() -> None:
