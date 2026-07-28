@@ -217,6 +217,14 @@ class PostgresResearchMateRepository:
                     {"project_id": project_id, "user_id": user.id},
                 ).mappings().one_or_none()
                 if existing is not None and existing["status"] in {"pending", "running"}:
+                    if existing["status"] == "pending":
+                        self._enqueue_project_deletion(
+                            connection,
+                            user_id=user.id,
+                            project_id=project_id,
+                            job_id=existing["id"],
+                            delivery_id=uuid4(),
+                        )
                     return JobRecord.model_validate(dict(existing))
                 if existing is None or existing["status"] != "failed":
                     return None
@@ -237,7 +245,7 @@ class PostgresResearchMateRepository:
                     set status = 'failed', error_message = 'PROJECT_DELETING',
                       completed_at = now(), updated_at = now()
                     where project_id = :project_id and user_id = :user_id
-                      and type = 'ingest_document' and status = 'pending'
+                      and type = 'parse_and_index_document' and status = 'pending'
                     """
                 ),
                 {"project_id": project_id, "user_id": user.id},
@@ -284,28 +292,12 @@ class PostgresResearchMateRepository:
                 ),
                 {"id": job.id, "user_id": user.id, "project_id": project_id},
             )
-            connection.execute(
-                text(
-                    """
-                    insert into outbox_events (
-                      aggregate_type, aggregate_id, event_type, payload, idempotency_key
-                    ) values (
-                      'project', :project_id, 'project.delete.requested',
-                      cast(:payload as jsonb), :idempotency_key
-                    ) on conflict (idempotency_key) do nothing
-                    """
-                ),
-                {
-                    "project_id": project_id,
-                    "payload": _json(
-                        {
-                            "job_id": str(job.id),
-                            "user_id": str(user.id),
-                            "project_id": str(project_id),
-                        }
-                    ),
-                    "idempotency_key": f"project:{project_id}:delete:{job.id}",
-                },
+            self._enqueue_project_deletion(
+                connection,
+                user_id=user.id,
+                project_id=project_id,
+                job_id=job.id,
+                delivery_id=job.id,
             )
             return job
 
@@ -320,6 +312,8 @@ class PostgresResearchMateRepository:
         upload_url = self.upload_url_factory(document_id, object_key, payload)
         expires_at = datetime.now(UTC) + timedelta(days=self.default_project_ttl_days)
         with self._transaction(user) as connection:
+            if not self._lock_active_project(connection, user.id, payload.project_id):
+                return None
             row = connection.execute(
                 text(
                     """
@@ -365,9 +359,15 @@ class PostgresResearchMateRepository:
                     """
                     select id, user_id, project_id, filename, file_type, mime_type, size_bytes,
                            status, error_message, expires_at, created_at, updated_at, deleted_at
-                    from documents
-                    where user_id = :user_id and project_id = :project_id
-                      and filename = :filename and size_bytes = :size_bytes and deleted_at is null
+                    from documents d
+                    where d.user_id = :user_id and d.project_id = :project_id
+                      and d.filename = :filename and d.size_bytes = :size_bytes
+                      and d.deleted_at is null
+                      and exists (
+                        select 1 from projects p
+                        where p.id = d.project_id and p.user_id = d.user_id
+                          and p.status = 'active' and p.deleted_at is null
+                      )
                     order by created_at desc
                     limit 1
                     """
@@ -432,9 +432,12 @@ class PostgresResearchMateRepository:
             reserved = connection.execute(
                 text(
                     """
-                    select r2_object_key, size_bytes, mime_type
-                    from documents
-                    where id = :document_id and user_id = :user_id and deleted_at is null
+                    select d.r2_object_key, d.size_bytes, d.mime_type
+                    from documents d
+                    join projects p on p.id = d.project_id and p.user_id = d.user_id
+                    where d.id = :document_id and d.user_id = :user_id
+                      and d.deleted_at is null and p.status = 'active'
+                      and p.deleted_at is null
                     """
                 ),
                 {"document_id": document_id, "user_id": user.id},
@@ -453,14 +456,30 @@ class PostgresResearchMateRepository:
                 "Uploaded object content type does not match the reservation.",
             )
         with self._transaction(user) as connection:
+            owner = connection.execute(
+                text(
+                    """
+                    select project_id from documents
+                    where id = :document_id and user_id = :user_id and deleted_at is null
+                    """
+                ),
+                {"document_id": document_id, "user_id": user.id},
+            ).mappings().one_or_none()
+            if owner is None or not self._lock_active_project(
+                connection, user.id, owner["project_id"]
+            ):
+                return None
             document = connection.execute(
                 text(
                     """
-                    update documents
+                    update documents d
                     set status = 'parsing', error_message = null, updated_at = now()
-                    where id = :document_id and user_id = :user_id and deleted_at is null
-                      and status in ('uploaded', 'failed')
-                    returning project_id, r2_object_key
+                    from projects p
+                    where d.id = :document_id and d.user_id = :user_id
+                      and d.project_id = p.id and p.user_id = d.user_id
+                      and d.deleted_at is null and p.status = 'active'
+                      and p.deleted_at is null and d.status in ('uploaded', 'failed')
+                    returning d.project_id, d.r2_object_key
                     """
                 ),
                 {
@@ -477,11 +496,26 @@ class PostgresResearchMateRepository:
                         from jobs
                         where document_id = :document_id and user_id = :user_id
                           and type = 'parse_and_index_document'
+                          and exists (
+                            select 1 from projects p
+                            where p.id = jobs.project_id and p.user_id = jobs.user_id
+                              and p.status = 'active' and p.deleted_at is null
+                          )
                         order by created_at desc limit 1
                         """
                     ),
                     {"document_id": document_id, "user_id": user.id},
                 ).mappings().one_or_none()
+                if existing is not None and existing["status"] == "pending":
+                    self._enqueue_document_event(
+                        connection,
+                        event_type="document.ingest.requested",
+                        document_id=document_id,
+                        user_id=user.id,
+                        project_id=existing["project_id"],
+                        job_id=existing["id"],
+                        delivery_id=uuid4(),
+                    )
                 return None if existing is None else JobRecord.model_validate(dict(existing))
             job = self._insert_job(
                 connection,
@@ -496,29 +530,14 @@ class PostgresResearchMateRepository:
                     "checksum_sha256": checksum_sha256.lower() if checksum_sha256 else None,
                 },
             )
-            connection.execute(
-                text(
-                    """
-                    insert into outbox_events (
-                      aggregate_type, aggregate_id, event_type, payload, idempotency_key
-                    ) values (
-                      'document', :document_id, 'document.ingest.requested',
-                      cast(:payload as jsonb), :idempotency_key
-                    ) on conflict (idempotency_key) do nothing
-                    """
-                ),
-                {
-                    "document_id": document_id,
-                    "payload": _json(
-                        {
-                            "job_id": str(job.id),
-                            "user_id": str(user.id),
-                            "project_id": str(document["project_id"]),
-                            "document_id": str(document_id),
-                        }
-                    ),
-                    "idempotency_key": f"document:{document_id}:ingest:v1",
-                },
+            self._enqueue_document_event(
+                connection,
+                event_type="document.ingest.requested",
+                document_id=document_id,
+                user_id=user.id,
+                project_id=document["project_id"],
+                job_id=job.id,
+                delivery_id=job.id,
             )
             return job
 
@@ -527,16 +546,70 @@ class PostgresResearchMateRepository:
             document = connection.execute(
                 text(
                     """
-                    update documents
-                    set status = 'deleted', deleted_at = now(), updated_at = now()
-                    where id = :document_id and user_id = :user_id and deleted_at is null
-                    returning project_id, r2_object_key
+                    select d.project_id, d.r2_object_key, d.deleted_at
+                    from documents d
+                    join projects p on p.id = d.project_id and p.user_id = d.user_id
+                    where d.id = :document_id and d.user_id = :user_id
+                      and p.status = 'active' and p.deleted_at is null
+                    for update of d, p
                     """
                 ),
                 {"document_id": document_id, "user_id": user.id},
             ).mappings().one_or_none()
             if document is None:
                 return None
+            connection.execute(
+                text(
+                    """
+                    update jobs
+                    set status = 'failed', error_message = 'DOCUMENT_DELETING',
+                      completed_at = now(), updated_at = now()
+                    where document_id = :document_id and user_id = :user_id
+                      and type = 'parse_and_index_document' and status = 'pending'
+                    """
+                ),
+                {"document_id": document_id, "user_id": user.id},
+            )
+            existing = connection.execute(
+                text(
+                    """
+                    select id, user_id, project_id, document_id, type, status, progress,
+                           error_message, created_at, updated_at
+                    from jobs
+                    where document_id = :document_id and user_id = :user_id
+                      and type = 'delete_document'
+                    order by created_at desc, id desc limit 1
+                    """
+                ),
+                {"document_id": document_id, "user_id": user.id},
+            ).mappings().one_or_none()
+            if document["deleted_at"] is not None and existing is not None:
+                if existing["status"] == "pending":
+                    self._enqueue_document_event(
+                        connection,
+                        event_type="document.delete.requested",
+                        document_id=document_id,
+                        user_id=user.id,
+                        project_id=document["project_id"],
+                        job_id=existing["id"],
+                        delivery_id=uuid4(),
+                    )
+                    return JobRecord.model_validate(dict(existing))
+                if existing["status"] in {"running", "succeeded"}:
+                    return JobRecord.model_validate(dict(existing))
+                if existing["status"] not in {"failed", "cancelled"}:
+                    return None
+            elif document["deleted_at"] is None:
+                connection.execute(
+                    text(
+                        """
+                        update documents
+                        set status = 'deleted', deleted_at = now(), updated_at = now()
+                        where id = :document_id and user_id = :user_id
+                        """
+                    ),
+                    {"document_id": document_id, "user_id": user.id},
+                )
             point_ids = connection.execute(
                 text(
                     """
@@ -573,29 +646,14 @@ class PostgresResearchMateRepository:
                     "document_id": document_id,
                 },
             )
-            connection.execute(
-                text(
-                    """
-                    insert into outbox_events (
-                      aggregate_type, aggregate_id, event_type, payload, idempotency_key
-                    ) values (
-                      'document', :document_id, 'document.delete.requested',
-                      cast(:payload as jsonb), :idempotency_key
-                    ) on conflict (idempotency_key) do nothing
-                    """
-                ),
-                {
-                    "document_id": document_id,
-                    "payload": _json(
-                        {
-                            "job_id": str(job.id),
-                            "user_id": str(user.id),
-                            "project_id": str(document["project_id"]),
-                            "document_id": str(document_id),
-                        }
-                    ),
-                    "idempotency_key": f"document:{document_id}:delete:v1",
-                },
+            self._enqueue_document_event(
+                connection,
+                event_type="document.delete.requested",
+                document_id=document_id,
+                user_id=user.id,
+                project_id=document["project_id"],
+                job_id=job.id,
+                delivery_id=job.id,
             )
             return job
 
@@ -697,6 +755,8 @@ class PostgresResearchMateRepository:
             created_at=datetime.now(UTC),
         )
         with self._transaction(user) as connection:
+            if not self._lock_active_project(connection, user.id, project_id):
+                raise ValueError("project is not owned by the current user")
             inserted = connection.execute(
                 text(
                     """
@@ -864,6 +924,8 @@ class PostgresResearchMateRepository:
         self, user: CurrentUser, project_id: UUID, run_id: UUID, quiz_set: QuizSet
     ) -> QuizSet:
         with self._transaction(user) as connection:
+            if not self._lock_active_project(connection, user.id, project_id):
+                raise ValueError("project is not owned by the current user")
             run = connection.execute(
                 text(
                     """
@@ -989,6 +1051,8 @@ class PostgresResearchMateRepository:
         first_message: str,
     ) -> ConversationSummary | None:
         with self._transaction(user) as connection:
+            if not self._lock_active_project(connection, user.id, project_id):
+                return None
             if conversation_id is not None:
                 row = connection.execute(
                     text(
@@ -1326,6 +1390,137 @@ class PostgresResearchMateRepository:
             ).mappings()
             by_id = {row["id"]: ChunkEntry(**dict(row)) for row in rows}
         return [by_id[chunk_id] for chunk_id in chunk_ids if chunk_id in by_id]
+
+    def _enqueue_project_deletion(
+        self,
+        connection: Connection,
+        *,
+        user_id: UUID,
+        project_id: UUID,
+        job_id: UUID,
+        delivery_id: UUID,
+    ) -> None:
+        """Persist one independently deduplicated delivery for a project-deletion job."""
+        connection.execute(
+            text(
+                """
+                insert into outbox_events (
+                  aggregate_type, aggregate_id, event_type, payload, idempotency_key
+                )
+                select
+                  'project', :project_id, 'project.delete.requested',
+                  cast(:payload as jsonb), :idempotency_key
+                where not exists (
+                  select 1 from outbox_events pending
+                  where pending.event_type = 'project.delete.requested'
+                    and pending.payload ->> 'job_id' = :job_id
+                    and pending.status in ('pending', 'publishing')
+                )
+                  and not exists (
+                    select 1 from outbox_events recent
+                    where recent.event_type = 'project.delete.requested'
+                      and recent.payload ->> 'job_id' = :job_id
+                      and recent.created_at > now() - interval '30 seconds'
+                  )
+                  and (
+                    select count(*) from outbox_events prior
+                    where prior.event_type = 'project.delete.requested'
+                      and prior.payload ->> 'job_id' = :job_id
+                  ) < 5
+                on conflict (idempotency_key) do nothing
+                """
+            ),
+            {
+                "project_id": project_id,
+                "payload": _json(
+                    {
+                        "job_id": str(job_id),
+                        "user_id": str(user_id),
+                        "project_id": str(project_id),
+                    }
+                ),
+                "job_id": str(job_id),
+                "idempotency_key": f"project:{project_id}:delete:{job_id}:{delivery_id}",
+            },
+        )
+
+    def _enqueue_document_event(
+        self,
+        connection: Connection,
+        *,
+        event_type: str,
+        document_id: UUID,
+        user_id: UUID,
+        project_id: UUID,
+        job_id: UUID,
+        delivery_id: UUID,
+    ) -> None:
+        """Persist one independently deduplicated ingestion or deletion delivery."""
+        action = "ingest" if event_type == "document.ingest.requested" else "delete"
+        connection.execute(
+            text(
+                """
+                insert into outbox_events (
+                  aggregate_type, aggregate_id, event_type, payload, idempotency_key
+                )
+                select
+                  'document', :document_id, :event_type,
+                  cast(:payload as jsonb), :idempotency_key
+                where not exists (
+                  select 1 from outbox_events pending
+                  where pending.event_type = :event_type
+                    and pending.payload ->> 'job_id' = :job_id
+                    and pending.status in ('pending', 'publishing')
+                )
+                  and not exists (
+                    select 1 from outbox_events recent
+                    where recent.event_type = :event_type
+                      and recent.payload ->> 'job_id' = :job_id
+                      and recent.created_at > now() - interval '30 seconds'
+                  )
+                  and (
+                    select count(*) from outbox_events prior
+                    where prior.event_type = :event_type
+                      and prior.payload ->> 'job_id' = :job_id
+                  ) < 5
+                on conflict (idempotency_key) do nothing
+                """
+            ),
+            {
+                "document_id": document_id,
+                "event_type": event_type,
+                "job_id": str(job_id),
+                "payload": _json(
+                    {
+                        "job_id": str(job_id),
+                        "user_id": str(user_id),
+                        "project_id": str(project_id),
+                        "document_id": str(document_id),
+                    }
+                ),
+                "idempotency_key": (
+                    f"document:{document_id}:{action}:{job_id}:{delivery_id}"
+                ),
+            },
+        )
+
+    @staticmethod
+    def _lock_active_project(
+        connection: Connection, user_id: UUID, project_id: UUID
+    ) -> bool:
+        """Serialize project-scoped writes against the active-to-deleting transition."""
+        row = connection.execute(
+            text(
+                """
+                select 1 from projects
+                where id = :project_id and user_id = :user_id
+                  and status = 'active' and deleted_at is null
+                for update
+                """
+            ),
+            {"project_id": project_id, "user_id": user_id},
+        ).one_or_none()
+        return row is not None
 
     def _load_citations(
         self, connection: Connection, user_id: UUID, run_id: UUID

@@ -65,7 +65,8 @@ def _store_call(callback):
 def _require_project(
     repository: ResearchMateRepository, user: CurrentUser, project_id: UUID
 ) -> None:
-    if repository.get_project(user, project_id) is None:
+    project = repository.get_project(user, project_id)
+    if project is None or project.status != "active":
         raise_api_error(status.HTTP_404_NOT_FOUND, "PROJECT_NOT_FOUND", "Project was not found.")
 
 

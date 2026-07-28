@@ -110,12 +110,17 @@ class PostgresEvidenceRepository:
                 if existing["input"].get("request_hash") != request_hash:
                     raise EvidenceStoreError("IDEMPOTENCY_KEY_REUSED")
                 return self._accepted_run(existing["id"], existing["created_at"])
+            if not self._lock_active_project(
+                connection, user.id, payload.project_id
+            ):
+                raise EvidenceStoreError("PROJECT_NOT_FOUND", status_code=404)
             allowed = connection.execute(
                 text(
                     """
                     select 1 from projects p join pipeline_versions v on v.id = :pipeline_id
                     where p.id = :project_id and p.user_id = :user_id
-                      and p.deleted_at is null and v.status = 'accepted'
+                      and p.status = 'active' and p.deleted_at is null
+                      and v.status = 'accepted'
                     """
                 ),
                 {
@@ -280,8 +285,11 @@ class PostgresEvidenceRepository:
             run = connection.execute(
                 text(
                     """
-                    select id, status from workflow_runs
-                    where id = :id and user_id = :user_id for update
+                    select wr.id, wr.status from workflow_runs wr
+                    join projects p on p.id = wr.project_id and p.user_id = wr.user_id
+                    where wr.id = :id and wr.user_id = :user_id
+                      and p.status = 'active' and p.deleted_at is null
+                    for update of wr, p
                     """
                 ),
                 {"id": run_id, "user_id": user.id},
@@ -606,8 +614,11 @@ class PostgresEvidenceRepository:
             report = connection.execute(
                 text(
                     """
-                    select id, project_id, revision from reports
-                    where id = :id and user_id = :user_id for update
+                    select r.id, r.project_id, r.revision from reports r
+                    join projects p on p.id = r.project_id and p.user_id = r.user_id
+                    where r.id = :id and r.user_id = :user_id
+                      and p.status = 'active' and p.deleted_at is null
+                    for update of r, p
                     """
                 ),
                 {"id": report_id, "user_id": user.id},
@@ -809,13 +820,19 @@ class PostgresEvidenceRepository:
             valid = connection.execute(
                 text(
                     """
-                    select d.project_id, count(c.id) as case_count
+                    select d.project_id, d.user_id as dataset_user_id,
+                      count(c.id) as case_count
                     from evaluation_datasets d
+                    left join projects p on p.id = d.project_id
                     join pipeline_versions v on v.id = :pipeline_id and v.status = 'accepted'
                     left join evaluation_cases c on c.dataset_id = d.id
                     where d.id = :dataset_id and d.status = 'frozen'
+                      and (
+                        d.project_id is null
+                        or (p.status = 'active' and p.deleted_at is null)
+                      )
                       and (d.user_id = :user_id or :privileged)
-                    group by d.project_id
+                    group by d.project_id, d.user_id
                     """
                 ),
                 {
@@ -827,6 +844,10 @@ class PostgresEvidenceRepository:
             ).mappings().one_or_none()
             if valid is None:
                 raise EvidenceStoreError("DATASET_NOT_FROZEN")
+            if valid["project_id"] is not None and not self._lock_active_project(
+                connection, valid["dataset_user_id"], valid["project_id"]
+            ):
+                raise EvidenceStoreError("PROJECT_NOT_FOUND", status_code=404)
             run_id = uuid4()
             budget_limit = payload.max_cost_usd or DEFAULT_EVALUATION_BUDGET_USD
             summary = {
@@ -1091,6 +1112,24 @@ class PostgresEvidenceRepository:
             started_at=row["started_at"],
             completed_at=row["completed_at"],
         )
+
+    @staticmethod
+    def _lock_active_project(
+        connection: Connection, user_id: UUID, project_id: UUID
+    ) -> bool:
+        """Serialize evidence writes against the project deletion transition."""
+        row = connection.execute(
+            text(
+                """
+                select 1 from projects
+                where id=:project_id and user_id=:user_id
+                  and status='active' and deleted_at is null
+                for update
+                """
+            ),
+            {"project_id": project_id, "user_id": user_id},
+        ).one_or_none()
+        return row is not None
 
     @staticmethod
     def _lock_idempotency(

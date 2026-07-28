@@ -271,7 +271,8 @@ class InMemoryResearchMateStore:
     # 生成本地 signed URL 占位并创建 uploaded 文档记录。
     def create_upload_url(self, user: CurrentUser, payload: UploadUrlRequest) -> UploadUrlResponse | None:
         with self._lock:
-            if self.get_project(user, payload.project_id) is None:
+            project = self.get_project(user, payload.project_id)
+            if project is None or project.status != "active":
                 return None
             now = datetime.now(UTC)
             document_id = uuid4()
@@ -303,7 +304,8 @@ class InMemoryResearchMateStore:
     # 创建或复用文档元数据。
     def create_document(self, user: CurrentUser, payload: UploadUrlRequest) -> DocumentRecord | None:
         with self._lock:
-            if self.get_project(user, payload.project_id) is None:
+            project = self.get_project(user, payload.project_id)
+            if project is None or project.status != "active":
                 return None
             for reservation in self.uploads.values():
                 if (
@@ -350,6 +352,9 @@ class InMemoryResearchMateStore:
             document = self.get_document(user, document_id)
             if document is None:
                 return None
+            project = self.get_project(user, document.project_id)
+            if project is None or project.status != "active":
+                return None
             now = datetime.now(UTC)
             status = DocumentStatus.READY if extracted_text and extracted_text.strip() else DocumentStatus.FAILED
             error_message = None if status == DocumentStatus.READY else "No extractable text was provided."
@@ -387,6 +392,9 @@ class InMemoryResearchMateStore:
         with self._lock:
             document = self.get_document(user, document_id)
             if document is None:
+                return None
+            project = self.get_project(user, document.project_id)
+            if project is None or project.status != "active":
                 return None
             now = datetime.now(UTC)
             self.documents[document_id] = document.model_copy(

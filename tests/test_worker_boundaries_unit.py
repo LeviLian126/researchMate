@@ -3,14 +3,26 @@ from __future__ import annotations
 
 import sys
 from contextlib import contextmanager
+from inspect import getsource
 from types import SimpleNamespace
 from uuid import UUID
 
 import pytest
+from pydantic import SecretStr
+from researchmate_api.services.embedding import NvidiaEmbeddingProvider
+from researchmate_api.services.llm import NvidiaChatProvider
+from researchmate_api.services.object_storage import S3CompatibleObjectStorage
+from researchmate_api.services.qdrant_store import QdrantHybridStore
+from researchmate_api.services.web_search import TavilyWebSearchProvider
 from researchmate_worker import dispatch_outbox, tasks
 from researchmate_worker.config import psycopg_database_url
+from researchmate_worker.deletion import SqlDeletionStore
 from researchmate_worker.evaluation import EvaluationRuntimeError
-from researchmate_worker.ingestion import IngestionFailure, ParserAdapterError
+from researchmate_worker.ingestion import (
+    IngestionFailure,
+    ParserAdapterError,
+    SqlIngestionStore,
+)
 from researchmate_worker.parsing import DoclingDocumentParser, _serialize_provenance
 from researchmate_worker.runtime_health import record_heartbeat
 
@@ -44,6 +56,31 @@ def test_worker_settings_accept_the_shared_qdrant_rerank_projection_contract() -
     assert settings.qdrant_rerank_collection == "project-rerank"
     assert settings.qdrant_rerank_model == "free/model"
     assert settings.qdrant_rerank_model_is_free is True
+
+
+def test_worker_settings_construct_every_shared_provider_adapter() -> None:
+    """Catch API/worker config drift before a worker task reaches managed state."""
+    settings = tasks.WorkerSettings(
+        app_env="test",
+        embedding_provider="nvidia",
+        llm_provider="nvidia",
+        nvidia_api_key=SecretStr("fake-nvidia"),
+        qdrant_url="https://qdrant.example.test",
+        qdrant_api_key=SecretStr("fake-qdrant"),
+        web_search_provider="tavily",
+        tavily_api_key=SecretStr("fake-tavily"),
+        object_storage_endpoint_url="https://objects.example.test",
+        object_storage_access_key_id=SecretStr("fake-access"),
+        object_storage_secret_access_key=SecretStr("fake-secret"),
+        object_storage_bucket="researchmate-test",
+    )
+    client = SimpleNamespace()
+    embedding = NvidiaEmbeddingProvider(settings, client=client)  # type: ignore[arg-type]
+
+    NvidiaChatProvider(settings, client=client)  # type: ignore[arg-type]
+    TavilyWebSearchProvider(settings, client=client)  # type: ignore[arg-type]
+    S3CompatibleObjectStorage(settings, client=client)  # type: ignore[arg-type]
+    QdrantHybridStore(settings, embedding, client=client)  # type: ignore[arg-type]
 
 
 class RecordingConnection:
@@ -275,6 +312,78 @@ def test_bootstrap_failure_update_is_bounded_and_optional(monkeypatch) -> None:
     assert "status='failed'" in sql
     assert parameters["run_id"] == JOB_ID
     assert len(parameters["code"]) == 120
+
+
+def test_job_bootstrap_failure_does_not_overwrite_an_active_worker_lease() -> None:
+    """Only fail pending or expired jobs when construction fails before claim."""
+    source = getsource(tasks._mark_job_bootstrap_failed).lower()
+    job_update = source.split("returning type", 1)[0]
+
+    assert "status='pending'" in job_update
+    assert "lease_expires_at < now()" in job_update
+    assert "status in ('pending','running')" not in job_update
+
+
+def test_task_bootstrap_failure_marks_job_terminal(monkeypatch) -> None:
+    """Surface construction failures instead of leaving a published job pending forever."""
+    marked: list[tuple] = []
+    monkeypatch.setattr(tasks, "WorkerSettings", lambda: SimpleNamespace(database_url=None))
+    monkeypatch.setattr(
+        tasks,
+        "build_project_deletion_service",
+        lambda: (_ for _ in ()).throw(AttributeError("config drift")),
+    )
+    monkeypatch.setattr(
+        tasks,
+        "_mark_job_bootstrap_failed",
+        lambda settings, job_id, code: marked.append((settings, job_id, code)),
+    )
+
+    event = {
+        "job_id": str(JOB_ID),
+        "user_id": str(USER_ID),
+        "project_id": str(PROJECT_ID),
+    }
+    with pytest.raises(AttributeError, match="config drift"):
+        tasks.delete_project.run(event)
+
+    assert marked[0][1:] == (JOB_ID, "PROJECT_DELETION_BOOTSTRAP_FAILED")
+
+
+def test_invalid_worker_settings_still_mark_the_published_job(monkeypatch) -> None:
+    """Keep configuration parsing inside the bootstrap recovery boundary."""
+    marked: list[tuple] = []
+    monkeypatch.setattr(
+        tasks,
+        "WorkerSettings",
+        lambda: (_ for _ in ()).throw(ValueError("invalid worker config")),
+    )
+    monkeypatch.setattr(
+        tasks,
+        "_mark_job_bootstrap_failed",
+        lambda settings, job_id, code: marked.append((settings, job_id, code)),
+    )
+
+    with pytest.raises(ValueError, match="invalid worker config"):
+        tasks.ingest_document.run(ingestion_event())
+
+    assert marked == [(None, JOB_ID, "WORKER_CONFIG_INVALID")]
+
+
+def test_ingestion_and_deletion_serialize_document_removal() -> None:
+    """Prevent an already-claimed ingestion from reviving a deleted document."""
+    replace = getsource(SqlIngestionStore.replace_content).lower()
+    ready = getsource(SqlIngestionStore.mark_ready).lower()
+    failed = getsource(SqlIngestionStore.mark_failed).lower()
+    delete_claim = getsource(SqlDeletionStore.claim).lower()
+
+    assert "for update of j, d, p" in replace
+    assert "d.deleted_at is null" in replace
+    assert "d.status = 'indexing'" in ready
+    assert "for update of j, d, p" in ready
+    assert "deleted_at is null and status <> 'deleted'" in failed
+    assert "running_ingestion.type = 'parse_and_index_document'" in delete_claim
+    assert "document_ingestion_running" in delete_claim
 
 
 def test_ingestion_and_deletion_tasks_forward_validated_events(monkeypatch) -> None:

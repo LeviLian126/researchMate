@@ -4,6 +4,7 @@ from __future__ import annotations
 from collections import deque
 from contextlib import contextmanager
 from datetime import UTC, datetime
+from inspect import getsource
 from uuid import UUID
 
 from researchmate_api.persistence.evidence_postgres import (
@@ -189,3 +190,18 @@ def test_refresh_acceptance_uses_persisted_or_fallback_sections() -> None:
     assert fallback.impacted_section_keys == ["fallback"]
     assert persisted.base_revision == 3
     assert persisted.planned_revision == 4
+
+
+def test_evidence_writes_require_active_projects_without_rejecting_global_datasets() -> None:
+    """Keep project-scoped writes closed while preserving project-less golden sets."""
+    create_run = getsource(PostgresEvidenceRepository.create_research_run).lower()
+    decide = getsource(PostgresEvidenceRepository.create_decision).lower()
+    refresh = getsource(PostgresEvidenceRepository.refresh_report).lower()
+    evaluate = getsource(PostgresEvidenceRepository.create_evaluation_run).lower()
+
+    assert "p.status = 'active'" in create_run
+    assert "p.status = 'active'" in decide
+    assert "p.status = 'active'" in refresh
+    assert "left join projects p" in evaluate
+    assert "d.project_id is null" in evaluate
+    assert "p.status = 'active'" in evaluate

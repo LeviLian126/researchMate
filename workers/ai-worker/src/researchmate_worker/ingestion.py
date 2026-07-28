@@ -184,7 +184,8 @@ class SqlIngestionStore:
                         error_message = null
                     from documents as d
                     join projects as p on p.id = d.project_id
-                    where j.id = :job_id and j.user_id = :user_id
+                    where j.id = :job_id and j.type = 'parse_and_index_document'
+                      and j.user_id = :user_id
                       and j.project_id = :project_id and j.document_id = :document_id
                       and d.id = j.document_id and d.user_id = j.user_id
                       and d.project_id = j.project_id and d.deleted_at is null
@@ -233,19 +234,24 @@ class SqlIngestionStore:
         pipeline_version: str,
     ) -> None:
         with self.engine.begin() as connection:
-            lease = connection.execute(
+            runnable = connection.execute(
                 text(
                     """
-                    select 1 from jobs
-                    where id = :job_id and status = 'running' and lease_owner = :worker_id
-                      and lease_expires_at > now()
-                    for update
+                    select 1 from jobs j
+                    join documents d on d.id = j.document_id and d.user_id = j.user_id
+                    join projects p on p.id = j.project_id and p.user_id = j.user_id
+                    where j.id = :job_id and j.status = 'running'
+                      and j.lease_owner = :worker_id and j.lease_expires_at > now()
+                      and d.deleted_at is null
+                      and d.status in ('uploaded','parsing','parsed','indexing','failed')
+                      and p.status = 'active' and p.deleted_at is null
+                    for update of j, d, p
                     """
                 ),
                 {"job_id": record.job_id, "worker_id": worker_id},
             ).one_or_none()
-            if lease is None:
-                raise IngestionFailure("JOB_LEASE_LOST", retryable=True)
+            if runnable is None:
+                raise IngestionFailure("DOCUMENT_NOT_RUNNABLE", retryable=False)
             connection.execute(
                 text("delete from document_pages where document_id = :document_id"),
                 {"document_id": record.document_id},
@@ -311,7 +317,8 @@ class SqlIngestionStore:
                 text(
                     """
                     update documents set status = 'indexing', parser = :parser, updated_at = now()
-                    where id = :document_id
+                    where id = :document_id and deleted_at is null
+                      and status <> 'deleted'
                     """
                 ),
                 {"document_id": record.document_id, "parser": pipeline_version},
@@ -323,24 +330,39 @@ class SqlIngestionStore:
 
     def mark_ready(self, record: IngestionRecord, *, worker_id: str) -> None:
         with self.engine.begin() as connection:
-            updated = connection.execute(
+            runnable = connection.execute(
+                text(
+                    """
+                    select 1 from jobs j
+                    join documents d on d.id = j.document_id and d.user_id = j.user_id
+                    join projects p on p.id = j.project_id and p.user_id = j.user_id
+                    where j.id = :job_id and j.status = 'running'
+                      and j.lease_owner = :worker_id and j.lease_expires_at > now()
+                      and d.deleted_at is null and d.status = 'indexing'
+                      and p.status = 'active' and p.deleted_at is null
+                    for update of j, d, p
+                    """
+                ),
+                {"job_id": record.job_id, "worker_id": worker_id},
+            ).one_or_none()
+            if runnable is None:
+                raise IngestionFailure("DOCUMENT_NOT_RUNNABLE", retryable=False)
+            connection.execute(
                 text(
                     """
                     update jobs set status = 'succeeded', progress = 100, completed_at = now(),
                       lease_owner = null, lease_expires_at = null, updated_at = now()
                     where id = :job_id and status = 'running' and lease_owner = :worker_id
-                    returning id
                     """
                 ),
                 {"job_id": record.job_id, "worker_id": worker_id},
-            ).one_or_none()
-            if updated is None:
-                raise IngestionFailure("JOB_LEASE_LOST", retryable=True)
+            )
             connection.execute(
                 text(
                     """
                     update documents set status = 'ready', error_message = null, updated_at = now()
                     where id = :document_id and user_id = :user_id
+                      and deleted_at is null and status = 'indexing'
                     """
                 ),
                 {"document_id": record.document_id, "user_id": record.user_id},
@@ -348,16 +370,35 @@ class SqlIngestionStore:
 
     def mark_retryable(self, record: IngestionRecord, *, worker_id: str, code: str) -> None:
         with self.engine.begin() as connection:
-            connection.execute(
+            updated = connection.execute(
                 text(
                     """
-                    update jobs set status = 'pending', error_message = :code,
+                    update jobs j set status = 'pending', error_message = :code,
                       lease_owner = null, lease_expires_at = null, updated_at = now()
-                    where id = :job_id and lease_owner = :worker_id
+                    where j.id = :job_id and j.lease_owner = :worker_id
+                      and exists (
+                        select 1 from documents d
+                        join projects p on p.id = d.project_id and p.user_id = d.user_id
+                        where d.id = j.document_id and d.user_id = j.user_id
+                          and d.deleted_at is null and d.status <> 'deleted'
+                          and p.status = 'active' and p.deleted_at is null
+                      )
                     """
                 ),
                 {"job_id": record.job_id, "worker_id": worker_id, "code": code[:80]},
             )
+            if not updated.rowcount:
+                connection.execute(
+                    text(
+                        """
+                        update jobs set status = 'failed', error_message = 'DOCUMENT_NOT_RUNNABLE',
+                          lease_owner = null, lease_expires_at = null, completed_at = now(),
+                          updated_at = now()
+                        where id = :job_id and lease_owner = :worker_id
+                        """
+                    ),
+                    {"job_id": record.job_id, "worker_id": worker_id},
+                )
 
     def mark_failed(self, record: IngestionRecord, *, worker_id: str, code: str) -> None:
         with self.engine.begin() as connection:
@@ -377,6 +418,7 @@ class SqlIngestionStore:
                     """
                     update documents set status = 'failed', error_message = :code, updated_at = now()
                     where id = :document_id and user_id = :user_id
+                      and deleted_at is null and status <> 'deleted'
                     """
                 ),
                 {"document_id": record.document_id, "user_id": record.user_id, "code": code[:80]},

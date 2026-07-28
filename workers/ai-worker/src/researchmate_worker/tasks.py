@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from decimal import Decimal
 from functools import lru_cache
 from uuid import UUID
@@ -211,13 +212,72 @@ def _mark_workflow_bootstrap_failed(settings: WorkerSettings, run_id: UUID, code
         )
 
 
+def _mark_job_bootstrap_failed(
+    settings: WorkerSettings | None, job_id: UUID, code: str
+) -> None:
+    """Make a task-construction failure terminal so an explicit retry can recover it."""
+    database_url = settings.database_url if settings is not None else os.getenv("DATABASE_URL")
+    if not database_url:
+        return
+    engine = create_engine(psycopg_database_url(database_url), pool_pre_ping=True)
+    with engine.begin() as connection:
+        failed = connection.execute(
+            text(
+                """
+                update jobs
+                set status='failed', error_message=:code, completed_at=now(),
+                  lease_owner=null, lease_expires_at=null, updated_at=now()
+                where id=:job_id and (
+                  status='pending'
+                  or (status='running' and lease_expires_at < now())
+                )
+                returning type, document_id
+                """
+            ),
+            {"job_id": job_id, "code": code[:120]},
+        ).mappings().one_or_none()
+        if failed is None:
+            return
+        if failed["type"] == "parse_and_index_document" and failed["document_id"] is not None:
+            connection.execute(
+                text(
+                    """
+                    update documents set status='failed', error_message=:code, updated_at=now()
+                    where id=:document_id and status in ('uploaded','parsing','parsed','indexing')
+                    """
+                ),
+                {"document_id": failed["document_id"], "code": code[:120]},
+            )
+        if failed["type"] in {"delete_document", "delete_project"}:
+            connection.execute(
+                text(
+                    """
+                    update deletion_jobs set status='failed', error_message=:code,
+                      completed_at=now()
+                    where id=:job_id and status in ('pending','running')
+                    """
+                ),
+                {"job_id": job_id, "code": code[:120]},
+            )
+
+
 @celery_app.task(bind=True, name="researchmate.ingest_document", max_retries=5)
 def ingest_document(self, event: dict[str, str]) -> str:
     """Validate an outbox payload and execute one lease-protected ingestion delivery."""
     payload = IngestionEvent.model_validate(event)
+    try:
+        settings = WorkerSettings()
+    except Exception:
+        _mark_job_bootstrap_failed(None, payload.job_id, "WORKER_CONFIG_INVALID")
+        raise
     worker_id = str(getattr(self.request, "hostname", None) or self.request.id or "worker")
     try:
-        return build_ingestion_service().handle(payload, worker_id=worker_id)
+        service = build_ingestion_service()
+    except Exception:
+        _mark_job_bootstrap_failed(settings, payload.job_id, "INGESTION_BOOTSTRAP_FAILED")
+        raise
+    try:
+        return service.handle(payload, worker_id=worker_id)
     except IngestionFailure as exc:
         if exc.retryable:
             countdown = min(300, 2 ** min(int(self.request.retries) + 1, 8))
@@ -228,9 +288,19 @@ def ingest_document(self, event: dict[str, str]) -> str:
 @celery_app.task(bind=True, name="researchmate.delete_document", max_retries=5)
 def delete_document(self, event: dict[str, str]) -> str:
     payload = DocumentDeletionEvent.model_validate(event)
+    try:
+        settings = WorkerSettings()
+    except Exception:
+        _mark_job_bootstrap_failed(None, payload.job_id, "WORKER_CONFIG_INVALID")
+        raise
     worker_id = str(getattr(self.request, "hostname", None) or self.request.id or "worker")
     try:
-        return build_deletion_service().handle(payload, worker_id=worker_id)
+        service = build_deletion_service()
+    except Exception:
+        _mark_job_bootstrap_failed(settings, payload.job_id, "DELETION_BOOTSTRAP_FAILED")
+        raise
+    try:
+        return service.handle(payload, worker_id=worker_id)
     except IngestionFailure as exc:
         if exc.retryable:
             countdown = min(300, 2 ** min(int(self.request.retries) + 1, 8))
@@ -241,9 +311,21 @@ def delete_document(self, event: dict[str, str]) -> str:
 @celery_app.task(bind=True, name="researchmate.delete_project", max_retries=8)
 def delete_project(self, event: dict[str, str]) -> str:
     payload = ProjectDeletionEvent.model_validate(event)
+    try:
+        settings = WorkerSettings()
+    except Exception:
+        _mark_job_bootstrap_failed(None, payload.job_id, "WORKER_CONFIG_INVALID")
+        raise
     worker_id = str(getattr(self.request, "hostname", None) or self.request.id or "worker")
     try:
-        return build_project_deletion_service().handle(payload, worker_id=worker_id)
+        service = build_project_deletion_service()
+    except Exception:
+        _mark_job_bootstrap_failed(
+            settings, payload.job_id, "PROJECT_DELETION_BOOTSTRAP_FAILED"
+        )
+        raise
+    try:
+        return service.handle(payload, worker_id=worker_id)
     except IngestionFailure as exc:
         if exc.retryable:
             countdown = min(300, 2 ** min(int(self.request.retries) + 1, 8))

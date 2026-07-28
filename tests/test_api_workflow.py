@@ -267,6 +267,36 @@ def test_deleted_project_conceals_its_conversation_management(client: TestClient
     ).status_code == 404
 
 
+def test_deleting_project_rejects_chat_and_quiz_before_consuming_usage(
+    client: TestClient,
+) -> None:
+    project = client.post(
+        "/api/v1/projects", json={"name": "Deleting project"}, headers=USER_A_HEADERS
+    ).json()
+    project_id = project["id"]
+    repository = client.app.state.store
+    project_key = next(key for key in repository.projects if str(key) == project_id)
+    repository.projects[project_key] = repository.projects[project_key].model_copy(
+        update={"status": "deleting"}
+    )
+    usage_before = dict(repository.api_usage)
+
+    ask = client.post(
+        "/api/v1/ask",
+        json={"project_id": project_id, "message": "Do not charge this request"},
+        headers=USER_A_HEADERS,
+    )
+    quiz = client.post(
+        "/api/v1/quiz",
+        json={"project_id": project_id, "prompt": "Do not charge this quiz"},
+        headers=USER_A_HEADERS,
+    )
+
+    assert ask.status_code == 404
+    assert quiz.status_code == 404
+    assert repository.api_usage == usage_before
+
+
 def test_runtime_rerank_config_is_admin_versioned(client: TestClient) -> None:
     assert (
         client.get(

@@ -113,6 +113,13 @@ class SqlDeletionStore:
                       and j.document_id = :document_id
                       and d.id = j.document_id and d.user_id = j.user_id
                       and d.project_id = j.project_id and d.status = 'deleted'
+                      and not exists (
+                        select 1 from jobs running_ingestion
+                        where running_ingestion.document_id = j.document_id
+                          and running_ingestion.user_id = j.user_id
+                          and running_ingestion.type = 'parse_and_index_document'
+                          and running_ingestion.status = 'running'
+                      )
                       and (
                         j.status = 'pending'
                         or (j.status = 'running' and j.lease_expires_at < now())
@@ -132,6 +139,33 @@ class SqlDeletionStore:
                     "lease_seconds": lease_seconds,
                 },
             ).mappings().one_or_none()
+            if row is None:
+                blocked = connection.execute(
+                    text(
+                        """
+                        select 1 from jobs deletion_job
+                        where deletion_job.id = :job_id
+                          and deletion_job.user_id = :user_id
+                          and deletion_job.document_id = :document_id
+                          and deletion_job.type = 'delete_document'
+                          and deletion_job.status = 'pending'
+                          and exists (
+                            select 1 from jobs running_ingestion
+                            where running_ingestion.document_id = deletion_job.document_id
+                              and running_ingestion.user_id = deletion_job.user_id
+                              and running_ingestion.type = 'parse_and_index_document'
+                              and running_ingestion.status = 'running'
+                          )
+                        """
+                    ),
+                    {
+                        "job_id": event.job_id,
+                        "user_id": event.user_id,
+                        "document_id": event.document_id,
+                    },
+                ).one_or_none()
+                if blocked is not None:
+                    raise IngestionFailure("DOCUMENT_INGESTION_RUNNING", retryable=True)
         if row is None:
             return None
         values = dict(row)
@@ -287,7 +321,7 @@ class SqlProjectDeletionStore:
                     set status = 'failed', error_message = 'PROJECT_DELETING',
                       completed_at = now(), updated_at = now()
                     where project_id = :project_id and user_id = :user_id
-                      and type = 'ingest_document' and status = 'pending'
+                      and type = 'parse_and_index_document' and status = 'pending'
                     """
                 ),
                 {"project_id": event.project_id, "user_id": event.user_id},
@@ -310,7 +344,7 @@ class SqlProjectDeletionStore:
                         select 1 from jobs running_ingestion
                         where running_ingestion.project_id = j.project_id
                           and running_ingestion.user_id = j.user_id
-                          and running_ingestion.type = 'ingest_document'
+                          and running_ingestion.type = 'parse_and_index_document'
                           and running_ingestion.status = 'running'
                       )
                       and (
@@ -355,7 +389,7 @@ class SqlProjectDeletionStore:
                             select 1 from jobs running_ingestion
                             where running_ingestion.project_id = deletion_job.project_id
                               and running_ingestion.user_id = deletion_job.user_id
-                              and running_ingestion.type = 'ingest_document'
+                              and running_ingestion.type = 'parse_and_index_document'
                               and running_ingestion.status = 'running'
                           )
                         """

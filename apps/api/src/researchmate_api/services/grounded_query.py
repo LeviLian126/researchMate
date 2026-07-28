@@ -64,7 +64,7 @@ class GroundedQueryService:
 
     def execute(self, user: CurrentUser, payload: AskRequest) -> AskResponse:
         project = self.repository.get_project(user, payload.project_id)
-        if project is None:
+        if project is None or project.status != "active":
             self._error("PROJECT_NOT_FOUND", "Project was not found.", 404)
         if not self.repository.increment_usage(user, "ask", limit=200):
             self._error("RATE_LIMITED", "Daily ask quota exceeded.", 429)
@@ -317,7 +317,8 @@ class GroundedQueryService:
         return response
 
     def search(self, user: CurrentUser, project_id: UUID, query: str, limit: int = 10):
-        if self.repository.get_project(user, project_id) is None:
+        project = self.repository.get_project(user, project_id)
+        if project is None or project.status != "active":
             self._error("PROJECT_NOT_FOUND", "Project was not found.", 404)
         chunks = self.repository.project_chunks(user, project_id) or []
         return [item.chunk for item in bm25_candidates(chunks, query, limit=limit)]

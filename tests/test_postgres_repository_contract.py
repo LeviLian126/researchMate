@@ -147,7 +147,7 @@ class OneMappingResult:
 class ReservationConnection(RecordingConnection):
     def execute(self, statement: Any, parameters: dict[str, Any]):
         self.calls.append((str(statement), parameters))
-        if "select r2_object_key" in str(statement):
+        if "r2_object_key" in str(statement) and "join projects" in str(statement):
             return OneMappingResult(
                 {
                     "r2_object_key": "users/u/document.pdf",
@@ -191,6 +191,51 @@ def test_completion_persists_job_and_outbox_intent_in_one_method() -> None:
 
     assert "set status = 'parsing'" in source
     assert "jobstatus.pending" in source
-    assert "insert into outbox_events" in source
-    assert "on conflict (idempotency_key) do nothing" in source
+    assert "_enqueue_document_event" in source
+    assert (
+        "on conflict (idempotency_key) do nothing"
+        in getsource(PostgresResearchMateRepository._enqueue_document_event).lower()
+    )
     assert "insert into chunks" not in source
+
+
+def test_async_repository_contract_uses_real_job_types_and_unique_deliveries() -> None:
+    project_delete = getsource(PostgresResearchMateRepository.delete_project).lower()
+    complete = getsource(PostgresResearchMateRepository.complete_document).lower()
+    document_delete = getsource(PostgresResearchMateRepository.delete_document).lower()
+    enqueue = getsource(PostgresResearchMateRepository._enqueue_document_event).lower()
+
+    assert "type = 'parse_and_index_document'" in project_delete
+    assert "type = 'ingest_document'" not in project_delete
+    assert "_enqueue_project_deletion" in project_delete
+    assert "_enqueue_document_event" in complete
+    assert "_enqueue_document_event" in document_delete
+    assert "job_id" in enqueue
+    assert "delivery_id" in enqueue
+    assert "interval '30 seconds'" in enqueue
+    assert ") < 5" in enqueue
+
+
+def test_document_mutations_require_an_active_parent_project() -> None:
+    create = getsource(PostgresResearchMateRepository.create_document).lower()
+    complete = getsource(PostgresResearchMateRepository.complete_document).lower()
+    delete = getsource(PostgresResearchMateRepository.delete_document).lower()
+
+    assert "p.status = 'active'" in create
+    assert complete.count("p.status = 'active'") >= 2
+    assert "p.status = 'active'" in delete
+
+
+def test_project_scoped_writes_lock_the_active_project_transition() -> None:
+    """Serialize child writes with project deletion instead of trusting a stale snapshot."""
+    for method in (
+        PostgresResearchMateRepository.create_upload_url,
+        PostgresResearchMateRepository.complete_document,
+        PostgresResearchMateRepository.record_run,
+        PostgresResearchMateRepository.save_quiz_set,
+        PostgresResearchMateRepository.ensure_conversation,
+    ):
+        assert "_lock_active_project" in getsource(method)
+    lock = getsource(PostgresResearchMateRepository._lock_active_project).lower()
+    assert "status = 'active'" in lock
+    assert "for update" in lock
