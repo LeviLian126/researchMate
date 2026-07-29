@@ -6,6 +6,7 @@ from contextlib import contextmanager
 from inspect import getsource
 from types import SimpleNamespace
 from uuid import UUID
+from zipfile import ZipFile
 
 import pytest
 from pydantic import SecretStr
@@ -183,6 +184,62 @@ def test_parser_rejects_unsupported_incomplete_and_failed_conversion(tmp_path) -
     parser.converter = SimpleNamespace(convert=fail_conversion)
     with pytest.raises(ParserAdapterError, match="PARSER_EXECUTION_FAILED"):
         parser.parse(source, file_type="pdf")
+
+
+def test_office_documents_use_bounded_ooxml_parsing_without_docling(tmp_path) -> None:
+    docx = tmp_path / "source.docx"
+    with ZipFile(docx, "w") as archive:
+        archive.writestr(
+            "word/document.xml",
+            """<?xml version="1.0" encoding="UTF-8"?>
+            <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+              <w:body>
+                <w:p><w:pPr><w:pStyle w:val="Heading1"/></w:pPr><w:r><w:t>Aurora</w:t></w:r></w:p>
+                <w:p><w:r><w:t>Access phrase: cobalt-orchid-7319</w:t></w:r></w:p>
+              </w:body>
+            </w:document>""",
+        )
+    parser = DoclingDocumentParser(max_file_size=4096, max_num_pages=5)
+
+    blocks = parser.parse(docx, file_type="docx")
+
+    assert [block.text for block in blocks] == [
+        "Aurora",
+        "Access phrase: cobalt-orchid-7319",
+    ]
+    assert blocks[1].section_title == "Aurora"
+    assert blocks[1].metadata["parser_name"] == "ooxml"
+    assert parser.converter is None
+
+
+def test_pptx_ooxml_parser_preserves_slide_numbers(tmp_path) -> None:
+    pptx = tmp_path / "source.pptx"
+    with ZipFile(pptx, "w") as archive:
+        archive.writestr(
+            "ppt/slides/slide2.xml",
+            """<?xml version="1.0" encoding="UTF-8"?>
+            <p:sld xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"
+              xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">
+              <a:p><a:r><a:t>Second slide</a:t></a:r></a:p>
+            </p:sld>""",
+        )
+        archive.writestr(
+            "ppt/slides/slide1.xml",
+            """<?xml version="1.0" encoding="UTF-8"?>
+            <p:sld xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"
+              xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">
+              <a:p><a:r><a:t>First slide</a:t></a:r></a:p>
+            </p:sld>""",
+        )
+    parser = DoclingDocumentParser(max_file_size=4096, max_num_pages=5)
+
+    blocks = parser.parse(pptx, file_type="pptx")
+
+    assert [(block.slide_no, block.text) for block in blocks] == [
+        (1, "First slide"),
+        (2, "Second slide"),
+    ]
+    assert parser.converter is None
 
 
 def test_runtime_heartbeat_writes_bounded_metadata(monkeypatch) -> None:
