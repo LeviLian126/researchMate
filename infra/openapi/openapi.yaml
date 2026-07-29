@@ -9,6 +9,8 @@ paths:
       tags:
       - health
       summary: Healthz
+      description: Answer liveness probes without waiting for the shared sync thread
+        pool.
       operationId: healthz_api_v1_healthz_get
       responses:
         '200':
