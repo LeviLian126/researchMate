@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from importlib.metadata import PackageNotFoundError, version
 from io import BytesIO
 from pathlib import Path
@@ -9,6 +10,8 @@ from xml.etree import ElementTree
 from zipfile import BadZipFile, ZipFile
 
 from researchmate_worker.ingestion import ParsedBlock, ParserAdapterError
+
+LOGGER = logging.getLogger(__name__)
 
 
 def _package_version(name: str) -> str:
@@ -202,6 +205,12 @@ class DoclingDocumentParser:
         except ParserAdapterError:
             raise
         except (BadZipFile, ElementTree.ParseError, KeyError, OSError) as exc:
+            LOGGER.exception(
+                "office_document_parse_failed file_type=%s source_size=%s error_type=%s",
+                file_type,
+                source.stat().st_size if source.exists() else None,
+                type(exc).__name__,
+            )
             raise ParserAdapterError("PARSER_EXECUTION_FAILED") from exc
         try:
             from docling.datamodel.base_models import DocumentStream
