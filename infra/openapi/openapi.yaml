@@ -195,6 +195,70 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
       security:
       - HTTPBearer: []
+  /api/v1/chat/bootstrap:
+    post:
+      tags:
+      - projects
+      summary: Bootstrap Personal Chat
+      description: Return the caller's hidden project used only to reuse chat infrastructure.
+      operationId: bootstrap_personal_chat_api_v1_chat_bootstrap_post
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectRecord'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Permission denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: State or idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Request validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Usage limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Dependency unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+      - HTTPBearer: []
   /api/v1/projects:
     get:
       tags:
@@ -686,6 +750,81 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/conversations/{conversation_id}/documents:
+    get:
+      tags:
+      - documents
+      summary: List Conversation Documents
+      operationId: list_conversation_documents_api_v1_conversations__conversation_id__documents_get
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: conversation_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Conversation Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DocumentRecord'
+                title: Response List Conversation Documents Api V1 Conversations  Conversation
+                  Id  Documents Get
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Permission denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: State or idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Request validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Usage limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Dependency unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /api/v1/documents/{document_id}:
     get:
       tags:
@@ -1053,7 +1192,146 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
       security:
       - HTTPBearer: []
+  /api/v1/conversations:
+    get:
+      tags:
+      - conversations
+      summary: List All Conversations
+      operationId: list_all_conversations_api_v1_conversations_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversationListResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Permission denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: State or idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Request validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Usage limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Dependency unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+      - HTTPBearer: []
   /api/v1/projects/{project_id}/conversations:
+    post:
+      tags:
+      - conversations
+      summary: Create Conversation
+      operationId: create_conversation_api_v1_projects__project_id__conversations_post
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Project Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConversationCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversationSummary'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Permission denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: State or idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Request validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Usage limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Dependency unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
     get:
       tags:
       - conversations
@@ -3221,6 +3499,17 @@ components:
       - duplicate_count
       - source_version
       title: ClaimSummary
+    ConversationCreate:
+      properties:
+        title:
+          type: string
+          maxLength: 120
+          minLength: 1
+          title: Title
+          default: New chat
+      additionalProperties: false
+      type: object
+      title: ConversationCreate
     ConversationListResponse:
       properties:
         items:
@@ -3448,6 +3737,12 @@ components:
           type: string
           format: uuid
           title: Project Id
+        conversation_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Conversation Id
         filename:
           type: string
           title: Filename
@@ -4069,6 +4364,7 @@ components:
           maxLength: 120
           minLength: 1
           title: Name
+      additionalProperties: false
       type: object
       required:
       - name
@@ -4086,6 +4382,13 @@ components:
         name:
           type: string
           title: Name
+        kind:
+          type: string
+          enum:
+          - personal
+          - workspace
+          title: Kind
+          default: workspace
         status:
           type: string
           title: Status
@@ -4144,7 +4447,8 @@ components:
           type: string
           enum:
           - single_choice
-          - short_answer
+          - fill_blank
+          - subjective
           title: Type
         question:
           type: string
@@ -4203,13 +4507,19 @@ components:
           maximum: 20.0
           minimum: 0.0
           title: Single Choice Count
-          default: 5
-        short_answer_count:
+          default: 3
+        fill_blank_count:
           type: integer
           maximum: 20.0
           minimum: 0.0
-          title: Short Answer Count
-          default: 3
+          title: Fill Blank Count
+          default: 2
+        subjective_count:
+          type: integer
+          maximum: 20.0
+          minimum: 0.0
+          title: Subjective Count
+          default: 2
       additionalProperties: false
       type: object
       required:
@@ -4789,6 +5099,12 @@ components:
           type: string
           format: uuid
           title: Project Id
+        conversation_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Conversation Id
         filename:
           type: string
           maxLength: 240
@@ -4811,6 +5127,7 @@ components:
           maximum: 26214400.0
           exclusiveMinimum: 0.0
           title: Size Bytes
+      additionalProperties: false
       type: object
       required:
       - project_id

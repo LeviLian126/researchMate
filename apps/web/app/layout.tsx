@@ -3,11 +3,11 @@ import "./globals.css";
 import type { ReactNode } from "react";
 
 export const metadata = {
-  title: "ResearchMate · Inspectable evidence",
-  description: "A production-oriented Agentic RAG engineering demo for multi-source evidence review.",
+  title: "ResearchMate · Research workspace",
+  description: "Private conversations, shared project sources, cited answers, and project quizzes.",
 };
 
-/** Supplies document metadata and the shared Cobalt Studio visual system. */
+/** Supplies document metadata and the shared ResearchMate visual system. */
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">

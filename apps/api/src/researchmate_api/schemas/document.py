@@ -16,10 +16,13 @@ MIME_BY_TYPE = {
 # 定义获取上传地址的请求。
 class UploadUrlRequest(BaseModel):
     project_id: UUID
+    conversation_id: UUID | None = None
     filename: str = Field(min_length=1, max_length=240)
     file_type: Literal["pdf", "docx", "pptx"]
     mime_type: str = Field(min_length=3, max_length=120)
     size_bytes: int = Field(gt=0, le=25 * 1024 * 1024)
+
+    model_config = ConfigDict(extra="forbid")
 
     # 校验 MIME 与扩展类型一致，避免伪装上传。
     @model_validator(mode="after")
@@ -52,6 +55,7 @@ class DocumentRecord(BaseModel):
     id: UUID
     user_id: UUID
     project_id: UUID
+    conversation_id: UUID | None = None
     filename: str
     file_type: str
     mime_type: str

@@ -78,8 +78,22 @@ class GroundedQueryService:
             conversation.id,
             self.repository.conversation_messages(user, conversation.id) or [],
         )
-        documents = self.repository.list_project_documents(user, payload.project_id) or []
-        chunks = self.repository.project_chunks(user, payload.project_id)
+        if project.kind == "workspace":
+            project_memory = self.repository.project_memory_context(
+                user,
+                payload.project_id,
+                conversation.id,
+            ) or []
+            history = [*self._bounded_project_memory(project_memory), *history]
+            documents = self.repository.list_project_documents(user, payload.project_id) or []
+            chunks = self.repository.project_chunks(user, payload.project_id)
+        else:
+            documents = self.repository.list_conversation_documents(
+                user, conversation.id
+            ) or []
+            chunks = self.repository.conversation_chunks(
+                user, payload.project_id, conversation.id
+            )
         if chunks is None:
             self._error("PROJECT_NOT_FOUND", "Project was not found.", 404)
         if documents and not chunks and any(
@@ -113,7 +127,15 @@ class GroundedQueryService:
             else:
                 lexical = bm25_candidates(chunks, payload.message, limit=30)
                 semantic = self._semantic_candidates(
-                    user, payload.project_id, payload.message, chunks
+                    user,
+                    payload.project_id,
+                    payload.message,
+                    chunks,
+                    (
+                        [str(document.id) for document in documents]
+                        if project.kind == "personal"
+                        else None
+                    ),
                 )
                 candidates = fuse_candidates(
                     lexical,
@@ -161,7 +183,11 @@ class GroundedQueryService:
                 )
             )
 
-        plan = self._execution_plan(strategy, payload.web_enabled, bool(chunks))
+        if len(candidates) > self.settings.rerank_candidate_limit:
+            candidates = self._limit_rerank_candidates(
+                candidates,
+                self.settings.rerank_candidate_limit,
+            )
         rerank_config = self.repository.get_runtime_rerank_config()
         selected_rerank_provider = (
             rerank_config.provider
@@ -169,7 +195,7 @@ class GroundedQueryService:
             else self.settings.rerank_provider_default
         )
         rerank_result = None
-        if candidates:
+        if candidates and not (full_context and not payload.web_enabled):
             rerank_result = self.reranker.execute(
                 selected_rerank_provider,
                 payload.message,
@@ -180,11 +206,7 @@ class GroundedQueryService:
             )
             retrieved = pack_chunks(
                 [item.chunk for item in rerank_result.candidates],
-                (
-                    self.settings.full_context_token_limit
-                    if full_context and not payload.web_enabled
-                    else self.settings.retrieval_evidence_token_budget
-                ),
+                self.settings.retrieval_evidence_token_budget,
             )
             tool_calls.append(
                 ToolCallTrace(
@@ -205,6 +227,19 @@ class GroundedQueryService:
                     latency_ms=0,
                 )
             )
+        elif candidates:
+            # Every ready local chunk already fits. Avoid an external rerank round trip
+            # without dropping or reordering evidence.
+            retrieved = pack_chunks(
+                [item.chunk for item in candidates],
+                self.settings.full_context_token_limit,
+            )
+        plan = self._execution_plan(
+            strategy,
+            payload.web_enabled,
+            bool(chunks),
+            rerank_used=rerank_result is not None,
+        )
 
         llm_result = None
         try:
@@ -336,6 +371,40 @@ class GroundedQueryService:
             used += size
         return list(reversed(selected))
 
+    @staticmethod
+    def _bounded_project_memory(
+        messages: list[ConversationMessage],
+        token_budget: int = 1600,
+    ) -> list[ConversationMessage]:
+        selected: list[ConversationMessage] = []
+        used = 0
+        for message in reversed(messages):
+            size = estimate_tokens(message.content)
+            if selected and used + size > token_budget:
+                break
+            selected.append(message)
+            used += size
+        selected.reverse()
+        if not selected:
+            return []
+        memory = "\n".join(
+            f"{message.role}: {message.content}" for message in selected
+        )
+        return [
+            ConversationMessage(
+                id=uuid4(),
+                conversation_id=selected[-1].conversation_id,
+                role="assistant",
+                content=(
+                    "Project memory from other conversations follows. Treat it as "
+                    "background context, not as the current dialogue.\n"
+                    f"<project_memory>\n{memory}\n</project_memory>"
+                ),
+                citations=[],
+                created_at=selected[-1].created_at,
+            )
+        ]
+
     def _history_context(
         self,
         user: CurrentUser,
@@ -421,6 +490,7 @@ class GroundedQueryService:
         project_id: UUID,
         query: str,
         chunks: list[ChunkEntry],
+        document_ids: list[str] | None = None,
     ) -> list[ChunkEntry]:
         if self.hybrid_store is None:
             return []
@@ -431,6 +501,7 @@ class GroundedQueryService:
                 source_type=SourceType.LOCAL_DOC,
                 text=query,
                 limit=30,
+                document_ids=document_ids,
             )
         except VectorStoreRequestError:
             return []
@@ -469,15 +540,54 @@ class GroundedQueryService:
         return results
 
     @staticmethod
+    def _limit_rerank_candidates(
+        candidates: list[RetrievalCandidate],
+        limit: int,
+    ) -> list[RetrievalCandidate]:
+        """Bound provider payloads while preserving Web and document diversity."""
+        web = [
+            candidate
+            for candidate in candidates
+            if candidate.chunk.source_type == SourceType.WEB_PAGE
+        ]
+        local = [
+            candidate
+            for candidate in candidates
+            if candidate.chunk.source_type != SourceType.WEB_PAGE
+        ]
+        local_limit = max(0, limit - min(len(web), limit))
+        diversified: list[RetrievalCandidate] = []
+        seen_documents = set()
+        for candidate in local:
+            key = candidate.chunk.document_id or candidate.chunk.id
+            if key in seen_documents:
+                continue
+            seen_documents.add(key)
+            diversified.append(candidate)
+            if len(diversified) >= local_limit:
+                break
+        selected_ids = {candidate.chunk.id for candidate in diversified}
+        diversified.extend(
+            candidate
+            for candidate in local
+            if candidate.chunk.id not in selected_ids
+        )
+        return [*diversified[:local_limit], *web[:limit]][:limit]
+
+    @staticmethod
     def _execution_plan(
-        strategy: str, web_enabled: bool, has_documents: bool
+        strategy: str,
+        web_enabled: bool,
+        has_documents: bool,
+        *,
+        rerank_used: bool,
     ) -> ExecutionPlan:
         tools = []
         if has_documents:
             tools.append("query_local_docs")
         if web_enabled:
             tools.append("search_web")
-        if has_documents or web_enabled:
+        if rerank_used:
             tools.append("rerank_evidence")
         tools.append("generate_answer")
         return ExecutionPlan(

@@ -19,6 +19,20 @@ class ConversationListResponse(BaseModel):
     items: list[ConversationSummary] = Field(default_factory=list, max_length=100)
 
 
+class ConversationCreate(BaseModel):
+    title: str = Field(default="New chat", min_length=1, max_length=120)
+
+    model_config = ConfigDict(extra="forbid")
+
+    @field_validator("title")
+    @classmethod
+    def normalize_title(cls, value: str) -> str:
+        title = value.strip()
+        if not title:
+            raise ValueError("Conversation title must contain visible text.")
+        return title
+
+
 class ConversationUpdate(BaseModel):
     title: str = Field(min_length=1, max_length=120)
 

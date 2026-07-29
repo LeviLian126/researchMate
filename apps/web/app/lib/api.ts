@@ -7,6 +7,7 @@ export interface ProjectRecord {
   id: string;
   user_id: string;
   name: string;
+  kind: "personal" | "workspace";
   status: string;
   created_at: string;
   updated_at: string;
@@ -16,6 +17,7 @@ export interface DocumentRecord {
   id: string;
   user_id: string;
   project_id: string;
+  conversation_id?: string | null;
   filename: string;
   file_type: "pdf" | "docx" | "pptx" | string;
   mime_type: string;
@@ -52,7 +54,7 @@ export interface AskResponse {
 
 export interface QuizQuestion {
   id: string;
-  type: "single_choice" | "short_answer";
+  type: "single_choice" | "fill_blank" | "subjective";
   question: string;
   options?: string[] | null;
   answer: string;
@@ -246,6 +248,19 @@ export class ApiError extends Error {
 }
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000/api/v1";
+let warmRequest: Promise<void> | null = null;
+
+export function warmApi(): Promise<void> {
+  if (!warmRequest) {
+    warmRequest = fetch(`${API_BASE}/healthz`, {
+      method: "GET",
+      cache: "no-store",
+    })
+      .then(() => undefined)
+      .catch(() => undefined);
+  }
+  return warmRequest;
+}
 
 export function getDevToken(): string {
   if (isPublicDemo()) return "public-demo";

@@ -1,15 +1,31 @@
-// Owns global project, conversation, source, quiz, and developer navigation.
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  FormEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { apiFetch, ConversationSummary, describeApiError, ProjectRecord } from "../lib/api";
-import { getSupabaseSession, isLocalDevelopment } from "../lib/supabase";
+import {
+  apiFetch,
+  ConversationSummary,
+  describeApiError,
+  ProjectRecord,
+} from "../lib/api";
+import { BrandLogo } from "./brand-logo";
 
 const PROJECT_PATTERN = /\/app\/projects\/([^/]+)/;
 
-/** Renders the collapsible ChatGPT-style application rail backed by owned API data. */
+interface DeletionJob {
+  status: "pending" | "running" | "succeeded" | "failed" | "cancelled";
+  error_message?: string | null;
+}
+
+/** Owns project, conversation, and source navigation for the authenticated workspace. */
 export function AppSidebar() {
   const pathname = usePathname();
   const router = useRouter();
@@ -18,62 +34,54 @@ export function AppSidebar() {
   const activeConversationId = searchParams.get("conversation");
   const [collapsed, setCollapsed] = useState(false);
   const [projects, setProjects] = useState<ProjectRecord[]>([]);
+  const [personalProjectId, setPersonalProjectId] = useState<string | null>(null);
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
-  const [creating, setCreating] = useState(false);
+  const [creatingProject, setCreatingProject] = useState(false);
   const [projectName, setProjectName] = useState("");
+  const [editingConversation, setEditingConversation] = useState<ConversationSummary | null>(null);
+  const [editingTitle, setEditingTitle] = useState("");
+  const [deletingProject, setDeletingProject] = useState<ProjectRecord | null>(null);
+  const [confirmConversationDelete, setConfirmConversationDelete] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [developer, setDeveloper] = useState(isLocalDevelopment());
-  const [managedConversationId, setManagedConversationId] = useState<string | null>(null);
-  const [deleteConfirmationId, setDeleteConfirmationId] = useState<string | null>(null);
-  const [managedProjectId, setManagedProjectId] = useState<string | null>(null);
-  const [deleteProjectConfirmationId, setDeleteProjectConfirmationId] = useState<string | null>(null);
-  const [deletingProjectId, setDeletingProjectId] = useState<string | null>(null);
-  const [conversationTitle, setConversationTitle] = useState("");
-  const navigationRequest = useRef(0);
+  const requestGeneration = useRef(0);
 
-  const activeProject = useMemo(
-    () => projects.find((project) => project.id === activeProjectId) ?? null,
-    [activeProjectId, projects],
+  const personalConversations = useMemo(
+    () => conversations.filter((item) => item.project_id === personalProjectId),
+    [conversations, personalProjectId],
+  );
+  const activeProjectConversations = useMemo(
+    () => conversations.filter((item) => item.project_id === activeProjectId),
+    [activeProjectId, conversations],
   );
 
   const loadNavigation = useCallback(async () => {
-    const requestId = ++navigationRequest.current;
-    const requestedProjectId = activeProjectId;
+    const generation = ++requestGeneration.current;
     try {
-      const ownedProjects = await apiFetch<ProjectRecord[]>("/projects");
-      if (requestId !== navigationRequest.current) return;
-      let ownedConversations: ConversationSummary[] = [];
-      if (requestedProjectId) {
-        const body = await apiFetch<{ items: ConversationSummary[] }>(
-          `/projects/${requestedProjectId}/conversations`,
-        );
-        if (requestId !== navigationRequest.current) return;
-        ownedConversations = body.items;
-      }
+      const [ownedProjects, allConversations, personalProject] = await Promise.all([
+        apiFetch<ProjectRecord[]>("/projects"),
+        apiFetch<{ items: ConversationSummary[] }>("/conversations"),
+        apiFetch<ProjectRecord>("/chat/bootstrap", { method: "POST" }),
+      ]);
+      if (generation !== requestGeneration.current) return;
       setProjects(ownedProjects);
-      setConversations(ownedConversations);
+      setConversations(allConversations.items);
+      setPersonalProjectId(personalProject.id);
       setError(null);
     } catch (requestError) {
-      if (requestId === navigationRequest.current) {
+      if (generation === requestGeneration.current) {
         setError(describeApiError(requestError).detail);
       }
     }
-  }, [activeProjectId]);
-
-  useEffect(() => {
-    setCollapsed(window.localStorage.getItem("researchmate_sidebar_collapsed") === "true");
-    void getSupabaseSession().then((session) => {
-      const role = session?.user?.role;
-      setDeveloper(isLocalDevelopment() || role === "developer" || role === "admin");
-    });
   }, []);
 
   useEffect(() => {
+    const saved = window.localStorage.getItem("researchmate_sidebar_collapsed");
+    setCollapsed(saved === null ? window.innerWidth <= 820 : saved === "true");
     void loadNavigation();
     const refresh = () => void loadNavigation();
     window.addEventListener("researchmate:sidebar-refresh", refresh);
     return () => {
-      navigationRequest.current += 1;
+      requestGeneration.current += 1;
       window.removeEventListener("researchmate:sidebar-refresh", refresh);
     };
   }, [loadNavigation]);
@@ -87,15 +95,14 @@ export function AppSidebar() {
 
   async function createProject(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const name = projectName.trim();
-    if (!name) return;
+    if (!projectName.trim()) return;
     try {
       const project = await apiFetch<ProjectRecord>("/projects", {
         method: "POST",
-        body: JSON.stringify({ name }),
+        body: JSON.stringify({ name: projectName.trim() }),
       });
       setProjectName("");
-      setCreating(false);
+      setCreatingProject(false);
       await loadNavigation();
       router.push(`/app/projects/${project.id}/chat?new=1`);
     } catch (requestError) {
@@ -105,27 +112,31 @@ export function AppSidebar() {
 
   async function renameConversation(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!managedConversationId || !conversationTitle.trim()) return;
+    if (!editingConversation || !editingTitle.trim()) return;
     try {
-      await apiFetch(`/conversations/${managedConversationId}`, {
+      await apiFetch(`/conversations/${editingConversation.id}`, {
         method: "PATCH",
-        body: JSON.stringify({ title: conversationTitle.trim() }),
+        body: JSON.stringify({ title: editingTitle.trim() }),
       });
-      setManagedConversationId(null);
-      setDeleteConfirmationId(null);
+      setEditingConversation(null);
       await loadNavigation();
     } catch (requestError) {
       setError(describeApiError(requestError).detail);
     }
   }
 
-  async function deleteConversation(conversationId: string) {
+  async function deleteConversation(conversation: ConversationSummary) {
     try {
-      await apiFetch(`/conversations/${conversationId}`, { method: "DELETE" });
-      setManagedConversationId(null);
+      await apiFetch(`/conversations/${conversation.id}`, { method: "DELETE" });
+      setEditingConversation(null);
+      setConfirmConversationDelete(false);
       await loadNavigation();
-      if (conversationId === activeConversationId && activeProjectId) {
-        router.push(`/app/projects/${activeProjectId}/chat?new=1`);
+      if (conversation.id === activeConversationId) {
+        router.push(
+          conversation.project_id === personalProjectId
+            ? "/app?new=1"
+            : `/app/projects/${conversation.project_id}/chat?new=1`,
+        );
       }
     } catch (requestError) {
       setError(describeApiError(requestError).detail);
@@ -133,173 +144,208 @@ export function AppSidebar() {
   }
 
   async function deleteProject(projectId: string) {
-    setDeletingProjectId(projectId);
     try {
-      const accepted = await apiFetch<{ job_id: string }>(
-        `/projects/${projectId}`,
-        { method: "DELETE" },
-      );
-      let completed = false;
-      for (let attempt = 0; attempt < 60; attempt += 1) {
-        const job = await apiFetch<{ status: string; error_message?: string | null }>(
-          `/jobs/${accepted.job_id}`,
-        );
+      const accepted = await apiFetch<{ job_id: string }>(`/projects/${projectId}`, {
+        method: "DELETE",
+      });
+      setDeletingProject(null);
+      setError(`Project removal job ${accepted.job_id} is pending.`);
+      for (let attempt = 0; attempt < 20; attempt += 1) {
+        const job = await apiFetch<DeletionJob>(`/jobs/${accepted.job_id}`);
         if (job.status === "succeeded") {
-          completed = true;
-          break;
+          setProjects((current) => current.filter((project) => project.id !== projectId));
+          setError(null);
+          if (projectId === activeProjectId) router.push("/app");
+          return;
         }
-        if (job.status === "failed") {
-          throw new Error(
-            job.error_message
-              ? `Project deletion failed: ${job.error_message}`
-              : "Project deletion failed. The project is available to retry.",
-          );
+        if (job.status === "failed" || job.status === "cancelled") {
+          setError(job.error_message || `Project removal ${job.status}.`);
+          await loadNavigation();
+          return;
         }
-        await new Promise((resolve) => window.setTimeout(resolve, 1_000));
+        setError(`Project removal is ${job.status}.`);
+        await new Promise((resolve) => window.setTimeout(resolve, 1_500));
       }
-      if (!completed) {
-        throw new Error("Project deletion is still running. Refresh shortly to check its status.");
-      }
-      setProjects((current) => current.filter((project) => project.id !== projectId));
-      setManagedProjectId(null);
-      setDeleteProjectConfirmationId(null);
-      if (projectId === activeProjectId) {
-        setConversations([]);
-        router.push("/app");
-      }
-      window.dispatchEvent(new Event("researchmate:sidebar-refresh"));
+      setError(`Project removal is still processing. Track job ${accepted.job_id}.`);
     } catch (requestError) {
-      setError(
-        requestError instanceof Error && requestError.message.startsWith("Project deletion")
-          ? requestError.message
-          : describeApiError(requestError).detail,
-      );
-      await loadNavigation();
-    } finally {
-      setDeletingProjectId(null);
+      setError(describeApiError(requestError).detail);
     }
   }
 
+  function startRename(conversation: ConversationSummary) {
+    setEditingConversation(conversation);
+    setEditingTitle(conversation.title);
+    setConfirmConversationDelete(false);
+  }
+
   return (
-    <aside className={`app-sidebar ${collapsed ? "app-sidebar--collapsed" : ""}`} aria-label="Workspace navigation">
+    <aside
+      className={`app-sidebar ${collapsed ? "app-sidebar--collapsed" : ""}`}
+      aria-label="Workspace navigation"
+    >
       <div className="app-sidebar__top">
-        <Link className="app-sidebar__brand" href="/app" aria-label="ResearchMate projects">
-          <span aria-hidden="true">R</span><strong>ResearchMate</strong>
+        <Link className="app-sidebar__brand" href="/app" aria-label="ResearchMate">
+          <BrandLogo withName={!collapsed} />
         </Link>
-        <button className="app-sidebar__collapse" type="button" onClick={toggleSidebar} aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}>{collapsed ? "›" : "‹"}</button>
+        <button
+          className="app-sidebar__collapse"
+          type="button"
+          onClick={toggleSidebar}
+          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+        >
+          {collapsed ? "›" : "‹"}
+        </button>
       </div>
 
       <nav className="app-sidebar__primary">
-        <Link aria-label="New chat" href={activeProjectId ? `/app/projects/${activeProjectId}/chat?new=1` : "/app"}><span aria-hidden="true">＋</span><b>New chat</b></Link>
-        <button aria-label="New project" type="button" onClick={() => {
-          if (collapsed) {
-            setCollapsed(false);
-            window.localStorage.setItem("researchmate_sidebar_collapsed", "false");
-          }
-          setCreating((current) => !current);
-        }}><span aria-hidden="true">□</span><b>New project</b></button>
-        {activeProjectId && <Link aria-label="Manage project sources" href={`/app/projects/${activeProjectId}/library`}><span aria-hidden="true">⇧</span><b>Sources</b></Link>}
-        {activeProjectId && <Link aria-label="Create a new quiz" href={`/app/projects/${activeProjectId}/quiz?new=1`}><span aria-hidden="true">?</span><b>New quiz</b></Link>}
+        <Link href="/app?new=1" aria-current={!activeProjectId && !activeConversationId ? "page" : undefined}>
+          <span aria-hidden="true">＋</span><b>New chat</b>
+        </Link>
+        <button
+          type="button"
+          onClick={() => {
+            if (collapsed) toggleSidebar();
+            setCreatingProject((current) => !current);
+          }}
+        >
+          <span aria-hidden="true">□</span><b>New project</b>
+        </button>
       </nav>
 
-      {creating && !collapsed && (
+      {creatingProject && !collapsed && (
         <form className="app-sidebar__create" onSubmit={createProject}>
-          <label htmlFor="sidebar-project-name">Project name</label>
-          <input id="sidebar-project-name" autoFocus value={projectName} onChange={(event) => setProjectName(event.target.value)} maxLength={120} />
-          <div><button type="submit">Create</button><button type="button" onClick={() => setCreating(false)}>Cancel</button></div>
+          <input
+            aria-label="Project name"
+            autoFocus
+            maxLength={120}
+            value={projectName}
+            onChange={(event) => setProjectName(event.target.value)}
+            placeholder="Project name"
+          />
+          <div><button type="submit">Create</button><button type="button" onClick={() => setCreatingProject(false)}>Cancel</button></div>
         </form>
       )}
 
       <div className="app-sidebar__scroll">
-        <section>
-          <div className="app-sidebar__section-title"><span>Projects</span><Link href="/app" aria-label="View all projects">•••</Link></div>
-          {projects.map((project) => (
-            <div className="app-sidebar__project-row" key={project.id}>
-              {project.status === "active" ? (
-                <Link className="app-sidebar__item" aria-current={project.id === activeProjectId ? "page" : undefined} href={`/app/projects/${project.id}/chat`}>
+        {!!projects.length && (
+          <section>
+            <div className="app-sidebar__section-title">Projects</div>
+            {projects.map((project) => (
+              <div className="app-sidebar__project-row" key={project.id}>
+                <Link
+                  className="app-sidebar__item"
+                  aria-current={project.id === activeProjectId ? "page" : undefined}
+                  href={`/app/projects/${project.id}/chat`}
+                >
                   <span aria-hidden="true">□</span><b>{project.name}</b>
                 </Link>
-              ) : (
-                <div className="app-sidebar__item" aria-disabled="true">
-                  <span aria-hidden="true">!</span><b>{project.name} · deletion pending</b>
-                </div>
-              )}
-              <button
-                type="button"
-                aria-label={`Manage ${project.name}`}
-                onClick={() => {
-                  setManagedProjectId((current) => current === project.id ? null : project.id);
-                  setDeleteProjectConfirmationId(null);
-                }}
-              >•••</button>
-              {managedProjectId === project.id && (
-                <div className="app-sidebar__project-menu">
-                  {deleteProjectConfirmationId === project.id ? (
-                    <>
-                      <p>Delete this project and all of its chats and sources?</p>
-                      <button
-                        className="danger-button"
-                        type="button"
-                        disabled={deletingProjectId === project.id}
-                        onClick={() => void deleteProject(project.id)}
-                      >{deletingProjectId === project.id ? "Deleting…" : "Confirm delete"}</button>
-                      <button type="button" onClick={() => setDeleteProjectConfirmationId(null)}>Cancel</button>
-                    </>
-                  ) : (
-                    <button className="danger-button" type="button" onClick={() => setDeleteProjectConfirmationId(project.id)}>
-                      {project.status === "active" ? "Delete project" : "Retry deletion"}
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
-          ))}
-        </section>
-
-        {activeProject && (
-          <section>
-            <div className="app-sidebar__section-title"><span>Recent in {activeProject.name}</span></div>
-            {conversations.length === 0 && <small>No conversations yet</small>}
-            {conversations.map((conversation) => (
-              <div className="app-sidebar__conversation-row" key={conversation.id}>
-                <Link className="app-sidebar__conversation" aria-current={conversation.id === activeConversationId ? "page" : undefined} href={`/app/projects/${activeProject.id}/chat?conversation=${conversation.id}`}>{conversation.title}</Link>
-                <button
-                  type="button"
-                  aria-label={`Manage ${conversation.title}`}
-                  onClick={() => {
-                    setManagedConversationId((current) => current === conversation.id ? null : conversation.id);
-                    setDeleteConfirmationId(null);
-                    setConversationTitle(conversation.title);
-                  }}
-                >•••</button>
-                {managedConversationId === conversation.id && (
-                  <form className="app-sidebar__conversation-menu" onSubmit={renameConversation}>
-                    <label htmlFor={`conversation-${conversation.id}`}>Conversation title</label>
-                    <input id={`conversation-${conversation.id}`} value={conversationTitle} onChange={(event) => setConversationTitle(event.target.value)} maxLength={120} />
-                    <div>
-                      <button type="submit">Rename</button>
-                      {deleteConfirmationId === conversation.id ? (
-                        <>
-                          <button className="danger-button" type="button" onClick={() => void deleteConversation(conversation.id)}>Confirm delete</button>
-                          <button type="button" onClick={() => setDeleteConfirmationId(null)}>Cancel</button>
-                        </>
-                      ) : (
-                        <button className="danger-button" type="button" onClick={() => setDeleteConfirmationId(conversation.id)}>Delete</button>
-                      )}
-                    </div>
-                  </form>
+                {!collapsed && (
+                  <details className="sidebar-menu">
+                    <summary aria-label={`Manage ${project.name}`}>•••</summary>
+                    <Link href={`/app/projects/${project.id}/library`}>Sources</Link>
+                    <button type="button" onClick={() => setDeletingProject(project)}>Delete project</button>
+                  </details>
                 )}
+                {!collapsed && project.id === activeProjectId && activeProjectConversations.map((conversation) => (
+                  <ConversationLink
+                    key={conversation.id}
+                    conversation={conversation}
+                    href={`/app/projects/${project.id}/chat?conversation=${conversation.id}`}
+                    active={conversation.id === activeConversationId}
+                    onManage={startRename}
+                  />
+                ))}
               </div>
+            ))}
+          </section>
+        )}
+
+        {!!personalConversations.length && (
+          <section>
+            <div className="app-sidebar__section-title">Recents</div>
+            {personalConversations.map((conversation) => (
+              <ConversationLink
+                key={conversation.id}
+                conversation={conversation}
+                href={`/app?conversation=${conversation.id}`}
+                active={!activeProjectId && conversation.id === activeConversationId}
+                onManage={startRename}
+              />
             ))}
           </section>
         )}
       </div>
 
       <div className="app-sidebar__footer">
-        {developer && activeProjectId && <Link aria-label="Engineering evaluation and reliability" href={`/app/projects/${activeProjectId}/labs`}><span aria-hidden="true">⌁</span><b>Engineering</b></Link>}
-        <a aria-label="ResearchMate on GitHub" href="https://github.com/LeviLian126/researchMate"><span aria-hidden="true">↗</span><b>GitHub</b></a>
+        <a href="https://github.com/LeviLian126/researchMate">
+          <span aria-hidden="true">↗</span><b>GitHub</b>
+        </a>
         {error && !collapsed && <small role="status">{error}</small>}
       </div>
+
+      {editingConversation && (
+        <div className="sidebar-dialog" role="dialog" aria-modal="true" aria-label="Manage conversation">
+          <form onSubmit={renameConversation}>
+            <strong>Manage chat</strong>
+            <input
+              aria-label="Conversation title"
+              value={editingTitle}
+              onChange={(event) => setEditingTitle(event.target.value)}
+              maxLength={120}
+            />
+            <div>
+              <button type="submit">Rename</button>
+              {!confirmConversationDelete ? (
+                <button type="button" onClick={() => setConfirmConversationDelete(true)}>Delete</button>
+              ) : (
+                <button type="button" onClick={() => void deleteConversation(editingConversation)}>
+                  Confirm delete
+                </button>
+              )}
+              <button type="button" onClick={() => setEditingConversation(null)}>Cancel</button>
+            </div>
+          </form>
+        </div>
+      )}
+      {deletingProject && (
+        <div className="sidebar-dialog" role="dialog" aria-modal="true" aria-label="Delete project">
+          <form onSubmit={(event) => {
+            event.preventDefault();
+            void deleteProject(deletingProject.id);
+          }}>
+            <strong>Delete {deletingProject.name}?</strong>
+            <p>This schedules removal of its chats, sources, and indexed data.</p>
+            <div>
+              <button type="submit">Delete project</button>
+              <button type="button" onClick={() => setDeletingProject(null)}>Cancel</button>
+            </div>
+          </form>
+        </div>
+      )}
     </aside>
+  );
+}
+function ConversationLink({
+  conversation,
+  href,
+  active,
+  onManage,
+}: {
+  conversation: ConversationSummary;
+  href: string;
+  active: boolean;
+  onManage: (conversation: ConversationSummary) => void;
+}) {
+  return (
+    <div className="app-sidebar__conversation-row">
+      <Link aria-current={active ? "page" : undefined} href={href}>{conversation.title}</Link>
+      <button
+        type="button"
+        aria-label={`Manage ${conversation.title}`}
+        onClick={() => onManage(conversation)}
+      >
+        •••
+      </button>
+    </div>
   );
 }

@@ -61,6 +61,14 @@ export default function LibraryPage() {
     return () => { mounted.current = false; };
   }, [projectId]);
 
+  useEffect(() => {
+    if (!documents.some((document) => ["uploaded", "parsing", "parsed", "indexing"].includes(document.status))) {
+      return;
+    }
+    const timer = window.setInterval(() => void loadDocuments(), 2_000);
+    return () => window.clearInterval(timer);
+  }, [documents]);
+
   /** Stores only supported file selections so invalid input never reaches the upload contract. */
   function selectFile(file: File | null) {
     if (!file) return;
@@ -170,8 +178,8 @@ export default function LibraryPage() {
   return (
     <main className="app-shell workspace-shell">
       <ProjectNav projectId={projectId} current="library" />
-      <header className="product-header">
-        <div><p className="eyebrow">Project source collection</p><h1>Library</h1><p>Upload, inspect, and recover the evidence available to this workspace.</p></div>
+      <header className="source-toolbar">
+        <strong>Sources</strong>
         <label className="search-control"><span className="sr-only">Search materials</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search materials…" /></label>
       </header>
 

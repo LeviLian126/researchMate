@@ -123,7 +123,8 @@ def test_quiz_generation_and_history(client: TestClient) -> None:
             "project_id": project_id,
             "prompt": "Generate a RAG quiz",
             "single_choice_count": 2,
-            "short_answer_count": 1,
+            "fill_blank_count": 1,
+            "subjective_count": 1,
         },
         headers=HEADERS,
     )
@@ -135,10 +136,116 @@ def test_quiz_generation_and_history(client: TestClient) -> None:
     assert choice_questions
     assert all(len(question["options"]) == 4 for question in choice_questions)
     assert all(question["source_citations"] for question in quiz_set["questions"])
+    assert {"single_choice", "fill_blank", "subjective"}.issubset(
+        {question["type"] for question in quiz_set["questions"]}
+    )
 
     history_response = client.get(f"/api/v1/projects/{project_id}/quiz", headers=HEADERS)
     assert history_response.status_code == 200
     assert history_response.json()["quiz_sets"][0]["id"] == quiz_set["id"]
+
+
+def test_quiz_rejects_an_output_larger_than_the_response_contract(
+    client: TestClient,
+) -> None:
+    project_id, _ = create_ready_document(client)
+    response = client.post(
+        "/api/v1/quiz",
+        json={
+            "project_id": project_id,
+            "single_choice_count": 20,
+            "fill_blank_count": 20,
+            "subjective_count": 20,
+        },
+        headers=HEADERS,
+    )
+    assert response.status_code == 422
+
+
+def test_personal_chat_attachments_are_conversation_scoped(client: TestClient) -> None:
+    personal = client.post("/api/v1/chat/bootstrap", headers=USER_A_HEADERS)
+    assert personal.status_code == 200
+    assert personal.json()["kind"] == "personal"
+    project_id = personal.json()["id"]
+    first = client.post(
+        f"/api/v1/projects/{project_id}/conversations",
+        json={"title": "First chat"},
+        headers=USER_A_HEADERS,
+    ).json()
+    second = client.post(
+        f"/api/v1/projects/{project_id}/conversations",
+        json={"title": "Second chat"},
+        headers=USER_A_HEADERS,
+    ).json()
+
+    upload = client.post(
+        "/api/v1/documents/upload-url",
+        json={
+            "project_id": project_id,
+            "conversation_id": first["id"],
+            "filename": "private-notes.pdf",
+            "file_type": "pdf",
+            "mime_type": "application/pdf",
+            "size_bytes": 128,
+        },
+        headers=USER_A_HEADERS,
+    )
+    assert upload.status_code == 200
+    document_id = upload.json()["document_id"]
+    completed = client.post(
+        f"/api/v1/documents/{document_id}/complete",
+        json={"extracted_text": "Conversation one contains the private keyword ALPHA-ONLY."},
+        headers=USER_A_HEADERS,
+    )
+    assert completed.status_code == 202
+
+    first_docs = client.get(
+        f"/api/v1/conversations/{first['id']}/documents",
+        headers=USER_A_HEADERS,
+    )
+    second_docs = client.get(
+        f"/api/v1/conversations/{second['id']}/documents",
+        headers=USER_A_HEADERS,
+    )
+    assert [item["id"] for item in first_docs.json()] == [document_id]
+    assert second_docs.json() == []
+    first_answer = client.post(
+        "/api/v1/ask",
+        json={
+            "project_id": project_id,
+            "conversation_id": first["id"],
+            "message": "What is the private keyword?",
+        },
+        headers=USER_A_HEADERS,
+    )
+    second_answer = client.post(
+        "/api/v1/ask",
+        json={
+            "project_id": project_id,
+            "conversation_id": second["id"],
+            "message": "What is the private keyword?",
+        },
+        headers=USER_A_HEADERS,
+    )
+    assert first_answer.json()["sources"]["local_chunks"] >= 1
+    assert second_answer.json()["sources"]["local_chunks"] == 0
+
+
+def test_personal_project_is_hidden_and_cannot_generate_quiz(client: TestClient) -> None:
+    first = client.post("/api/v1/chat/bootstrap", headers=USER_A_HEADERS).json()
+    second = client.post("/api/v1/chat/bootstrap", headers=USER_A_HEADERS).json()
+    assert first["id"] == second["id"]
+    assert all(
+        project["id"] != first["id"]
+        for project in client.get("/api/v1/projects", headers=USER_A_HEADERS).json()
+    )
+    rejected = client.post(
+        "/api/v1/quiz",
+        json={"project_id": first["id"]},
+        headers=USER_A_HEADERS,
+    )
+    assert rejected.status_code == 404
+    assert rejected.json()["error"]["code"] == "QUIZ_NOT_AVAILABLE"
 
 
 # 验证没有本地 indexed chunks 时拒绝 Local Ask，不编造答案。

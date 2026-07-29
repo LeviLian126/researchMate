@@ -59,6 +59,22 @@ def list_project_documents(
     return documents
 
 
+@router.get("/conversations/{conversation_id}/documents", response_model=list[DocumentRecord])
+def list_conversation_documents(
+    conversation_id: UUID,
+    user: CurrentUser = Depends(get_current_user),
+    repository: ResearchMateRepository = Depends(get_store),
+) -> list[DocumentRecord]:
+    documents = repository.list_conversation_documents(user, conversation_id)
+    if documents is None:
+        raise_api_error(
+            status.HTTP_404_NOT_FOUND,
+            "CONVERSATION_NOT_FOUND",
+            "Conversation was not found.",
+        )
+    return documents
+
+
 # 读取单个文档，必须校验资源归属。
 @router.get("/documents/{document_id}", response_model=DocumentRecord)
 def get_document(

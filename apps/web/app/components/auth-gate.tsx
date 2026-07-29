@@ -16,6 +16,8 @@ import {
 } from "../lib/supabase";
 import { isPublicDemo } from "../lib/demo";
 import { StateNotice } from "./state-notice";
+import { BrandLogo } from "./brand-logo";
+import { warmApi } from "../lib/api";
 
 type AuthState = "loading" | "signed_out" | "signed_in" | "misconfigured" | "error";
 
@@ -26,6 +28,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<BrowserAuthSession | null>(null);
 
   useEffect(() => {
+    void warmApi();
     if (local || publicDemo) return;
     if (!isSupabaseConfigured()) {
       setState("misconfigured");
@@ -101,12 +104,13 @@ function SignInPanel() {
           });
         }
       }
-    } catch {
+    } catch (error) {
+      const providerMessage = error instanceof Error ? error.message : "";
       setMessage({
         title: mode === "signin" ? "Sign-in failed" : "Account could not be created",
         detail: mode === "signin"
           ? "Check the email and password, or use a magic link. No protected request was sent."
-          : "Check the email, use at least six password characters, or sign in if the account already exists.",
+          : providerMessage || "Check the email, use at least six password characters, or sign in if the account already exists.",
         kind: "auth",
       });
     }
@@ -143,7 +147,7 @@ function SignInPanel() {
   return (
     <main className="auth-shell">
       <form className="glass-panel auth-panel stack" onSubmit={submitPassword}>
-        <div className="auth-brand"><span aria-hidden="true">R</span><strong>ResearchMate</strong></div>
+        <div className="auth-brand"><BrandLogo withName /></div>
         <div>
           <p className="eyebrow">Your research workspace</p>
           <h1>{mode === "signin" ? "Welcome back" : "Create your account"}</h1>

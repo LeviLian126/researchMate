@@ -3,6 +3,7 @@ const DEMO_DOCUMENT_ID = "22222222-2222-4222-8222-222222222222";
 const DEMO_PIPELINE_ID = "33333333-3333-4333-8333-333333333333";
 const DEMO_REPORT_ID = "55555555-5555-4555-8555-555555555555";
 const DEMO_DATASET_ID = "66666666-6666-4666-8666-666666666666";
+const DEMO_PERSONAL_PROJECT_ID = "10101010-1010-4010-8010-101010101010";
 
 type Json = Record<string, unknown>;
 
@@ -30,6 +31,7 @@ const projects: Json[] = [{
   id: DEMO_PROJECT_ID,
   user_id: "public-demo",
   name: "Evidence review walkthrough",
+  kind: "workspace",
   status: "active",
   created_at: timestamp,
   updated_at: timestamp,
@@ -131,6 +133,16 @@ let latestEvaluation: Json = {
 let quizSets: Json[] = [];
 let chatMessages: Json[] = [];
 const conversationTitles = new Map<string, string>();
+const conversationProjects = new Map<string, string>();
+const personalProject: Json = {
+  id: DEMO_PERSONAL_PROJECT_ID,
+  user_id: "public-demo",
+  name: "Personal chat",
+  kind: "personal",
+  status: "active",
+  created_at: timestamp,
+  updated_at: timestamp,
+};
 
 function makeId(prefix: string, sequence: number): string {
   const suffix = sequence.toString(16).padStart(12, "0");
@@ -190,9 +202,21 @@ export async function demoFetch<T>(rawPath: string, init: globalThis.RequestInit
   // a project; sharing the array would let a later `unshift` appear twice when
   // both state updates resolve.
   if (path === "/projects" && method === "GET") return projects.map((project) => ({ ...project })) as T;
+  if (path === "/chat/bootstrap" && method === "POST") return { ...personalProject } as T;
+  if (path === "/conversations" && method === "GET") {
+    return {
+      items: Array.from(conversationTitles, ([id, title]) => ({
+        id,
+        project_id: conversationProjects.get(id) ?? DEMO_PERSONAL_PROJECT_ID,
+        title,
+        created_at: timestamp,
+        updated_at: timestamp,
+      })),
+    } as T;
+  }
   if (path === "/projects" && method === "POST") {
     const id = makeId("11111111-1111", ++projectSequence);
-    const next = { id, user_id: "public-demo", name: typeof body.name === "string" && body.name.trim() ? body.name.trim() : "Untitled walkthrough", status: "active", created_at: timestamp, updated_at: timestamp };
+    const next = { id, user_id: "public-demo", name: typeof body.name === "string" && body.name.trim() ? body.name.trim() : "Untitled walkthrough", kind: "workspace", status: "active", created_at: timestamp, updated_at: timestamp };
     projects.unshift(next);
     return next as T;
   }
@@ -229,17 +253,24 @@ export async function demoFetch<T>(rawPath: string, init: globalThis.RequestInit
   if (path.endsWith("/reports") && method === "GET") return { items: [report] } as T;
   if (path.endsWith("/quiz") && method === "GET") return { project_id: projectId, quiz_sets: quizSets } as T;
   if (path.endsWith("/conversations") && method === "GET") {
-    const projectMessages = chatMessages.filter((message) => message.project_id === projectId);
-    const conversationId = projectMessages[0]?.conversation_id;
     return {
-      items: projectMessages.length ? [{
-        id: conversationId,
+      items: Array.from(conversationProjects.entries())
+        .filter(([, ownerProjectId]) => ownerProjectId === projectId)
+        .map(([id]) => ({
+        id,
         project_id: projectId,
-        title: conversationTitles.get(String(conversationId)) ?? "Walkthrough conversation",
+        title: conversationTitles.get(id) ?? "Walkthrough conversation",
         created_at: timestamp,
         updated_at: timestamp,
-      }] : [],
+      })),
     } as T;
+  }
+  if (path.endsWith("/conversations") && method === "POST") {
+    const id = makeId("abababab-abab", conversationSequence++);
+    const title = typeof body.title === "string" ? body.title : "New chat";
+    conversationTitles.set(id, title);
+    conversationProjects.set(id, projectId);
+    return { id, project_id: projectId, title, created_at: timestamp, updated_at: timestamp } as T;
   }
   const conversationMatch = path.match(/^\/conversations\/([^/]+)/);
   const conversationId = conversationMatch?.[1];
@@ -248,6 +279,9 @@ export async function demoFetch<T>(rawPath: string, init: globalThis.RequestInit
       conversation_id: conversationId,
       messages: chatMessages.filter((message) => message.conversation_id === conversationId),
     } as T;
+  }
+  if (conversationId && path.endsWith("/documents") && method === "GET") {
+    return documents.filter((document) => document.conversation_id === conversationId) as T;
   }
   if (conversationId && method === "PATCH") {
     const title = typeof body.title === "string"
@@ -268,12 +302,13 @@ export async function demoFetch<T>(rawPath: string, init: globalThis.RequestInit
   if (conversationId && method === "DELETE") {
     chatMessages = chatMessages.filter((message) => message.conversation_id !== conversationId);
     conversationTitles.delete(conversationId);
+    conversationProjects.delete(conversationId);
     return {} as T;
   }
 
   if (path === "/documents/upload-url" && method === "POST") {
     const id = makeId("22222222-2222", ++documentSequence);
-    documents.push({ id, user_id: "public-demo", project_id: typeof body.project_id === "string" ? body.project_id : DEMO_PROJECT_ID, filename: body.filename ?? "walkthrough-source.pdf", file_type: body.file_type ?? "pdf", mime_type: body.mime_type ?? "application/pdf", size_bytes: body.size_bytes ?? 1, status: "uploading", created_at: timestamp, updated_at: timestamp });
+    documents.push({ id, user_id: "public-demo", project_id: typeof body.project_id === "string" ? body.project_id : DEMO_PROJECT_ID, conversation_id: body.conversation_id ?? null, filename: body.filename ?? "walkthrough-source.pdf", file_type: body.file_type ?? "pdf", mime_type: body.mime_type ?? "application/pdf", size_bytes: body.size_bytes ?? 1, status: "uploading", created_at: timestamp, updated_at: timestamp });
     return { document_id: id, upload_url: `/api/v1/dev/upload/${id}`, expires_in_seconds: 300 } as T;
   }
   const completeMatch = path.match(/^\/documents\/([^/]+)\/complete$/);
@@ -293,14 +328,17 @@ export async function demoFetch<T>(rawPath: string, init: globalThis.RequestInit
 
   if (path === "/ask" && method === "POST") {
     const targetProjectId = typeof body.project_id === "string" ? body.project_id : DEMO_PROJECT_ID;
-    const existingConversation = chatMessages.find(
-      (item) => item.project_id === targetProjectId,
-    )?.conversation_id;
+    const requestedConversation = typeof body.conversation_id === "string"
+      ? body.conversation_id
+      : null;
+    const existingConversation = requestedConversation ?? Array.from(conversationProjects)
+      .find(([, ownerProjectId]) => ownerProjectId === targetProjectId)?.[0];
     const conversationId = String(
       existingConversation ?? makeId("abababab-abab", conversationSequence++),
     );
     if (!conversationTitles.has(conversationId)) {
       conversationTitles.set(conversationId, "Walkthrough conversation");
+      conversationProjects.set(conversationId, targetProjectId);
     }
     const answer = "The walkthrough conclusion is conditional: retrieval is useful when evidence is relevant, source-bound, and reviewed; it is not a correctness guarantee by itself.";
     chatMessages = [
@@ -351,7 +389,7 @@ export async function demoFetch<T>(rawPath: string, init: globalThis.RequestInit
 
   if (path === "/quiz" && method === "POST") {
     quizSets = [{ id: "12121212-1212-4212-8212-121212121212", sources: { local_chunks: 1, web_pages: 0 }, questions: [{ id: "13131313-1313-4313-8313-131313131313", type: "single_choice", question: "What makes a retrieved conclusion defensible?", options: ["A larger prompt", "A citation-backed relevant source", "A longer answer", "An unbounded web search"], answer: "A citation-backed relevant source", explanation: "The walkthrough records a claim-to-citation relationship rather than treating retrieval as a correctness guarantee.", difficulty: "easy", source_citations: [citation] }] }];
-    return quizSets[0] as T;
+    return { ...quizSets[0], quiz_set: quizSets[0] } as T;
   }
 
   if (path === "/evaluation-datasets" && method === "GET") return { items: [{ dataset_id: DEMO_DATASET_ID, project_id: DEMO_PROJECT_ID, name: "Frozen walkthrough set", version: 1, description: "Deterministic examples for the public demo.", case_count: 3 }] } as T;

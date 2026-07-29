@@ -142,10 +142,11 @@ class PostgresResearchMateRepository:
             row = connection.execute(
                 text(
                     """
-                    insert into projects (id, user_id, name, expires_at)
-                    select :id, :user_id, :name, :expires_at
+                    insert into projects (id, user_id, name, kind, expires_at)
+                    select :id, :user_id, :name, 'workspace', :expires_at
                     where exists (select 1 from profiles where id = :user_id)
-                    returning id, user_id, name, status, expires_at, created_at, updated_at, deleted_at
+                    returning id, user_id, name, kind, status, expires_at,
+                              created_at, updated_at, deleted_at
                     """
                 ),
                 {
@@ -157,15 +158,35 @@ class PostgresResearchMateRepository:
             ).mappings().one()
         return ProjectRecord.model_validate(dict(row))
 
+    def ensure_personal_project(self, user: CurrentUser) -> ProjectRecord:
+        self.ensure_user(user)
+        project_id = uuid4()
+        with self._transaction(user) as connection:
+            row = connection.execute(
+                text(
+                    """
+                    insert into projects (id,user_id,name,kind,expires_at)
+                    values (:id,:user_id,'Personal chat','personal',null)
+                    on conflict (user_id) where kind='personal' and deleted_at is null
+                    do update set updated_at=projects.updated_at
+                    returning id,user_id,name,kind,status,expires_at,
+                              created_at,updated_at,deleted_at
+                    """
+                ),
+                {"id": project_id, "user_id": user.id},
+            ).mappings().one()
+        return ProjectRecord.model_validate(dict(row))
+
     def list_projects(self, user: CurrentUser) -> list[ProjectRecord]:
         with self._transaction(user) as connection:
             rows = connection.execute(
                 text(
                     """
-                    select id, user_id, name, status, expires_at, created_at, updated_at, deleted_at
+                    select id, user_id, name, kind, status, expires_at,
+                           created_at, updated_at, deleted_at
                     from projects
                     where user_id = :user_id and status in ('active', 'deleting')
-                      and deleted_at is null
+                      and kind = 'workspace' and deleted_at is null
                     order by updated_at desc, id
                     """
                 ),
@@ -178,7 +199,8 @@ class PostgresResearchMateRepository:
             row = connection.execute(
                 text(
                     """
-                    select id, user_id, name, status, expires_at, created_at, updated_at, deleted_at
+                    select id, user_id, name, kind, status, expires_at,
+                           created_at, updated_at, deleted_at
                     from projects
                     where id = :project_id and user_id = :user_id and deleted_at is null
                     """
@@ -192,7 +214,7 @@ class PostgresResearchMateRepository:
             project = connection.execute(
                 text(
                     """
-                    select status from projects
+                    select status,kind from projects
                     where id = :project_id and user_id = :user_id
                       and status in ('active', 'deleting') and deleted_at is null
                     for update
@@ -201,6 +223,8 @@ class PostgresResearchMateRepository:
                 {"project_id": project_id, "user_id": user.id},
             ).mappings().one_or_none()
             if project is None:
+                return None
+            if project["kind"] == "personal":
                 return None
             if project["status"] == "deleting":
                 existing = connection.execute(
@@ -314,15 +338,49 @@ class PostgresResearchMateRepository:
         with self._transaction(user) as connection:
             if not self._lock_active_project(connection, user.id, payload.project_id):
                 return None
+            project = connection.execute(
+                text(
+                    """
+                    select id,kind from projects
+                    where id=:project_id and user_id=:user_id
+                      and status='active' and deleted_at is null
+                    """
+                ),
+                {"project_id": payload.project_id, "user_id": user.id},
+            ).mappings().one_or_none()
+            if project is None:
+                return None
+            if project["kind"] == "personal":
+                if payload.conversation_id is None:
+                    return None
+                owned_conversation = connection.execute(
+                    text(
+                        """
+                        select 1 from conversations
+                        where id=:conversation_id and project_id=:project_id
+                          and user_id=:user_id and deleted_at is null
+                        """
+                    ),
+                    {
+                        "conversation_id": payload.conversation_id,
+                        "project_id": payload.project_id,
+                        "user_id": user.id,
+                    },
+                ).one_or_none()
+                if owned_conversation is None:
+                    return None
+            elif payload.conversation_id is not None:
+                return None
             row = connection.execute(
                 text(
                     """
                     insert into documents (
-                      id, user_id, project_id, filename, file_type, mime_type, size_bytes,
+                      id, user_id, project_id, conversation_id, filename, file_type,
+                      mime_type, size_bytes,
                       r2_object_key, status, expires_at
                     )
-                    select :id, :user_id, p.id, :filename, :file_type, :mime_type, :size_bytes,
-                           :object_key, 'uploaded', :expires_at
+                    select :id, :user_id, p.id, :conversation_id, :filename, :file_type,
+                           :mime_type, :size_bytes, :object_key, 'uploaded', :expires_at
                     from projects p
                     where p.id = :project_id and p.user_id = :user_id
                       and p.status = 'active' and p.deleted_at is null
@@ -333,6 +391,7 @@ class PostgresResearchMateRepository:
                     "id": document_id,
                     "user_id": user.id,
                     "project_id": payload.project_id,
+                    "conversation_id": payload.conversation_id,
                     "filename": payload.filename,
                     "file_type": payload.file_type,
                     "mime_type": payload.mime_type,
@@ -357,11 +416,13 @@ class PostgresResearchMateRepository:
             row = connection.execute(
                 text(
                     """
-                    select id, user_id, project_id, filename, file_type, mime_type, size_bytes,
+                    select id, user_id, project_id, conversation_id, filename, file_type,
+                           mime_type, size_bytes,
                            status, error_message, expires_at, created_at, updated_at, deleted_at
                     from documents d
                     where d.user_id = :user_id and d.project_id = :project_id
                       and d.filename = :filename and d.size_bytes = :size_bytes
+                      and d.conversation_id is not distinct from :conversation_id
                       and d.deleted_at is null
                       and exists (
                         select 1 from projects p
@@ -375,6 +436,7 @@ class PostgresResearchMateRepository:
                 {
                     "user_id": user.id,
                     "project_id": payload.project_id,
+                    "conversation_id": payload.conversation_id,
                     "filename": payload.filename,
                     "size_bytes": payload.size_bytes,
                 },
@@ -393,7 +455,8 @@ class PostgresResearchMateRepository:
             rows = connection.execute(
                 text(
                     """
-                    select id, user_id, project_id, filename, file_type, mime_type, size_bytes,
+                    select id, user_id, project_id, conversation_id, filename, file_type,
+                           mime_type, size_bytes,
                            status, error_message, expires_at, created_at, updated_at, deleted_at
                     from documents
                     where user_id = :user_id and project_id = :project_id and deleted_at is null
@@ -404,12 +467,49 @@ class PostgresResearchMateRepository:
             ).mappings()
             return [DocumentRecord.model_validate(dict(row)) for row in rows]
 
+    def list_conversation_documents(
+        self, user: CurrentUser, conversation_id: UUID
+    ) -> list[DocumentRecord] | None:
+        with self._transaction(user) as connection:
+            owned = connection.execute(
+                text(
+                    """
+                    select project_id from conversations
+                    where id=:conversation_id and user_id=:user_id and deleted_at is null
+                      and exists (
+                        select 1 from projects p
+                        where p.id=conversations.project_id and p.user_id=:user_id
+                          and p.status='active' and p.deleted_at is null
+                      )
+                    """
+                ),
+                {"conversation_id": conversation_id, "user_id": user.id},
+            ).one_or_none()
+            if owned is None:
+                return None
+            rows = connection.execute(
+                text(
+                    """
+                    select id,user_id,project_id,conversation_id,filename,file_type,
+                           mime_type,size_bytes,status,error_message,expires_at,
+                           created_at,updated_at,deleted_at
+                    from documents
+                    where user_id=:user_id and conversation_id=:conversation_id
+                      and deleted_at is null
+                    order by created_at desc,id
+                    """
+                ),
+                {"conversation_id": conversation_id, "user_id": user.id},
+            ).mappings()
+            return [DocumentRecord.model_validate(dict(row)) for row in rows]
+
     def get_document(self, user: CurrentUser, document_id: UUID) -> DocumentRecord | None:
         with self._transaction(user) as connection:
             row = connection.execute(
                 text(
                     """
-                    select id, user_id, project_id, filename, file_type, mime_type, size_bytes,
+                    select id, user_id, project_id, conversation_id, filename, file_type,
+                           mime_type, size_bytes,
                            status, error_message, expires_at, created_at, updated_at, deleted_at
                     from documents
                     where id = :document_id and user_id = :user_id and deleted_at is null
@@ -1075,6 +1175,28 @@ class PostgresResearchMateRepository:
                         "user_id": user.id,
                     },
                 ).mappings().one_or_none()
+                if row is not None and row["title"] == "New chat":
+                    renamed_row = connection.execute(
+                        text(
+                            """
+                            update conversations c
+                            set title=:title,updated_at=now()
+                            where c.id=:id and c.user_id=:user_id
+                              and not exists (
+                                select 1 from messages m
+                                where m.conversation_id=c.id
+                              )
+                            returning id,project_id,title,created_at,updated_at
+                            """
+                        ),
+                        {
+                            "id": conversation_id,
+                            "user_id": user.id,
+                            "title": (" ".join(first_message.split())[:120] or "New chat"),
+                        },
+                    ).mappings().one_or_none()
+                    if renamed_row is not None:
+                        row = renamed_row
             else:
                 row = connection.execute(
                     text(
@@ -1095,6 +1217,11 @@ class PostgresResearchMateRepository:
                     },
                 ).mappings().one_or_none()
         return ConversationSummary.model_validate(row) if row else None
+
+    def create_conversation(
+        self, user: CurrentUser, project_id: UUID, title: str
+    ) -> ConversationSummary | None:
+        return self.ensure_conversation(user, project_id, None, title)
 
     def list_conversations(
         self, user: CurrentUser, project_id: UUID
@@ -1122,6 +1249,24 @@ class PostgresResearchMateRepository:
                     """
                 ),
                 {"project_id": project_id, "user_id": user.id},
+            ).mappings()
+            return [ConversationSummary.model_validate(row) for row in rows]
+
+    def list_all_conversations(self, user: CurrentUser) -> list[ConversationSummary]:
+        with self._transaction(user) as connection:
+            rows = connection.execute(
+                text(
+                    """
+                    select c.id,c.project_id,c.title,c.created_at,c.updated_at
+                    from conversations c
+                    join projects p on p.id=c.project_id and p.user_id=c.user_id
+                    where c.user_id=:user_id and c.deleted_at is null
+                      and p.status='active' and p.deleted_at is null
+                    order by c.updated_at desc,c.id
+                    limit 100
+                    """
+                ),
+                {"user_id": user.id},
             ).mappings()
             return [ConversationSummary.model_validate(row) for row in rows]
 
@@ -1330,6 +1475,79 @@ class PostgresResearchMateRepository:
             )
         return bool(updated.rowcount)
 
+    def project_memory_context(
+        self,
+        user: CurrentUser,
+        project_id: UUID,
+        exclude_conversation_id: UUID,
+        limit: int = 16,
+    ) -> list[ConversationMessage] | None:
+        with self._transaction(user) as connection:
+            project = connection.execute(
+                text(
+                    """
+                    select kind from projects
+                    where id=:project_id and user_id=:user_id
+                      and status='active' and deleted_at is null
+                    """
+                ),
+                {"project_id": project_id, "user_id": user.id},
+            ).mappings().one_or_none()
+            if project is None:
+                return None
+            if project["kind"] != "workspace":
+                return []
+            rows = list(
+                connection.execute(
+                    text(
+                        """
+                        (
+                          select gen_random_uuid() as id,c.id as conversation_id,
+                                 'assistant'::text as role,
+                                 ('Project conversation summary: ' || c.summary_text) as content,
+                                 c.summary_updated_at as created_at
+                          from conversations c
+                          where c.project_id=:project_id and c.user_id=:user_id
+                            and c.id<>:exclude_id and c.deleted_at is null
+                            and c.summary_text is not null
+                          order by c.summary_updated_at desc nulls last
+                          limit 4
+                        )
+                        union all
+                        (
+                          select m.id,m.conversation_id,m.role,m.content,m.created_at
+                          from messages m
+                          join conversations c on c.id=m.conversation_id
+                          where m.project_id=:project_id and m.user_id=:user_id
+                            and m.conversation_id<>:exclude_id
+                            and c.deleted_at is null
+                            and m.role in ('user','assistant')
+                          order by m.created_at desc,m.id desc
+                          limit :limit
+                        )
+                        order by created_at
+                        """
+                    ),
+                    {
+                        "project_id": project_id,
+                        "user_id": user.id,
+                        "exclude_id": exclude_conversation_id,
+                        "limit": max(1, min(limit, 40)),
+                    },
+                ).mappings()
+            )
+            return [
+                ConversationMessage(
+                    id=row["id"],
+                    conversation_id=row["conversation_id"],
+                    role=row["role"],
+                    content=row["content"],
+                    citations=[],
+                    created_at=row["created_at"],
+                )
+                for row in rows
+            ]
+
     def increment_usage(self, user: CurrentUser, kind: str, limit: int) -> bool:
         with self._transaction(user) as connection:
             count = connection.execute(
@@ -1365,6 +1583,49 @@ class PostgresResearchMateRepository:
                     """
                 ),
                 {"user_id": user.id, "project_id": project_id},
+            ).mappings()
+            return [ChunkEntry(**dict(row)) for row in rows]
+
+    def conversation_chunks(
+        self, user: CurrentUser, project_id: UUID, conversation_id: UUID
+    ) -> list[ChunkEntry] | None:
+        with self._transaction(user) as connection:
+            owned = connection.execute(
+                text(
+                    """
+                    select 1 from conversations c
+                    join projects p on p.id=c.project_id and p.user_id=c.user_id
+                    where c.id=:conversation_id and c.project_id=:project_id
+                      and c.user_id=:user_id and c.deleted_at is null
+                      and p.status='active' and p.deleted_at is null
+                    """
+                ),
+                {
+                    "conversation_id": conversation_id,
+                    "project_id": project_id,
+                    "user_id": user.id,
+                },
+            ).one_or_none()
+            if owned is None:
+                return None
+            rows = connection.execute(
+                text(
+                    """
+                    select c.id,c.user_id,c.project_id,c.document_id,c.source_type,
+                           c.source_title,c.text,c.page_no,c.slide_no,c.url,c.created_at
+                    from chunks c
+                    join documents d on d.id=c.document_id and d.user_id=c.user_id
+                    where c.user_id=:user_id and c.project_id=:project_id
+                      and d.conversation_id=:conversation_id
+                      and d.deleted_at is null
+                    order by c.created_at,c.id
+                    """
+                ),
+                {
+                    "conversation_id": conversation_id,
+                    "project_id": project_id,
+                    "user_id": user.id,
+                },
             ).mappings()
             return [ChunkEntry(**dict(row)) for row in rows]
 

@@ -61,7 +61,7 @@ export interface AskResponse extends GroundedAnswer {
 // 定义 Quiz 题目结构。
 export interface QuizQuestion {
   id: string;
-  type: "single_choice" | "short_answer";
+  type: "single_choice" | "fill_blank" | "subjective";
   question: string;
   options?: string[] | null;
   answer: string;
@@ -88,6 +88,7 @@ export interface ProjectRecord {
   id: string;
   user_id: string;
   name: string;
+  kind: "personal" | "workspace";
   status: "active" | "deleting" | "deleted" | "expired" | string;
   expires_at?: string | null;
   created_at: string;
@@ -111,6 +112,7 @@ export interface DocumentRecord {
   id: string;
   user_id: string;
   project_id: string;
+  conversation_id?: string | null;
   filename: string;
   file_type: "pdf" | "docx" | "pptx" | string;
   mime_type: string;
@@ -126,6 +128,7 @@ export interface DocumentRecord {
 // 定义上传地址请求。
 export interface UploadUrlRequest {
   project_id: string;
+  conversation_id?: string | null;
   filename: string;
   file_type: "pdf" | "docx" | "pptx";
   mime_type: string;

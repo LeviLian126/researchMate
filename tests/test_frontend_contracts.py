@@ -39,6 +39,7 @@ def test_frontend_calls_mvp_api_contracts() -> None:
             ROOT / "apps/web/app/app/projects/[projectId]/library/page.tsx",
             ROOT / "apps/web/app/app/projects/[projectId]/quiz/page.tsx",
             ROOT / "apps/web/app/app/projects/[projectId]/labs/page.tsx",
+            ROOT / "apps/web/app/components/chat-workspace.tsx",
             ROOT / "apps/web/app/components/app-sidebar.tsx",
             ROOT / "apps/web/app/dev/traces/[traceId]/page.tsx",
             ROOT / "apps/web/app/lib/api.ts",
@@ -54,13 +55,6 @@ def test_frontend_calls_mvp_api_contracts() -> None:
         "/ask",
         "/quiz",
         "/dev/traces/",
-        "/research-runs",
-        "/runs/${runId}/events",
-        "/decisions",
-        "/claims",
-        "/claim-relations",
-        "/reports",
-        "/refresh",
         "/evaluation-runs",
         "/dev/reliability",
         "/dev/fault-scenarios",
@@ -105,19 +99,16 @@ def test_frontend_does_not_reference_backend_secret_names() -> None:
 
 # Evidence review uses the authenticated API boundary and visibly covers recovery states.
 def test_evidence_frontend_covers_async_and_recovery_states() -> None:
-    source = (ROOT / "apps/web/app/app/projects/[projectId]/page.tsx").read_text(encoding="utf-8")
+    source = (ROOT / "apps/web/app/app/projects/[projectId]/labs/page.tsx").read_text(encoding="utf-8")
     api_source = (ROOT / "apps/web/app/lib/api.ts").read_text(encoding="utf-8")
 
     required_state_tokens = [
-        "waiting_human",
-        "Run failed safely",
         "pending",
         "provider",
         "Authentication required",
         "Developer access required",
-        "State changed",
         "Usage limit reached",
-        "Refresh evidence",
+        "Refresh reliability",
     ]
     combined = source + api_source
     for token in required_state_tokens:
@@ -176,36 +167,39 @@ def test_frontend_uses_supabase_session_outside_local_development() -> None:
     assert 'if (!isLocalDevelopment()) throw new ApiError' in api
 
 
-def test_sidebar_has_real_project_session_source_quiz_and_engineering_boundaries() -> None:
+def test_sidebar_and_chat_match_unified_product_boundaries() -> None:
     sidebar = (ROOT / "apps/web/app/components/app-sidebar.tsx").read_text(encoding="utf-8")
-    chat = (ROOT / "apps/web/app/app/projects/[projectId]/chat/page.tsx").read_text(
+    chat = (ROOT / "apps/web/app/components/chat-workspace.tsx").read_text(
         encoding="utf-8"
     )
     project_nav = (ROOT / "apps/web/app/components/project-nav.tsx").read_text(
         encoding="utf-8"
     )
-    labs = (ROOT / "apps/web/app/app/projects/[projectId]/labs/page.tsx").read_text(
-        encoding="utf-8"
-    )
 
     for token in [
         "researchmate_sidebar_collapsed",
-        "/conversations/${managedConversationId}",
+        "/conversations/${editingConversation.id}",
         'method: "PATCH"',
         'method: "DELETE"',
         "New chat",
         "New project",
-        "Manage project sources",
-        "Create a new quiz",
-        "Engineering evaluation and reliability",
-        'role === "developer"',
-        'role === "admin"',
+        "Recents",
+        "/chat/bootstrap",
     ]:
         assert token in sidebar
-    assert "Developer access required" in labs
-    assert 'session?.user?.role' in labs
-    assert "navigationRequest.current" in sidebar
-    assert "routeRequest.current" in chat
-    assert "historyRequest.current" in chat
-    assert "historyLoading || !message.trim()" in chat
-    assert "if (current) setProject(record)" in project_nav
+    for forbidden in ["Create a new quiz", "Engineering evaluation and reliability"]:
+        assert forbidden not in sidebar
+    for token in [
+        "/documents/upload-url",
+        "/ask",
+        "/quiz",
+        "conversation-message--${item.role}",
+        "fill_blank_count",
+        "subjective_count",
+    ]:
+        assert token in chat
+    assert 'item.role === "user" ? "You"' not in chat
+    assert 'item.role === "user" ? "You" : "ResearchMate"' not in chat
+    assert "loadGeneration.current" in chat
+    assert "historyLoading" in chat
+    assert "if (active) setProject(record)" in project_nav

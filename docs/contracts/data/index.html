@@ -47,7 +47,7 @@
      Database entities, fields, integrity, and access
     </h1>
     <p class="lede">
-      This page records the field-level contract for the maintained SQL migrations: 15 initial tables, 16 additive domain tables, and one backend-only operational table. Hermetic tests default to in-process memory; this fallback is not a local integration environment. PostgreSQL adapters and worker repositories exist. The six migrations are applied to the isolated Supabase development project, and a direct pooled psycopg query succeeds. Authenticated application access and RLS integration remain unvalidated.
+      This page records the field-level contract for the nine maintained SQL migrations: 15 initial tables, 16 additive domain tables, and one backend-only operational table. Hermetic tests default to in-process memory; this fallback is not a local integration environment. PostgreSQL adapters and worker repositories exist. Migration 009 adds personal-chat ownership, project memory metadata, conversation attachments, and the expanded quiz enum; cloud application and authenticated RLS validation are release gates.
     </p>
     <div class="meta">
      <span class="status partial">
@@ -214,7 +214,7 @@
            </code>
           </td>
           <td>
-           single_choice · short_answer
+           single_choice · short_answer (historical) · fill_blank · subjective
           </td>
           <td>
            quiz_questions.type
@@ -261,6 +261,7 @@
         <div class="relation-edge cascade"><code>projects.user_id → profiles.id</code><small>many:1 · required · CASCADE</small></div>
         <div class="relation-edge cascade"><code>documents.user_id → profiles.id</code><small>many:1 · required · CASCADE</small></div>
         <div class="relation-edge cascade"><code>documents.project_id → projects.id</code><small>many:1 · required · CASCADE</small></div>
+        <div class="relation-edge cascade"><code>documents.conversation_id → conversations.id</code><small>many:1 · optional · CASCADE</small></div>
         <div class="relation-edge cascade"><code>document_pages.document_id → documents.id</code><small>many:1 · required · CASCADE</small></div>
         <div class="relation-edge cascade"><code>chunks.user_id → profiles.id</code><small>many:1 · required · CASCADE</small></div>
         <div class="relation-edge cascade"><code>chunks.project_id → projects.id</code><small>many:1 · required · CASCADE</small></div>
@@ -447,10 +448,8 @@
        Documents and runs do not have a direct foreign key. They meet through project scope and optional citation links; quiz sets may reference a run, while conversations and messages are optional run correlations.
       </div>
       <div class="notice warning">
-       <strong>
-        Schema/runtime conflict.
-       </strong>
-       Conversation and message tables exist in this migration, but no current API or in-memory Store contract persists them.
+       <strong>Personal-chat boundary.</strong>
+       Migration 009 adds one hidden personal project per user and conversation-scoped documents. Workspace-project documents remain shared; personal-chat files are visible only to their owning conversation.
       </div>
      </section>
      <section id="tables">
@@ -471,23 +470,27 @@
 <tr id="field-profiles-created_at"><td><code>created_at</code></td><td><code>timestamptz not null default now()</code></td><td>required</td><td>default now()</td><td>Creation timestamp.</td></tr>
 <tr id="field-profiles-updated_at"><td><code>updated_at</code></td><td><code>timestamptz not null default now()</code></td><td>required</td><td>default now()</td><td>Last-update timestamp; application-managed.</td></tr>
 </tbody></table></div></details>
-      <details id="projects"><summary><code>projects</code> &middot; 8 fields</summary>
+      <details id="projects"><summary><code>projects</code> &middot; 12 fields</summary>
        <div class="grid">
         <div class="fact"><b>Purpose</b><p>Owner-scoped research workspace and lifecycle root.</p></div>
-        <div class="fact"><b>Integrity and indexes</b><p>Owner FK cascades; name is 1–120 characters. Index: <code>idx_projects_user_status</code>.</p></div>
+        <div class="fact"><b>Integrity and indexes</b><p>Owner FK cascades; name is 1–120 characters; kind is personal or workspace. Indexes include owner/status and owner/kind; a partial unique index permits one active personal project per user.</p></div>
         <div class="fact"><b>Access and lifecycle</b><p>RLS: owner ALL. Status, expiry, updates, and soft deletion are application/worker-managed.</p></div>
        </div>
        <div class="scroll"><table class="dense"><thead><tr><th>Field</th><th>Exact declaration</th><th>Null</th><th>Key / constraint</th><th>Role</th></tr></thead><tbody>
 <tr id="field-projects-id"><td><code>id</code></td><td><code>uuid primary key default gen_random_uuid()</code></td><td>required</td><td>PK &middot; default gen_random_uuid()</td><td>Row identity.</td></tr>
 <tr id="field-projects-user_id"><td><code>user_id</code></td><td><code>uuid not null references profiles(id) on delete cascade</code></td><td>required</td><td>FK &middot; profiles.id &middot; CASCADE</td><td>Tenant owner reference.</td></tr>
 <tr id="field-projects-name"><td><code>name</code></td><td><code>text not null check (char_length(name) between 1 and 120)</code></td><td>required</td><td>CHECK</td><td>Display name.</td></tr>
+<tr id="field-projects-kind"><td><code>kind</code></td><td><code>text not null default 'workspace' check (kind in ('personal','workspace'))</code></td><td>required</td><td>CHECK · partial unique owner index for personal</td><td>Separates the hidden ordinary-chat container from user-created professional projects.</td></tr>
+<tr id="field-projects-memory_summary_text"><td><code>memory_summary_text</code></td><td><code>text</code></td><td>nullable</td><td>none declared</td><td>Reserved durable project-memory summary; current cross-chat memory reads conversation summaries and bounded recent messages.</td></tr>
+<tr id="field-projects-memory_summary_token_count"><td><code>memory_summary_token_count</code></td><td><code>integer not null default 0</code></td><td>required</td><td>CHECK ≥ 0</td><td>Estimated durable project-summary tokens.</td></tr>
+<tr id="field-projects-memory_updated_at"><td><code>memory_updated_at</code></td><td><code>timestamptz</code></td><td>nullable</td><td>none declared</td><td>Last project-summary refresh timestamp.</td></tr>
 <tr id="field-projects-status"><td><code>status</code></td><td><code>project_status not null default &#x27;active&#x27;</code></td><td>required</td><td>default &#x27;active&#x27;</td><td>Lifecycle state value.</td></tr>
 <tr id="field-projects-expires_at"><td><code>expires_at</code></td><td><code>timestamptz</code></td><td>nullable</td><td>none declared</td><td>Expiry intent; cleanup is application/worker-managed.</td></tr>
 <tr id="field-projects-created_at"><td><code>created_at</code></td><td><code>timestamptz not null default now()</code></td><td>required</td><td>default now()</td><td>Creation timestamp.</td></tr>
 <tr id="field-projects-updated_at"><td><code>updated_at</code></td><td><code>timestamptz not null default now()</code></td><td>required</td><td>default now()</td><td>Last-update timestamp; application-managed.</td></tr>
 <tr id="field-projects-deleted_at"><td><code>deleted_at</code></td><td><code>timestamptz</code></td><td>nullable</td><td>none declared</td><td>Soft-delete timestamp.</td></tr>
 </tbody></table></div></details>
-      <details id="documents"><summary><code>documents</code> &middot; 15 fields</summary>
+      <details id="documents"><summary><code>documents</code> &middot; 16 fields</summary>
        <div class="grid">
         <div class="fact"><b>Purpose</b><p>Uploaded object metadata and parsing/indexing lifecycle.</p></div>
         <div class="fact"><b>Integrity and indexes</b><p>Owner/project FKs cascade; unique object-store key; PDF/DOCX/PPTX and 25 MiB checks. Index: <code>idx_documents_user_project_status</code>.</p></div>
@@ -497,6 +500,7 @@
 <tr id="field-documents-id"><td><code>id</code></td><td><code>uuid primary key default gen_random_uuid()</code></td><td>required</td><td>PK &middot; default gen_random_uuid()</td><td>Row identity.</td></tr>
 <tr id="field-documents-user_id"><td><code>user_id</code></td><td><code>uuid not null references profiles(id) on delete cascade</code></td><td>required</td><td>FK &middot; profiles.id &middot; CASCADE</td><td>Tenant owner reference.</td></tr>
 <tr id="field-documents-project_id"><td><code>project_id</code></td><td><code>uuid not null references projects(id) on delete cascade</code></td><td>required</td><td>FK &middot; projects.id &middot; CASCADE</td><td>Project/workspace reference.</td></tr>
+<tr id="field-documents-conversation_id"><td><code>conversation_id</code></td><td><code>uuid references conversations(id) on delete cascade</code></td><td>nullable</td><td>FK · conversations.id · CASCADE</td><td>Required by the service for personal-chat uploads; null for workspace-project shared sources.</td></tr>
 <tr id="field-documents-filename"><td><code>filename</code></td><td><code>text not null</code></td><td>required</td><td>none declared</td><td>Original filename.</td></tr>
 <tr id="field-documents-file_type"><td><code>file_type</code></td><td><code>text not null check (file_type in (&#x27;pdf&#x27;, &#x27;docx&#x27;, &#x27;pptx&#x27;))</code></td><td>required</td><td>CHECK</td><td>Allowlisted file category.</td></tr>
 <tr id="field-documents-mime_type"><td><code>mime_type</code></td><td><code>text not null</code></td><td>required</td><td>none declared</td><td>Declared media type.</td></tr>
@@ -684,7 +688,7 @@
        <div class="scroll"><table class="dense"><thead><tr><th>Field</th><th>Exact declaration</th><th>Null</th><th>Key / constraint</th><th>Role</th></tr></thead><tbody>
 <tr id="field-quiz_questions-id"><td><code>id</code></td><td><code>uuid primary key default gen_random_uuid()</code></td><td>required</td><td>PK &middot; default gen_random_uuid()</td><td>Row identity.</td></tr>
 <tr id="field-quiz_questions-quiz_set_id"><td><code>quiz_set_id</code></td><td><code>uuid not null references quiz_sets(id) on delete cascade</code></td><td>required</td><td>FK &middot; quiz_sets.id &middot; CASCADE</td><td>Parent quiz-set reference.</td></tr>
-<tr id="field-quiz_questions-type"><td><code>type</code></td><td><code>quiz_question_type not null</code></td><td>required</td><td>none declared</td><td>Record or question type.</td></tr>
+<tr id="field-quiz_questions-type"><td><code>type</code></td><td><code>quiz_question_type not null</code></td><td>required</td><td>enum: single_choice, fill_blank, subjective</td><td>Question format. Quiz exists only inside a workspace project.</td></tr>
 <tr id="field-quiz_questions-question"><td><code>question</code></td><td><code>text not null</code></td><td>required</td><td>none declared</td><td>Question prompt.</td></tr>
 <tr id="field-quiz_questions-options"><td><code>options</code></td><td><code>jsonb</code></td><td>nullable</td><td>none declared</td><td>Optional answer choices.</td></tr>
 <tr id="field-quiz_questions-answer"><td><code>answer</code></td><td><code>text not null</code></td><td>required</td><td>none declared</td><td>Expected answer.</td></tr>
@@ -754,7 +758,7 @@
       <section id="planned-schema">
        <p class="eyebrow">Additive migration and repository contracts</p>
       <h2>Additive workflow and evaluation tables</h2>
-      <p class="sub">Fifteen additive contracts come from <code>202607150002_evidence_review_schema.sql</code>; <code>202607150005_evaluation_budget_and_fault_exercises.sql</code> adds <code>fault_exercises</code>, bringing the domain total to 31 tables (15 initial + 16 additive). Migration 006 adds one backend-only operational <code>runtime_heartbeats</code> table and workflow lease/budget fields; it is not counted as a domain table. The six migrations are applied to the isolated Supabase project, and a direct pooled psycopg connection verified six ledger rows, ten checkpoint migration rows, and 37 public tables; no authenticated application/RLS transaction has run.</p>
+      <p class="sub">Fifteen additive contracts come from <code>202607150002_evidence_review_schema.sql</code>; <code>202607150005_evaluation_budget_and_fault_exercises.sql</code> adds <code>fault_exercises</code>, bringing the domain total to 31 tables (15 initial + 16 additive). Migration 006 adds one backend-only operational <code>runtime_heartbeats</code> table and workflow lease/budget fields; it is not counted as a domain table. Migrations 007–009 evolve unified chat, runtime reranking, personal attachments, project memory, and quiz types without adding a domain table. Applying migration 009 and validating authenticated application/RLS transactions are release gates.</p>
       <div class="notice"><strong>Storage ownership:</strong> PostgreSQL is the source of truth for business state. S3-compatible object storage stores private source bytes and parser artifacts; Qdrant stores rebuildable dense/sparse projections; Redis stores broker and short-lived coordination state only. No irreplaceable business fact may exist only in object storage, Qdrant, or Redis.</div>
       <div class="notice warning"><strong>Checkpoint boundary:</strong> LangGraph Postgres checkpoint tables are SDK-managed infrastructure, not domain tables. A guarded release command runs the SDK-owned schema once before deployment; workers do not execute DDL. The four checkpoint tables now exist in the isolated <code>researchmate-dev</code> Supabase database at schema version 9, but interrupt/resume and restart behavior have not yet been exercised against them. These four tables are not included in the 31-domain-table count.</div>
 

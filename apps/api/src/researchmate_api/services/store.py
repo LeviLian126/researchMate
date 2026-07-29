@@ -58,6 +58,8 @@ class ResearchMateRepository(Protocol):
 
     def create_project(self, user: CurrentUser, payload: ProjectCreate) -> ProjectRecord: ...
 
+    def ensure_personal_project(self, user: CurrentUser) -> ProjectRecord: ...
+
     def list_projects(self, user: CurrentUser) -> list[ProjectRecord]: ...
 
     def get_project(self, user: CurrentUser, project_id: UUID) -> ProjectRecord | None: ...
@@ -74,6 +76,10 @@ class ResearchMateRepository(Protocol):
 
     def list_project_documents(
         self, user: CurrentUser, project_id: UUID
+    ) -> list[DocumentRecord] | None: ...
+
+    def list_conversation_documents(
+        self, user: CurrentUser, conversation_id: UUID
     ) -> list[DocumentRecord] | None: ...
 
     def get_document(self, user: CurrentUser, document_id: UUID) -> DocumentRecord | None: ...
@@ -138,9 +144,15 @@ class ResearchMateRepository(Protocol):
         first_message: str,
     ) -> ConversationSummary | None: ...
 
+    def create_conversation(
+        self, user: CurrentUser, project_id: UUID, title: str
+    ) -> ConversationSummary | None: ...
+
     def list_conversations(
         self, user: CurrentUser, project_id: UUID
     ) -> list[ConversationSummary] | None: ...
+
+    def list_all_conversations(self, user: CurrentUser) -> list[ConversationSummary]: ...
 
     def conversation_messages(
         self, user: CurrentUser, conversation_id: UUID
@@ -169,6 +181,18 @@ class ResearchMateRepository(Protocol):
         summary: str,
         message_count: int,
     ) -> bool: ...
+
+    def project_memory_context(
+        self,
+        user: CurrentUser,
+        project_id: UUID,
+        exclude_conversation_id: UUID,
+        limit: int = 16,
+    ) -> list[ConversationMessage] | None: ...
+
+    def conversation_chunks(
+        self, user: CurrentUser, project_id: UUID, conversation_id: UUID
+    ) -> list[ChunkEntry] | None: ...
 
 
 # 线程安全的本地开发仓库，生产环境可替换为 Supabase/R2/Qdrant/Redis adapter。
@@ -214,8 +238,39 @@ class InMemoryResearchMateStore:
                 id=uuid4(),
                 user_id=user.id,
                 name=payload.name,
+                kind="workspace",
                 status="active",
                 expires_at=now + timedelta(days=7),
+                created_at=now,
+                updated_at=now,
+                deleted_at=None,
+            )
+            self.projects[project.id] = project
+            return project
+
+    def ensure_personal_project(self, user: CurrentUser) -> ProjectRecord:
+        with self._lock:
+            self.ensure_user(user)
+            existing = next(
+                (
+                    project
+                    for project in self.projects.values()
+                    if project.user_id == user.id
+                    and project.kind == "personal"
+                    and project.deleted_at is None
+                ),
+                None,
+            )
+            if existing is not None:
+                return existing
+            now = datetime.now(UTC)
+            project = ProjectRecord(
+                id=uuid4(),
+                user_id=user.id,
+                name="Personal chat",
+                kind="personal",
+                status="active",
+                expires_at=None,
                 created_at=now,
                 updated_at=now,
                 deleted_at=None,
@@ -229,7 +284,9 @@ class InMemoryResearchMateStore:
             return [
                 project
                 for project in self.projects.values()
-                if project.user_id == user.id and project.deleted_at is None
+                if project.user_id == user.id
+                and project.kind == "workspace"
+                and project.deleted_at is None
             ]
 
     # 读取用户可见项目。
@@ -244,7 +301,7 @@ class InMemoryResearchMateStore:
     def delete_project(self, user: CurrentUser, project_id: UUID) -> JobRecord | None:
         with self._lock:
             project = self.get_project(user, project_id)
-            if project is None:
+            if project is None or project.kind == "personal":
                 return None
             now = datetime.now(UTC)
             self.projects[project_id] = project.model_copy(
@@ -274,6 +331,18 @@ class InMemoryResearchMateStore:
             project = self.get_project(user, payload.project_id)
             if project is None or project.status != "active":
                 return None
+            if project.kind == "personal":
+                if payload.conversation_id is None:
+                    return None
+                conversation = self.conversations.get(payload.conversation_id)
+                if (
+                    conversation is None
+                    or conversation.project_id != project.id
+                    or self.get_project(user, conversation.project_id) is None
+                ):
+                    return None
+            elif payload.conversation_id is not None:
+                return None
             now = datetime.now(UTC)
             document_id = uuid4()
             r2_object_key = f"users/{user.id}/projects/{payload.project_id}/documents/{document_id}/{payload.filename}"
@@ -281,6 +350,7 @@ class InMemoryResearchMateStore:
                 id=document_id,
                 user_id=user.id,
                 project_id=payload.project_id,
+                conversation_id=payload.conversation_id,
                 filename=payload.filename,
                 file_type=payload.file_type,
                 mime_type=payload.mime_type,
@@ -310,6 +380,7 @@ class InMemoryResearchMateStore:
             for reservation in self.uploads.values():
                 if (
                     reservation.request.project_id == payload.project_id
+                    and reservation.request.conversation_id == payload.conversation_id
                     and reservation.request.filename == payload.filename
                     and reservation.request.size_bytes == payload.size_bytes
                 ):
@@ -329,6 +400,21 @@ class InMemoryResearchMateStore:
                 for document in self.documents.values()
                 if document.project_id == project_id
                 and document.user_id == user.id
+                and document.deleted_at is None
+            ]
+
+    def list_conversation_documents(
+        self, user: CurrentUser, conversation_id: UUID
+    ) -> list[DocumentRecord] | None:
+        with self._lock:
+            conversation = self.conversations.get(conversation_id)
+            if conversation is None or self.get_project(user, conversation.project_id) is None:
+                return None
+            return [
+                document
+                for document in self.documents.values()
+                if document.user_id == user.id
+                and document.conversation_id == conversation_id
                 and document.deleted_at is None
             ]
 
@@ -567,6 +653,24 @@ class InMemoryResearchMateStore:
                 if chunk.user_id == user.id and chunk.project_id == project_id
             ]
 
+    def conversation_chunks(
+        self, user: CurrentUser, project_id: UUID, conversation_id: UUID
+    ) -> list[ChunkEntry] | None:
+        documents = self.list_conversation_documents(user, conversation_id)
+        conversation = self.conversations.get(conversation_id)
+        if (
+            documents is None
+            or conversation is None
+            or conversation.project_id != project_id
+        ):
+            return None
+        document_ids = {document.id for document in documents}
+        return [
+            chunk
+            for chunk in self.project_chunks(user, project_id) or []
+            if chunk.document_id in document_ids
+        ]
+
     def get_chunks_by_ids(
         self, user: CurrentUser, project_id: UUID, chunk_ids: list[UUID]
     ) -> list[ChunkEntry] | None:
@@ -590,6 +694,17 @@ class InMemoryResearchMateStore:
                 conversation = self.conversations.get(conversation_id)
                 if conversation is None or conversation.project_id != project_id:
                     return None
+                if (
+                    conversation.title == "New chat"
+                    and not self.conversation_items.get(conversation_id)
+                ):
+                    conversation = conversation.model_copy(
+                        update={
+                            "title": " ".join(first_message.split())[:120],
+                            "updated_at": datetime.now(UTC),
+                        }
+                    )
+                    self.conversations[conversation_id] = conversation
                 return conversation
             now = datetime.now(UTC)
             title = " ".join(first_message.split())[:120] or "New conversation"
@@ -604,6 +719,11 @@ class InMemoryResearchMateStore:
             self.conversation_items[conversation.id] = []
             return conversation
 
+    def create_conversation(
+        self, user: CurrentUser, project_id: UUID, title: str
+    ) -> ConversationSummary | None:
+        return self.ensure_conversation(user, project_id, None, title)
+
     def list_conversations(
         self, user: CurrentUser, project_id: UUID
     ) -> list[ConversationSummary] | None:
@@ -615,6 +735,18 @@ class InMemoryResearchMateStore:
                     item
                     for item in self.conversations.values()
                     if item.project_id == project_id
+                ),
+                key=lambda item: item.updated_at,
+                reverse=True,
+            )[:100]
+
+    def list_all_conversations(self, user: CurrentUser) -> list[ConversationSummary]:
+        with self._lock:
+            return sorted(
+                (
+                    item
+                    for item in self.conversations.values()
+                    if self.get_project(user, item.project_id) is not None
                 ),
                 key=lambda item: item.updated_at,
                 reverse=True,
@@ -647,6 +779,9 @@ class InMemoryResearchMateStore:
             conversation = self.conversations.get(conversation_id)
             if conversation is None or self.get_project(user, conversation.project_id) is None:
                 return False
+            for document in list(self.documents.values()):
+                if document.conversation_id == conversation_id and document.user_id == user.id:
+                    self.delete_document(user, document.id)
             self.conversations.pop(conversation_id, None)
             self.conversation_items.pop(conversation_id, None)
             self.conversation_summaries.pop(conversation_id, None)
@@ -693,6 +828,49 @@ class InMemoryResearchMateStore:
                 return False
             self.conversation_summaries[conversation_id] = (summary, message_count)
             return True
+
+    def project_memory_context(
+        self,
+        user: CurrentUser,
+        project_id: UUID,
+        exclude_conversation_id: UUID,
+        limit: int = 16,
+    ) -> list[ConversationMessage] | None:
+        with self._lock:
+            project = self.get_project(user, project_id)
+            if project is None:
+                return None
+            if project.kind != "workspace":
+                return []
+            other_ids = {
+                conversation.id
+                for conversation in self.conversations.values()
+                if conversation.project_id == project_id
+                and conversation.id != exclude_conversation_id
+            }
+            messages = [
+                message
+                for conversation_id in other_ids
+                for message in self.conversation_items.get(conversation_id, [])
+            ]
+            for conversation_id in other_ids:
+                summary, _ = self.conversation_summaries.get(
+                    conversation_id, (None, 0)
+                )
+                if summary:
+                    messages.append(
+                        ConversationMessage(
+                            id=uuid4(),
+                            conversation_id=conversation_id,
+                            role="assistant",
+                            content=f"Project conversation summary: {summary}",
+                            citations=[],
+                            created_at=self.conversations[
+                                conversation_id
+                            ].updated_at,
+                        )
+                    )
+            return sorted(messages, key=lambda item: item.created_at)[-limit:]
 
     # 创建 job 记录，调用方需已持锁。
     def _create_job_locked(

@@ -30,6 +30,11 @@ Use the relevant workflow for authentication, authorization, tenancy, private da
 
 Respect the repository's execution-environment policy. When the repository or user reserves integration testing for deployed/server environments, limit local evidence to the smallest hermetic unit, domain, contract, schema, import, static, and build checks. Do not start local applications, databases, brokers, vector stores, object stores, provider simulators, or containers to approximate integration. Route modular and cross-service proof to the authorized deployed/server environment with protected configuration and safe test data.
 
+Do not install missing local dependencies merely to run integration, provider, browser,
+or module tests. Run only checks already supported by the current machine, record the
+missing boundary, and transfer the remaining proof to CI or the authorized cloud
+environment. Do not create a new local environment for that purpose.
+
 You may investigate, implement, test, or improve quality beyond the listed steps when that work helps complete the request. Do not silently expand product meaning, external effects, or collaboration-system scope.
 
 ## Output
@@ -74,6 +79,30 @@ The applicable requirements in the selected workflow are the minimum delivery st
 - Prioritize core business rules, authorization, state transitions, failure handling, and changed branches. Do not write low-value tests or distort the measured scope merely to raise the percentage; use the fitting contract, integration, browser, or runtime proof when a unit test would misrepresent the real boundary.
 - Go beyond the workflow when additional work materially improves the requested result and remains authorized.
 - Do not recite the workflow checklist to the user; satisfy it and report the result and evidence.
+
+For a release-bearing product change, preserve this order unless a concrete dependency
+requires otherwise: design, source implementation, maintained HTML/OpenAPI, local
+hermetic checks, cloud CI and module verification, intentional main commit and push,
+migration, Vercel/Render deployment, then production smoke and rollback judgment.
+
+## Use subagents only at exceptional boundaries
+
+Subagents are disabled by default. Never delegate a small, isolated request such as
+moving a button, changing copy, or adding a straightforward local behavior.
+
+After the primary agent completes a major change that combines several requirements or
+crosses multiple product modules, start exactly one read-only QA subagent. Its scope is
+to review the current round's diff against the quality and release requirements, with
+special attention to API/data compatibility, ownership, failure states, tests, and
+documentation. It must not edit files, commit, push, deploy, or contact the user. It
+returns prioritized findings to the primary agent. The primary agent independently
+decides which findings to adopt, reject with evidence, or discuss with the user.
+
+Multiple implementation subagents and worktrees are reserved for genuinely exceptional
+large-scale business-code rewrites whose independently owned slices can be integrated
+safely. Do not use them for ordinary feature delivery, and do not treat parallelism as
+a substitute for understanding the end-to-end contract. Repository, user, and system
+instructions always take precedence over this guidance.
 
 ## Maintain useful source commentary
 

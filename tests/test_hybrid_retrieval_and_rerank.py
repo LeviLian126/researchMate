@@ -3,6 +3,7 @@ from uuid import uuid4
 
 from researchmate_api.config import Settings
 from researchmate_api.schemas.common import SourceType
+from researchmate_api.services.grounded_query import GroundedQueryService
 from researchmate_api.services.rerank import NvidiaReranker, RerankCoordinator
 from researchmate_api.services.retrieval import (
     RetrievalCandidate,
@@ -115,3 +116,26 @@ def test_auto_provider_degrades_deterministically_when_models_unavailable() -> N
     assert result.provider == "deterministic"
     assert result.degraded is True
     assert "nvidia_unavailable" in (result.fallback_reason or "")
+
+
+def test_provider_candidate_limit_preserves_web_and_document_diversity() -> None:
+    first, second = _chunk("first"), _chunk("second")
+    repeated = _chunk("repeat")
+    repeated.document_id = first.document_id
+    web = _chunk("web")
+    web.source_type = SourceType.WEB_PAGE
+    web.document_id = None
+    limited = GroundedQueryService._limit_rerank_candidates(
+        [
+            RetrievalCandidate(first, 1),
+            RetrievalCandidate(repeated, 0.9),
+            RetrievalCandidate(second, 0.8),
+            RetrievalCandidate(web, 0.7),
+        ],
+        3,
+    )
+    assert len(limited) == 3
+    assert web.id in {candidate.chunk.id for candidate in limited}
+    assert {first.document_id, second.document_id}.issubset(
+        {candidate.chunk.document_id for candidate in limited}
+    )

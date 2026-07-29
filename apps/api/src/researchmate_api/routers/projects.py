@@ -10,6 +10,15 @@ from researchmate_api.services.store import ResearchMateRepository
 router = APIRouter()
 
 
+@router.post("/chat/bootstrap", response_model=ProjectRecord)
+def bootstrap_personal_chat(
+    user: CurrentUser = Depends(get_current_user),
+    repository: ResearchMateRepository = Depends(get_store),
+) -> ProjectRecord:
+    """Return the caller's hidden project used only to reuse chat infrastructure."""
+    return repository.ensure_personal_project(user)
+
+
 # 创建项目记录。
 @router.post("/projects", response_model=ProjectRecord, status_code=status.HTTP_201_CREATED)
 def create_project(

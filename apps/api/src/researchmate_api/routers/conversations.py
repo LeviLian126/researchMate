@@ -11,6 +11,7 @@ from researchmate_api.dependencies import (
 )
 from researchmate_api.schemas.common import CurrentUser
 from researchmate_api.schemas.conversation import (
+    ConversationCreate,
     ConversationListResponse,
     ConversationMessagesResponse,
     ConversationSummary,
@@ -22,6 +23,31 @@ from researchmate_api.services.qdrant_store import QdrantHybridStore
 from researchmate_api.services.store import ResearchMateRepository
 
 router = APIRouter()
+
+
+@router.get("/conversations", response_model=ConversationListResponse)
+def list_all_conversations(
+    user: CurrentUser = Depends(get_current_user),
+    repository: ResearchMateRepository = Depends(get_store),
+) -> ConversationListResponse:
+    return ConversationListResponse(items=repository.list_all_conversations(user))
+
+
+@router.post(
+    "/projects/{project_id}/conversations",
+    response_model=ConversationSummary,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_conversation(
+    project_id: UUID,
+    payload: ConversationCreate,
+    user: CurrentUser = Depends(get_current_user),
+    repository: ResearchMateRepository = Depends(get_store),
+) -> ConversationSummary:
+    conversation = repository.create_conversation(user, project_id, payload.title)
+    if conversation is None:
+        raise_api_error(404, "PROJECT_NOT_FOUND", "Project was not found.")
+    return conversation
 
 
 @router.get(
@@ -82,6 +108,16 @@ def delete_conversation(
     user: CurrentUser = Depends(get_current_user),
     repository: ResearchMateRepository = Depends(get_store),
 ) -> Response:
+    documents = repository.list_conversation_documents(user, conversation_id)
+    if documents is None:
+        raise_api_error(404, "CONVERSATION_NOT_FOUND", "Conversation was not found.")
+    for document in documents:
+        if repository.delete_document(user, document.id) is None:
+            raise_api_error(
+                409,
+                "CONVERSATION_CLEANUP_FAILED",
+                "A chat attachment could not be scheduled for removal.",
+            )
     if not repository.delete_conversation(user, conversation_id):
         raise_api_error(404, "CONVERSATION_NOT_FOUND", "Conversation was not found.")
     return Response(status_code=status.HTTP_204_NO_CONTENT)

@@ -12,16 +12,28 @@ class QuizRequest(BaseModel):
     prompt: str = Field(
         default="Generate a quiz from my documents.", min_length=1, max_length=4000
     )
-    single_choice_count: int = Field(default=5, ge=0, le=20)
-    short_answer_count: int = Field(default=3, ge=0, le=20)
+    single_choice_count: int = Field(default=3, ge=0, le=20)
+    fill_blank_count: int = Field(default=2, ge=0, le=20)
+    subjective_count: int = Field(default=2, ge=0, le=20)
 
     model_config = ConfigDict(extra="forbid")
+
+    @model_validator(mode="after")
+    def validate_question_total(self) -> "QuizRequest":
+        total = (
+            self.single_choice_count
+            + self.fill_blank_count
+            + self.subjective_count
+        )
+        if not 1 <= total <= 40:
+            raise ValueError("quiz question count must be between 1 and 40")
+        return self
 
 
 # 定义单道测验题结构。
 class QuizQuestion(BaseModel):
     id: UUID
-    type: Literal["single_choice", "short_answer"]
+    type: Literal["single_choice", "fill_blank", "subjective"]
     question: str = Field(min_length=1, max_length=1200)
     options: list[str] | None = Field(default=None, max_length=4)
     answer: str = Field(min_length=1, max_length=1200)

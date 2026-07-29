@@ -8,6 +8,7 @@ from researchmate_api.services.answering import (
     build_llm_grounded_answer,
 )
 from researchmate_api.services.llm import LLMResult
+from researchmate_api.services.quiz_generation import generate_llm_quiz_set
 from researchmate_api.services.store import ChunkEntry
 
 
@@ -88,6 +89,40 @@ def test_model_can_only_select_server_supplied_evidence() -> None:
     assert citations[0].claim_id == "claim_1"
     assert summary.local_chunks == 1
     assert "untrusted data" in provider.messages[0]["content"]
+
+
+def test_quiz_provider_receives_user_instructions_and_server_evidence() -> None:
+    provider = FakeProvider(
+        {
+            "questions": [
+                {
+                    "type": "single_choice",
+                    "question": "Which statement is supported?",
+                    "options": ["A", "B", "C", "D"],
+                    "answer": "A",
+                    "explanation": "The source supports A.",
+                    "difficulty": "hard",
+                    "evidence_ids": [1],
+                }
+            ]
+        }
+    )
+    chunk = evidence_chunk("RAG retrieves evidence before generation.")
+    from researchmate_api.services.answering import build_grounded_answer
+
+    _, citations, _ = build_grounded_answer("quiz", [chunk])
+    quiz, _ = generate_llm_quiz_set(
+        provider,
+        [chunk],
+        citations,
+        "Focus on retrieval and make it hard.",
+        1,
+        0,
+        0,
+    )
+    assert quiz.questions[0].difficulty == "hard"
+    assert quiz.questions[0].source_citations
+    assert "Focus on retrieval" in provider.messages[1]["content"]
 
 
 def test_grounded_answer_normalizes_database_source_type_strings() -> None:

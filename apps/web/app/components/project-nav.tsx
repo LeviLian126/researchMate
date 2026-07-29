@@ -1,55 +1,46 @@
-// Provides the compact project header and its chat, source, quiz, and review actions.
 "use client";
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { apiFetch, ProjectRecord } from "../lib/api";
 
-type ProjectSurface = "chat" | "evidence" | "library" | "quiz" | "labs";
-
-interface ProjectNavProps {
+export function ProjectNav({
+  projectId,
+  current,
+}: {
   projectId: string;
-  current: ProjectSurface;
-}
-
-/** Renders project context without exposing internal engineering tools as user navigation. */
-export function ProjectNav({ projectId, current }: ProjectNavProps) {
+  current: "chat" | "library" | "evidence" | "quiz" | "labs";
+}) {
   const [project, setProject] = useState<ProjectRecord | null>(null);
-  const links = [
-    { key: "chat", label: "Chats", href: `/app/projects/${projectId}/chat` },
-    { key: "library", label: "Sources", href: `/app/projects/${projectId}/library` },
-    { key: "evidence", label: "Review", href: `/app/projects/${projectId}` },
-  ] as const;
 
   useEffect(() => {
-    let current = true;
-    setProject(null);
+    let active = true;
     void apiFetch<ProjectRecord>(`/projects/${projectId}`)
-      .then((record) => {
-        if (current) setProject(record);
-      })
+      .then((record) => { if (active) setProject(record); })
       .catch(() => undefined);
-    return () => { current = false; };
+    return () => { active = false; };
   }, [projectId]);
 
   return (
     <header className="project-workspace-header">
       <div className="project-workspace-header__title">
         <span aria-hidden="true">□</span>
-        <h1>{project?.name ?? "Project"}</h1>
+        <strong>{project?.name ?? "Project"}</strong>
       </div>
-      <div className="project-workspace-header__actions">
-        <Link href={`/app/projects/${projectId}/chat?new=1`}>＋ New chat</Link>
-        <Link href={`/app/projects/${projectId}/quiz?new=1`}>＋ Quiz</Link>
-      </div>
-      <nav className="project-workspace-tabs" aria-label="Project navigation">
-        {links.map((link) => (
-          <Link key={link.key} href={link.href} aria-current={current === link.key ? "page" : undefined}>
-            {link.label}
-          </Link>
-        ))}
-        {current === "quiz" && <Link href={`/app/projects/${projectId}/quiz`} aria-current="page">Quiz</Link>}
-        {current === "labs" && <span aria-current="page">Engineering</span>}
+      <nav aria-label="Project navigation">
+        <Link
+          href={`/app/projects/${projectId}/chat`}
+          aria-current={current === "chat" ? "page" : undefined}
+        >
+          Chats
+        </Link>
+        <Link
+          href={`/app/projects/${projectId}/library`}
+          aria-current={current === "library" ? "page" : undefined}
+        >
+          Sources
+        </Link>
+        <Link href={`/app/projects/${projectId}/chat?quiz=1`}>Quiz</Link>
       </nav>
     </header>
   );
