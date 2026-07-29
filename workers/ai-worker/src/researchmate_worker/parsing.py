@@ -14,6 +14,10 @@ from researchmate_worker.ingestion import ParsedBlock, ParserAdapterError
 LOGGER = logging.getLogger(__name__)
 
 
+def _normalized_archive_member(member: str) -> str:
+    return member.replace("\\", "/").lstrip("/").casefold()
+
+
 def _package_version(name: str) -> str:
     try:
         return version(name)
@@ -87,11 +91,20 @@ class DoclingDocumentParser:
         return self.converter
 
     def _read_bounded_xml(self, archive: ZipFile, member: str) -> ElementTree.Element:
-        info = archive.getinfo(member)
+        requested = _normalized_archive_member(member)
+        resolved = next(
+            (
+                candidate
+                for candidate in archive.namelist()
+                if _normalized_archive_member(candidate) == requested
+            ),
+            member,
+        )
+        info = archive.getinfo(resolved)
         max_xml_bytes = min(self.max_file_size * 4, 32 * 1024 * 1024)
         if info.file_size > max_xml_bytes:
             raise ParserAdapterError("PARSER_FILE_TOO_LARGE")
-        return ElementTree.fromstring(archive.read(member))
+        return ElementTree.fromstring(archive.read(resolved))
 
     @staticmethod
     def _structural_anchor(item_ref: str, *, locator_kind: str) -> list[dict[str, Any]]:
@@ -148,15 +161,26 @@ class DoclingDocumentParser:
             members = [
                 member
                 for member in archive.namelist()
-                if search(r"^ppt/slides/slide\d+\.xml$", member)
+                if search(
+                    r"^ppt/slides/slide\d+\.xml$",
+                    _normalized_archive_member(member),
+                )
             ]
-            members.sort(key=lambda member: int(search(r"slide(\d+)\.xml$", member).group(1)))  # type: ignore[union-attr]
+            members.sort(
+                key=lambda member: int(
+                    search(
+                        r"slide(\d+)\.xml$",
+                        _normalized_archive_member(member),
+                    ).group(1)  # type: ignore[union-attr]
+                )
+            )
             if len(members) > self.max_num_pages:
                 raise ParserAdapterError("PARSER_PAGE_LIMIT_EXCEEDED")
             roots = [(member, self._read_bounded_xml(archive, member)) for member in members]
         blocks: list[ParsedBlock] = []
         for member, root in roots:
-            match = search(r"slide(\d+)\.xml$", member)
+            normalized_member = _normalized_archive_member(member)
+            match = search(r"slide(\d+)\.xml$", normalized_member)
             slide_no = int(match.group(1)) if match else None
             slide_texts = []
             for paragraph in root.findall(".//a:p", ns):
@@ -165,7 +189,7 @@ class DoclingDocumentParser:
                     slide_texts.append(text)
             section_title = slide_texts[0] if slide_texts else None
             for ordinal, text in enumerate(slide_texts):
-                item_ref = f"{member}#paragraph-{ordinal}"
+                item_ref = f"{normalized_member}#paragraph-{ordinal}"
                 blocks.append(
                     ParsedBlock(
                         text=text,

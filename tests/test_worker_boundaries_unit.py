@@ -212,6 +212,23 @@ def test_office_documents_use_bounded_ooxml_parsing_without_docling(tmp_path) ->
     assert parser.converter is None
 
 
+def test_docx_parser_accepts_noncanonical_archive_member_paths(tmp_path) -> None:
+    docx = tmp_path / "legacy.docx"
+    with ZipFile(docx, "w") as archive:
+        archive.writestr(
+            r"\WORD\DOCUMENT.XML",
+            """<?xml version="1.0" encoding="UTF-8"?>
+            <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+              <w:body><w:p><w:r><w:t>Portable Office package</w:t></w:r></w:p></w:body>
+            </w:document>""",
+        )
+    parser = DoclingDocumentParser(max_file_size=4096, max_num_pages=5)
+
+    blocks = parser.parse(docx, file_type="docx")
+
+    assert [block.text for block in blocks] == ["Portable Office package"]
+
+
 def test_pptx_ooxml_parser_preserves_slide_numbers(tmp_path) -> None:
     pptx = tmp_path / "source.pptx"
     with ZipFile(pptx, "w") as archive:
