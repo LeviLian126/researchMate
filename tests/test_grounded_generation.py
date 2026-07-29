@@ -90,6 +90,27 @@ def test_model_can_only_select_server_supplied_evidence() -> None:
     assert "untrusted data" in provider.messages[0]["content"]
 
 
+def test_grounded_answer_normalizes_database_source_type_strings() -> None:
+    provider = FakeProvider(
+        {
+            "answer": "The stored document supports this answer.",
+            "claims": [{"text": "The document supports it.", "evidence_ids": [1]}],
+        }
+    )
+    chunk = evidence_chunk("Stored document evidence.")
+    chunk.source_type = "local_doc"  # type: ignore[assignment]
+
+    _answer, citations, summary, _result = build_llm_grounded_answer(
+        provider,
+        "Question",
+        [chunk],
+    )
+
+    assert citations[0].source_type == SourceType.LOCAL_DOC
+    assert citations[0].chunk_id == chunk.id
+    assert summary.local_chunks == 1
+
+
 def test_out_of_range_evidence_reference_is_rejected() -> None:
     provider = FakeProvider(
         {"answer": "Unsupported", "claims": [{"text": "Invented", "evidence_ids": [2]}]}

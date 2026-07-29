@@ -24,6 +24,10 @@ class ProviderOutputError(ValueError):
     pass
 
 
+def _source_type(value: SourceType | str) -> SourceType:
+    return value if isinstance(value, SourceType) else SourceType(value)
+
+
 def _extract_json_object(content: str) -> str:
     start, end = content.find("{"), content.rfind("}")
     if start < 0 or end <= start:
@@ -89,7 +93,7 @@ def build_llm_grounded_answer(
     evidence = [
         {
             "evidence_id": index,
-            "source_type": str(chunk.source_type.value),
+            "source_type": _source_type(chunk.source_type).value,
             "location": {"page": chunk.page_no, "slide": chunk.slide_no, "url": chunk.url},
             "text": chunk.text[:1600],
         }
@@ -143,12 +147,13 @@ def build_llm_grounded_answer(
     citations: list[Citation] = []
     for evidence_id in sorted(used_ids):
         chunk = chunks[evidence_id - 1]
+        source_type = _source_type(chunk.source_type)
         citations.append(
             Citation(
                 id=uuid4(),
-                source_type=chunk.source_type,
+                source_type=source_type,
                 document_id=chunk.document_id,
-                chunk_id=chunk.id if chunk.source_type == SourceType.LOCAL_DOC else None,
+                chunk_id=chunk.id if source_type == SourceType.LOCAL_DOC else None,
                 page_no=chunk.page_no,
                 slide_no=chunk.slide_no,
                 url=chunk.url,
