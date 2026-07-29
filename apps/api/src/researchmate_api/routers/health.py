@@ -9,7 +9,9 @@ router = APIRouter()
 
 # 返回服务健康状态。
 @router.get("/healthz")
-def healthz() -> dict[str, str]:
+async def healthz() -> dict[str, str]:
+    """Answer liveness probes without waiting for the shared sync thread pool."""
+
     return {"status": "ok"}
 
 

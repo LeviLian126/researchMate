@@ -1,3 +1,4 @@
+import inspect
 import json
 from contextlib import contextmanager
 from types import SimpleNamespace
@@ -8,7 +9,7 @@ from fastapi.testclient import TestClient
 from pydantic import ValidationError
 from researchmate_api.config import Settings
 from researchmate_api.main import create_app
-from researchmate_api.routers.health import readyz
+from researchmate_api.routers.health import healthz, readyz
 from researchmate_api.services.store import store
 
 
@@ -46,6 +47,10 @@ def test_configured_cors_and_request_id_are_applied() -> None:
     assert response.headers["referrer-policy"] == "no-referrer"
     assert response.headers["x-content-type-options"] == "nosniff"
     assert response.headers["x-frame-options"] == "DENY"
+
+
+def test_liveness_probe_does_not_depend_on_the_sync_thread_pool() -> None:
+    assert inspect.iscoroutinefunction(healthz)
 
 
 def test_local_readiness_is_explicit_and_non_charging() -> None:
