@@ -15,6 +15,13 @@ def test_qdrant_rerank_projection_indexes_every_filter_field() -> None:
     assert source.index("create_payload_index(") < source.index(
         "Qdrant rerank backfill {BACKFILL_VERSION} already verified"
     )
+    completed_log = source.index(
+        "Qdrant rerank backfill {BACKFILL_VERSION} already verified"
+    )
+    close_after_completed = source.index("client.close()", completed_log)
+    assert close_after_completed < source.index("return", completed_log)
+    assert source.rstrip().endswith('if __name__ == "__main__":\n    main()')
+    assert source.rfind("client.close()") < source.rfind('if __name__ == "__main__":')
 
 
 def test_evaluation_budget_and_fault_audit_migration_is_fail_closed() -> None:

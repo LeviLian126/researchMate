@@ -78,6 +78,7 @@ def main() -> None:
                 f"Qdrant rerank backfill {BACKFILL_VERSION} already verified "
                 f"for {completed[0]} chunks."
             )
+            client.close()
             return
         rows = connection.execute(
             """
@@ -147,6 +148,7 @@ def main() -> None:
         )
         connection.commit()
     print(f"Backfilled {len(rows)} free late-interaction vectors into {collection}.")
+    client.close()
 
 
 if __name__ == "__main__":
