@@ -701,7 +701,7 @@
        <div class="grid">
         <div class="fact"><b>Purpose</b><p>Generic asynchronous work status, progress, payload, and error ledger.</p></div>
         <div class="fact"><b>Integrity and indexes</b><p>Owner/project/document cascade; progress 0–100; attempts non-negative. Indexes: <code>idx_jobs_user_status</code> and <code>idx_jobs_dispatch_lease</code>.</p></div>
-        <div class="fact"><b>Access and lifecycle</b><p>RLS: owner ALL. The additive <code>202607150003_job_delivery_lease.sql</code> supports expiring Celery claims, restart recovery, and terminal timing; transitions are worker-managed.</p></div>
+        <div class="fact"><b>Access and lifecycle</b><p>RLS: owner ALL. The additive <code>202607150003_job_delivery_lease.sql</code> supports expiring Celery claims, restart recovery, and terminal timing. Document and project deletion wait only for a parse job with a live lease; an expired or missing lease is cleared and marked failed before cleanup proceeds.</p></div>
        </div>
        <div class="scroll"><table class="dense"><thead><tr><th>Field</th><th>Exact declaration</th><th>Null</th><th>Key / constraint</th><th>Role</th></tr></thead><tbody>
 <tr id="field-jobs-id"><td><code>id</code></td><td><code>uuid primary key default gen_random_uuid()</code></td><td>required</td><td>PK &middot; default gen_random_uuid()</td><td>Row identity.</td></tr>
@@ -725,7 +725,7 @@
        <div class="grid">
         <div class="fact"><b>Purpose</b><p>Cross-store deletion and reconciliation intent.</p></div>
         <div class="fact"><b>Integrity and indexes</b><p>Owner/project/document cascade. Index: <code>idx_deletion_jobs_status</code>.</p></div>
-        <div class="fact"><b>Access and lifecycle</b><p>RLS: owner ALL. Completion/retry require a worker; no automatic reconciliation.</p></div>
+        <div class="fact"><b>Access and lifecycle</b><p>RLS: owner ALL. Completion/retry require a worker. The worker reconciles owned object and vector projections before deleting the database root; production project deletion passed after reclaiming an expired ingestion lease.</p></div>
        </div>
        <div class="scroll"><table class="dense"><thead><tr><th>Field</th><th>Exact declaration</th><th>Null</th><th>Key / constraint</th><th>Role</th></tr></thead><tbody>
 <tr id="field-deletion_jobs-id"><td><code>id</code></td><td><code>uuid primary key default gen_random_uuid()</code></td><td>required</td><td>PK &middot; default gen_random_uuid()</td><td>Row identity.</td></tr>
@@ -758,7 +758,7 @@
       <section id="planned-schema">
        <p class="eyebrow">Additive migration and repository contracts</p>
       <h2>Additive workflow and evaluation tables</h2>
-      <p class="sub">Fifteen additive contracts come from <code>202607150002_evidence_review_schema.sql</code>; <code>202607150005_evaluation_budget_and_fault_exercises.sql</code> adds <code>fault_exercises</code>, bringing the domain total to 31 tables (15 initial + 16 additive). Migration 006 adds one backend-only operational <code>runtime_heartbeats</code> table and workflow lease/budget fields; it is not counted as a domain table. Migrations 007–009 evolve unified chat, runtime reranking, personal attachments, project memory, and quiz types without adding a domain table. Applying migration 009 and validating authenticated application/RLS transactions are release gates.</p>
+      <p class="sub">Fifteen additive contracts come from <code>202607150002_evidence_review_schema.sql</code>; <code>202607150005_evaluation_budget_and_fault_exercises.sql</code> adds <code>fault_exercises</code>, bringing the domain total to 31 tables (15 initial + 16 additive). Migration 006 adds one backend-only operational <code>runtime_heartbeats</code> table and workflow lease/budget fields; it is not counted as a domain table. Migrations 007–009 evolve unified chat, runtime reranking, personal attachments, project memory, and quiz types without adding a domain table. Migration 009 is applied; authenticated direct-RLS transactions and provider-switch concurrency remain release evidence gates.</p>
       <div class="notice"><strong>Storage ownership:</strong> PostgreSQL is the source of truth for business state. S3-compatible object storage stores private source bytes and parser artifacts; Qdrant stores rebuildable dense/sparse projections; Redis stores broker and short-lived coordination state only. No irreplaceable business fact may exist only in object storage, Qdrant, or Redis.</div>
       <div class="notice warning"><strong>Checkpoint boundary:</strong> LangGraph Postgres checkpoint tables are SDK-managed infrastructure, not domain tables. A guarded release command runs the SDK-owned schema once before deployment; workers do not execute DDL. The four checkpoint tables now exist in the isolated <code>researchmate-dev</code> Supabase database at schema version 9, but interrupt/resume and restart behavior have not yet been exercised against them. These four tables are not included in the 31-domain-table count.</div>
 
