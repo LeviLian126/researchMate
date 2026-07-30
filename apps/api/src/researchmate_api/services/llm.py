@@ -68,68 +68,49 @@ class NvidiaChatProvider:
     ) -> Any:
         safe_messages = list(messages)
         output_limit = max_tokens or self.settings.llm_max_tokens
-        models = [self.settings.nvidia_model]
-        if (
-            self.settings.nvidia_fallback_model
-            and self.settings.nvidia_fallback_model != self.settings.nvidia_model
-        ):
-            models.append(self.settings.nvidia_fallback_model)
-        last_error: Exception | None = None
-        retryable = False
-        for index, model in enumerate(models):
-            try:
-                with provider_observation(
-                    self.settings,
-                    name="nvidia.chat.completion",
-                    observation_type="generation",
-                    model=model,
-                    metadata={
-                        "message_count": len(safe_messages),
-                        "input_chars": sum(
-                            len(item.get("content", "")) for item in safe_messages
-                        ),
-                        "stream": stream,
-                        "max_tokens": output_limit,
-                        "fallback_attempt": index > 0,
-                    },
-                ) as observation:
-                    response = self.client.chat.completions.create(
-                        model=model,
-                        messages=safe_messages,
-                        temperature=self.settings.llm_temperature,
-                        top_p=self.settings.llm_top_p,
-                        max_tokens=output_limit,
-                        seed=self.settings.llm_seed,
-                        stream=stream,
+        try:
+            with provider_observation(
+                self.settings,
+                name="nvidia.chat.completion",
+                observation_type="generation",
+                model=self.settings.nvidia_model,
+                metadata={
+                    "message_count": len(safe_messages),
+                    "input_chars": sum(len(item.get("content", "")) for item in safe_messages),
+                    "stream": stream,
+                    "max_tokens": output_limit,
+                },
+            ) as observation:
+                response = self.client.chat.completions.create(
+                    model=self.settings.nvidia_model,
+                    messages=safe_messages,
+                    temperature=self.settings.llm_temperature,
+                    top_p=self.settings.llm_top_p,
+                    max_tokens=output_limit,
+                    seed=self.settings.llm_seed,
+                    stream=stream,
+                )
+                if not stream:
+                    usage = getattr(response, "usage", None)
+                    observation.update(
+                        usage_details={
+                            "input": int(getattr(usage, "prompt_tokens", 0) or 0),
+                            "output": int(getattr(usage, "completion_tokens", 0) or 0),
+                        }
                     )
-                    if not stream:
-                        usage = getattr(response, "usage", None)
-                        observation.update(
-                            usage_details={
-                                "input": int(getattr(usage, "prompt_tokens", 0) or 0),
-                                "output": int(
-                                    getattr(usage, "completion_tokens", 0) or 0
-                                ),
-                            }
-                        )
-                    return response
-            except Exception as exc:
-                last_error = exc
-                status_code = getattr(exc, "status_code", None)
-                retryable = retryable or isinstance(
-                    exc, (TimeoutError, ConnectionError)
-                ) or status_code in {
-                    408,
-                    409,
-                    429,
-                    500,
-                    502,
-                    503,
-                    504,
-                }
-                if status_code in {401, 403}:
-                    break
-        raise ProviderRequestError(retryable=retryable) from last_error
+                return response
+        except Exception as exc:
+            status_code = getattr(exc, "status_code", None)
+            retryable = isinstance(exc, (TimeoutError, ConnectionError)) or status_code in {
+                408,
+                409,
+                429,
+                500,
+                502,
+                503,
+                504,
+            }
+            raise ProviderRequestError(retryable=retryable) from exc
 
     def complete(self, messages: Iterable[dict[str, str]]) -> LLMResult:
         completion = self._request(messages, stream=False)

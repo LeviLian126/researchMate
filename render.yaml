@@ -56,12 +56,6 @@ envVarGroups:
         value: https://integrate.api.nvidia.com/v1
       - key: NVIDIA_MODEL
         value: openai/gpt-oss-20b
-      - key: NVIDIA_FALLBACK_MODEL
-        value: meta/llama-3.1-8b-instruct
-      - key: LLM_TIMEOUT_SECONDS
-        value: "45"
-      - key: ASK_MAX_OUTPUT_TOKENS
-        value: "1024"
       - key: NVIDIA_EMBEDDING_MODEL
         value: nvidia/nv-embed-v1
       - key: EMBEDDING_DIMENSION
