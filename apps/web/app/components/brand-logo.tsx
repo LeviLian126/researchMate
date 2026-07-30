@@ -1,12 +1,12 @@
 import Image from "next/image";
-import logoGrid from "../../../../logo.png";
+import logoMark from "../../public/researchmate-logo-mark.png";
 
-/** Displays the selected navy and blue option from the approved ResearchMate logo sheet. */
+/** Displays the native-resolution navy and blue mark cropped from approved option 05. */
 export function BrandLogo({ withName = false }: { withName?: boolean }) {
   return (
     <span className={`brand-logo ${withName ? "brand-logo--named" : ""}`}>
       <span className="brand-logo__crop" aria-hidden="true">
-        <Image src={logoGrid} alt="" priority sizes="40px" />
+        <Image src={logoMark} alt="" priority unoptimized />
       </span>
       {withName && <strong>ResearchMate</strong>}
     </span>

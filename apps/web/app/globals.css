@@ -537,22 +537,17 @@ details > summary { color: var(--ink); font-weight: 700; cursor: pointer; }
 
 .brand-logo { display: inline-flex; align-items: center; gap: 9px; color: var(--rm-ink); }
 .brand-logo__crop {
-  position: relative;
-  display: block;
+  display: grid;
+  place-items: center;
   flex: 0 0 auto;
   width: 38px;
   height: 38px;
-  overflow: hidden;
-  border-radius: 10px;
-  background: #0c1d3a;
 }
 .brand-logo__crop img {
-  position: absolute;
-  top: -250%;
-  left: -250%;
-  width: 600%;
-  max-width: none;
-  height: 600%;
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
 }
 .brand-logo strong { font-size: .92rem; font-weight: 720; letter-spacing: -.015em; }
 .auth-brand > .brand-logo {
