@@ -61,11 +61,56 @@ class DoclingDocumentParser:
         max_num_pages: int,
         artifacts_path: Path | None = None,
         converter: Any | None = None,
+        pdf_backend: str = "pypdf",
     ) -> None:
         self.max_file_size = max_file_size
         self.max_num_pages = max_num_pages
         self.artifacts_path = artifacts_path
         self.converter = converter
+        self.pdf_backend = "docling" if converter is not None else pdf_backend
+
+    def _parse_pdf_lightweight(self, source: Path) -> list[ParsedBlock]:
+        """Extract searchable PDF text without loading Docling's vision models."""
+        try:
+            from pypdf import PdfReader
+        except ImportError as exc:
+            raise ParserAdapterError("PARSER_NOT_INSTALLED") from exc
+        try:
+            reader = PdfReader(source, strict=False)
+            if len(reader.pages) > self.max_num_pages:
+                raise ParserAdapterError("PARSER_PAGE_LIMIT_EXCEEDED")
+            blocks: list[ParsedBlock] = []
+            for page_index, page in enumerate(reader.pages, start=1):
+                text = (page.extract_text() or "").strip()
+                if not text:
+                    continue
+                item_ref = f"pdf#page-{page_index}"
+                blocks.append(
+                    ParsedBlock(
+                        text=text,
+                        page_no=page_index,
+                        metadata={
+                            "parser_name": "pypdf",
+                            "parser_version": _package_version("pypdf"),
+                            "source_item_ref": item_ref,
+                            "source_ordinal": page_index - 1,
+                            "source_label": "page_text",
+                            "source_level": None,
+                            "source_anchors": self._structural_anchor(
+                                item_ref,
+                                locator_kind="page",
+                                page_no=page_index,
+                            ),
+                        },
+                    )
+                )
+        except ParserAdapterError:
+            raise
+        except Exception as exc:
+            raise ParserAdapterError("PARSER_EXECUTION_FAILED") from exc
+        if not blocks:
+            raise ParserAdapterError("PARSER_TEXT_LAYER_NOT_FOUND")
+        return blocks
 
     def _pdf_converter(self) -> Any:
         if self.converter is None:
@@ -107,12 +152,17 @@ class DoclingDocumentParser:
         return ElementTree.fromstring(archive.read(resolved))
 
     @staticmethod
-    def _structural_anchor(item_ref: str, *, locator_kind: str) -> list[dict[str, Any]]:
+    def _structural_anchor(
+        item_ref: str,
+        *,
+        locator_kind: str,
+        page_no: int | None = None,
+    ) -> list[dict[str, Any]]:
         return [
             {
                 "item_ref": item_ref,
                 "locator_kind": locator_kind,
-                "page_no": None,
+                "page_no": page_no,
                 "bbox": None,
                 "charspan": None,
             }
@@ -226,6 +276,8 @@ class DoclingDocumentParser:
                 if not blocks:
                     raise ParserAdapterError("PARSER_INCOMPLETE_RESULT")
                 return blocks
+            if self.pdf_backend == "pypdf":
+                return self._parse_pdf_lightweight(source)
         except ParserAdapterError:
             raise
         except (BadZipFile, ElementTree.ParseError, KeyError, OSError) as exc:

@@ -88,6 +88,8 @@ envVarGroups:
         sync: false
       - key: DOCLING_ARTIFACTS_PATH
         value: /opt/docling/models
+      - key: PDF_PARSER_BACKEND
+        value: pypdf
       - key: LANGGRAPH_STRICT_MSGPACK
         value: "true"
       - key: RAGAS_DO_NOT_TRACK

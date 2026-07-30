@@ -27,7 +27,7 @@ class WorkerSettings(BaseSettings):
     runtime_heartbeat_seconds: int = Field(default=30, ge=10, le=120)
     ingestion_lease_seconds: int = Field(default=1200, ge=60, le=3600)
     ingestion_max_attempts: int = Field(default=5, ge=1, le=10)
-    parser_pipeline_version: str = "resource-aware-v2"
+    parser_pipeline_version: str = "resource-aware-v3"
     workflow_pipeline_version: str = "evidence-v1"
     workflow_lease_seconds: int = Field(default=900, ge=120, le=1800)
     workflow_call_budget_reservation_usd: Decimal = Field(
@@ -36,6 +36,7 @@ class WorkerSettings(BaseSettings):
     workflow_max_prompt_tokens: int = Field(default=32768, ge=1024, le=131072)
     langgraph_strict_msgpack: bool = True
     parser_max_pages: int = Field(default=300, ge=1, le=1000)
+    pdf_parser_backend: Literal["pypdf", "docling"] = "pypdf"
     docling_artifacts_path: Path | None = None
     max_upload_bytes: int = Field(default=26_214_400, ge=1, le=104_857_600)
     r2_account_id: str | None = None
@@ -156,7 +157,7 @@ class WorkerSettings(BaseSettings):
                 raise ValueError("preview and production workers require Qdrant")
             if self.web_search_provider != "tavily" or self.tavily_api_key is None:
                 raise ValueError("preview and production workers require Tavily web search")
-            if self.docling_artifacts_path is None:
+            if self.pdf_parser_backend == "docling" and self.docling_artifacts_path is None:
                 raise ValueError("preview and production workers require offline Docling artifacts")
             if not self.langgraph_strict_msgpack:
                 raise ValueError("preview and production workers require strict LangGraph serialization")

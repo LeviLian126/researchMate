@@ -89,9 +89,12 @@ def build_ingestion_service() -> DocumentIngestionService:
             max_file_size=settings.max_upload_bytes,
             max_num_pages=settings.parser_max_pages,
             artifacts_path=settings.docling_artifacts_path,
+            pdf_backend=settings.pdf_parser_backend,
         ),
         vector_projection=vector_projection,
-        pipeline_version=settings.parser_pipeline_version,
+        pipeline_version=(
+            f"{settings.parser_pipeline_version}-{settings.pdf_parser_backend}"
+        ),
         lease_seconds=settings.ingestion_lease_seconds,
         max_attempts=settings.ingestion_max_attempts,
         max_upload_bytes=settings.max_upload_bytes,

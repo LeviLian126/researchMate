@@ -4,6 +4,7 @@ from __future__ import annotations
 import sys
 from contextlib import contextmanager
 from inspect import getsource
+from pathlib import Path
 from types import SimpleNamespace
 from uuid import UUID
 from zipfile import ZipFile
@@ -184,6 +185,89 @@ def test_parser_rejects_unsupported_incomplete_and_failed_conversion(tmp_path) -
     parser.converter = SimpleNamespace(convert=fail_conversion)
     with pytest.raises(ParserAdapterError, match="PARSER_EXECUTION_FAILED"):
         parser.parse(source, file_type="pdf")
+
+
+def test_pdf_parser_uses_lightweight_page_text_without_visual_models(
+    tmp_path, monkeypatch
+) -> None:
+    """Keep free-tier ingestion below the memory needed by Docling's PDF models."""
+    source = tmp_path / "source.pdf"
+    source.write_bytes(b"%PDF synthetic")
+    fake_reader = SimpleNamespace(
+        pages=[
+            SimpleNamespace(extract_text=lambda: "Aurora code is RM-20260730."),
+            SimpleNamespace(extract_text=lambda: "   "),
+        ]
+    )
+    monkeypatch.setitem(
+        sys.modules,
+        "pypdf",
+        SimpleNamespace(PdfReader=lambda *_args, **_kwargs: fake_reader),
+    )
+    parser = DoclingDocumentParser(
+        max_file_size=4096,
+        max_num_pages=5,
+        pdf_backend="pypdf",
+    )
+
+    blocks = parser.parse(source, file_type="pdf")
+
+    assert [(block.page_no, block.text) for block in blocks] == [
+        (1, "Aurora code is RM-20260730.")
+    ]
+    assert blocks[0].metadata["parser_name"] == "pypdf"
+    assert blocks[0].metadata["source_anchors"][0]["locator_kind"] == "page"
+    assert blocks[0].metadata["source_anchors"][0]["page_no"] == 1
+    assert parser.converter is None
+
+
+def test_pdf_parser_reports_missing_text_layer_without_docling_fallback(
+    tmp_path, monkeypatch
+) -> None:
+    """Scanning/OCR requires a separate high-memory worker, never an implicit fallback."""
+    source = tmp_path / "scan.pdf"
+    source.write_bytes(b"%PDF synthetic")
+    monkeypatch.setitem(
+        sys.modules,
+        "pypdf",
+        SimpleNamespace(
+            PdfReader=lambda *_args, **_kwargs: SimpleNamespace(
+                pages=[SimpleNamespace(extract_text=lambda: None)]
+            )
+        ),
+    )
+    parser = DoclingDocumentParser(
+        max_file_size=4096,
+        max_num_pages=5,
+        pdf_backend="pypdf",
+    )
+
+    with pytest.raises(ParserAdapterError, match="PARSER_TEXT_LAYER_NOT_FOUND"):
+        parser.parse(source, file_type="pdf")
+
+
+def test_real_pdf_fixture_is_compatible_with_lightweight_parser() -> None:
+    """Exercise the installed pypdf adapter against a valid text-layer PDF."""
+    source = Path(__file__).parent / "fixtures" / "acceptance-text.pdf"
+    parser = DoclingDocumentParser(
+        max_file_size=4096,
+        max_num_pages=5,
+        pdf_backend="pypdf",
+    )
+
+    blocks = parser.parse(source, file_type="pdf")
+
+    assert blocks[0].page_no == 1
+    assert "RM-20260730" in blocks[0].text
+    assert blocks[0].metadata["parser_name"] == "pypdf"
+
+
+def test_ingestion_service_versions_and_passes_pdf_backend() -> None:
+    source = getsource(tasks.build_ingestion_service)
+
+    assert "pdf_backend=settings.pdf_parser_backend" in source
+    assert "settings.parser_pipeline_version" in source
+    assert "settings.pdf_parser_backend" in source
 
 
 def test_office_documents_use_bounded_ooxml_parsing_without_docling(tmp_path) -> None:
