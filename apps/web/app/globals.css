@@ -569,7 +569,14 @@ details > summary { color: var(--ink); font-weight: 700; cursor: pointer; }
 .app-sidebar--collapsed { width: 68px; }
 .app-sidebar--collapsed + .authenticated-content { margin-left: 68px; }
 .app-sidebar__top { min-height: 58px; padding: 9px 10px; }
-.app-sidebar__brand > .brand-logo { min-width: 0; }
+.app-sidebar__brand > .brand-logo {
+  display: inline-flex;
+  width: auto;
+  height: auto;
+  min-width: 0;
+  color: var(--rm-ink);
+  font-family: var(--sans);
+}
 .app-sidebar__brand > span { width: auto; height: auto; border-radius: 0; background: transparent; }
 .app-sidebar__collapse {
   color: var(--rm-muted);
