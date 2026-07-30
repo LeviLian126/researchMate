@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import signal
+import socket
 import subprocess
 import sys
 import time
@@ -72,10 +73,30 @@ def stop_children(children: Sequence[subprocess.Popen[bytes]], signum: int) -> N
             child.send_signal(signum)
 
 
+def wait_for_api(
+    api_process: subprocess.Popen[bytes],
+    port: int,
+    *,
+    timeout_seconds: float = 240,
+) -> bool:
+    """Let the lightweight API bind its port before CPU-heavy workers import."""
+    deadline = time.monotonic() + timeout_seconds
+    while time.monotonic() < deadline:
+        if api_process.poll() is not None:
+            return False
+        try:
+            with socket.create_connection(("127.0.0.1", port), timeout=0.5):
+                return True
+        except OSError:
+            time.sleep(0.25)
+    return False
+
+
 def run(port: int) -> int:
     apply_schema_migrations()
     backfill_qdrant_rerank()
-    children = [subprocess.Popen(command) for command in child_commands(port)]
+    commands = child_commands(port)
+    children: list[subprocess.Popen[bytes]] = []
 
     def forward(signum: int, _frame: object) -> None:
         stop_children(children, signum)
@@ -83,6 +104,11 @@ def run(port: int) -> int:
     signal.signal(signal.SIGTERM, forward)
     signal.signal(signal.SIGINT, forward)
     try:
+        api_process = subprocess.Popen(commands[0])
+        children.append(api_process)
+        if not wait_for_api(api_process, port):
+            return api_process.poll() or 1
+        children.extend(subprocess.Popen(command) for command in commands[1:])
         while True:
             for child in children:
                 code = child.poll()
