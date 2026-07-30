@@ -207,6 +207,8 @@ def test_async_repository_contract_uses_real_job_types_and_unique_deliveries() -
 
     assert "type = 'parse_and_index_document'" in project_delete
     assert "type = 'ingest_document'" not in project_delete
+    assert "lease_expires_at <= now()" in project_delete
+    assert "lease_owner = null" in project_delete
     assert "_enqueue_project_deletion" in project_delete
     assert "_enqueue_document_event" in complete
     assert "_enqueue_document_event" in document_delete

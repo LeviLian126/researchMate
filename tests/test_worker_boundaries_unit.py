@@ -18,7 +18,7 @@ from researchmate_api.services.qdrant_store import QdrantHybridStore
 from researchmate_api.services.web_search import TavilyWebSearchProvider
 from researchmate_worker import dispatch_outbox, tasks
 from researchmate_worker.config import psycopg_database_url
-from researchmate_worker.deletion import SqlDeletionStore
+from researchmate_worker.deletion import SqlDeletionStore, SqlProjectDeletionStore
 from researchmate_worker.evaluation import EvaluationRuntimeError
 from researchmate_worker.ingestion import (
     IngestionFailure,
@@ -541,7 +541,20 @@ def test_ingestion_and_deletion_serialize_document_removal() -> None:
     assert "for update of j, d, p" in ready
     assert "deleted_at is null and status <> 'deleted'" in failed
     assert "running_ingestion.type = 'parse_and_index_document'" in delete_claim
+    assert "running_ingestion.lease_expires_at > now()" in delete_claim
+    assert "lease_expires_at <= now()" in delete_claim
     assert "document_ingestion_running" in delete_claim
+
+
+def test_project_deletion_reclaims_expired_ingestion_leases() -> None:
+    """A worker crash must not leave project removal blocked forever."""
+    claim = getsource(SqlProjectDeletionStore.claim).lower()
+
+    assert "status = 'failed'" in claim
+    assert "lease_owner = null" in claim
+    assert "lease_expires_at <= now()" in claim
+    assert claim.count("running_ingestion.lease_expires_at > now()") >= 2
+    assert "project_ingestion_running" in claim
 
 
 def test_ingestion_and_deletion_tasks_forward_validated_events(monkeypatch) -> None:

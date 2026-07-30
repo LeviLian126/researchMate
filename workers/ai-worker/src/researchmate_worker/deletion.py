@@ -98,6 +98,20 @@ class SqlDeletionStore:
         lease_seconds: int,
     ) -> DeletionRecord | None:
         with self.engine.begin() as connection:
+            connection.execute(
+                text(
+                    """
+                    update jobs
+                    set status = 'failed', error_message = 'DOCUMENT_DELETING',
+                      completed_at = now(), updated_at = now(),
+                      lease_owner = null, lease_expires_at = null
+                    where document_id = :document_id and user_id = :user_id
+                      and type = 'parse_and_index_document' and status = 'running'
+                      and (lease_expires_at is null or lease_expires_at <= now())
+                    """
+                ),
+                {"document_id": event.document_id, "user_id": event.user_id},
+            )
             row = connection.execute(
                 text(
                     """
@@ -119,6 +133,7 @@ class SqlDeletionStore:
                           and running_ingestion.user_id = j.user_id
                           and running_ingestion.type = 'parse_and_index_document'
                           and running_ingestion.status = 'running'
+                          and running_ingestion.lease_expires_at > now()
                       )
                       and (
                         j.status = 'pending'
@@ -155,6 +170,7 @@ class SqlDeletionStore:
                               and running_ingestion.user_id = deletion_job.user_id
                               and running_ingestion.type = 'parse_and_index_document'
                               and running_ingestion.status = 'running'
+                              and running_ingestion.lease_expires_at > now()
                           )
                         """
                     ),
@@ -319,9 +335,17 @@ class SqlProjectDeletionStore:
                     """
                     update jobs
                     set status = 'failed', error_message = 'PROJECT_DELETING',
-                      completed_at = now(), updated_at = now()
+                      completed_at = now(), updated_at = now(),
+                      lease_owner = null, lease_expires_at = null
                     where project_id = :project_id and user_id = :user_id
-                      and type = 'parse_and_index_document' and status = 'pending'
+                      and type = 'parse_and_index_document'
+                      and (
+                        status = 'pending'
+                        or (
+                          status = 'running'
+                          and (lease_expires_at is null or lease_expires_at <= now())
+                        )
+                      )
                     """
                 ),
                 {"project_id": event.project_id, "user_id": event.user_id},
@@ -346,6 +370,7 @@ class SqlProjectDeletionStore:
                           and running_ingestion.user_id = j.user_id
                           and running_ingestion.type = 'parse_and_index_document'
                           and running_ingestion.status = 'running'
+                          and running_ingestion.lease_expires_at > now()
                       )
                       and (
                         j.status = 'pending'
@@ -391,6 +416,7 @@ class SqlProjectDeletionStore:
                               and running_ingestion.user_id = deletion_job.user_id
                               and running_ingestion.type = 'parse_and_index_document'
                               and running_ingestion.status = 'running'
+                              and running_ingestion.lease_expires_at > now()
                           )
                         """
                     ),

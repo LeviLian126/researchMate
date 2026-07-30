@@ -267,9 +267,17 @@ class PostgresResearchMateRepository:
                     """
                     update jobs
                     set status = 'failed', error_message = 'PROJECT_DELETING',
-                      completed_at = now(), updated_at = now()
+                      completed_at = now(), updated_at = now(),
+                      lease_owner = null, lease_expires_at = null
                     where project_id = :project_id and user_id = :user_id
-                      and type = 'parse_and_index_document' and status = 'pending'
+                      and type = 'parse_and_index_document'
+                      and (
+                        status = 'pending'
+                        or (
+                          status = 'running'
+                          and (lease_expires_at is null or lease_expires_at <= now())
+                        )
+                      )
                     """
                 ),
                 {"project_id": project_id, "user_id": user.id},
