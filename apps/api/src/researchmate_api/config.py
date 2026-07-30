@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     nvidia_api_key: SecretStr | None = None
     nvidia_base_url: str = "https://integrate.api.nvidia.com/v1"
     nvidia_model: str = "z-ai/glm-5.2"
+    nvidia_fallback_model: str | None = None
     llm_temperature: float = Field(default=1.0, ge=0, le=2)
     llm_top_p: float = Field(default=1.0, gt=0, le=1)
     llm_max_tokens: int = Field(default=16_384, ge=1, le=32_768)
