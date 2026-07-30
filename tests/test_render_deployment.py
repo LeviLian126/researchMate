@@ -1,6 +1,7 @@
 # Verifies that the Render blueprint and image stay within the combined free-tier boundary.
 from pathlib import Path
 
+from researchmate_worker import render_combined
 from researchmate_worker.render_combined import child_commands
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -55,6 +56,30 @@ def test_render_runtime_starts_api_worker_and_dispatcher() -> None:
     assert "celery" in commands[1]
     assert "--pool=solo" in commands[1]
     assert commands[2][-1] == "researchmate_worker.dispatch_outbox"
+
+
+def test_combined_runtime_waits_for_api_port_before_heavy_workers(monkeypatch) -> None:
+    class FakeProcess:
+        def poll(self):
+            return None
+
+    class Connection:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return None
+
+    calls = []
+
+    def connect(address, *, timeout):
+        calls.append((address, timeout))
+        return Connection()
+
+    monkeypatch.setattr(render_combined.socket, "create_connection", connect)
+
+    assert render_combined.wait_for_api(FakeProcess(), 10000, timeout_seconds=1) is True
+    assert calls == [(("127.0.0.1", 10000), 0.5)]
 
 
 def test_render_image_uses_cpu_only_pytorch() -> None:
