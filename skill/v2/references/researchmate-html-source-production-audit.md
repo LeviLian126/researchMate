@@ -20,6 +20,8 @@ The only material drift found was release identity. The pages still called `96cb
 
 The Vercel/Render same-ref statement comes from a manual platform deployment-status check during this audit. This repository snapshot does not contain immutable platform deployment receipts, and public health endpoints alone do not prove a particular Git SHA.
 
+After the material library was published, documentation/material release `c20aff6` passed GitHub Actions run `30516885025`; GitHub recorded the Vercel deployment as successful, Render deployment `dep-d9le54vlk1mc73c22p60` became Live for the same SHA, and post-deploy web/health/readiness/OpenAPI smokes passed. Later documentation-only commits should describe these as recorded baselines contained in the deployed `main` lineage rather than calling one immutable SHA the permanent current head.
+
 ## Evidence semantics retained
 
 The bounded model comparison, 9.1-second warm ordinary turn, 13.4-second Web turn, and full authenticated browser journey were collected on the earlier performance release. Those references remain historical evidence rather than being relabeled as tests executed on the later CSS-only sidebar brand release.
