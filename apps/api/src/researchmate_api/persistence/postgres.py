@@ -838,6 +838,7 @@ class PostgresResearchMateRepository:
     ) -> tuple[UUID, UUID]:
         run_id, trace_id = uuid4(), uuid4()
         passed = bool(validation_result.get("passed", False))
+        total_latency_ms = int((runtime_metadata or {}).get("total_latency_ms", 0))
         trace = DeveloperTrace(
             trace_id=trace_id,
             user_id=user.id,
@@ -857,7 +858,7 @@ class PostgresResearchMateRepository:
             ],
             tool_calls=tool_calls,
             validation_result=validation_result,
-            latency_ms=0,
+            latency_ms=total_latency_ms,
             token_usage=runtime_metadata,
             errors=[] if passed else ["validation_failed"],
             created_at=datetime.now(UTC),
@@ -877,7 +878,7 @@ class PostgresResearchMateRepository:
                     select :id, :user_id, p.id, :conversation_id, :message, :task_type,
                            :web_enabled, :context_strategy, :rerank_provider,
                            :rerank_config_version, :rerank_degraded, :fallback_reason,
-                           'succeeded', :validation_status, 0, cast(:token_usage as jsonb)
+                           'succeeded', :validation_status, :latency_ms, cast(:token_usage as jsonb)
                     from projects p
                     where p.id = :project_id and p.user_id = :user_id
                       and p.status = 'active' and p.deleted_at is null
@@ -902,6 +903,7 @@ class PostgresResearchMateRepository:
                     ),
                     "fallback_reason": (runtime_metadata or {}).get("fallback_reason"),
                     "validation_status": "passed" if passed else "failed",
+                    "latency_ms": total_latency_ms,
                     "token_usage": _json(
                         {
                             **(runtime_metadata or {}),

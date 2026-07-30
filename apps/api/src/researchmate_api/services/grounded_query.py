@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from time import monotonic
 from uuid import UUID, uuid4
 
 from researchmate_api.config import Settings
@@ -63,6 +64,7 @@ class GroundedQueryService:
         self.web_search = web_search
 
     def execute(self, user: CurrentUser, payload: AskRequest) -> AskResponse:
+        request_started = monotonic()
         project = self.repository.get_project(user, payload.project_id)
         if project is None or project.status != "active":
             self._error("PROJECT_NOT_FOUND", "Project was not found.", 404)
@@ -118,6 +120,7 @@ class GroundedQueryService:
         full_context = bool(chunks) and local_total <= self.settings.full_context_token_limit
         candidates: list[RetrievalCandidate] = []
         if chunks:
+            local_started = monotonic()
             if full_context:
                 candidates = [
                     RetrievalCandidate(chunk=chunk, score=1 / index, lexical_rank=index)
@@ -157,13 +160,14 @@ class GroundedQueryService:
                         "estimated_tokens": local_total,
                     },
                     status="succeeded",
-                    latency_ms=0,
+                    latency_ms=round((monotonic() - local_started) * 1000),
                 )
             )
         else:
             strategy = "web" if payload.web_enabled else "chat"
 
         if payload.web_enabled:
+            web_started = monotonic()
             web_chunks = self._retrieve_web(
                 user, payload.project_id, payload.message, limit=5
             )
@@ -179,7 +183,7 @@ class GroundedQueryService:
                     input_summary={"query_length": len(payload.message)},
                     output_summary={"provider": "tavily", "results": len(web_chunks)},
                     status="succeeded",
-                    latency_ms=0,
+                    latency_ms=round((monotonic() - web_started) * 1000),
                 )
             )
 
@@ -196,6 +200,7 @@ class GroundedQueryService:
         )
         rerank_result = None
         if candidates and not (full_context and not payload.web_enabled):
+            rerank_started = monotonic()
             rerank_result = self.reranker.execute(
                 selected_rerank_provider,
                 payload.message,
@@ -224,7 +229,7 @@ class GroundedQueryService:
                         "fallback_reason": rerank_result.fallback_reason,
                     },
                     status="succeeded",
-                    latency_ms=0,
+                    latency_ms=round((monotonic() - rerank_started) * 1000),
                 )
             )
         elif candidates:
@@ -242,6 +247,7 @@ class GroundedQueryService:
         )
 
         llm_result = None
+        generation_started = monotonic()
         try:
             if retrieved:
                 if self.chat_provider is not None:
@@ -292,7 +298,7 @@ class GroundedQueryService:
                 },
                 output_summary={"answer_chars": len(answer), "citation_count": len(citations)},
                 status="succeeded",
-                latency_ms=0,
+                latency_ms=round((monotonic() - generation_started) * 1000),
             )
         )
         validation_result = {
@@ -323,6 +329,7 @@ class GroundedQueryService:
             "provider_output_tokens": (
                 llm_result.completion_tokens if llm_result is not None else None
             ),
+            "total_latency_ms": round((monotonic() - request_started) * 1000),
         }
         run_id, trace_id = self.repository.record_run(
             user=user,
