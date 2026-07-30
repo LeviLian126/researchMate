@@ -125,7 +125,7 @@ def test_timeout_is_normalized_without_leaking_provider_details() -> None:
 def test_configured_fallback_model_runs_after_primary_provider_failure() -> None:
     response = SimpleNamespace(
         choices=[SimpleNamespace(message=SimpleNamespace(content="Fast answer"))],
-        model="nvidia/nemotron-mini-4b-instruct",
+        model="meta/llama-3.1-8b-instruct",
         usage=SimpleNamespace(prompt_tokens=8, completion_tokens=3),
     )
     client = SequenceClient([TimeoutError("primary timed out"), response])
@@ -134,8 +134,8 @@ def test_configured_fallback_model_runs_after_primary_provider_failure() -> None
             app_env="test",
             llm_provider="nvidia",
             nvidia_api_key=SecretStr("fake-test-key"),
-            nvidia_model="meta/llama-3.1-8b-instruct",
-            nvidia_fallback_model="nvidia/nemotron-mini-4b-instruct",
+            nvidia_model="openai/gpt-oss-20b",
+            nvidia_fallback_model="meta/llama-3.1-8b-instruct",
         ),
         client=client,
     )
@@ -143,8 +143,8 @@ def test_configured_fallback_model_runs_after_primary_provider_failure() -> None
     result = provider.complete([{"role": "user", "content": "Question"}])
 
     assert result.content == "Fast answer"
-    assert result.model == "nvidia/nemotron-mini-4b-instruct"
+    assert result.model == "meta/llama-3.1-8b-instruct"
     assert [call["model"] for call in client.completions.calls] == [
+        "openai/gpt-oss-20b",
         "meta/llama-3.1-8b-instruct",
-        "nvidia/nemotron-mini-4b-instruct",
     ]
