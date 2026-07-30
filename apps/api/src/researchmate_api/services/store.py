@@ -549,6 +549,7 @@ class InMemoryResearchMateStore:
         with self._lock:
             run_id = uuid4()
             trace_id = uuid4()
+            total_latency_ms = int((runtime_metadata or {}).get("total_latency_ms", 0))
             summary = SourceSummary(
                 local_chunks=sum(1 for citation in citations if citation.source_type == SourceType.LOCAL_DOC),
                 web_pages=sum(1 for citation in citations if citation.source_type == SourceType.WEB_PAGE),
@@ -577,7 +578,7 @@ class InMemoryResearchMateStore:
                 ],
                 tool_calls=tool_calls,
                 validation_result=validation_result,
-                latency_ms=0,
+                latency_ms=total_latency_ms,
                 token_usage=runtime_metadata,
                 errors=[] if validation_result.get("passed", True) else ["validation_failed"],
                 created_at=datetime.now(UTC),
