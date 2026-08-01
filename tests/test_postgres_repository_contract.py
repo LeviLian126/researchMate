@@ -258,3 +258,14 @@ def test_project_scoped_writes_lock_the_active_project_transition() -> None:
     lock = getsource(PostgresResearchMateRepository._lock_active_project).lower()
     assert "status = 'active'" in lock
     assert "for update" in lock
+
+
+def test_active_project_lock_keeps_static_helper_call_contract() -> None:
+    """Call the split lock helper through the repository without binding an extra self."""
+    repository = object.__new__(PostgresResearchMateRepository)
+    connection = RecordingConnection()
+    user_id = UUID("00000000-0000-4000-8000-000000000001")
+    project_id = UUID("00000000-0000-4000-8000-000000000002")
+
+    assert repository._lock_active_project(connection, user_id, project_id) is False
+    assert connection.calls[0][1] == {"project_id": project_id, "user_id": user_id}

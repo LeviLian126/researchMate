@@ -162,6 +162,7 @@ class PostgresInternalMixin:
             },
         )
 
+    @staticmethod
     def _lock_active_project(
         connection: Connection, user_id: UUID, project_id: UUID
     ) -> bool:
