@@ -21,6 +21,7 @@ import {
   idempotencyKey,
   mimeForFileType,
   type ProjectRecord,
+  type QuizHistoryResponse,
   type QuizResponse,
   type QuizSet,
 } from "../lib/api";
@@ -82,6 +83,7 @@ export function useChatWorkspace({ suppliedProjectId, projectMode }: UseChatWork
   const loadGeneration = useRef(0);
   const askIntent = useRef<IntentKeyState | null>(null);
   const quizIntent = useRef<IntentKeyState | null>(null);
+  const quizHistoryLoadedFor = useRef<string | null>(null);
   const askInFlight = useRef(false);
   const quizInFlight = useRef(false);
   const routeBase = projectMode && suppliedProjectId
@@ -156,6 +158,27 @@ export function useChatWorkspace({ suppliedProjectId, projectMode }: UseChatWork
     const timer = window.setTimeout(() => setSlowResponse(true), 10_000);
     return () => window.clearTimeout(timer);
   }, [sending]);
+
+  useEffect(() => {
+    if (!projectMode || !projectId || !quizOpen) return;
+    if (quizHistoryLoadedFor.current === projectId) return;
+    quizHistoryLoadedFor.current = projectId;
+    let active = true;
+
+    /** Restores the latest persisted quiz without blocking the chat workspace. */
+    async function loadQuizHistory() {
+      try {
+        const history = await apiFetch<QuizHistoryResponse>(`/projects/${projectId}/quiz`);
+        if (active) setQuiz(history.quiz_sets[0] ?? null);
+      } catch (requestError) {
+        if (!active) return;
+        quizHistoryLoadedFor.current = null;
+        setError(describeApiError(requestError));
+      }
+    }
+    void loadQuizHistory();
+    return () => { active = false; };
+  }, [projectId, projectMode, quizOpen]);
 
   useEffect(() => {
     const processing = documents.some((document) =>

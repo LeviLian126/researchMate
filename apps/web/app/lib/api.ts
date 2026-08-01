@@ -99,6 +99,12 @@ export interface QuizResponse {
   coverage: QuizCoverage;
 }
 
+/** Lists persisted quiz sets for one owned project, newest first. */
+export interface QuizHistoryResponse {
+  project_id: string;
+  quiz_sets: QuizSet[];
+}
+
 export interface ConversationSummary {
   id: string;
   project_id: string;

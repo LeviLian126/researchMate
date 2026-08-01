@@ -220,4 +220,7 @@ def test_sidebar_and_chat_match_unified_product_boundaries() -> None:
     assert 'item.role === "user" ? "You" : "ResearchMate"' not in chat
     assert "loadGeneration.current" in chat
     assert "historyLoading" in chat
+    assert "quizHistoryLoadedFor" in chat
+    assert "`/projects/${projectId}/quiz`" in chat
+    assert "history.quiz_sets[0] ?? null" in chat
     assert "if (active) setProject(record)" in project_nav
