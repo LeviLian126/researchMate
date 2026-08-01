@@ -1,4 +1,7 @@
+"""Provide authentication, authorization, adapter, and error dependencies for API routes."""
+
 from functools import lru_cache
+from typing import NoReturn
 from uuid import UUID
 
 from fastapi import Depends, HTTPException, Request, status
@@ -23,51 +26,56 @@ DEV_USERS: dict[str, tuple[UUID, str, str]] = {
 }
 
 
-# Resolve the repository from the current application so tests and production adapters share routes.
 def get_store(request: Request) -> ResearchMateRepository:
+    """Resolve the configured repository so every interface shares one adapter."""
     return request.app.state.store
 
 
 def get_evidence_store(request: Request) -> EvidenceRepository:
+    """Resolve the evidence workflow repository from application state."""
     return request.app.state.evidence_store
 
 
 def get_chat_provider(request: Request) -> ChatProvider | None:
+    """Resolve the optional chat provider without constructing it per request."""
     return request.app.state.chat_provider
 
 
 def get_hybrid_store(request: Request) -> QdrantHybridStore | None:
+    """Resolve the optional hybrid vector-store adapter."""
     return request.app.state.hybrid_store
 
 
 def get_web_search(request: Request) -> TavilyWebSearchProvider | None:
+    """Resolve the optional Web evidence provider."""
     return request.app.state.web_search
 
 
 def get_reranker(request: Request) -> RerankCoordinator:
+    """Resolve the shared rerank coordinator."""
     return request.app.state.reranker
 
 
-# 生成统一错误 detail，由 FastAPI exception handler 包装成 {"error": ...}。
 def error_detail(code: str, message: str, request_id: str = "req_local_dev") -> dict[str, str]:
+    """Build the safe detail later wrapped by the global error handler."""
     return {"code": code, "message": message, "request_id": request_id}
 
 
-# 保持旧名称兼容历史测试和路由。
 def not_implemented_detail(code: str) -> dict[str, str]:
+    """Preserve the legacy helper name for callers that report missing adapters."""
     return error_detail(
         code,
         "This contract is defined, but the requested adapter is not configured for this run.",
     )
 
 
-# 抛出统一 API 错误。
-def raise_api_error(status_code: int, code: str, message: str) -> None:
+def raise_api_error(status_code: int, code: str, message: str) -> NoReturn:
+    """Raise a typed terminal API error understood by control-flow analysis."""
     raise HTTPException(status_code=status_code, detail=error_detail(code, message))
 
 
-# 解析本地开发 token；生产环境应替换为 Supabase JWT 校验。
 def _development_user(token: str) -> CurrentUser | None:
+    """Resolve only explicit local-development bearer identities."""
     if token in DEV_USERS:
         user_id, role, email = DEV_USERS[token]
         return CurrentUser(id=user_id, email=email, role=role)  # type: ignore[arg-type]
@@ -85,12 +93,14 @@ def _development_user(token: str) -> CurrentUser | None:
 
 @lru_cache(maxsize=4)
 def _jwks_client(jwks_url: str):
+    """Cache the synchronous JWKS client used at the authentication edge."""
     from jwt import PyJWKClient
 
     return PyJWKClient(jwks_url, cache_keys=True)
 
 
 def _supabase_user(token: str, settings: Settings) -> CurrentUser | None:
+    """Validate a signed Supabase token and derive server-owned role claims."""
     from jwt import InvalidTokenError, decode
 
     jwks_url = settings.jwks_url
@@ -117,6 +127,7 @@ def _supabase_user(token: str, settings: Settings) -> CurrentUser | None:
 
 
 def resolve_bearer_token(token: str, settings: Settings) -> CurrentUser | None:
+    """Resolve a bearer identity according to the configured authentication mode."""
     return (
         _development_user(token)
         if settings.auth_mode == "development"
@@ -124,12 +135,12 @@ def resolve_bearer_token(token: str, settings: Settings) -> CurrentUser | None:
     )
 
 
-# Parse only explicit development identities locally; verify signed Supabase JWTs elsewhere.
 def get_current_user(
     request: Request,
     credentials: HTTPAuthorizationCredentials | None = Depends(bearer),
     repository: ResearchMateRepository = Depends(get_store),
 ) -> CurrentUser:
+    """Authenticate the request and ensure its canonical local profile exists."""
     if credentials is None:
         raise_api_error(status.HTTP_401_UNAUTHORIZED, "AUTH_REQUIRED", "Bearer token is required.")
 
@@ -146,8 +157,8 @@ def get_current_user(
     return user
 
 
-# 校验管理员权限。
 def require_admin(user: CurrentUser = Depends(get_current_user)) -> CurrentUser:
+    """Allow only developer and admin roles through privileged interfaces."""
     if user.role not in {"developer", "admin"}:
         raise_api_error(
             status.HTTP_403_FORBIDDEN,

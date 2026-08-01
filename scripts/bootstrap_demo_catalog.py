@@ -1,13 +1,16 @@
+"""Bootstrap an approved demo pipeline and frozen evaluation dataset."""
+
 from __future__ import annotations
 
 import argparse
-from hashlib import sha256
 import json
 import os
+from hashlib import sha256
 from uuid import UUID, uuid4
 
 
 def main() -> None:
+    """Create idempotent catalog records for an explicitly approved project."""
     parser = argparse.ArgumentParser(
         description="Idempotently create an accepted pipeline and frozen evaluation dataset"
     )

@@ -1,3 +1,4 @@
+// Renders the approved ResearchMate brand mark with an optional wordmark.
 import Image from "next/image";
 import logoMark from "../../public/researchmate-logo-mark.png";
 

@@ -1,9 +1,12 @@
+"""Verify release automation, container, migration, and secret-safety contracts."""
+
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_ci_runs_the_full_test_build_contract_and_security_gate() -> None:
+    """Require CI to run the full test, build, and security gates."""
     package = (ROOT / "package.json").read_text(encoding="utf-8")
     workflow = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
 
@@ -19,6 +22,7 @@ def test_ci_runs_the_full_test_build_contract_and_security_gate() -> None:
 
 
 def test_retired_delivery_paths_are_inert_and_cloudflare_sources_are_archived() -> None:
+    """Keep retired release paths inert and archived."""
     active_workflows = "\n".join(
         path.read_text(encoding="utf-8")
         for path in (ROOT / ".github/workflows").glob("*.yml")
@@ -54,6 +58,7 @@ def test_retired_delivery_paths_are_inert_and_cloudflare_sources_are_archived() 
 
 
 def test_container_images_are_non_root_and_worker_prefetches_pdf_models() -> None:
+    """Require non-root images and deterministic worker model prefetch."""
     api = (ROOT / "apps/api/Dockerfile").read_text(encoding="utf-8")
     worker = (ROOT / "workers/ai-worker/Dockerfile").read_text(encoding="utf-8")
 
@@ -66,6 +71,7 @@ def test_container_images_are_non_root_and_worker_prefetches_pdf_models() -> Non
 
 
 def test_migration_runner_requires_approval_lock_and_checksum() -> None:
+    """Require migration approval, serialization, and checksum tracking."""
     source = (ROOT / "scripts/apply_migrations.py").read_text(encoding="utf-8")
 
     assert 'os.getenv("ALLOW_SCHEMA_APPLY") != "1"' in source
@@ -75,6 +81,7 @@ def test_migration_runner_requires_approval_lock_and_checksum() -> None:
 
 
 def test_repository_sources_do_not_contain_provider_secrets() -> None:
+    """Prevent provider credentials from entering tracked sources."""
     roots = [ROOT / "apps", ROOT / "workers", ROOT / "scripts", ROOT / ".github", ROOT / "docs"]
     suspicious: list[str] = []
     for base in roots:
@@ -90,6 +97,7 @@ def test_repository_sources_do_not_contain_provider_secrets() -> None:
 
 
 def test_web_release_sets_baseline_browser_security_headers() -> None:
+    """Require baseline browser security headers in the web release."""
     config = (ROOT / "apps/web/next.config.ts").read_text(encoding="utf-8")
 
     for header in (

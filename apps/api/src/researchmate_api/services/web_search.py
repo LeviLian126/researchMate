@@ -1,3 +1,5 @@
+"""Adapt bounded Tavily results into untrusted web-evidence chunks."""
+
 from __future__ import annotations
 
 from typing import Any, Protocol
@@ -12,10 +14,13 @@ WEB_EVIDENCE_NAMESPACE = UUID("7fe3d3f1-a008-4f54-93c6-743ca8a2c349")
 
 
 class HttpClient(Protocol):
+    """Describe the HTTP operation required by the web-search adapter."""
+
     def post(self, url: str, **kwargs: Any) -> Any: ...
 
 
 class WebSearchRequestError(RuntimeError):
+    """Normalize web-search failures while retaining retryability."""
     def __init__(self, *, retryable: bool) -> None:
         super().__init__("Web search provider request failed")
         self.retryable = retryable
@@ -42,6 +47,7 @@ class TavilyWebSearchProvider:
         query: str,
         limit: int = 5,
     ) -> list[ChunkEntry]:
+        """Return bounded, sanitized web results as stable evidence chunks."""
         bounded_limit = max(1, min(5, limit))
         try:
             response = self.client.post(

@@ -1,3 +1,5 @@
+"""Configure privacy-safe logging and optional telemetry exporter lifecycles."""
+
 from __future__ import annotations
 
 import json
@@ -22,6 +24,7 @@ class ObservabilityRuntime:
     langfuse_client: Any | None = None
 
     def shutdown(self) -> None:
+        """Flush and stop configured exporters without breaking shutdown."""
         if self.langfuse_client is not None:
             try:
                 self.langfuse_client.flush()
@@ -35,6 +38,7 @@ class ObservabilityRuntime:
 
 
 def configure_structured_logging(level: str) -> None:
+    """Configure process logging with a machine-readable message body."""
     logging.basicConfig(level=getattr(logging, level.upper()), format="%(message)s")
 
 
@@ -45,6 +49,7 @@ def log_event(event: str, **fields: Any) -> None:
 
 
 def configure_observability(app: FastAPI, settings: Settings) -> ObservabilityRuntime:
+    """Attach explicitly enabled telemetry providers to the FastAPI process."""
     runtime = ObservabilityRuntime()
     configure_structured_logging(settings.log_level)
 
@@ -85,8 +90,11 @@ def configure_observability(app: FastAPI, settings: Settings) -> ObservabilityRu
 
 
 class _NoopObservation:
+    """Match the provider-observation interface when tracing is disabled."""
+
     def update(self, **_: Any) -> None:
-        return None
+        """Accept observation updates while deliberately recording nothing."""
+        return
 
 
 @contextmanager

@@ -1,3 +1,5 @@
+"""Provision and verify an explicitly approved Qdrant rerank backfill."""
+
 from __future__ import annotations
 
 import os
@@ -8,6 +10,7 @@ FILTER_INDEXES = ("user_id", "project_id", "document_id", "source_type")
 
 
 def main() -> None:
+    """Create indexes, backfill vectors, and persist verification metadata."""
     if os.getenv("ALLOW_QDRANT_RERANK_BACKFILL") != "1":
         raise SystemExit("Set ALLOW_QDRANT_RERANK_BACKFILL=1 for an approved cloud backfill")
     if os.getenv("QDRANT_RERANK_MODEL_IS_FREE", "").lower() != "true":

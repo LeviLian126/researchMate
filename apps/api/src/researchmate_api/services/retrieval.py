@@ -1,3 +1,5 @@
+"""Provide deterministic lexical retrieval, token estimates, and hard context packing."""
+
 from __future__ import annotations
 
 from collections import Counter
@@ -31,6 +33,8 @@ def estimate_tokens(text: str) -> int:
 
 @dataclass(frozen=True)
 class RetrievalCandidate:
+    """Carry one chunk with its fused and provider-specific ranks."""
+
     chunk: ChunkEntry
     score: float
     lexical_rank: int | None = None
@@ -43,6 +47,7 @@ def bm25_candidates(
     *,
     limit: int = 30,
 ) -> list[RetrievalCandidate]:
+    """Rank chunks with a bounded BM25-style lexical score."""
     query_tokens = Counter(tokenize(query))
     if not query_tokens or not chunks:
         return []
@@ -88,6 +93,7 @@ def fuse_candidates(
     limit: int = 50,
     rrf_k: int = 60,
 ) -> list[RetrievalCandidate]:
+    """Fuse lexical and semantic ranks with reciprocal-rank fusion."""
     by_id: dict[UUID, RetrievalCandidate] = {}
     scores: Counter[UUID] = Counter()
     for candidate in lexical:
@@ -116,11 +122,14 @@ def fuse_candidates(
 
 
 def pack_chunks(chunks: list[ChunkEntry], token_budget: int) -> list[ChunkEntry]:
+    """Pack whole chunks without allowing even the first chunk to exceed the budget."""
     packed: list[ChunkEntry] = []
     used = 0
+    if token_budget <= 0:
+        return packed
     for chunk in chunks:
         size = estimate_tokens(chunk.text)
-        if packed and used + size > token_budget:
+        if used + size > token_budget:
             continue
         packed.append(chunk)
         used += size
@@ -137,6 +146,7 @@ def retrieve_local_chunks(
 
 
 def snippet(text: str, length: int = 280) -> str:
+    """Collapse whitespace and return a display-safe bounded evidence excerpt."""
     compact = " ".join(text.split())
     if len(compact) <= length:
         return compact

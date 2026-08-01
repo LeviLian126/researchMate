@@ -1,3 +1,5 @@
+"""Verify deterministic evaluation metrics and regression summaries."""
+
 from decimal import Decimal
 from uuid import UUID
 
@@ -10,6 +12,7 @@ from researchmate_worker.evaluation import (
 
 
 def test_deterministic_evaluation_metrics_reconcile_evidence_sets() -> None:
+    """Reconcile citation and expected-evidence sets deterministically."""
     case = EvaluationCase(
         id=UUID(int=1),
         case_key="case-1",
@@ -35,6 +38,7 @@ def test_deterministic_evaluation_metrics_reconcile_evidence_sets() -> None:
 
 
 def test_evidence_recall_exposes_missing_expected_chunks() -> None:
+    """Report which expected chunks are absent from retrieved evidence."""
     case = EvaluationCase(
         id=UUID(int=1),
         case_key="case-1",
@@ -51,6 +55,7 @@ def test_evidence_recall_exposes_missing_expected_chunks() -> None:
 
 
 def test_regression_summary_separates_execution_quality_and_baseline_regression() -> None:
+    """Keep execution quality distinct from baseline regression signals."""
     summary = build_regression_summary(
         {
             "faithfulness": {

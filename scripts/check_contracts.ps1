@@ -1,3 +1,4 @@
+# Validate core repository contracts with the pinned local Python environment.
 param([switch]$InstallDependencies)
 
 $ErrorActionPreference = "Stop"

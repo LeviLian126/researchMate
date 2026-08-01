@@ -1,3 +1,5 @@
+"""Define the evidence-review graph state and route nodes around human review."""
+
 from __future__ import annotations
 
 import operator
@@ -5,6 +7,7 @@ from typing import Annotated, Any, Protocol, TypedDict
 
 
 class EvidenceWorkflowState(TypedDict, total=False):
+    """Describe checkpoint-safe state exchanged by evidence workflow nodes."""
     run_id: str
     user_id: str
     project_id: str
@@ -33,6 +36,7 @@ class EvidenceWorkflowState(TypedDict, total=False):
 
 
 class EvidenceWorkflowDomain(Protocol):
+    """Define the application decisions invoked by the workflow graph."""
     def plan(self, state: EvidenceWorkflowState) -> dict[str, Any]: ...
 
     def retrieve_and_extract(self, state: EvidenceWorkflowState) -> dict[str, Any]: ...

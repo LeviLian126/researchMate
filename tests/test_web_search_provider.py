@@ -1,3 +1,5 @@
+"""Verify Tavily result sanitization, bounds, stability, and retry mapping."""
+
 from uuid import UUID
 
 import pytest
@@ -10,6 +12,7 @@ from researchmate_api.services.web_search import (
 
 
 class FakeResponse:
+    """Return deterministic search payloads or configured HTTP failures."""
     def __init__(self, payload, status_code: int = 200) -> None:
         self.payload = payload
         self.status_code = status_code
@@ -25,6 +28,7 @@ class FakeResponse:
 
 
 class FakeClient:
+    """Record outbound Tavily requests and return a fake response."""
     def __init__(self, response: FakeResponse) -> None:
         self.response = response
         self.calls = []
@@ -35,6 +39,7 @@ class FakeClient:
 
 
 def settings() -> Settings:
+    """Build configured Tavily settings for provider tests."""
     return Settings(
         app_env="test",
         web_search_provider="tavily",
@@ -43,6 +48,7 @@ def settings() -> Settings:
 
 
 def test_tavily_search_is_bounded_stable_and_discards_unsafe_results() -> None:
+    """Bound Tavily output and discard unsafe or empty results."""
     client = FakeClient(
         FakeResponse(
             {
@@ -81,6 +87,7 @@ def test_tavily_search_is_bounded_stable_and_discards_unsafe_results() -> None:
 
 
 def test_tavily_retryability_is_derived_from_status() -> None:
+    """Derive Tavily retryability from normalized HTTP status."""
     provider = TavilyWebSearchProvider(settings(), client=FakeClient(FakeResponse({}, 429)))
 
     with pytest.raises(WebSearchRequestError) as captured:

@@ -1,3 +1,5 @@
+"""Define the chat-provider contract and bounded NVIDIA NIM adapter."""
+
 from __future__ import annotations
 
 from collections.abc import Iterable, Iterator
@@ -9,21 +11,26 @@ from researchmate_api.observability import provider_observation
 
 
 class ChatCompletionClient(Protocol):
+    """Describe the OpenAI-compatible client surface used by the adapter."""
     chat: Any
 
 
 class ChatProvider(Protocol):
+    """Define the synchronous completion boundary consumed by services."""
+
     def complete(self, messages: Iterable[dict[str, str]]) -> LLMResult: ...
 
 
 @dataclass(frozen=True)
 class LLMChunk:
+    """Represent one classified streaming model fragment."""
     kind: Literal["reasoning", "content"]
     text: str
 
 
 @dataclass(frozen=True)
 class LLMResult:
+    """Normalize provider content, reasoning, model, and token usage."""
     content: str
     reasoning: str | None
     model: str
@@ -32,10 +39,11 @@ class LLMResult:
 
 
 class ProviderConfigurationError(RuntimeError):
-    pass
+    """Signal that an explicitly requested provider is not configured."""
 
 
 class ProviderRequestError(RuntimeError):
+    """Normalize provider failures while preserving retryability only."""
     def __init__(self, *, retryable: bool) -> None:
         super().__init__("LLM provider request failed")
         self.retryable = retryable
@@ -113,6 +121,7 @@ class NvidiaChatProvider:
             raise ProviderRequestError(retryable=retryable) from exc
 
     def complete(self, messages: Iterable[dict[str, str]]) -> LLMResult:
+        """Return one normalized non-streaming model completion."""
         completion = self._request(messages, stream=False)
         return self._result(completion)
 
@@ -145,6 +154,7 @@ class NvidiaChatProvider:
         )
 
     def stream(self, messages: Iterable[dict[str, str]]) -> Iterator[LLMChunk]:
+        """Yield non-empty reasoning and content fragments separately."""
         for chunk in self._request(messages, stream=True):
             choices = getattr(chunk, "choices", None) or []
             if not choices or getattr(choices[0], "delta", None) is None:
@@ -159,4 +169,5 @@ class NvidiaChatProvider:
 
 
 def build_nvidia_chat_provider(settings: Settings) -> NvidiaChatProvider:
+    """Construct the configured NVIDIA chat-provider adapter."""
     return NvidiaChatProvider(settings)

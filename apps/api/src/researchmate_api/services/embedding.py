@@ -1,3 +1,5 @@
+"""Adapt the configured NVIDIA embedding API to bounded vector requests."""
+
 from __future__ import annotations
 
 from typing import Any, Literal
@@ -10,6 +12,7 @@ EmbeddingInputType = Literal["query", "passage"]
 
 
 class NvidiaEmbeddingProvider:
+    """Produce ordered query or passage embeddings with validated dimensions."""
     def __init__(self, settings: Settings, client: Any | None = None) -> None:
         if settings.embedding_provider != "nvidia" or settings.nvidia_api_key is None:
             raise ProviderConfigurationError("NVIDIA embedding provider is not configured")
@@ -26,6 +29,7 @@ class NvidiaEmbeddingProvider:
         self.client = client
 
     def embed(self, texts: list[str], *, input_type: EmbeddingInputType) -> list[list[float]]:
+        """Embed texts and normalize provider failures into the service contract."""
         if not texts:
             return []
         try:

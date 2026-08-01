@@ -70,6 +70,7 @@ export default function LibraryPage() {
   }, [documents]);
 
   /** Stores only supported file selections so invalid input never reaches the upload contract. */
+  /** Validates the selected file and prepares local preview metadata. */
   function selectFile(file: File | null) {
     if (!file) return;
     if (!/\.(pdf|docx|pptx)$/i.test(file.name)) {
@@ -82,6 +83,7 @@ export default function LibraryPage() {
   }
 
   /** Completes the signed-upload flow and refreshes ingestion state after the API accepts the source. */
+  /** Uploads and completes a source document while preserving recoverable form state. */
   async function upload(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
@@ -127,6 +129,7 @@ export default function LibraryPage() {
   }
 
   /** Queues canonical source deletion and refreshes the visible project collection. */
+  /** Starts deletion only after the row has entered explicit confirmation state. */
   async function deleteDocument(documentId: string) {
     setError(null);
     setStatus("Scheduling source removal…");
@@ -146,6 +149,7 @@ export default function LibraryPage() {
   }
 
   /** Polls the durable deletion job so object/vector cleanup failures stay visible. */
+  /** Polls the asynchronous deletion job until it reaches a terminal state. */
   async function pollDeletionJob(jobId: string) {
     for (let attempt = 0; attempt < 20 && mounted.current; attempt += 1) {
       let job: DeletionJob;
@@ -239,6 +243,7 @@ export default function LibraryPage() {
 }
 
 /** Formats a byte count for compact source-list metadata. */
+/** Formats source size metadata for compact table display. */
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;

@@ -1,3 +1,5 @@
+"""Coordinate bounded reranking providers with deterministic degradation."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -14,6 +16,7 @@ RerankProviderName = Literal["qdrant", "nvidia", "deterministic"]
 
 
 class RerankRequestError(RuntimeError):
+    """Identify which rerank provider failed."""
     def __init__(self, provider: str, message: str) -> None:
         super().__init__(message)
         self.provider = provider
@@ -21,6 +24,7 @@ class RerankRequestError(RuntimeError):
 
 @dataclass(frozen=True)
 class RerankResult:
+    """Return ranked candidates with provider and degradation metadata."""
     candidates: list[RetrievalCandidate]
     provider: RerankProviderName
     model: str | None
@@ -29,6 +33,7 @@ class RerankResult:
 
 
 class Reranker(Protocol):
+    """Define the shared owner-aware reranker contract."""
     name: RerankProviderName
     model: str | None
 
@@ -44,6 +49,7 @@ class Reranker(Protocol):
 
 
 class DeterministicReranker:
+    """Provide a network-free stable fallback ranking."""
     name: RerankProviderName = "deterministic"
     model = None
 
@@ -56,6 +62,7 @@ class DeterministicReranker:
         user_id: str,
         project_id: str,
     ) -> list[RetrievalCandidate]:
+        """Sort candidates deterministically using existing retrieval scores."""
         del query, user_id, project_id
         return sorted(
             candidates,
@@ -69,6 +76,7 @@ class DeterministicReranker:
 
 
 class NvidiaReranker:
+    """Adapt NVIDIA's ranking API to retrieval candidates."""
     name: RerankProviderName = "nvidia"
 
     def __init__(self, settings: Settings, client: Any | None = None) -> None:
@@ -96,6 +104,7 @@ class NvidiaReranker:
         user_id: str,
         project_id: str,
     ) -> list[RetrievalCandidate]:
+        """Return provider-ranked candidates from the supplied allowlist."""
         del user_id, project_id
         if not self.settings.nvidia_api_key:
             raise RerankRequestError(self.name, "NVIDIA reranking is not configured")
@@ -126,6 +135,7 @@ class NvidiaReranker:
 
 
 class QdrantNativeReranker:
+    """Use the verified Qdrant late-interaction collection for reranking."""
     name: RerankProviderName = "qdrant"
 
     def __init__(self, settings: Settings, store: QdrantHybridStore) -> None:
@@ -142,6 +152,7 @@ class QdrantNativeReranker:
         user_id: str,
         project_id: str,
     ) -> list[RetrievalCandidate]:
+        """Return Qdrant-ranked candidates while preserving owner scope."""
         if not self.model or not self.settings.qdrant_rerank_model_is_free:
             raise RerankRequestError(
                 self.name, "Qdrant reranking requires a verified free late-interaction model"
@@ -165,6 +176,7 @@ class QdrantNativeReranker:
 
 
 class RerankCoordinator:
+    """Select providers and degrade safely when optional reranking fails."""
     def __init__(
         self,
         settings: Settings,
@@ -187,6 +199,7 @@ class RerankCoordinator:
         project_id: str,
         top_n: int | None = None,
     ) -> RerankResult:
+        """Execute the requested provider chain and report any fallback."""
         if not candidates:
             return RerankResult([], "deterministic", None, False)
         order: list[Reranker]

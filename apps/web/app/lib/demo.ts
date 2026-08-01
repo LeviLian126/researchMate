@@ -1,3 +1,4 @@
+// Implements the deterministic browser-only demo API without external provider or persistence effects.
 const DEMO_PROJECT_ID = "11111111-1111-4111-8111-111111111111";
 const DEMO_DOCUMENT_ID = "22222222-2222-4222-8222-222222222222";
 const DEMO_PIPELINE_ID = "33333333-3333-4333-8333-333333333333";
@@ -144,11 +145,13 @@ const personalProject: Json = {
   updated_at: timestamp,
 };
 
+/** Creates stable-looking identifiers for records added during one demo session. */
 function makeId(prefix: string, sequence: number): string {
   const suffix = sequence.toString(16).padStart(12, "0");
   return `${prefix}0000-0000-4000-8000-${suffix}`;
 }
 
+/** Parses a demo request body while preserving the API client's JSON boundary. */
 function requestBody(init: globalThis.RequestInit): Json {
   if (typeof init.body !== "string") return {};
   try {
@@ -159,10 +162,12 @@ function requestBody(init: globalThis.RequestInit): Json {
   }
 }
 
+/** Selects demo documents belonging to one project. */
 function projectDocuments(projectId: string): Json[] {
   return documents.filter((document) => document.project_id === projectId);
 }
 
+/** Builds a completed representative run for the demo workflow. */
 function demoRun(projectId: string, kind: string): Json {
   const id = makeId("44444444-4444", runSequence++);
   latestRun = {
@@ -187,10 +192,12 @@ function demoRun(projectId: string, kind: string): Json {
  * deterministic sample evidence and never sends credentials or requests to a
  * managed API. It is enabled only by an explicit deployment setting.
  */
+/** Reports whether the current build is the explicit public static demo. */
 export function isPublicDemo(): boolean {
   return process.env.NEXT_PUBLIC_DEMO_MODE === "true";
 }
 
+/** Handles the supported API subset against browser-session demo state. */
 export async function demoFetch<T>(rawPath: string, init: globalThis.RequestInit = {}): Promise<T> {
   const url = new URL(rawPath, "https://demo.invalid");
   const path = url.pathname;
@@ -355,6 +362,8 @@ export async function demoFetch<T>(rawPath: string, init: globalThis.RequestInit
       trace_id: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
       validation_status: "passed",
       rerank_degraded: false,
+      retrieval_degraded: false,
+      summary_degraded: false,
       fallback_reason: null,
     } as T;
   }
@@ -406,6 +415,7 @@ export async function demoFetch<T>(rawPath: string, init: globalThis.RequestInit
   throw new Error(`Static demo does not implement ${method} ${path}.`);
 }
 
+/** Emits deterministic workflow events while honoring caller cancellation. */
 export async function demoRunEvents(onEvent: (event: DemoRunEvent) => void, signal: AbortSignal): Promise<void> {
   if (signal.aborted) return;
   [

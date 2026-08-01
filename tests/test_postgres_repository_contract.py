@@ -1,3 +1,5 @@
+"""Verify PostgreSQL repository ownership, transaction, and delivery contracts."""
+
 from contextlib import AbstractContextManager
 from inspect import getsource
 from typing import Any
@@ -22,6 +24,7 @@ from researchmate_api.services.object_storage import (
 
 
 class EmptyResult:
+    """Return no rows from isolated repository queries."""
     def mappings(self) -> "EmptyResult":
         return self
 
@@ -30,6 +33,7 @@ class EmptyResult:
 
 
 class RecordingConnection:
+    """Record SQL statements issued by repository operations."""
     def __init__(self) -> None:
         self.calls: list[tuple[str, dict[str, Any]]] = []
 
@@ -39,6 +43,7 @@ class RecordingConnection:
 
 
 class ConnectionContext(AbstractContextManager[RecordingConnection]):
+    """Provide a recording connection through a context manager."""
     def __init__(self, connection: RecordingConnection) -> None:
         self.connection = connection
 
@@ -50,6 +55,7 @@ class ConnectionContext(AbstractContextManager[RecordingConnection]):
 
 
 class RecordingEngine:
+    """Expose recording transaction and connection contexts."""
     def __init__(self) -> None:
         self.connection = RecordingConnection()
 
@@ -58,11 +64,13 @@ class RecordingEngine:
 
 
 def test_postgres_urls_select_the_installed_psycopg3_driver() -> None:
+    """Normalize PostgreSQL URLs to the installed psycopg3 driver."""
     assert _psycopg_url("postgres://user:pass@host/db").startswith("postgresql+psycopg://")
     assert _psycopg_url("postgresql://user:pass@host/db").startswith("postgresql+psycopg://")
 
 
 def test_preview_requires_postgres_and_database_url() -> None:
+    """Require PostgreSQL and its URL in preview configuration."""
     auth = {
         "app_env": "preview",
         "auth_mode": "supabase",
@@ -99,6 +107,7 @@ def test_preview_requires_postgres_and_database_url() -> None:
 
 
 def test_resource_lookup_sets_rls_subject_and_owner_predicate_without_a_database() -> None:
+    """Set RLS subject state and an explicit owner predicate for lookups."""
     engine = RecordingEngine()
     repository = PostgresResearchMateRepository(engine)  # type: ignore[arg-type]
     user = CurrentUser(id=UUID("00000000-0000-4000-8000-000000000042"))
@@ -112,6 +121,7 @@ def test_resource_lookup_sets_rls_subject_and_owner_predicate_without_a_database
 
 
 def test_upload_factory_receives_validated_content_metadata() -> None:
+    """Pass validated upload metadata into the object-storage signer."""
     captured = {}
 
     def signer(document_id, object_key, payload):
@@ -134,6 +144,7 @@ def test_upload_factory_receives_validated_content_metadata() -> None:
 
 
 class OneMappingResult:
+    """Return one configured mapping from a repository query."""
     def __init__(self, value: dict[str, Any]) -> None:
         self.value = value
 
@@ -145,6 +156,7 @@ class OneMappingResult:
 
 
 class ReservationConnection(RecordingConnection):
+    """Return deterministic upload-reservation records while recording SQL."""
     def execute(self, statement: Any, parameters: dict[str, Any]):
         self.calls.append((str(statement), parameters))
         if "r2_object_key" in str(statement) and "join projects" in str(statement):
@@ -159,11 +171,13 @@ class ReservationConnection(RecordingConnection):
 
 
 class ReservationEngine(RecordingEngine):
+    """Provide reservation-aware repository connections."""
     def __init__(self) -> None:
         self.connection = ReservationConnection()
 
 
 def test_completion_verifies_reserved_object_before_accepting_work() -> None:
+    """Verify reserved object metadata before accepting ingestion work."""
     repository = PostgresResearchMateRepository(
         ReservationEngine(),  # type: ignore[arg-type]
         object_metadata_reader=lambda _key: StoredObjectMetadata(
@@ -187,6 +201,7 @@ def test_completion_verifies_reserved_object_before_accepting_work() -> None:
 
 
 def test_completion_persists_job_and_outbox_intent_in_one_method() -> None:
+    """Persist job and outbox delivery intent through one repository method."""
     source = getsource(PostgresResearchMateRepository.complete_document).lower()
 
     assert "set status = 'parsing'" in source
@@ -200,6 +215,7 @@ def test_completion_persists_job_and_outbox_intent_in_one_method() -> None:
 
 
 def test_async_repository_contract_uses_real_job_types_and_unique_deliveries() -> None:
+    """Use supported job types and unique delivery keys for async work."""
     project_delete = getsource(PostgresResearchMateRepository.delete_project).lower()
     complete = getsource(PostgresResearchMateRepository.complete_document).lower()
     document_delete = getsource(PostgresResearchMateRepository.delete_document).lower()
@@ -219,6 +235,7 @@ def test_async_repository_contract_uses_real_job_types_and_unique_deliveries() -
 
 
 def test_document_mutations_require_an_active_parent_project() -> None:
+    """Reject document mutations when the parent project is inactive."""
     create = getsource(PostgresResearchMateRepository.create_document).lower()
     complete = getsource(PostgresResearchMateRepository.complete_document).lower()
     delete = getsource(PostgresResearchMateRepository.delete_document).lower()

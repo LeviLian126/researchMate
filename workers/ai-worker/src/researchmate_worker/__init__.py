@@ -1,2 +1,3 @@
-"""ResearchMate worker package."""
+"""Mark the ResearchMate asynchronous worker package."""
 
+"""ResearchMate worker package."""

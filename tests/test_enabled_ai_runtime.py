@@ -1,7 +1,10 @@
+"""Verify pinned AI runtime dependencies support the bounded local contracts."""
+
 from __future__ import annotations
 
 
 def test_langgraph_graph_executes_a_bounded_local_path() -> None:
+    """Exercise one bounded network-free LangGraph path."""
     from researchmate_worker.evidence_graph import build_evidence_graph
 
     class Domain:
@@ -44,6 +47,7 @@ def test_langgraph_graph_executes_a_bounded_local_path() -> None:
 
 
 def test_ragas_and_strict_checkpoint_serializer_import_with_pinned_compatibility() -> None:
+    """Require pinned evaluation and checkpoint serializer compatibility."""
     from langgraph.checkpoint.postgres import PostgresSaver
     from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
     from ragas.llms import llm_factory

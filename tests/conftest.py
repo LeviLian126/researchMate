@@ -1,3 +1,5 @@
+"""Configure shared import paths and fixtures for the repository test suite."""
+
 import sys
 from pathlib import Path
 

@@ -1,3 +1,5 @@
+"""Configure the worker process, task discovery, and bounded runtime heartbeats."""
+
 import logging
 from functools import lru_cache
 from time import monotonic
@@ -10,6 +12,7 @@ from researchmate_worker.config import WorkerSettings, psycopg_database_url
 
 
 def create_celery_app(settings: WorkerSettings | None = None) -> Celery:
+    """Create the worker application without contacting its managed dependencies."""
     runtime = settings or WorkerSettings()
     broker_url = runtime.redis_url or "memory://"
     app = Celery("researchmate_worker", broker=broker_url, include=["researchmate_worker.tasks"])

@@ -1,3 +1,5 @@
+"""Verify the NVIDIA chat adapter's bounded request and error contracts."""
+
 from types import SimpleNamespace
 
 import pytest
@@ -11,6 +13,7 @@ from researchmate_api.services.llm import (
 
 
 class FakeCompletions:
+    """Record completion parameters and return configured provider data."""
     def __init__(self, response: object) -> None:
         self.response = response
         self.calls: list[dict] = []
@@ -23,12 +26,14 @@ class FakeCompletions:
 
 
 class FakeClient:
+    """Expose the minimal OpenAI-compatible chat client surface."""
     def __init__(self, response: object) -> None:
         self.completions = FakeCompletions(response)
         self.chat = SimpleNamespace(completions=self.completions)
 
 
 def nvidia_settings() -> Settings:
+    """Build configured NVIDIA settings for adapter tests."""
     return Settings(
         app_env="test",
         llm_provider="nvidia",
@@ -37,6 +42,7 @@ def nvidia_settings() -> Settings:
 
 
 def test_non_streaming_completion_uses_approved_model_parameters() -> None:
+    """Send only approved bounded model parameters for completions."""
     response = SimpleNamespace(
         choices=[
             SimpleNamespace(
@@ -68,6 +74,7 @@ def test_non_streaming_completion_uses_approved_model_parameters() -> None:
 
 
 def test_stream_skips_empty_chunks_and_separates_reasoning_from_content() -> None:
+    """Drop empty stream fragments and classify reasoning separately."""
     chunks = [
         SimpleNamespace(choices=[]),
         SimpleNamespace(
@@ -86,11 +93,13 @@ def test_stream_skips_empty_chunks_and_separates_reasoning_from_content() -> Non
 
 
 def test_provider_cannot_start_without_nvidia_configuration() -> None:
+    """Fail closed when the NVIDIA provider is not configured."""
     with pytest.raises(ProviderConfigurationError):
         NvidiaChatProvider(Settings(app_env="test", llm_provider="fake"), client=FakeClient([]))
 
 
 def test_timeout_is_normalized_without_leaking_provider_details() -> None:
+    """Map timeouts to retryable errors without provider detail leakage."""
     provider = NvidiaChatProvider(
         nvidia_settings(),
         client=FakeClient(TimeoutError("secret upstream diagnostic")),

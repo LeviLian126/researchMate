@@ -1,3 +1,5 @@
+"""Validate worker-only environment settings and managed-service requirements."""
+
 from decimal import Decimal
 from pathlib import Path
 from typing import Literal
@@ -16,6 +18,8 @@ def psycopg_database_url(database_url: str) -> str:
 
 
 class WorkerSettings(BaseSettings):
+    """Validate worker configuration before any managed dependency is constructed."""
+
     app_env: Literal["local", "test", "preview", "production"] = "local"
     database_url: str | None = None
     redis_url: str | None = None
@@ -30,9 +34,7 @@ class WorkerSettings(BaseSettings):
     parser_pipeline_version: str = "resource-aware-v3"
     workflow_pipeline_version: str = "evidence-v1"
     workflow_lease_seconds: int = Field(default=900, ge=120, le=1800)
-    workflow_call_budget_reservation_usd: Decimal = Field(
-        default=Decimal("0.250000"), gt=0, le=5
-    )
+    workflow_call_budget_reservation_usd: Decimal = Field(default=Decimal("0.250000"), gt=0, le=5)
     workflow_max_prompt_tokens: int = Field(default=32768, ge=1024, le=131072)
     langgraph_strict_msgpack: bool = True
     parser_max_pages: int = Field(default=300, ge=1, le=1000)
@@ -113,15 +115,27 @@ class WorkerSettings(BaseSettings):
 
     @property
     def object_storage_endpoint_url_resolved(self) -> str | None:
-        return self.object_storage_endpoint_url if self.uses_generic_object_storage else self.r2_endpoint_url
+        return (
+            self.object_storage_endpoint_url
+            if self.uses_generic_object_storage
+            else self.r2_endpoint_url
+        )
 
     @property
     def object_storage_access_key_id_resolved(self) -> SecretStr | None:
-        return self.object_storage_access_key_id if self.uses_generic_object_storage else self.r2_access_key_id
+        return (
+            self.object_storage_access_key_id
+            if self.uses_generic_object_storage
+            else self.r2_access_key_id
+        )
 
     @property
     def object_storage_secret_access_key_resolved(self) -> SecretStr | None:
-        return self.object_storage_secret_access_key if self.uses_generic_object_storage else self.r2_secret_access_key
+        return (
+            self.object_storage_secret_access_key
+            if self.uses_generic_object_storage
+            else self.r2_secret_access_key
+        )
 
     @property
     def object_storage_bucket_resolved(self) -> str | None:
@@ -146,7 +160,9 @@ class WorkerSettings(BaseSettings):
             if not self.redis_url:
                 raise ValueError("preview and production workers require REDIS_URL")
             if not self.object_storage_configured:
-                raise ValueError("preview and production workers require S3-compatible object storage")
+                raise ValueError(
+                    "preview and production workers require S3-compatible object storage"
+                )
             if self.embedding_provider != "nvidia" or self.nvidia_api_key is None:
                 raise ValueError("preview and production workers require NVIDIA embeddings")
             if self.llm_provider != "nvidia":
@@ -160,7 +176,13 @@ class WorkerSettings(BaseSettings):
             if self.pdf_parser_backend == "docling" and self.docling_artifacts_path is None:
                 raise ValueError("preview and production workers require offline Docling artifacts")
             if not self.langgraph_strict_msgpack:
-                raise ValueError("preview and production workers require strict LangGraph serialization")
-            if not self.langfuse_enabled or self.langfuse_public_key is None or self.langfuse_secret_key is None:
+                raise ValueError(
+                    "preview and production workers require strict LangGraph serialization"
+                )
+            if (
+                not self.langfuse_enabled
+                or self.langfuse_public_key is None
+                or self.langfuse_secret_key is None
+            ):
                 raise ValueError("preview and production workers require Langfuse credentials")
         return self

@@ -1,3 +1,5 @@
+"""Verify outbox delivery outcomes and bounded worker routing."""
+
 from uuid import UUID
 
 from researchmate_worker.outbox import (
@@ -8,6 +10,7 @@ from researchmate_worker.outbox import (
 
 
 class FakeStore:
+    """Record outbox claim and delivery-state transitions."""
     def __init__(self, events):
         self.events = events
         self.published = []
@@ -28,6 +31,7 @@ class FakeStore:
 
 
 class FakePublisher:
+    """Record published events and inject selected failures."""
     def __init__(self, failing_id=None):
         self.failing_id = failing_id
         self.events = []
@@ -39,6 +43,7 @@ class FakePublisher:
 
 
 def event(value: int) -> ClaimedOutboxEvent:
+    """Create a representative claimed outbox event."""
     return ClaimedOutboxEvent(
         id=UUID(f"00000000-0000-4000-8000-{value:012d}"),
         event_type="document.ingest.requested",
@@ -49,6 +54,7 @@ def event(value: int) -> ClaimedOutboxEvent:
 
 
 def test_dispatcher_marks_each_publish_outcome_without_losing_the_batch() -> None:
+    """Persist each event outcome while continuing through the batch."""
     first, second = event(1), event(2)
     store = FakeStore([first, second])
     publisher = FakePublisher(failing_id=first.id)
@@ -61,6 +67,7 @@ def test_dispatcher_marks_each_publish_outcome_without_losing_the_batch() -> Non
 
 
 def test_fault_exercise_is_routed_to_bounded_reliability_worker() -> None:
+    """Route fault exercises to the bounded reliability task."""
     class FakeCelery:
         def __init__(self):
             self.calls = []
@@ -87,6 +94,7 @@ def test_fault_exercise_is_routed_to_bounded_reliability_worker() -> None:
 
 
 def test_project_deletion_is_routed_to_the_deletion_queue() -> None:
+    """Route project deletion events to the deletion queue."""
     class FakeCelery:
         def __init__(self):
             self.calls = []

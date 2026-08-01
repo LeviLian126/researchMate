@@ -1,12 +1,14 @@
+"""Supervise API, worker, and dispatcher child processes for the combined deployment."""
+
 from __future__ import annotations
 
 import os
 import signal
-import socket
 import subprocess
 import sys
 import time
 from collections.abc import Sequence
+from http.client import HTTPConnection
 
 QUEUES = "ingestion,deletion,workflow,evaluation,reliability"
 
@@ -39,6 +41,7 @@ def backfill_qdrant_rerank() -> None:
 
 
 def child_commands(port: int) -> list[list[str]]:
+    """Declare the supervised API, Celery, and dispatcher commands."""
     return [
         [
             sys.executable,
@@ -68,6 +71,7 @@ def child_commands(port: int) -> list[list[str]]:
 
 
 def stop_children(children: Sequence[subprocess.Popen[bytes]], signum: int) -> None:
+    """Terminate every supervised child within a bounded shutdown window."""
     for child in children:
         if child.poll() is None:
             child.send_signal(signum)
@@ -79,20 +83,26 @@ def wait_for_api(
     *,
     timeout_seconds: float = 240,
 ) -> bool:
-    """Let the lightweight API bind its port before CPU-heavy workers import."""
+    """Wait for an actual successful API health response before starting workers."""
     deadline = time.monotonic() + timeout_seconds
     while time.monotonic() < deadline:
         if api_process.poll() is not None:
             return False
+        connection = HTTPConnection("127.0.0.1", port, timeout=0.5)
         try:
-            with socket.create_connection(("127.0.0.1", port), timeout=0.5):
+            connection.request("GET", "/api/v1/healthz")
+            response = connection.getresponse()
+            if response.status == 200:
                 return True
-        except OSError:
+        except (OSError, TimeoutError):
             time.sleep(0.25)
+        finally:
+            connection.close()
     return False
 
 
 def run(port: int) -> int:
+    """Supervise combined deployment processes and propagate child failures."""
     apply_schema_migrations()
     backfill_qdrant_rerank()
     commands = child_commands(port)
@@ -126,6 +136,7 @@ def run(port: int) -> int:
 
 
 def main() -> None:
+    """Validate the configured port and start the combined process supervisor."""
     raise SystemExit(run(int(os.getenv("PORT", "10000"))))
 
 

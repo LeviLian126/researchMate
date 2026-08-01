@@ -1,3 +1,5 @@
+"""Run the bounded outbox-to-Celery dispatcher as a dedicated worker process."""
+
 from __future__ import annotations
 
 import argparse
@@ -16,6 +18,7 @@ from researchmate_worker.runtime_health import record_heartbeat
 
 
 def build_dispatcher(settings: WorkerSettings) -> OutboxDispatcher:
+    """Construct a bounded dispatcher from validated managed-service settings."""
     if not settings.database_url:
         raise RuntimeError("DATABASE_URL is required to dispatch outbox events")
     engine = create_engine(psycopg_database_url(settings.database_url), pool_pre_ping=True)
@@ -28,6 +31,7 @@ def build_dispatcher(settings: WorkerSettings) -> OutboxDispatcher:
 
 
 def main() -> None:
+    """Run the dispatcher process until its configured batch completes."""
     parser = argparse.ArgumentParser(description="Dispatch committed ResearchMate outbox events")
     parser.add_argument("--once", action="store_true", help="dispatch one batch and exit")
     parser.add_argument("--poll-seconds", type=float, default=2.0)

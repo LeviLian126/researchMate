@@ -1,3 +1,5 @@
+"""Verify S3-compatible upload signing, metadata, and credential selection."""
+
 from pydantic import SecretStr
 from researchmate_api.config import Settings
 from researchmate_api.services.object_storage import (
@@ -7,6 +9,7 @@ from researchmate_api.services.object_storage import (
 
 
 class FakeS3Client:
+    """Record private S3 operations and return deterministic metadata."""
     def __init__(self) -> None:
         self.presign_call = None
         self.deleted = None
@@ -33,6 +36,7 @@ class FakeS3Client:
 
 
 def r2_settings() -> Settings:
+    """Build complete legacy R2 settings for adapter tests."""
     return Settings(
         app_env="test",
         llm_provider="fake",
@@ -44,6 +48,7 @@ def r2_settings() -> Settings:
 
 
 def test_r2_adapter_presigns_and_normalizes_metadata(tmp_path) -> None:
+    """Verify R2 signing, metadata normalization, and downloads."""
     client = FakeS3Client()
     storage = R2ObjectStorage(r2_settings(), client=client)
 
@@ -74,6 +79,7 @@ def test_r2_adapter_presigns_and_normalizes_metadata(tmp_path) -> None:
 
 
 def test_generic_s3_endpoint_uses_its_own_credential_set() -> None:
+    """Keep generic S3 credentials separate from legacy R2 values."""
     settings = Settings(
         app_env="test",
         llm_provider="fake",

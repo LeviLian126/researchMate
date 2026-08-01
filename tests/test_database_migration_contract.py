@@ -1,3 +1,5 @@
+"""Verify additive migrations preserve schema, RLS, and idempotency contracts."""
+
 import re
 from pathlib import Path
 
@@ -16,6 +18,7 @@ def _migration_source() -> str:
 
 
 def test_additive_migration_defines_all_planned_tables() -> None:
+    """Require every planned table in the additive migration set."""
     source = _migration_source()
     tables = set(
         re.findall(r"(?im)^create table if not exists\s+([a-z_]+)", source)
@@ -41,6 +44,7 @@ def test_additive_migration_defines_all_planned_tables() -> None:
 
 
 def test_migration_closes_initial_child_rls_gaps() -> None:
+    """Require child-table RLS gaps to be closed by later migrations."""
     source = _migration_source()
     required_policies = {
         "document_pages": "document_pages_owner_select",
@@ -55,6 +59,7 @@ def test_migration_closes_initial_child_rls_gaps() -> None:
 
 
 def test_planned_tables_have_rls_and_outbox_has_no_user_policy() -> None:
+    """Require planned RLS while keeping the service-owned outbox inaccessible."""
     source = _migration_source()
     tables = re.findall(
         r"(?im)^create table if not exists\s+([a-z_]+)", source
@@ -68,6 +73,7 @@ def test_planned_tables_have_rls_and_outbox_has_no_user_policy() -> None:
 
 
 def test_durable_run_and_evaluation_idempotency_are_unique_per_owner() -> None:
+    """Require owner-scoped uniqueness for durable idempotent operations."""
     source = _migration_source()
 
     for table in ("workflow_runs", "evaluation_runs"):

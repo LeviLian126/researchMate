@@ -1,3 +1,5 @@
+"""Expose owner-scoped document upload, lookup, ingestion, and deletion routes."""
+
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, status
@@ -27,6 +29,7 @@ def create_upload_url(
     user: CurrentUser = Depends(get_current_user),
     repository: ResearchMateRepository = Depends(get_store),
 ) -> UploadUrlResponse:
+    """Reserve document metadata and return a signed object-upload request."""
     response = repository.create_upload_url(user, payload)
     if response is None:
         raise_api_error(status.HTTP_404_NOT_FOUND, "PROJECT_NOT_FOUND", "Project was not found.")
@@ -40,6 +43,7 @@ def create_document(
     user: CurrentUser = Depends(get_current_user),
     repository: ResearchMateRepository = Depends(get_store),
 ) -> DocumentRecord:
+    """Create owner-scoped document metadata for an active project."""
     document = repository.create_document(user, payload)
     if document is None:
         raise_api_error(status.HTTP_404_NOT_FOUND, "PROJECT_NOT_FOUND", "Project was not found.")
@@ -53,6 +57,7 @@ def list_project_documents(
     user: CurrentUser = Depends(get_current_user),
     repository: ResearchMateRepository = Depends(get_store),
 ) -> list[DocumentRecord]:
+    """List documents visible through the caller-owned project."""
     documents = repository.list_project_documents(user, project_id)
     if documents is None:
         raise_api_error(status.HTTP_404_NOT_FOUND, "PROJECT_NOT_FOUND", "Project was not found.")
@@ -65,6 +70,7 @@ def list_conversation_documents(
     user: CurrentUser = Depends(get_current_user),
     repository: ResearchMateRepository = Depends(get_store),
 ) -> list[DocumentRecord]:
+    """List documents attached to a caller-owned conversation."""
     documents = repository.list_conversation_documents(user, conversation_id)
     if documents is None:
         raise_api_error(
@@ -82,6 +88,7 @@ def get_document(
     user: CurrentUser = Depends(get_current_user),
     repository: ResearchMateRepository = Depends(get_store),
 ) -> DocumentRecord:
+    """Return one document only when it belongs to the caller."""
     document = repository.get_document(user, document_id)
     if document is None:
         raise_api_error(status.HTTP_404_NOT_FOUND, "DOCUMENT_NOT_FOUND", "Document was not found.")
@@ -96,6 +103,7 @@ def complete_upload(
     user: CurrentUser = Depends(get_current_user),
     repository: ResearchMateRepository = Depends(get_store),
 ) -> dict[str, str]:
+    """Verify an upload and enqueue its asynchronous ingestion job."""
     extracted_text = payload.extracted_text if payload else None
     checksum_sha256 = payload.checksum_sha256 if payload else None
     try:
@@ -128,6 +136,7 @@ def delete_document(
     user: CurrentUser = Depends(get_current_user),
     repository: ResearchMateRepository = Depends(get_store),
 ) -> dict[str, str]:
+    """Enqueue deletion of an owner-scoped document and its projections."""
     job = repository.delete_document(user, document_id)
     if job is None:
         raise_api_error(status.HTTP_404_NOT_FOUND, "DOCUMENT_NOT_FOUND", "Document was not found.")

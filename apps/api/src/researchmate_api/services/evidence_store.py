@@ -1,9 +1,9 @@
+"""Define evidence persistence contracts and a deterministic local repository."""
+
 from __future__ import annotations
 
-import json
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from decimal import Decimal
-from hashlib import sha256
 from threading import RLock
 from typing import Protocol
 from uuid import UUID, uuid4
@@ -32,16 +32,15 @@ from researchmate_api.schemas.evidence import (
     RunEventRecord,
     WorkflowRunRecord,
 )
-
-
-class EvidenceStoreError(RuntimeError):
-    def __init__(self, code: str, *, status_code: int = 409) -> None:
-        super().__init__(code)
-        self.code = code
-        self.status_code = status_code
+from researchmate_api.services.evidence_faults import (
+    EvidenceStoreError,
+    FaultScenarioStoreMixin,
+    evidence_fingerprint,
+)
 
 
 class EvidenceRepository(Protocol):
+    """Define owner-scoped persistence operations for evidence workflows."""
     def create_research_run(
         self, user: CurrentUser, payload: ResearchRunCreate, idempotency_key: str
     ) -> ResearchRunAccepted: ...
@@ -103,15 +102,7 @@ class EvidenceRepository(Protocol):
     ) -> FaultScenarioRecord | None: ...
 
 
-def _fingerprint(payload: object) -> str:
-    if hasattr(payload, "model_dump"):
-        value = payload.model_dump(mode="json")
-    else:
-        value = payload
-    return sha256(json.dumps(value, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
-
-
-class InMemoryEvidenceRepository:
+class InMemoryEvidenceRepository(FaultScenarioStoreMixin):
     """Deterministic local repository; distributed execution remains an explicit adapter boundary."""
 
     def __init__(self) -> None:
@@ -126,7 +117,8 @@ class InMemoryEvidenceRepository:
     def create_research_run(
         self, user: CurrentUser, payload: ResearchRunCreate, idempotency_key: str
     ) -> ResearchRunAccepted:
-        fingerprint = _fingerprint(payload)
+        """Create or replay an idempotent caller-owned research run."""
+        fingerprint = evidence_fingerprint(payload)
         key = (user.id, idempotency_key)
         with self.lock:
             existing = self.idempotency.get(key)
@@ -171,6 +163,7 @@ class InMemoryEvidenceRepository:
             return accepted
 
     def get_run(self, user: CurrentUser, run_id: UUID) -> WorkflowRunRecord | None:
+        """Return a defensive copy of a caller-owned workflow run."""
         with self.lock:
             value = self.runs.get(run_id)
             return value[1].model_copy(deep=True) if value and value[0] == user.id else None
@@ -178,6 +171,7 @@ class InMemoryEvidenceRepository:
     def list_run_events(
         self, user: CurrentUser, run_id: UUID, after_sequence: int
     ) -> list[RunEventRecord] | None:
+        """List resumable events after a sequence for a caller-owned run."""
         if self.get_run(user, run_id) is None:
             return None
         with self.lock:
@@ -194,6 +188,7 @@ class InMemoryEvidenceRepository:
         payload: HumanDecisionCreate,
         idempotency_key: str,
     ) -> HumanDecisionAccepted | None:
+        """Persist one idempotent decision for a waiting caller-owned run."""
         with self.lock:
             owned = self.runs.get(run_id)
             if not owned or owned[0] != user.id:
@@ -201,7 +196,7 @@ class InMemoryEvidenceRepository:
             if owned[1].status != "waiting_human":
                 raise EvidenceStoreError("RUN_NOT_WAITING")
             key = (run_id, payload.interrupt_key)
-            fingerprint = _fingerprint(payload)
+            fingerprint = evidence_fingerprint(payload)
             existing = self.decisions.get(key)
             if existing:
                 if existing[0] != fingerprint:
@@ -218,25 +213,31 @@ class InMemoryEvidenceRepository:
             return accepted
 
     def list_claims(self, user: CurrentUser, project_id: UUID) -> ClaimListResponse:
+        """Return the local repository's claim listing for a project."""
         return ClaimListResponse(items=[])
 
     def list_claim_relations(
         self, user: CurrentUser, project_id: UUID
     ) -> ClaimRelationListResponse:
+        """Return the local repository's claim-relation listing."""
         return ClaimRelationListResponse(items=[])
 
     def list_reports(self, user: CurrentUser, project_id: UUID) -> ReportListResponse:
+        """Return the local repository's report listing."""
         return ReportListResponse(items=[])
 
     def get_report(self, user: CurrentUser, report_id: UUID) -> ReportDetail | None:
+        """Return no report because the local adapter does not persist reports."""
         return None
 
     def list_pipeline_versions(self, user: CurrentUser) -> PipelineVersionListResponse:
+        """Return pipeline versions available in the local adapter."""
         return PipelineVersionListResponse(items=[])
 
     def list_evaluation_datasets(
         self, user: CurrentUser, project_id: UUID | None
     ) -> EvaluationDatasetListResponse:
+        """Return evaluation datasets available in the local adapter."""
         return EvaluationDatasetListResponse(items=[])
 
     def refresh_report(
@@ -246,12 +247,14 @@ class InMemoryEvidenceRepository:
         payload: ReportRefreshCreate,
         idempotency_key: str,
     ) -> ReportRefreshAccepted | None:
+        """Return no refresh because local report persistence is unsupported."""
         return None
 
     def create_evaluation_run(
         self, user: CurrentUser, payload: EvaluationRunCreate, idempotency_key: str
     ) -> EvaluationRunAccepted:
-        fingerprint = _fingerprint(payload)
+        """Create or replay an idempotent caller-owned evaluation run."""
+        fingerprint = evidence_fingerprint(payload)
         key = (user.id, idempotency_key)
         with self.lock:
             existing = self.idempotency.get(key)
@@ -283,11 +286,13 @@ class InMemoryEvidenceRepository:
     def get_evaluation_run(
         self, user: CurrentUser, evaluation_run_id: UUID
     ) -> EvaluationRunRecord | None:
+        """Return a defensive copy of a caller-owned evaluation run."""
         with self.lock:
             value = self.evaluations.get(evaluation_run_id)
             return value[1].model_copy(deep=True) if value and value[0] == user.id else None
 
     def reliability(self, user: CurrentUser, window_hours: int) -> ReliabilityResponse:
+        """Aggregate local workflow outcomes for the requested owner."""
         with self.lock:
             records = [record for owner, record in self.runs.values() if owner == user.id]
         terminal = [record for record in records if record.status in {"succeeded", "failed"}]
@@ -304,46 +309,3 @@ class InMemoryEvidenceRepository:
             output_tokens=0,
             cost_usd=Decimal(0),
         )
-
-    def create_fault_scenario(
-        self, user: CurrentUser, payload: FaultScenarioCreate, idempotency_key: str
-    ) -> FaultScenarioAccepted:
-        fingerprint = _fingerprint(payload)
-        key = (user.id, idempotency_key)
-        now = datetime.now(UTC)
-        with self.lock:
-            existing = self.idempotency.get(key)
-            if existing:
-                if existing[0] != fingerprint:
-                    raise EvidenceStoreError("IDEMPOTENCY_KEY_REUSED")
-                return existing[1]  # type: ignore[return-value]
-            exercise_id = uuid4()
-            expires_at = now + timedelta(seconds=payload.duration_seconds)
-            accepted = FaultScenarioAccepted(
-                exercise_id=exercise_id,
-                target_run_id=payload.target_run_id,
-                expected_recovery_state="simulation_completed_without_external_mutation",
-                status_url=f"/api/v1/dev/fault-scenarios/{exercise_id}",
-                expires_at=expires_at,
-            )
-            self.faults[exercise_id] = (
-                user.id,
-                FaultScenarioRecord(
-                    exercise_id=exercise_id,
-                    scenario=payload.scenario,
-                    target_run_id=payload.target_run_id,
-                    status="pending",
-                    attempts=0,
-                    expires_at=expires_at,
-                    created_at=now,
-                ),
-            )
-            self.idempotency[key] = (fingerprint, accepted)
-            return accepted
-
-    def get_fault_scenario(
-        self, user: CurrentUser, exercise_id: UUID
-    ) -> FaultScenarioRecord | None:
-        with self.lock:
-            value = self.faults.get(exercise_id)
-            return value[1].model_copy(deep=True) if value and value[0] == user.id else None

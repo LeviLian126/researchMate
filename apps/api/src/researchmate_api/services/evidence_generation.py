@@ -1,3 +1,5 @@
+"""Generate and validate research plans, claims, relations, and reports."""
+
 from __future__ import annotations
 
 import json
@@ -10,10 +12,12 @@ from researchmate_api.services.store import ChunkEntry
 
 
 class ResearchPlan(BaseModel):
+    """Represent bounded, non-overlapping research questions."""
     questions: list[str] = Field(min_length=2, max_length=8)
 
 
 class ExtractedClaim(BaseModel):
+    """Represent a claim tied to server-assigned evidence identifiers."""
     text: str = Field(min_length=1, max_length=1600)
     stance: Literal["supports", "opposes", "neutral"] = "neutral"
     confidence: float = Field(ge=0, le=1)
@@ -21,10 +25,12 @@ class ExtractedClaim(BaseModel):
 
 
 class ClaimBatch(BaseModel):
+    """Wrap a bounded provider-generated set of claims."""
     claims: list[ExtractedClaim] = Field(min_length=1, max_length=30)
 
 
 class ClaimRelationProposal(BaseModel):
+    """Represent a provider-proposed relation between allowlisted claims."""
     source_claim_id: int = Field(ge=1)
     target_claim_id: int = Field(ge=1)
     relation: Literal["supports", "contradicts", "duplicates"]
@@ -33,10 +39,12 @@ class ClaimRelationProposal(BaseModel):
 
 
 class RelationBatch(BaseModel):
+    """Wrap validated claim-relation proposals."""
     relations: list[ClaimRelationProposal] = Field(default_factory=list, max_length=200)
 
 
 class ReportSectionProposal(BaseModel):
+    """Represent a report section grounded in accepted claim identifiers."""
     section_key: str = Field(pattern=r"^[a-z0-9][a-z0-9_-]{0,79}$")
     heading: str = Field(min_length=1, max_length=240)
     body_markdown: str = Field(min_length=1, max_length=20_000)
@@ -44,15 +52,17 @@ class ReportSectionProposal(BaseModel):
 
 
 class ReportProposal(BaseModel):
+    """Represent a structured evidence report proposed by a provider."""
     title: str = Field(min_length=1, max_length=240)
     sections: list[ReportSectionProposal] = Field(min_length=1, max_length=30)
 
 
 class EvidenceGenerationError(ValueError):
-    pass
+    """Signal provider output outside the evidence-generation contract."""
 
 
 def _json_object(content: str) -> str:
+    """Extract a JSON object from a provider response with optional wrappers."""
     start, end = content.find("{"), content.rfind("}")
     if start < 0 or end <= start:
         raise EvidenceGenerationError("provider output did not contain a JSON object")
@@ -60,6 +70,7 @@ def _json_object(content: str) -> str:
 
 
 def _complete_json(provider: ChatProvider, system: str, payload: dict, schema):
+    """Request structured evidence output and validate it against a schema."""
     result = provider.complete(
         [
             {"role": "system", "content": system},
@@ -76,6 +87,7 @@ def _complete_json(provider: ChatProvider, system: str, payload: dict, schema):
 
 
 def build_research_plan(provider: ChatProvider, research_goal: str) -> ResearchPlan:
+    """Generate unique evidence questions for a research goal."""
     plan, _ = _complete_json(
         provider,
         (
@@ -96,6 +108,7 @@ def extract_claims(
     question: str,
     chunks: list[ChunkEntry],
 ) -> ClaimBatch:
+    """Extract claims while enforcing the server evidence allowlist."""
     if not chunks:
         raise EvidenceGenerationError("claim extraction requires evidence")
     evidence = [
@@ -126,6 +139,7 @@ def extract_claims(
 
 
 def reconcile_claims(provider: ChatProvider, claims: list[ExtractedClaim]) -> RelationBatch:
+    """Generate non-self, non-duplicate relations among supplied claims."""
     if len(claims) < 2:
         return RelationBatch()
     payload = {
@@ -162,6 +176,7 @@ def synthesize_report(
     claims: list[ExtractedClaim],
     required_section_keys: list[str] | None = None,
 ) -> ReportProposal:
+    """Synthesize a report whose sections reference only supplied claims."""
     if not claims:
         raise EvidenceGenerationError("report synthesis requires accepted claims")
     report, _ = _complete_json(

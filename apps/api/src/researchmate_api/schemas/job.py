@@ -1,3 +1,5 @@
+"""Define the public status record for owner-scoped asynchronous jobs."""
+
 from datetime import datetime
 from uuid import UUID
 
@@ -8,6 +10,7 @@ from researchmate_api.schemas.common import JobStatus
 
 # 定义异步任务响应。
 class JobRecord(BaseModel):
+    """Represent an asynchronous job without exposing worker internals."""
     id: UUID
     user_id: UUID
     project_id: UUID | None = None
@@ -20,4 +23,3 @@ class JobRecord(BaseModel):
     updated_at: datetime
 
     model_config = ConfigDict(use_enum_values=True)
-

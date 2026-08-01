@@ -1,7 +1,8 @@
+"""Parse supported documents into bounded, provenance-aware blocks for ingestion."""
+
 from __future__ import annotations
 
 import logging
-from importlib.metadata import PackageNotFoundError, version
 from io import BytesIO
 from pathlib import Path
 from re import search
@@ -10,45 +11,13 @@ from xml.etree import ElementTree
 from zipfile import BadZipFile, ZipFile
 
 from researchmate_worker.ingestion import ParsedBlock, ParserAdapterError
+from researchmate_worker.parsing_helpers import (
+    _normalized_archive_member,
+    _package_version,
+    _serialize_provenance,
+)
 
 LOGGER = logging.getLogger(__name__)
-
-
-def _normalized_archive_member(member: str) -> str:
-    return member.replace("\\", "/").lstrip("/").casefold()
-
-
-def _package_version(name: str) -> str:
-    try:
-        return version(name)
-    except PackageNotFoundError:
-        return "unknown"
-
-
-def _serialize_provenance(item: Any, *, locator_kind: str) -> list[dict[str, Any]]:
-    anchors = []
-    for provenance in item.prov:
-        anchors.append(
-            {
-                "item_ref": item.self_ref,
-                "locator_kind": locator_kind,
-                "page_no": provenance.page_no,
-                "bbox": provenance.bbox.model_dump(mode="json"),
-                # This is an opaque backend source offset, not an item.text slice.
-                "charspan": list(provenance.charspan),
-            }
-        )
-    if not anchors:
-        anchors.append(
-            {
-                "item_ref": item.self_ref,
-                "locator_kind": "structural",
-                "page_no": None,
-                "bbox": None,
-                "charspan": None,
-            }
-        )
-    return anchors
 
 
 class DoclingDocumentParser:
@@ -261,6 +230,7 @@ class DoclingDocumentParser:
         return blocks
 
     def parse(self, source: Path, *, file_type: str) -> list[ParsedBlock]:
+        """Validate the file boundary and route it to the configured bounded parser."""
         if file_type not in {"pdf", "docx", "pptx"}:
             raise ParserAdapterError("UNSUPPORTED_DOCUMENT_TYPE")
         try:

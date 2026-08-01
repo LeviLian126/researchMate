@@ -1,3 +1,5 @@
+"""Expose owner-scoped source summaries for completed query runs."""
+
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, status
@@ -17,6 +19,7 @@ def get_run_sources(
     user: CurrentUser = Depends(get_current_user),
     repository: ResearchMateRepository = Depends(get_store),
 ) -> RunSourcesResponse:
+    """Return normalized sources for a caller-visible run."""
     response = repository.get_run_sources(user, run_id)
     if response is None:
         raise_api_error(status.HTTP_404_NOT_FOUND, "RUN_NOT_FOUND", "Run was not found.")

@@ -1,9 +1,11 @@
+// Renders project-local navigation and resolves the current project label.
 "use client";
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { apiFetch, ProjectRecord } from "../lib/api";
 
+/** Presents links for the active project's primary user and developer surfaces. */
 export function ProjectNav({
   projectId,
   current,

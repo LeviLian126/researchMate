@@ -1,3 +1,4 @@
+// Owns authenticated project and conversation navigation plus its management dialogs.
 "use client";
 
 import Link from "next/link";
@@ -54,6 +55,7 @@ export function AppSidebar() {
     [activeProjectId, conversations],
   );
 
+  /** Reloads projects and conversations while rejecting stale overlapping responses. */
   const loadNavigation = useCallback(async () => {
     const generation = ++requestGeneration.current;
     try {
@@ -86,6 +88,7 @@ export function AppSidebar() {
     };
   }, [loadNavigation]);
 
+  /** Toggles the sidebar and broadcasts its responsive layout state. */
   function toggleSidebar() {
     setCollapsed((current) => {
       window.localStorage.setItem("researchmate_sidebar_collapsed", String(!current));
@@ -93,6 +96,7 @@ export function AppSidebar() {
     });
   }
 
+  /** Creates a workspace project and navigates to its chat. */
   async function createProject(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!projectName.trim()) return;
@@ -110,6 +114,7 @@ export function AppSidebar() {
     }
   }
 
+  /** Persists a conversation title and updates the navigation snapshot. */
   async function renameConversation(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!editingConversation || !editingTitle.trim()) return;
@@ -125,6 +130,7 @@ export function AppSidebar() {
     }
   }
 
+  /** Deletes a conversation after the explicit confirmation state is satisfied. */
   async function deleteConversation(conversation: ConversationSummary) {
     try {
       await apiFetch(`/conversations/${conversation.id}`, { method: "DELETE" });
@@ -143,6 +149,7 @@ export function AppSidebar() {
     }
   }
 
+  /** Requests project deletion and follows the asynchronous deletion job to completion. */
   async function deleteProject(projectId: string) {
     try {
       const accepted = await apiFetch<{ job_id: string }>(`/projects/${projectId}`, {
@@ -172,6 +179,7 @@ export function AppSidebar() {
     }
   }
 
+  /** Opens rename mode with the current canonical conversation title. */
   function startRename(conversation: ConversationSummary) {
     setEditingConversation(conversation);
     setEditingTitle(conversation.title);
@@ -325,6 +333,7 @@ export function AppSidebar() {
     </aside>
   );
 }
+/** Renders a selectable conversation and its rename/delete actions. */
 function ConversationLink({
   conversation,
   href,

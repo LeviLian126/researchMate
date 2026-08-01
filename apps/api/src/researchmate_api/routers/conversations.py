@@ -1,3 +1,5 @@
+"""Expose owned conversation lifecycle and privileged rerank configuration routes."""
+
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Response, status
@@ -30,6 +32,7 @@ def list_all_conversations(
     user: CurrentUser = Depends(get_current_user),
     repository: ResearchMateRepository = Depends(get_store),
 ) -> ConversationListResponse:
+    """List every active conversation owned by the authenticated user."""
     return ConversationListResponse(items=repository.list_all_conversations(user))
 
 
@@ -44,6 +47,7 @@ def create_conversation(
     user: CurrentUser = Depends(get_current_user),
     repository: ResearchMateRepository = Depends(get_store),
 ) -> ConversationSummary:
+    """Create a named conversation inside an accessible active project."""
     conversation = repository.create_conversation(user, project_id, payload.title)
     if conversation is None:
         raise_api_error(404, "PROJECT_NOT_FOUND", "Project was not found.")
@@ -59,6 +63,7 @@ def list_conversations(
     user: CurrentUser = Depends(get_current_user),
     repository: ResearchMateRepository = Depends(get_store),
 ) -> ConversationListResponse:
+    """List active conversations within one accessible project."""
     items = repository.list_conversations(user, project_id)
     if items is None:
         raise_api_error(404, "PROJECT_NOT_FOUND", "Project was not found.")
@@ -74,6 +79,7 @@ def list_messages(
     user: CurrentUser = Depends(get_current_user),
     repository: ResearchMateRepository = Depends(get_store),
 ) -> ConversationMessagesResponse:
+    """Return the bounded recent messages for one owned conversation."""
     messages = repository.conversation_messages(user, conversation_id)
     if messages is None:
         raise_api_error(404, "CONVERSATION_NOT_FOUND", "Conversation was not found.")
@@ -93,6 +99,7 @@ def rename_conversation(
     user: CurrentUser = Depends(get_current_user),
     repository: ResearchMateRepository = Depends(get_store),
 ) -> ConversationSummary:
+    """Rename an owned conversation while concealing inaccessible identifiers."""
     conversation = repository.rename_conversation(user, conversation_id, payload.title)
     if conversation is None:
         raise_api_error(404, "CONVERSATION_NOT_FOUND", "Conversation was not found.")
@@ -108,17 +115,16 @@ def delete_conversation(
     user: CurrentUser = Depends(get_current_user),
     repository: ResearchMateRepository = Depends(get_store),
 ) -> Response:
-    documents = repository.list_conversation_documents(user, conversation_id)
-    if documents is None:
-        raise_api_error(404, "CONVERSATION_NOT_FOUND", "Conversation was not found.")
-    for document in documents:
-        if repository.delete_document(user, document.id) is None:
-            raise_api_error(
-                409,
-                "CONVERSATION_CLEANUP_FAILED",
-                "A chat attachment could not be scheduled for removal.",
-            )
-    if not repository.delete_conversation(user, conversation_id):
+    """Atomically schedule attachment cleanup and remove one owned conversation."""
+    try:
+        deleted = repository.delete_conversation_with_attachments(user, conversation_id)
+    except ValueError:
+        raise_api_error(
+            409,
+            "CONVERSATION_CLEANUP_FAILED",
+            "Chat attachments could not be scheduled for removal as one unit.",
+        )
+    if not deleted:
         raise_api_error(404, "CONVERSATION_NOT_FOUND", "Conversation was not found.")
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
@@ -128,6 +134,7 @@ def read_rerank_config(
     _user: CurrentUser = Depends(require_admin),
     repository: ResearchMateRepository = Depends(get_store),
 ) -> RuntimeRerankConfig:
+    """Read the privileged versioned rerank-provider configuration."""
     return repository.get_runtime_rerank_config()
 
 
@@ -138,6 +145,7 @@ def update_rerank_config(
     repository: ResearchMateRepository = Depends(get_store),
     qdrant: QdrantHybridStore | None = Depends(get_hybrid_store),
 ) -> RuntimeRerankConfig:
+    """Optimistically activate a verified rerank provider as an administrator."""
     if payload.provider == "qdrant" and (qdrant is None or not qdrant.rerank_ready()):
         raise_api_error(
             409,

@@ -1,3 +1,5 @@
+"""Persist bounded worker and dispatcher heartbeat metadata."""
+
 from __future__ import annotations
 
 import json

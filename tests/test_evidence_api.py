@@ -1,3 +1,5 @@
+"""Verify evidence API ownership, idempotency, privilege, and route contracts."""
+
 from uuid import uuid4
 
 from fastapi.testclient import TestClient
@@ -9,16 +11,19 @@ ADMIN_HEADERS = {"Authorization": "Bearer dev-admin"}
 
 
 def client() -> TestClient:
+    """Create an isolated test client for evidence routes."""
     return TestClient(create_app(settings=Settings(app_env="test", llm_provider="fake")))
 
 
 def create_project(api: TestClient) -> str:
+    """Create a project and return its identifier for API scenarios."""
     response = api.post("/api/v1/projects", headers=HEADERS, json={"name": "Evidence Review"})
     assert response.status_code == 201
     return response.json()["id"]
 
 
 def research_payload(project_id: str) -> dict:
+    """Build a valid bounded research-run request body."""
     return {
         "project_id": project_id,
         "research_goal": "Compare the evidence for and against the proposed research claim.",
@@ -29,6 +34,7 @@ def research_payload(project_id: str) -> dict:
 
 
 def test_research_run_is_owner_scoped_and_idempotent() -> None:
+    """Require owner concealment and stable research-run replay."""
     api = client()
     project_id = create_project(api)
     payload = research_payload(project_id)
@@ -52,6 +58,7 @@ def test_research_run_is_owner_scoped_and_idempotent() -> None:
 
 
 def test_idempotency_key_reuse_with_different_body_is_rejected() -> None:
+    """Reject reuse of one idempotency key for different intent."""
     api = client()
     project_id = create_project(api)
     headers = {**HEADERS, "Idempotency-Key": "research-run-0002"}
@@ -66,6 +73,7 @@ def test_idempotency_key_reuse_with_different_body_is_rejected() -> None:
 
 
 def test_evaluation_and_reliability_require_privileged_identity() -> None:
+    """Require privileged identities for evaluation and reliability routes."""
     api = client()
     payload = {
         "dataset_id": str(uuid4()),
@@ -92,6 +100,7 @@ def test_evaluation_and_reliability_require_privileged_identity() -> None:
 
 
 def test_evidence_routes_are_exposed_in_generated_openapi() -> None:
+    """Keep all evidence routes present in the generated API contract."""
     paths = client().get("/openapi.json").json()["paths"]
     for path in (
         "/api/v1/research-runs",
@@ -112,6 +121,7 @@ def test_evidence_routes_are_exposed_in_generated_openapi() -> None:
 
 
 def test_fault_exercise_status_url_is_queryable_and_owner_scoped() -> None:
+    """Keep fault-exercise status queryable only by its owner."""
     api = client()
     accepted = api.post(
         "/api/v1/dev/fault-scenarios",

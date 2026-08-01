@@ -1,3 +1,5 @@
+"""Verify source, budget, and pipeline-version runtime safety extensions."""
+
 from contextlib import contextmanager
 from decimal import Decimal
 from uuid import uuid4
@@ -11,6 +13,7 @@ from researchmate_worker.evaluation import PipelineRuntimeConfig
 
 
 class _Result:
+    """Expose minimal reservation and usage result mappings."""
     def __init__(self, claimed: bool = True) -> None:
         self.claimed = claimed
 
@@ -19,6 +22,7 @@ class _Result:
 
 
 class _Connection:
+    """Record budget SQL and return deterministic reservation results."""
     def __init__(self, claimed: bool = True) -> None:
         self.claimed = claimed
         self.statements: list[str] = []
@@ -30,6 +34,7 @@ class _Connection:
 
 
 class _Engine:
+    """Provide an isolated budget transaction context."""
     def __init__(self, claimed: bool = True) -> None:
         self.connection = _Connection(claimed)
 
@@ -39,6 +44,7 @@ class _Engine:
 
 
 class _Provider:
+    """Record bounded prompts and return deterministic token usage."""
     def complete(self, messages):
         assert list(messages)
         return LLMResult(
@@ -51,6 +57,7 @@ class _Provider:
 
 
 def _budgeted(engine: _Engine, *, max_prompt_tokens: int = 1024) -> BudgetedChatProvider:
+    """Build a budget-enforcing provider from isolated doubles."""
     provider = BudgetedChatProvider(
         _Provider(),
         engine,  # type: ignore[arg-type]
@@ -64,12 +71,14 @@ def _budgeted(engine: _Engine, *, max_prompt_tokens: int = 1024) -> BudgetedChat
 
 
 def test_source_scope_rejects_duplicate_document_ids() -> None:
+    """Reject duplicate document identifiers in source scope."""
     document_id = uuid4()
     with pytest.raises(ValidationError):
         SourceScope(document_ids=[document_id, document_id])
 
 
 def test_workflow_budget_reserves_before_call_and_persists_usage() -> None:
+    """Reserve budget before provider work and persist actual usage."""
     engine = _Engine()
     result = _budgeted(engine).complete([{"role": "user", "content": "evidence"}])
 
@@ -81,11 +90,13 @@ def test_workflow_budget_reserves_before_call_and_persists_usage() -> None:
 
 
 def test_workflow_budget_fails_before_provider_when_reservation_is_denied() -> None:
+    """Avoid provider calls when durable budget reservation is denied."""
     with pytest.raises(WorkflowBudgetExceeded):
         _budgeted(_Engine(claimed=False)).complete([{"role": "user", "content": "evidence"}])
 
 
 def test_workflow_budget_rejects_oversized_prompt_before_database_reservation() -> None:
+    """Reject oversized prompts before touching durable reservation state."""
     engine = _Engine()
     with pytest.raises(WorkflowBudgetExceeded):
         _budgeted(engine, max_prompt_tokens=1).complete(
@@ -95,6 +106,7 @@ def test_workflow_budget_rejects_oversized_prompt_before_database_reservation() 
 
 
 def test_pipeline_runtime_configuration_is_not_an_unvalidated_label() -> None:
+    """Require structured validation for persisted pipeline configuration."""
     configured = PipelineRuntimeConfig.model_validate(
         {
             "retrieval_limit": 7,

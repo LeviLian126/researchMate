@@ -1,7 +1,9 @@
+// Composes authentication and shared navigation around all product workspace routes.
 import { Suspense, type ReactNode } from "react";
 import { AuthGate } from "../components/auth-gate";
 import { AppSidebar } from "../components/app-sidebar";
 
+/** Provides the protected application shell and sidebar loading boundary. */
 export default function ProtectedAppLayout({ children }: { children: ReactNode }) {
   return (
     <AuthGate>

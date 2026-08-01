@@ -1,3 +1,4 @@
+// Configures Next.js security headers and local-development connection allowances.
 import type { NextConfig } from "next";
 
 const developmentScripts = process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : "";

@@ -1,3 +1,5 @@
+"""Define redacted developer-trace contracts for privileged diagnostics."""
+
 from datetime import datetime
 from uuid import UUID
 
@@ -8,6 +10,7 @@ from researchmate_api.schemas.common import ExecutionPlan
 
 # 定义脱敏后的工具调用摘要。
 class ToolCallTrace(BaseModel):
+    """Summarize a tool call without exposing raw sensitive payloads."""
     id: UUID
     tool_name: str = Field(min_length=2, max_length=120)
     input_summary: dict
@@ -19,6 +22,7 @@ class ToolCallTrace(BaseModel):
 
 # 定义管理员可见的 Developer Trace。
 class DeveloperTrace(BaseModel):
+    """Aggregate privacy-bounded execution diagnostics for administrators."""
     trace_id: UUID
     user_id: UUID
     project_id: UUID
@@ -32,4 +36,3 @@ class DeveloperTrace(BaseModel):
     token_usage: dict | None = None
     errors: list[str] = Field(default_factory=list, max_length=20)
     created_at: datetime
-

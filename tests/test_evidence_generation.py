@@ -1,3 +1,5 @@
+"""Verify evidence generation accepts only server-issued identifiers."""
+
 import json
 from types import SimpleNamespace
 from uuid import UUID
@@ -16,6 +18,7 @@ from researchmate_api.services.store import ChunkEntry
 
 
 class FakeProvider:
+    """Return deterministic structured outputs to generation services."""
     def __init__(self, outputs):
         self.outputs = iter(outputs)
 
@@ -30,6 +33,7 @@ class FakeProvider:
 
 
 def chunk() -> ChunkEntry:
+    """Create a representative server-owned evidence chunk."""
     return ChunkEntry(
         id=UUID(int=1),
         user_id=UUID(int=2),
@@ -43,6 +47,7 @@ def chunk() -> ChunkEntry:
 
 
 def test_evidence_generation_pipeline_accepts_only_server_ids() -> None:
+    """Accept plans, claims, relations, and reports using allowlisted IDs."""
     provider = FakeProvider(
         [
             {"questions": ["What supports A?", "What contradicts A?"]},
@@ -79,6 +84,7 @@ def test_evidence_generation_pipeline_accepts_only_server_ids() -> None:
 
 
 def test_claim_extraction_rejects_unknown_evidence_ids() -> None:
+    """Reject provider claims that reference unknown evidence."""
     provider = FakeProvider(
         [
             {
@@ -99,6 +105,7 @@ def test_claim_extraction_rejects_unknown_evidence_ids() -> None:
 
 
 def test_reconciliation_rejects_self_edges() -> None:
+    """Reject provider relations that point a claim to itself."""
     claim = SimpleNamespace(text="A", stance="neutral")
     provider = FakeProvider(
         [

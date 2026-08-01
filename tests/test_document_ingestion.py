@@ -1,3 +1,5 @@
+"""Verify ingestion state transitions and deterministic content projections."""
+
 from hashlib import sha256
 from uuid import UUID
 
@@ -19,6 +21,7 @@ EVENT = IngestionEvent(
 
 
 class FakeStore:
+    """Record ingestion claims, projections, and lifecycle transitions."""
     def __init__(self, checksum=None, attempts=1):
         self.record = IngestionRecord(
             **EVENT.model_dump(),
@@ -56,6 +59,7 @@ class FakeStore:
 
 
 class FakeObjectReader:
+    """Provide deterministic uploaded bytes to the ingestion service."""
     def __init__(self, content=b"source bytes"):
         self.content = content
 
@@ -64,6 +68,7 @@ class FakeObjectReader:
 
 
 class FakeParser:
+    """Return deterministic parsed pages for ingestion tests."""
     def parse(self, source, *, file_type):
         assert source.read_bytes() == b"source bytes"
         assert file_type == "pdf"
@@ -78,6 +83,7 @@ class FakeParser:
 
 
 class FakeVectorProjection:
+    """Record vector upserts and inject configured projection failures."""
     def __init__(self, error=None):
         self.error = error
         self.chunks = []
@@ -90,6 +96,7 @@ class FakeVectorProjection:
 
 
 def service(store, *, reader=None, parser=None, vector=None):
+    """Build an ingestion service from isolated test doubles."""
     return DocumentIngestionService(
         store=store,
         object_reader=reader or FakeObjectReader(),
@@ -103,6 +110,7 @@ def service(store, *, reader=None, parser=None, vector=None):
 
 
 def test_ingestion_builds_stable_page_and_chunk_projections() -> None:
+    """Require deterministic page, chunk, and vector projections."""
     checksum = sha256(b"source bytes").hexdigest()
     store = FakeStore(checksum=checksum)
     vector = FakeVectorProjection()
@@ -118,6 +126,7 @@ def test_ingestion_builds_stable_page_and_chunk_projections() -> None:
 
 
 def test_checksum_mismatch_is_terminal_and_never_reaches_parser() -> None:
+    """Reject corrupt uploads before parsing or projection."""
     store = FakeStore(checksum="0" * 64)
 
     with pytest.raises(IngestionFailure) as failure:
@@ -130,6 +139,7 @@ def test_checksum_mismatch_is_terminal_and_never_reaches_parser() -> None:
 
 
 def test_retryable_projection_failure_requeues_before_attempt_limit() -> None:
+    """Requeue transient projection failures below the attempt limit."""
     from researchmate_api.services.qdrant_store import VectorStoreRequestError
 
     store = FakeStore(attempts=2)

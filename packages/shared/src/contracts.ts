@@ -1,3 +1,5 @@
+// 定义前后端共享的 ResearchMate API 数据契约，不包含运行时实现或策略。
+
 // 定义任务类型，Task 只决定要做什么。
 export type TaskType = "answer" | "quiz";
 
@@ -55,6 +57,8 @@ export interface AskResponse extends GroundedAnswer {
   run_id: string;
   conversation_id: string;
   rerank_degraded: boolean;
+  retrieval_degraded: boolean;
+  summary_degraded: boolean;
   fallback_reason?: string | null;
 }
 
@@ -75,6 +79,37 @@ export interface QuizSet {
   id: string;
   sources: SourceSummary;
   questions: QuizQuestion[];
+}
+
+// 定义 Quiz 的资料选择模式。
+export type QuizResourceScope = "all_ready_documents" | "topic";
+
+// 定义 Quiz API 请求，并保留后端提供的默认值。
+export interface QuizRequest {
+  project_id: string;
+  prompt?: string;
+  topic_query?: string | null;
+  resource_scope?: QuizResourceScope;
+  single_choice_count?: number;
+  fill_blank_count?: number;
+  subjective_count?: number;
+}
+
+// 定义实际进入生成上下文的资料覆盖情况。
+export interface QuizCoverage {
+  documents_available: number;
+  documents_covered: number;
+  chunks_selected: number;
+  truncated: boolean;
+}
+
+// 定义包含运行元数据与覆盖情况的 Quiz API 响应。
+export interface QuizResponse {
+  quiz_set: QuizSet;
+  run_id: string;
+  trace_id: string;
+  validation_status: "passed" | "failed" | "retrying";
+  coverage: QuizCoverage;
 }
 
 // 定义 Quiz 历史响应。

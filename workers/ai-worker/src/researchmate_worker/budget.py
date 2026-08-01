@@ -1,3 +1,5 @@
+"""Enforce per-run LLM reservation and prompt limits before provider calls."""
+
 from __future__ import annotations
 
 import json
@@ -11,6 +13,8 @@ from sqlalchemy import Engine, text
 
 
 class WorkflowBudgetExceeded(RuntimeError):
+    """Expose a stable worker failure code without leaking provider details."""
+
     code = "WORKFLOW_BUDGET_EXCEEDED"
     retryable = False
 
@@ -45,9 +49,9 @@ class BudgetedChatProvider:
         if self.run_id is None:
             raise RuntimeError("workflow budget provider is not bound to a run")
         safe_messages = list(messages)
-        estimated_prompt_tokens = sum(
-            len(message.get("content", "")) for message in safe_messages
-        ) // 4 + 1
+        estimated_prompt_tokens = (
+            sum(len(message.get("content", "")) for message in safe_messages) // 4 + 1
+        )
         if estimated_prompt_tokens > self.max_prompt_tokens:
             raise WorkflowBudgetExceeded()
         self._reserve()
@@ -57,8 +61,7 @@ class BudgetedChatProvider:
         input_tokens = int(result.prompt_tokens or 0)
         output_tokens = int(result.completion_tokens or 0)
         actual = (
-            Decimal(input_tokens) * self.input_price
-            + Decimal(output_tokens) * self.output_price
+            Decimal(input_tokens) * self.input_price + Decimal(output_tokens) * self.output_price
         ) / Decimal(1_000_000)
         self._record_usage(result, latency_ms, input_tokens, output_tokens, actual)
         return result

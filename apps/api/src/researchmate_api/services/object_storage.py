@@ -1,3 +1,5 @@
+"""Wrap private S3-compatible object operations behind normalized errors."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -8,24 +10,29 @@ from researchmate_api.config import Settings
 
 
 class ObjectStorageConfigurationError(RuntimeError):
-    pass
+    """Signal incomplete object-storage configuration."""
 
 
 class ObjectStorageRequestError(RuntimeError):
+    """Normalize an object-storage operation failure and retryability."""
     def __init__(self, operation: str, *, retryable: bool) -> None:
+        """Capture the failed storage operation and retry classification."""
         super().__init__(f"Object storage {operation} failed")
         self.operation = operation
         self.retryable = retryable
 
 
 class UploadVerificationError(RuntimeError):
+    """Expose a stable code for uploaded-object validation failures."""
     def __init__(self, code: str, message: str) -> None:
+        """Capture the stable upload-verification code and safe message."""
         super().__init__(message)
         self.code = code
 
 
 @dataclass(frozen=True)
 class StoredObjectMetadata:
+    """Normalize object metadata used to verify an upload."""
     size_bytes: int
     content_type: str | None
     etag: str | None
@@ -36,6 +43,7 @@ class S3CompatibleObjectStorage:
     """Private S3-compatible adapter; provider SDK objects never escape this boundary."""
 
     def __init__(self, settings: Settings, client: Any | None = None) -> None:
+        """Bind verified object-storage settings and an optional injected client."""
         if not settings.object_storage_configured:
             raise ObjectStorageConfigurationError("S3-compatible object storage is not fully configured")
         endpoint_url = settings.object_storage_endpoint_url_resolved
@@ -64,6 +72,7 @@ class S3CompatibleObjectStorage:
         content_type: str,
         expires_in_seconds: int = 600,
     ) -> str:
+        """Create a bounded signed PUT URL for a private object key."""
         try:
             return str(
                 self.client.generate_presigned_url(
@@ -81,6 +90,7 @@ class S3CompatibleObjectStorage:
             raise self._normalize_error("presign", exc) from exc
 
     def head(self, object_key: str) -> StoredObjectMetadata:
+        """Read normalized metadata for a private object."""
         try:
             response = self.client.head_object(Bucket=self.bucket, Key=object_key)
         except Exception as exc:
@@ -93,6 +103,7 @@ class S3CompatibleObjectStorage:
         )
 
     def delete(self, object_key: str) -> None:
+        """Delete one private object while normalizing provider failures."""
         try:
             self.client.delete_object(Bucket=self.bucket, Key=object_key)
         except Exception as exc:
@@ -109,6 +120,7 @@ class S3CompatibleObjectStorage:
 
     @staticmethod
     def _normalize_error(operation: str, exc: Exception) -> ObjectStorageRequestError:
+        """Convert provider exceptions into stable retryable storage failures."""
         response = getattr(exc, "response", None)
         status = None
         if isinstance(response, dict):

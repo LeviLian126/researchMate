@@ -1,3 +1,5 @@
+"""Verify PostgreSQL evidence-repository behavior with isolated unit doubles."""
+
 # Verifies evidence-repository mapping and ownership contracts without emulating PostgreSQL.
 from __future__ import annotations
 

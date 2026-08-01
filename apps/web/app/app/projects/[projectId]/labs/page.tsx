@@ -1,3 +1,4 @@
+// Presents role-restricted evaluation, reliability, and fault-exercise developer tools.
 "use client";
 
 import { useParams } from "next/navigation";
@@ -66,6 +67,7 @@ function EngineeringLabsWorkspace() {
   const [busy, setBusy] = useState<string | null>(null);
   const [notice, setNotice] = useState<NoticeState | null>(null);
 
+  /** Reloads reliability metrics for the selected time window. */
   const loadReliability = useCallback(async () => {
     setBusy("reliability");
     try {
@@ -77,6 +79,7 @@ function EngineeringLabsWorkspace() {
     }
   }, [windowHours]);
 
+  /** Loads one evaluation and optionally suppresses transient polling failures. */
   const loadEvaluation = useCallback(async (id: string, quiet = false) => {
     if (!id) return;
     if (!quiet) setBusy("evaluation-status");
@@ -111,10 +114,12 @@ function EngineeringLabsWorkspace() {
     return () => window.clearTimeout(timer);
   }, [evaluation, loadEvaluation]);
 
+  /** Adds or removes one evaluation metric from the requested run. */
   function toggleMetric(metric: string) {
     setMetrics((current) => current.includes(metric) ? current.filter((item) => item !== metric) : [...current, metric]);
   }
 
+  /** Creates an idempotent evaluation run from the selected dataset and pipeline. */
   async function createEvaluation(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (metrics.length === 0) {
@@ -139,6 +144,7 @@ function EngineeringLabsWorkspace() {
     }
   }
 
+  /** Runs an explicitly selected local fault exercise for developer validation. */
   async function runFaultExercise(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setBusy("fault");

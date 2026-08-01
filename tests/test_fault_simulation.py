@@ -1,3 +1,5 @@
+"""Verify fault exercises record bounded recovery without external mutation."""
+
 import json
 from contextlib import nullcontext
 from uuid import UUID
@@ -6,6 +8,7 @@ from researchmate_worker.fault_simulation import FaultSimulationService
 
 
 class FakeResult:
+    """Expose the minimal result mapping used by fault persistence."""
     def __init__(self, row=None):
         self.row = row
 
@@ -17,6 +20,7 @@ class FakeResult:
 
 
 class FakeConnection:
+    """Record SQL calls and return deterministic fault records."""
     def __init__(self):
         self.finished = None
 
@@ -40,6 +44,7 @@ class FakeConnection:
 
 
 class FakeEngine:
+    """Provide an isolated transaction context for fault simulation."""
     def __init__(self):
         self.connection = FakeConnection()
 
@@ -48,6 +53,7 @@ class FakeEngine:
 
 
 def test_fault_simulation_records_recovery_without_external_mutation() -> None:
+    """Persist safe recovery evidence without mutating external systems."""
     engine = FakeEngine()
     service = FaultSimulationService(engine)  # type: ignore[arg-type]
 

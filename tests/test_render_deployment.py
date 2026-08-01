@@ -1,3 +1,5 @@
+"""Verify Render deployment configuration and combined-runtime startup order."""
+
 # Verifies that the Render blueprint and image stay within the combined free-tier boundary.
 from pathlib import Path
 
@@ -35,11 +37,17 @@ def test_render_blueprint_uses_one_shared_free_service_and_secret_prompts() -> N
 
 
 def test_nvidia_free_endpoint_has_no_runtime_price_fields() -> None:
+    """Keep free NVIDIA endpoint configuration free of runtime price fields."""
     config_source = (
         ROOT / "workers" / "ai-worker" / "src" / "researchmate_worker" / "config.py"
     ).read_text(encoding="utf-8")
     tasks_source = (
-        ROOT / "workers" / "ai-worker" / "src" / "researchmate_worker" / "tasks.py"
+        ROOT
+        / "workers"
+        / "ai-worker"
+        / "src"
+        / "researchmate_worker"
+        / "task_builders.py"
     ).read_text(encoding="utf-8")
     assert "nvidia_input_cost_per_million_usd" not in config_source
     assert "nvidia_output_cost_per_million_usd" not in config_source
@@ -58,28 +66,36 @@ def test_render_runtime_starts_api_worker_and_dispatcher() -> None:
     assert commands[2][-1] == "researchmate_worker.dispatch_outbox"
 
 
-def test_combined_runtime_waits_for_api_port_before_heavy_workers(monkeypatch) -> None:
+def test_combined_runtime_waits_for_api_health_before_heavy_workers(monkeypatch) -> None:
+    """Start heavy workers only after the API answers its HTTP health endpoint."""
     class FakeProcess:
         def poll(self):
             return None
 
+    class Response:
+        status = 200
+
     class Connection:
-        def __enter__(self):
-            return self
+        def __init__(self, host, port, *, timeout):
+            calls.append((host, port, timeout))
 
-        def __exit__(self, *_args):
-            return None
+        def request(self, method, path):
+            requests.append((method, path))
 
-    calls = []
+        def getresponse(self):
+            return Response()
 
-    def connect(address, *, timeout):
-        calls.append((address, timeout))
-        return Connection()
+        def close(self):
+            closed.append(True)
 
-    monkeypatch.setattr(render_combined.socket, "create_connection", connect)
+    calls, requests, closed = [], [], []
+
+    monkeypatch.setattr(render_combined, "HTTPConnection", Connection)
 
     assert render_combined.wait_for_api(FakeProcess(), 10000, timeout_seconds=1) is True
-    assert calls == [(("127.0.0.1", 10000), 0.5)]
+    assert calls == [("127.0.0.1", 10000, 0.5)]
+    assert requests == [("GET", "/api/v1/healthz")]
+    assert closed == [True]
 
 
 def test_render_image_uses_cpu_only_pytorch() -> None:

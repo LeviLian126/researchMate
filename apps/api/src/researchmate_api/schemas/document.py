@@ -1,3 +1,5 @@
+"""Define upload, document lifecycle, and response schemas for the document boundary."""
+
 from datetime import datetime
 from typing import Literal
 from uuid import UUID
@@ -15,6 +17,7 @@ MIME_BY_TYPE = {
 
 # 定义获取上传地址的请求。
 class UploadUrlRequest(BaseModel):
+    """Validate metadata for a scoped direct-upload reservation."""
     project_id: UUID
     conversation_id: UUID | None = None
     filename: str = Field(min_length=1, max_length=240)
@@ -34,6 +37,7 @@ class UploadUrlRequest(BaseModel):
 
 # 定义上传地址响应。
 class UploadUrlResponse(BaseModel):
+    """Return a bounded direct-upload reservation and storage identity."""
     document_id: UUID
     upload_url: str = Field(min_length=1, max_length=4096)
     r2_object_key: str = Field(min_length=16, max_length=512)
@@ -42,6 +46,7 @@ class UploadUrlResponse(BaseModel):
 
 # 定义上传完成通知。
 class UploadCompleteRequest(BaseModel):
+    """Accept the upload checksum and the explicitly local-only extraction fallback."""
     checksum_sha256: str | None = Field(default=None, pattern=r"^[0-9a-fA-F]{64}$")
     extracted_text: str | None = Field(
         default=None,
@@ -49,9 +54,12 @@ class UploadCompleteRequest(BaseModel):
         description="Local development fallback. Production worker should extract text from R2.",
     )
 
+    model_config = ConfigDict(extra="forbid")
+
 
 # 定义文件元数据响应。
 class DocumentRecord(BaseModel):
+    """Represent owner-scoped document metadata and lifecycle status."""
     id: UUID
     user_id: UUID
     project_id: UUID

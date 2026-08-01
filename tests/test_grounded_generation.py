@@ -1,3 +1,5 @@
+"""Verify grounded answers and quizzes enforce server evidence allowlists."""
+
 import json
 from uuid import UUID
 
@@ -13,6 +15,7 @@ from researchmate_api.services.store import ChunkEntry
 
 
 class FakeProvider:
+    """Return one deterministic model completion and record its prompt."""
     def __init__(self, payload: dict) -> None:
         self.payload = payload
         self.messages: list[dict[str, str]] = []
@@ -29,6 +32,7 @@ class FakeProvider:
 
 
 class SequenceFakeProvider:
+    """Return ordered completions for repair-path scenarios."""
     def __init__(self, payloads: list[dict]) -> None:
         self.payloads = list(payloads)
         self.calls: list[list[dict[str, str]]] = []
@@ -45,6 +49,7 @@ class SequenceFakeProvider:
 
 
 def evidence_chunk(text: str) -> ChunkEntry:
+    """Create a representative local evidence chunk."""
     return ChunkEntry(
         id=UUID("10000000-0000-4000-8000-000000000001"),
         user_id=UUID("20000000-0000-4000-8000-000000000001"),
@@ -58,6 +63,7 @@ def evidence_chunk(text: str) -> ChunkEntry:
 
 
 def web_evidence_chunk(text: str) -> ChunkEntry:
+    """Create a representative ephemeral web evidence chunk."""
     return ChunkEntry(
         id=UUID("60000000-0000-4000-8000-000000000001"),
         user_id=UUID("20000000-0000-4000-8000-000000000001"),
@@ -71,6 +77,7 @@ def web_evidence_chunk(text: str) -> ChunkEntry:
 
 
 def test_model_can_only_select_server_supplied_evidence() -> None:
+    """Allow citations only to server-supplied evidence identifiers."""
     provider = FakeProvider(
         {"answer": "RAG retrieves evidence before generation.", "claims": [
             {"text": "Retrieval precedes generation.", "evidence_ids": [1]}
@@ -92,6 +99,7 @@ def test_model_can_only_select_server_supplied_evidence() -> None:
 
 
 def test_quiz_provider_receives_user_instructions_and_server_evidence() -> None:
+    """Pass quiz intent and evidence through separate bounded fields."""
     provider = FakeProvider(
         {
             "questions": [
@@ -126,6 +134,7 @@ def test_quiz_provider_receives_user_instructions_and_server_evidence() -> None:
 
 
 def test_grounded_answer_normalizes_database_source_type_strings() -> None:
+    """Normalize database source strings before building citations."""
     provider = FakeProvider(
         {
             "answer": "The stored document supports this answer.",
@@ -147,6 +156,7 @@ def test_grounded_answer_normalizes_database_source_type_strings() -> None:
 
 
 def test_out_of_range_evidence_reference_is_rejected() -> None:
+    """Reject model references outside the evidence allowlist."""
     provider = FakeProvider(
         {"answer": "Unsupported", "claims": [{"text": "Invented", "evidence_ids": [2]}]}
     )
@@ -160,6 +170,7 @@ def test_out_of_range_evidence_reference_is_rejected() -> None:
 
 
 def test_invalid_grounded_output_gets_one_bounded_repair_attempt() -> None:
+    """Permit exactly one schema-focused repair for invalid output."""
     provider = SequenceFakeProvider([
         {"answer": "Missing claims"},
         {
@@ -183,6 +194,7 @@ def test_invalid_grounded_output_gets_one_bounded_repair_attempt() -> None:
 
 
 def test_web_citation_does_not_reference_an_ephemeral_chunk_row() -> None:
+    """Avoid exposing ephemeral web chunk identifiers as durable citations."""
     provider = FakeProvider(
         {
             "answer": "The official documentation supports this answer.",

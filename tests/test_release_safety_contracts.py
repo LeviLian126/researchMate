@@ -1,3 +1,5 @@
+"""Verify fail-closed migration and workflow runtime safety contracts."""
+
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -25,6 +27,7 @@ def test_qdrant_rerank_projection_indexes_every_filter_field() -> None:
 
 
 def test_evaluation_budget_and_fault_audit_migration_is_fail_closed() -> None:
+    """Require evaluation budgets and fault audit schema to fail closed."""
     source = (
         ROOT
         / "infra"
@@ -41,6 +44,7 @@ def test_evaluation_budget_and_fault_audit_migration_is_fail_closed() -> None:
 
 
 def test_runtime_readiness_and_workflow_budget_migration_is_fail_closed() -> None:
+    """Require runtime readiness and workflow budgets to fail closed."""
     source = (
         ROOT
         / "infra"
@@ -57,13 +61,14 @@ def test_runtime_readiness_and_workflow_budget_migration_is_fail_closed() -> Non
 
 
 def test_workflow_claim_versions_are_serialized_and_incremented() -> None:
+    """Serialize claim versions and increment them monotonically."""
     source = (
         ROOT
         / "workers"
         / "ai-worker"
         / "src"
         / "researchmate_worker"
-        / "workflow_runtime.py"
+        / "workflow_commit.py"
     ).read_text(encoding="utf-8").lower()
 
     assert "pg_advisory_xact_lock(hashtextextended(:key,1))" in source
@@ -73,6 +78,7 @@ def test_workflow_claim_versions_are_serialized_and_incremented() -> None:
 
 
 def test_report_refresh_filters_changed_documents_and_preserves_unaffected_sections() -> None:
+    """Refresh changed evidence while preserving unaffected report sections."""
     repository = (
         ROOT
         / "apps"
@@ -82,14 +88,12 @@ def test_report_refresh_filters_changed_documents_and_preserves_unaffected_secti
         / "persistence"
         / "evidence_postgres.py"
     ).read_text(encoding="utf-8").lower()
-    workflow = (
-        ROOT
-        / "workers"
-        / "ai-worker"
-        / "src"
-        / "researchmate_worker"
-        / "workflow_runtime.py"
-    ).read_text(encoding="utf-8").lower()
+    workflow = "\n".join(
+        (
+            ROOT / "workers" / "ai-worker" / "src" / "researchmate_worker" / filename
+        ).read_text(encoding="utf-8")
+        for filename in ("workflow_execution.py", "workflow_commit.py")
+    ).lower()
 
     assert "jsonb_array_elements_text" in repository
     assert "c.document_id=any(:document_ids)" in repository

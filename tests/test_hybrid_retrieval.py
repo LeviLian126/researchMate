@@ -1,3 +1,5 @@
+"""Verify hybrid vector retrieval shapes and mandatory owner filters."""
+
 from types import SimpleNamespace
 from uuid import UUID
 
@@ -9,6 +11,7 @@ from researchmate_api.services.qdrant_store import QdrantHybridStore, sparse_tex
 
 
 class FakeEmbeddings:
+    """Return deterministic vectors and record embedding modes."""
     def __init__(self) -> None:
         self.calls = []
 
@@ -20,11 +23,13 @@ class FakeEmbeddings:
 
 
 class FakeOpenAIClient:
+    """Expose the minimal embeddings client surface."""
     def __init__(self) -> None:
         self.embeddings = FakeEmbeddings()
 
 
 class FakeQdrantClient:
+    """Record Qdrant query and mutation payloads."""
     def __init__(self) -> None:
         self.query_call = None
         self.upsert_call = None
@@ -42,6 +47,7 @@ class FakeQdrantClient:
 
 
 def settings() -> Settings:
+    """Build a fully configured vector-test settings object."""
     return Settings(
         app_env="test",
         llm_provider="fake",
@@ -53,6 +59,7 @@ def settings() -> Settings:
 
 
 def test_embedding_distinguishes_query_and_passage_modes() -> None:
+    """Pass distinct provider modes for query and passage embeddings."""
     client = FakeOpenAIClient()
     provider = NvidiaEmbeddingProvider(settings(), client=client)
 
@@ -66,6 +73,7 @@ def test_embedding_distinguishes_query_and_passage_modes() -> None:
 
 
 def test_hybrid_query_has_dense_sparse_rrf_and_all_owner_filters() -> None:
+    """Require dense, sparse, fusion, and all owner filters in queries."""
     qdrant = FakeQdrantClient()
     store = QdrantHybridStore(
         settings(), NvidiaEmbeddingProvider(settings(), client=FakeOpenAIClient()), client=qdrant
@@ -91,6 +99,7 @@ def test_hybrid_query_has_dense_sparse_rrf_and_all_owner_filters() -> None:
 
 
 def test_sparse_vector_is_stable_and_sorted() -> None:
+    """Keep sparse token hashing deterministic and index-sorted."""
     first = sparse_text_vector("RAG retrieval retrieval")
     second = sparse_text_vector("RAG retrieval retrieval")
 
@@ -99,6 +108,7 @@ def test_sparse_vector_is_stable_and_sorted() -> None:
 
 
 def test_upsert_uses_named_vectors_and_owner_payload() -> None:
+    """Persist named vectors with complete owner metadata."""
     from researchmate_api.services.store import ChunkEntry
 
     qdrant = FakeQdrantClient()
@@ -128,6 +138,7 @@ def test_upsert_uses_named_vectors_and_owner_payload() -> None:
 
 
 def test_delete_points_keeps_owner_filter_at_the_vector_boundary() -> None:
+    """Require owner filters when deleting selected vector points."""
     qdrant = FakeQdrantClient()
     store = QdrantHybridStore(
         settings(), NvidiaEmbeddingProvider(settings(), client=FakeOpenAIClient()), client=qdrant
@@ -142,6 +153,7 @@ def test_delete_points_keeps_owner_filter_at_the_vector_boundary() -> None:
 
 
 def test_delete_project_points_removes_every_point_inside_the_owner_boundary() -> None:
+    """Delete project vectors only inside the owner boundary."""
     qdrant = FakeQdrantClient()
     store = QdrantHybridStore(
         settings(), NvidiaEmbeddingProvider(settings(), client=FakeOpenAIClient()), client=qdrant

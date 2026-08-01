@@ -1,3 +1,5 @@
+"""Verify the repository scaffold contains required product-delivery artifacts."""
+
 # Verifies repository contracts and the authoritative HTML documentation surface.
 from pathlib import Path
 
@@ -303,9 +305,13 @@ def test_backend_pydantic_contracts_validate_request_shape() -> None:
 
 def test_postgres_conversation_commit_rechecks_active_project() -> None:
     """Keep deletion and Ask commits serialized at the durable tenant boundary."""
-    source = (
-        ROOT / "apps/api/src/researchmate_api/persistence/postgres.py"
-    ).read_text(encoding="utf-8")
+    source = "\n".join(
+        (ROOT / path).read_text(encoding="utf-8")
+        for path in (
+            "apps/api/src/researchmate_api/persistence/_postgres_conversations.py",
+            "apps/api/src/researchmate_api/persistence/_postgres_runs.py",
+        )
+    )
     assert "p.status='active'" in source
     assert "for update of c,p" in source
     assert source.count("p.status='active'") >= 7

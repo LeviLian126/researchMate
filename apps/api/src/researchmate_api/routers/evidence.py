@@ -1,3 +1,5 @@
+"""Expose owner-scoped evidence workflows and privileged reliability routes."""
+
 from __future__ import annotations
 
 import asyncio
@@ -46,6 +48,7 @@ IDEMPOTENCY_PATTERN = re.compile(r"^[A-Za-z0-9._:-]{8,160}$")
 
 
 def _idempotency(value: str | None) -> str:
+    """Validate the stable request key required by asynchronous writes."""
     if value is None or not IDEMPOTENCY_PATTERN.fullmatch(value):
         raise_api_error(
             status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -56,6 +59,7 @@ def _idempotency(value: str | None) -> str:
 
 
 def _store_call(callback):
+    """Map evidence repository errors into the public API error contract."""
     try:
         return callback()
     except EvidenceStoreError as exc:
@@ -65,6 +69,7 @@ def _store_call(callback):
 def _require_project(
     repository: ResearchMateRepository, user: CurrentUser, project_id: UUID
 ) -> None:
+    """Require an active project owned by the authenticated caller."""
     project = repository.get_project(user, project_id)
     if project is None or project.status != "active":
         raise_api_error(status.HTTP_404_NOT_FOUND, "PROJECT_NOT_FOUND", "Project was not found.")
@@ -78,6 +83,7 @@ def create_research_run(
     repository: ResearchMateRepository = Depends(get_store),
     evidence: EvidenceRepository = Depends(get_evidence_store),
 ) -> ResearchRunAccepted:
+    """Create an idempotent asynchronous research workflow run."""
     _require_project(repository, user, payload.project_id)
     return _store_call(
         lambda: evidence.create_research_run(user, payload, _idempotency(idempotency_key))
@@ -90,6 +96,7 @@ def get_workflow_run(
     user: CurrentUser = Depends(get_current_user),
     evidence: EvidenceRepository = Depends(get_evidence_store),
 ) -> WorkflowRunRecord:
+    """Return an owner-visible workflow run or conceal its absence."""
     run = evidence.get_run(user, run_id)
     if run is None:
         raise_api_error(status.HTTP_404_NOT_FOUND, "RUN_NOT_FOUND", "Run was not found.")
@@ -105,6 +112,7 @@ def stream_run_events(
     user: CurrentUser = Depends(get_current_user),
     evidence: EvidenceRepository = Depends(get_evidence_store),
 ) -> StreamingResponse:
+    """Stream bounded resumable server-sent events for an owner-visible run."""
     if last_event_id is not None:
         try:
             after_sequence = max(after_sequence, int(last_event_id))
@@ -114,6 +122,7 @@ def stream_run_events(
         raise_api_error(404, "RUN_NOT_FOUND", "Run was not found.")
 
     async def generate():
+        """Yield run events and heartbeats until completion or bounded idle."""
         cursor = after_sequence
         idle_cycles = 0
         while not await request.is_disconnected() and idle_cycles < 15:
@@ -146,6 +155,7 @@ def create_human_decision(
     user: CurrentUser = Depends(get_current_user),
     evidence: EvidenceRepository = Depends(get_evidence_store),
 ) -> HumanDecisionAccepted:
+    """Record an idempotent human review decision for a workflow run."""
     decision = _store_call(
         lambda: evidence.create_decision(
             user, run_id, payload, _idempotency(idempotency_key)
@@ -163,6 +173,7 @@ def list_claims(
     repository: ResearchMateRepository = Depends(get_store),
     evidence: EvidenceRepository = Depends(get_evidence_store),
 ) -> ClaimListResponse:
+    """List claims belonging to an active caller-owned project."""
     _require_project(repository, user, project_id)
     return evidence.list_claims(user, project_id)
 
@@ -176,6 +187,7 @@ def list_claim_relations(
     repository: ResearchMateRepository = Depends(get_store),
     evidence: EvidenceRepository = Depends(get_evidence_store),
 ) -> ClaimRelationListResponse:
+    """List evidence relations belonging to a caller-owned project."""
     _require_project(repository, user, project_id)
     return evidence.list_claim_relations(user, project_id)
 
@@ -187,6 +199,7 @@ def list_reports(
     repository: ResearchMateRepository = Depends(get_store),
     evidence: EvidenceRepository = Depends(get_evidence_store),
 ) -> ReportListResponse:
+    """List generated reports for a caller-owned project."""
     _require_project(repository, user, project_id)
     return evidence.list_reports(user, project_id)
 
@@ -197,6 +210,7 @@ def get_report(
     user: CurrentUser = Depends(get_current_user),
     evidence: EvidenceRepository = Depends(get_evidence_store),
 ) -> ReportDetail:
+    """Return an owner-visible report with its section details."""
     report = evidence.get_report(user, report_id)
     if report is None:
         raise_api_error(404, "REPORT_NOT_FOUND", "Report was not found.")
@@ -208,6 +222,7 @@ def list_pipeline_versions(
     user: CurrentUser = Depends(get_current_user),
     evidence: EvidenceRepository = Depends(get_evidence_store),
 ) -> PipelineVersionListResponse:
+    """List pipeline versions visible to the authenticated caller."""
     return evidence.list_pipeline_versions(user)
 
 
@@ -217,6 +232,7 @@ def list_evaluation_datasets(
     user: CurrentUser = Depends(require_admin),
     evidence: EvidenceRepository = Depends(get_evidence_store),
 ) -> EvaluationDatasetListResponse:
+    """List evaluation datasets for an authenticated administrator."""
     return evidence.list_evaluation_datasets(user, project_id)
 
 
@@ -228,6 +244,7 @@ def refresh_report(
     user: CurrentUser = Depends(get_current_user),
     evidence: EvidenceRepository = Depends(get_evidence_store),
 ) -> ReportRefreshAccepted:
+    """Enqueue an idempotent refresh of an owner-visible report."""
     response = _store_call(
         lambda: evidence.refresh_report(
             user, report_id, payload, _idempotency(idempotency_key)
@@ -245,6 +262,7 @@ def create_evaluation_run(
     user: CurrentUser = Depends(require_admin),
     evidence: EvidenceRepository = Depends(get_evidence_store),
 ) -> EvaluationRunAccepted:
+    """Create a privileged idempotent evaluation run."""
     return _store_call(
         lambda: evidence.create_evaluation_run(user, payload, _idempotency(idempotency_key))
     )
@@ -256,6 +274,7 @@ def get_evaluation_run(
     user: CurrentUser = Depends(get_current_user),
     evidence: EvidenceRepository = Depends(get_evidence_store),
 ) -> EvaluationRunRecord:
+    """Return an evaluation run visible to the authenticated caller."""
     run = evidence.get_evaluation_run(user, evaluation_run_id)
     if run is None:
         raise_api_error(404, "EVALUATION_RUN_NOT_FOUND", "Evaluation run was not found.")
@@ -268,6 +287,7 @@ def reliability(
     user: CurrentUser = Depends(require_admin),
     evidence: EvidenceRepository = Depends(get_evidence_store),
 ) -> ReliabilityResponse:
+    """Return bounded reliability aggregates to an administrator."""
     return evidence.reliability(user, window_hours)
 
 
@@ -279,6 +299,7 @@ def create_fault_scenario(
     user: CurrentUser = Depends(require_admin),
     evidence: EvidenceRepository = Depends(get_evidence_store),
 ) -> FaultScenarioAccepted:
+    """Create a non-production reliability exercise for an administrator."""
     if request.app.state.settings.app_env not in {"local", "test", "preview"}:
         raise_api_error(404, "NOT_FOUND", "Resource was not found.")
     return _store_call(
@@ -292,6 +313,7 @@ def get_fault_scenario(
     user: CurrentUser = Depends(require_admin),
     evidence: EvidenceRepository = Depends(get_evidence_store),
 ) -> FaultScenarioRecord:
+    """Return a privileged fault-exercise record when it exists."""
     record = _store_call(lambda: evidence.get_fault_scenario(user, exercise_id))
     if record is None:
         raise_api_error(404, "FAULT_EXERCISE_NOT_FOUND", "Fault exercise was not found.")

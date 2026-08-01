@@ -1,3 +1,5 @@
+"""Validate and expose API runtime configuration at environment boundaries."""
+
 from functools import lru_cache
 from typing import Literal
 
@@ -87,10 +89,12 @@ class Settings(BaseSettings):
 
     @property
     def cors_origins(self) -> list[str]:
+        """Return the configured CORS allowlist as normalized origins."""
         return [origin.strip() for origin in self.cors_allowed_origins.split(",") if origin.strip()]
 
     @property
     def jwks_url(self) -> str | None:
+        """Resolve the explicit or Supabase-derived JWKS endpoint."""
         if self.supabase_jwks_url:
             return self.supabase_jwks_url
         if self.supabase_url:
@@ -99,12 +103,14 @@ class Settings(BaseSettings):
 
     @property
     def r2_endpoint_url(self) -> str | None:
+        """Build the account-scoped Cloudflare R2 endpoint when configured."""
         if not self.r2_account_id:
             return None
         return f"https://{self.r2_account_id}.r2.cloudflarestorage.com"
 
     @property
     def r2_configured(self) -> bool:
+        """Report whether every legacy R2 credential field is present."""
         return all(
             (
                 self.r2_account_id,
@@ -128,22 +134,27 @@ class Settings(BaseSettings):
 
     @property
     def object_storage_endpoint_url_resolved(self) -> str | None:
+        """Resolve the active generic S3 or R2 endpoint."""
         return self.object_storage_endpoint_url if self.uses_generic_object_storage else self.r2_endpoint_url
 
     @property
     def object_storage_access_key_id_resolved(self) -> SecretStr | None:
+        """Resolve the access-key identifier for the selected storage backend."""
         return self.object_storage_access_key_id if self.uses_generic_object_storage else self.r2_access_key_id
 
     @property
     def object_storage_secret_access_key_resolved(self) -> SecretStr | None:
+        """Resolve the secret access key for the selected storage backend."""
         return self.object_storage_secret_access_key if self.uses_generic_object_storage else self.r2_secret_access_key
 
     @property
     def object_storage_bucket_resolved(self) -> str | None:
+        """Resolve the bucket for the selected storage backend."""
         return self.object_storage_bucket if self.uses_generic_object_storage else self.r2_bucket
 
     @property
     def object_storage_configured(self) -> bool:
+        """Report whether the selected object-storage backend is complete."""
         return all(
             (
                 self.object_storage_endpoint_url_resolved,
@@ -155,6 +166,7 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_security_boundary(self) -> "Settings":
+        """Reject unsafe or incomplete combinations before the API starts."""
         if (
             self.chat_recent_token_budget + self.chat_summary_token_budget
             > self.chat_history_token_budget
@@ -210,4 +222,5 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings() -> Settings:
+    """Return the process-cached validated settings instance."""
     return Settings()

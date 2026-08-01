@@ -1,8 +1,11 @@
+"""Assemble the FastAPI application, adapters, middleware, and error boundaries."""
+
 import re
 from contextlib import asynccontextmanager
 from time import monotonic
 from uuid import uuid4
 
+from anyio import to_thread
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -43,12 +46,12 @@ SECURITY_HEADERS = {
 }
 
 
-# 创建 FastAPI 应用并注册业务路由。
 def create_app(
     settings: Settings | None = None,
     repository: ResearchMateRepository | None = None,
     evidence_repository: EvidenceRepository | None = None,
 ) -> FastAPI:
+    """Create the API application with explicit adapters and an optional MCP surface."""
     runtime_settings = settings or get_settings()
     observability = None
     mcp_server = None
@@ -57,11 +60,13 @@ def create_app(
         from researchmate_api.mcp_server import build_mcp_server
 
         mcp_server, mcp_asgi = build_mcp_server()
-    except ImportError:
-        pass
+    except ModuleNotFoundError as exc:
+        if exc.name is None or not exc.name.startswith("mcp"):
+            raise
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
+        """Own MCP session and observability shutdown lifecycles."""
         try:
             if mcp_server is None:
                 yield
@@ -85,6 +90,7 @@ def create_app(
             409: {"model": ErrorResponse, "description": "State or idempotency conflict"},
             422: {"model": ErrorResponse, "description": "Request validation failed"},
             429: {"model": ErrorResponse, "description": "Usage limit exceeded"},
+            502: {"model": ErrorResponse, "description": "Provider output was invalid"},
             503: {"model": ErrorResponse, "description": "Dependency unavailable"},
         },
     )
@@ -130,6 +136,7 @@ def create_app(
 
     @app.middleware("http")
     async def attach_request_id(request: Request, call_next):
+        """Attach correlation/security headers and authenticate MCP without blocking the loop."""
         started = monotonic()
         response_status = 500
         candidate = request.headers.get(runtime_settings.request_id_header, "")
@@ -163,7 +170,11 @@ def create_app(
                     environment=runtime_settings.app_env,
                 )
                 return response
-            user = resolve_bearer_token(authorization[7:].strip(), runtime_settings)
+            user = await to_thread.run_sync(
+                resolve_bearer_token,
+                authorization[7:].strip(),
+                runtime_settings,
+            )
             if user is None:
                 response_status = 401
                 response = JSONResponse(
@@ -189,7 +200,7 @@ def create_app(
                     environment=runtime_settings.app_env,
                 )
                 return response
-            app.state.store.ensure_user(user)
+            await to_thread.run_sync(app.state.store.ensure_user, user)
             context_token = current_mcp_identity.set(
                 MCPRequestIdentity(
                     user=user,
@@ -240,6 +251,7 @@ def create_app(
     else:
         @app.api_route("/mcp", methods=["GET", "POST", "DELETE"], include_in_schema=False)
         async def mcp_dependency_unavailable(request: Request):
+            """Return an authenticated, explicit error when the optional MCP SDK is absent."""
             return JSONResponse(
                 status_code=503,
                 content={
@@ -268,6 +280,7 @@ def build_repository(settings: Settings) -> ResearchMateRepository:
         storage = S3CompatibleObjectStorage(settings)
 
         def upload_url_factory(_document_id, object_key, payload):
+            """Map a validated upload reservation to the configured object-store signer."""
             return storage.presign_upload(object_key, content_type=payload.mime_type)
 
         object_metadata_reader = storage.head
@@ -280,6 +293,7 @@ def build_repository(settings: Settings) -> ResearchMateRepository:
 
 
 def build_evidence_repository(settings: Settings) -> EvidenceRepository:
+    """Build the evidence-workflow repository selected by runtime configuration."""
     if settings.repository_backend == "memory":
         return InMemoryEvidenceRepository()
     from researchmate_api.persistence.evidence_postgres import PostgresEvidenceRepository
@@ -288,8 +302,8 @@ def build_evidence_repository(settings: Settings) -> EvidenceRepository:
     return PostgresEvidenceRepository.from_database_url(settings.database_url)
 
 
-# 将 HTTPException 转成统一错误体，避免泄露 stack trace。
 async def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
+    """Map HTTP exceptions to the stable public error envelope."""
     if isinstance(exc.detail, dict) and {"code", "message", "request_id"} <= set(exc.detail):
         payload = dict(exc.detail)
     else:
@@ -302,8 +316,8 @@ async def http_exception_handler(request: Request, exc: HTTPException) -> JSONRe
     return JSONResponse(status_code=exc.status_code, content={"error": payload})
 
 
-# 将请求校验错误转成统一错误体，只暴露字段路径和错误类型。
 async def validation_exception_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
+    """Expose only safe field paths and error types for validation failures."""
     errors = [
         {"loc": [str(part) for part in error.get("loc", [])], "type": error.get("type")}
         for error in exc.errors()

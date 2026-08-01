@@ -1,3 +1,4 @@
+// Defines authenticated web API contracts, transport helpers, streaming, and safe error presentation.
 import { getSupabaseSession, isLocalDevelopment } from "./supabase";
 import { demoFetch, demoRunEvents, isPublicDemo } from "./demo";
 
@@ -49,6 +50,8 @@ export interface AskResponse {
   trace_id: string;
   validation_status: "passed" | "failed" | "retrying";
   rerank_degraded: boolean;
+  retrieval_degraded: boolean;
+  summary_degraded: boolean;
   fallback_reason?: string | null;
 }
 
@@ -67,6 +70,33 @@ export interface QuizSet {
   id: string;
   sources: { local_chunks: number; web_pages: number };
   questions: QuizQuestion[];
+}
+
+export type QuizResourceScope = "all_ready_documents" | "topic";
+
+export interface QuizRequest {
+  project_id: string;
+  prompt?: string;
+  topic_query?: string | null;
+  resource_scope?: QuizResourceScope;
+  single_choice_count?: number;
+  fill_blank_count?: number;
+  subjective_count?: number;
+}
+
+export interface QuizCoverage {
+  documents_available: number;
+  documents_covered: number;
+  chunks_selected: number;
+  truncated: boolean;
+}
+
+export interface QuizResponse {
+  quiz_set: QuizSet;
+  run_id: string;
+  trace_id: string;
+  validation_status: "passed" | "failed" | "retrying";
+  coverage: QuizCoverage;
 }
 
 export interface ConversationSummary {
@@ -236,6 +266,7 @@ export interface ReliabilityMetrics {
 }
 
 export class ApiError extends Error {
+  /** Preserves HTTP and request metadata needed for safe client-side recovery messages. */
   constructor(
     message: string,
     public readonly status: number,
@@ -250,6 +281,7 @@ export class ApiError extends Error {
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000/api/v1";
 let warmRequest: Promise<void> | null = null;
 
+/** Starts one best-effort health request to reduce first authenticated-request latency. */
 export function warmApi(): Promise<void> {
   if (!warmRequest) {
     warmRequest = fetch(`${API_BASE}/healthz`, {
@@ -262,6 +294,7 @@ export function warmApi(): Promise<void> {
   return warmRequest;
 }
 
+/** Returns the explicit local identity token and rejects its use in deployed builds. */
 export function getDevToken(): string {
   if (isPublicDemo()) return "public-demo";
   if (!isLocalDevelopment()) throw new ApiError("A Supabase session is required outside local development.", 401, "AUTH_REQUIRED");
@@ -269,11 +302,13 @@ export function getDevToken(): string {
   return window.localStorage.getItem("researchmate_token") || "dev";
 }
 
+/** Updates the local-only development identity token. */
 export function setDevToken(token: string): void {
   if (!isLocalDevelopment()) return;
   if (typeof window !== "undefined") window.localStorage.setItem("researchmate_token", token || "dev");
 }
 
+/** Resolves the correct bearer token for local or Supabase-backed requests. */
 async function getAccessToken(): Promise<string> {
   if (isLocalDevelopment()) return getDevToken();
   let session;
@@ -286,6 +321,7 @@ async function getAccessToken(): Promise<string> {
   return session.access_token;
 }
 
+/** Normalizes supported server error envelopes into a typed client error. */
 function toApiError(response: Response, body: Record<string, unknown>): ApiError {
   const detail = body.error && typeof body.error === "object" ? body.error as Record<string, unknown> : body;
   const code = typeof detail.code === "string" ? detail.code : `HTTP_${response.status}`;
@@ -295,6 +331,7 @@ function toApiError(response: Response, body: Record<string, unknown>): ApiError
   return new ApiError(message, response.status, code, typeof detail.request_id === "string" ? detail.request_id : undefined);
 }
 
+/** Sends an authenticated API request or delegates it to the explicit public demo. */
 export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
   if (isPublicDemo()) return demoFetch<T>(path, init);
   const headers = new Headers(init.headers);
@@ -306,6 +343,7 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
   return body as T;
 }
 
+/** Consumes sanitized server-sent run events until completion or cancellation. */
 export async function streamRunEvents(
   runId: string,
   afterSequence: number,
@@ -347,6 +385,7 @@ export async function streamRunEvents(
   }
 }
 
+/** Creates a client operation key suitable for API idempotency headers. */
 export function idempotencyKey(prefix: string): string {
   const random = typeof crypto !== "undefined" && "randomUUID" in crypto
     ? crypto.randomUUID()
@@ -354,6 +393,7 @@ export function idempotencyKey(prefix: string): string {
   return `${prefix}-${random}`;
 }
 
+/** Maps transport failures to safe, actionable user-facing notice content. */
 export function describeApiError(error: unknown): { title: string; detail: string; kind: string } {
   if (!(error instanceof ApiError)) {
     return { title: "Request could not be completed", detail: error instanceof Error ? error.message : "Unknown client error.", kind: "error" };
@@ -366,6 +406,7 @@ export function describeApiError(error: unknown): { title: string; detail: strin
   return { title: error.code.replaceAll("_", " "), detail: error.message, kind: "validation" };
 }
 
+/** Maps an accepted filename to the document API's file-type contract. */
 export function fileTypeFromName(filename: string): "pdf" | "docx" | "pptx" {
   const lower = filename.toLowerCase();
   if (lower.endsWith(".docx")) return "docx";
@@ -373,6 +414,7 @@ export function fileTypeFromName(filename: string): "pdf" | "docx" | "pptx" {
   return "pdf";
 }
 
+/** Returns the canonical upload MIME type for a supported document type. */
 export function mimeForFileType(fileType: "pdf" | "docx" | "pptx"): string {
   if (fileType === "docx") return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
   if (fileType === "pptx") return "application/vnd.openxmlformats-officedocument.presentationml.presentation";

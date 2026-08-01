@@ -1,3 +1,5 @@
+"""Execute lease-protected reliability exercises and persist bounded observations."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -17,6 +19,7 @@ SCENARIO_BOUNDARIES = {
 
 @dataclass(frozen=True)
 class ClaimedFaultExercise:
+    """Carry one leased reliability exercise into bounded worker execution."""
     id: UUID
     scenario: str
     target_run_id: UUID | None
@@ -31,18 +34,22 @@ class FaultSimulationService:
     """
 
     def __init__(self, engine: Engine, *, lease_seconds: int = 120, max_attempts: int = 3) -> None:
+        """Bind durable storage and bounded lease/retry policy."""
         self.engine = engine
         self.lease_seconds = lease_seconds
         self.max_attempts = max_attempts
 
     def run(self, exercise_id: UUID, *, worker_id: str) -> str:
+        """Claim, record, and complete one non-mutating fault exercise."""
+        """Claim one exercise and persist bounded reliability observations."""
         # The simulation has no remote side effect, so claim, snapshot, and completion
         # can be one short transaction. A database failure rolls the claim back and the
         # task remains safely replayable.
         with self.engine.begin() as connection:
-            row = connection.execute(
-                text(
-                    """
+            row = (
+                connection.execute(
+                    text(
+                        """
                     update fault_exercises set status='running',attempts=attempts+1,
                       lease_owner=:worker_id,
                       lease_expires_at=now()+make_interval(secs=>:lease_seconds),
@@ -52,14 +59,17 @@ class FaultSimulationService:
                     ) and attempts<:max_attempts
                     returning id,scenario,target_run_id,attempts
                     """
-                ),
-                {
-                    "id": exercise_id,
-                    "worker_id": worker_id,
-                    "lease_seconds": self.lease_seconds,
-                    "max_attempts": self.max_attempts,
-                },
-            ).mappings().one_or_none()
+                    ),
+                    {
+                        "id": exercise_id,
+                        "worker_id": worker_id,
+                        "lease_seconds": self.lease_seconds,
+                        "max_attempts": self.max_attempts,
+                    },
+                )
+                .mappings()
+                .one_or_none()
+            )
             if row is None:
                 return "not_claimed"
             exercise = ClaimedFaultExercise(**dict(row))
@@ -97,14 +107,18 @@ class FaultSimulationService:
     ) -> dict[str, Any] | None:
         if target_run_id is None:
             return None
-        row = connection.execute(
-            text(
-                """
+        row = (
+            connection.execute(
+                text(
+                    """
                 select id,status,error_code from workflow_runs where id=:id
                 """
-            ),
-            {"id": target_run_id},
-        ).mappings().one_or_none()
+                ),
+                {"id": target_run_id},
+            )
+            .mappings()
+            .one_or_none()
+        )
         if row is None:
             return {"run_id": str(target_run_id), "status": "not_found"}
         return {

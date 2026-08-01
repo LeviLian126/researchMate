@@ -1,10 +1,11 @@
+"""Validate and explicitly apply ordered additive PostgreSQL migrations."""
+
 from __future__ import annotations
 
 import argparse
-from hashlib import sha256
 import os
+from hashlib import sha256
 from pathlib import Path
-
 
 ROOT = Path(__file__).resolve().parents[1]
 MIGRATIONS = ROOT / "infra" / "supabase" / "migrations"
@@ -12,6 +13,7 @@ LOCK_KEY = 726_334_129
 
 
 def migration_files() -> list[Path]:
+    """Return ordered migrations after enforcing unique version prefixes."""
     files = sorted(MIGRATIONS.glob("*.sql"))
     if not files:
         raise SystemExit("No SQL migrations were found")
@@ -21,6 +23,7 @@ def migration_files() -> list[Path]:
 
 
 def validate_files() -> None:
+    """Reject empty migrations and prohibited destructive database commands."""
     for path in migration_files():
         source = path.read_text(encoding="utf-8").strip()
         if not source:
@@ -30,6 +33,7 @@ def validate_files() -> None:
 
 
 def apply(database_url: str) -> None:
+    """Apply unapplied migrations under an approval gate and advisory lock."""
     if os.getenv("ALLOW_SCHEMA_APPLY") != "1":
         raise SystemExit("Set ALLOW_SCHEMA_APPLY=1 for an explicitly approved schema apply")
     import psycopg
@@ -70,6 +74,7 @@ def apply(database_url: str) -> None:
 
 
 def main() -> None:
+    """Parse validation or apply mode and enforce required configuration."""
     parser = argparse.ArgumentParser(description="ResearchMate additive migration runner")
     parser.add_argument("--check-files", action="store_true")
     parser.add_argument("--apply", action="store_true")

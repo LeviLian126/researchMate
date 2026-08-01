@@ -1,3 +1,5 @@
+"""Expose liveness and non-charging dependency-readiness probes."""
+
 from typing import Any
 
 from fastapi import APIRouter, Request

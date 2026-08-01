@@ -1,3 +1,5 @@
+"""Verify authentication, configuration, request, and readiness foundations."""
+
 import inspect
 import json
 from contextlib import contextmanager
@@ -14,11 +16,13 @@ from researchmate_api.services.store import store
 
 
 def test_production_rejects_development_auth() -> None:
+    """Reject development authentication in production settings."""
     with pytest.raises(ValidationError):
         Settings(app_env="production", auth_mode="development")
 
 
 def test_enabled_observability_and_web_providers_require_credentials() -> None:
+    """Require credentials whenever optional managed providers are enabled."""
     with pytest.raises(ValidationError):
         Settings(app_env="test", otel_enabled=True)
     with pytest.raises(ValidationError):
@@ -28,6 +32,7 @@ def test_enabled_observability_and_web_providers_require_credentials() -> None:
 
 
 def test_configured_cors_and_request_id_are_applied() -> None:
+    """Apply the configured CORS allowlist and request identifier."""
     settings = Settings(
         app_env="local",
         auth_mode="development",
@@ -50,10 +55,12 @@ def test_configured_cors_and_request_id_are_applied() -> None:
 
 
 def test_liveness_probe_does_not_depend_on_the_sync_thread_pool() -> None:
+    """Keep liveness independent of the shared synchronous thread pool."""
     assert inspect.iscoroutinefunction(healthz)
 
 
 def test_local_readiness_is_explicit_and_non_charging() -> None:
+    """Report local readiness without charging managed providers."""
     with TestClient(
         create_app(
             settings=Settings(app_env="test", llm_provider="fake", embedding_provider="fake")
@@ -82,6 +89,7 @@ def test_local_readiness_is_explicit_and_non_charging() -> None:
 
 
 def test_managed_readiness_requires_live_background_delivery(monkeypatch) -> None:
+    """Require fresh worker and dispatcher delivery signals when managed."""
     class Result:
         def __init__(self, kind: str) -> None:
             self.kind = kind
@@ -164,6 +172,7 @@ def test_managed_readiness_requires_live_background_delivery(monkeypatch) -> Non
 
 
 def test_unknown_bearer_token_fails_closed_and_uses_request_id() -> None:
+    """Reject unknown bearer tokens with the request correlation identifier."""
     settings = Settings(app_env="local", auth_mode="development")
 
     with TestClient(create_app(settings=settings)) as client:
@@ -181,6 +190,7 @@ def test_unknown_bearer_token_fails_closed_and_uses_request_id() -> None:
 
 
 def test_explicit_development_identity_remains_available_locally() -> None:
+    """Keep the explicit local development identity available."""
     settings = Settings(app_env="local", auth_mode="development")
     user_id = UUID("00000000-0000-4000-8000-000000000042")
 

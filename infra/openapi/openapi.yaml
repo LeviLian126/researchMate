@@ -64,6 +64,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Provider output was invalid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '503':
           description: Dependency unavailable
           content:
@@ -126,6 +132,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Provider output was invalid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '503':
           description: Dependency unavailable
           content:
@@ -137,6 +149,7 @@ paths:
       tags:
       - auth
       summary: Get Me
+      description: Return the identity established by the authentication dependency.
       operationId: get_me_api_v1_me_get
       responses:
         '200':
@@ -183,6 +196,12 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
         '429':
           description: Usage limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Provider output was invalid
           content:
             application/json:
               schema:
@@ -251,6 +270,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Provider output was invalid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '503':
           description: Dependency unavailable
           content:
@@ -264,6 +289,7 @@ paths:
       tags:
       - projects
       summary: List Projects
+      description: List projects owned by the authenticated caller.
       operationId: list_projects_api_v1_projects_get
       responses:
         '200':
@@ -317,6 +343,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Provider output was invalid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '503':
           description: Dependency unavailable
           content:
@@ -329,6 +361,7 @@ paths:
       tags:
       - projects
       summary: Create Project
+      description: Create a project owned by the authenticated caller.
       operationId: create_project_api_v1_projects_post
       requestBody:
         content:
@@ -385,6 +418,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Provider output was invalid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '503':
           description: Dependency unavailable
           content:
@@ -398,6 +437,7 @@ paths:
       tags:
       - projects
       summary: Get Project
+      description: Return one project without revealing other owners' resources.
       operationId: get_project_api_v1_projects__project_id__get
       security:
       - HTTPBearer: []
@@ -458,6 +498,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Provider output was invalid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '503':
           description: Dependency unavailable
           content:
@@ -468,6 +514,7 @@ paths:
       tags:
       - projects
       summary: Delete Project
+      description: Enqueue cleanup for a caller-owned project.
       operationId: delete_project_api_v1_projects__project_id__delete
       security:
       - HTTPBearer: []
@@ -531,6 +578,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Provider output was invalid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '503':
           description: Dependency unavailable
           content:
@@ -542,6 +595,7 @@ paths:
       tags:
       - documents
       summary: Create Upload Url
+      description: Reserve document metadata and return a signed object-upload request.
       operationId: create_upload_url_api_v1_documents_upload_url_post
       requestBody:
         content:
@@ -598,6 +652,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Provider output was invalid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '503':
           description: Dependency unavailable
           content:
@@ -611,6 +671,7 @@ paths:
       tags:
       - documents
       summary: Create Document
+      description: Create owner-scoped document metadata for an active project.
       operationId: create_document_api_v1_documents_post
       requestBody:
         content:
@@ -667,6 +728,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Provider output was invalid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '503':
           description: Dependency unavailable
           content:
@@ -680,6 +747,7 @@ paths:
       tags:
       - documents
       summary: List Project Documents
+      description: List documents visible through the caller-owned project.
       operationId: list_project_documents_api_v1_projects__project_id__documents_get
       security:
       - HTTPBearer: []
@@ -744,6 +812,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Provider output was invalid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '503':
           description: Dependency unavailable
           content:
@@ -755,6 +829,7 @@ paths:
       tags:
       - documents
       summary: List Conversation Documents
+      description: List documents attached to a caller-owned conversation.
       operationId: list_conversation_documents_api_v1_conversations__conversation_id__documents_get
       security:
       - HTTPBearer: []
@@ -819,6 +894,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Provider output was invalid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '503':
           description: Dependency unavailable
           content:
@@ -830,6 +911,7 @@ paths:
       tags:
       - documents
       summary: Get Document
+      description: Return one document only when it belongs to the caller.
       operationId: get_document_api_v1_documents__document_id__get
       security:
       - HTTPBearer: []
@@ -890,6 +972,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Provider output was invalid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '503':
           description: Dependency unavailable
           content:
@@ -900,6 +988,7 @@ paths:
       tags:
       - documents
       summary: Delete Document
+      description: Enqueue deletion of an owner-scoped document and its projections.
       operationId: delete_document_api_v1_documents__document_id__delete
       security:
       - HTTPBearer: []
@@ -963,6 +1052,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Provider output was invalid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '503':
           description: Dependency unavailable
           content:
@@ -974,6 +1069,7 @@ paths:
       tags:
       - documents
       summary: Complete Upload
+      description: Verify an upload and enqueue its asynchronous ingestion job.
       operationId: complete_upload_api_v1_documents__document_id__complete_post
       security:
       - HTTPBearer: []
@@ -1046,6 +1142,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Provider output was invalid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '503':
           description: Dependency unavailable
           content:
@@ -1057,6 +1159,7 @@ paths:
       tags:
       - jobs
       summary: Get Job
+      description: Return a job only when it is visible to the authenticated caller.
       operationId: get_job_api_v1_jobs__job_id__get
       security:
       - HTTPBearer: []
@@ -1117,6 +1220,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Provider output was invalid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '503':
           description: Dependency unavailable
           content:
@@ -1128,13 +1237,28 @@ paths:
       tags:
       - ask
       summary: Ask
+      description: Execute or replay one Ask request without duplicate provider calls
+        or messages.
       operationId: ask_api_v1_ask_post
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            minLength: 8
+            maxLength: 160
+          - type: 'null'
+          title: Idempotency-Key
       requestBody:
+        required: true
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/AskRequest'
-        required: true
       responses:
         '200':
           description: Successful Response
@@ -1184,19 +1308,24 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Provider output was invalid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '503':
           description: Dependency unavailable
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-      security:
-      - HTTPBearer: []
   /api/v1/conversations:
     get:
       tags:
       - conversations
       summary: List All Conversations
+      description: List every active conversation owned by the authenticated user.
       operationId: list_all_conversations_api_v1_conversations_get
       responses:
         '200':
@@ -1247,6 +1376,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Provider output was invalid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '503':
           description: Dependency unavailable
           content:
@@ -1260,6 +1395,7 @@ paths:
       tags:
       - conversations
       summary: Create Conversation
+      description: Create a named conversation inside an accessible active project.
       operationId: create_conversation_api_v1_projects__project_id__conversations_post
       security:
       - HTTPBearer: []
@@ -1326,6 +1462,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Provider output was invalid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '503':
           description: Dependency unavailable
           content:
@@ -1336,6 +1478,7 @@ paths:
       tags:
       - conversations
       summary: List Conversations
+      description: List active conversations within one accessible project.
       operationId: list_conversations_api_v1_projects__project_id__conversations_get
       security:
       - HTTPBearer: []
@@ -1396,6 +1539,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Provider output was invalid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '503':
           description: Dependency unavailable
           content:
@@ -1407,6 +1556,7 @@ paths:
       tags:
       - conversations
       summary: List Messages
+      description: Return the bounded recent messages for one owned conversation.
       operationId: list_messages_api_v1_conversations__conversation_id__messages_get
       security:
       - HTTPBearer: []
@@ -1467,6 +1617,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Provider output was invalid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '503':
           description: Dependency unavailable
           content:
@@ -1478,6 +1634,7 @@ paths:
       tags:
       - conversations
       summary: Rename Conversation
+      description: Rename an owned conversation while concealing inaccessible identifiers.
       operationId: rename_conversation_api_v1_conversations__conversation_id__patch
       security:
       - HTTPBearer: []
@@ -1544,6 +1701,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Provider output was invalid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '503':
           description: Dependency unavailable
           content:
@@ -1554,6 +1717,7 @@ paths:
       tags:
       - conversations
       summary: Delete Conversation
+      description: Atomically schedule attachment cleanup and remove one owned conversation.
       operationId: delete_conversation_api_v1_conversations__conversation_id__delete
       security:
       - HTTPBearer: []
@@ -1610,6 +1774,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Provider output was invalid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '503':
           description: Dependency unavailable
           content:
@@ -1621,6 +1791,7 @@ paths:
       tags:
       - conversations
       summary: Read Rerank Config
+      description: Read the privileged versioned rerank-provider configuration.
       operationId: read_rerank_config_api_v1_admin_runtime_config_rerank_get
       responses:
         '200':
@@ -1671,6 +1842,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Provider output was invalid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '503':
           description: Dependency unavailable
           content:
@@ -1683,6 +1860,7 @@ paths:
       tags:
       - conversations
       summary: Update Rerank Config
+      description: Optimistically activate a verified rerank provider as an administrator.
       operationId: update_rerank_config_api_v1_admin_runtime_config_rerank_put
       requestBody:
         content:
@@ -1739,6 +1917,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Provider output was invalid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '503':
           description: Dependency unavailable
           content:
@@ -1752,13 +1936,27 @@ paths:
       tags:
       - quiz
       summary: Create Quiz
+      description: Generate one source-backed Quiz through the application service.
       operationId: create_quiz_api_v1_quiz_post
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            minLength: 8
+            maxLength: 160
+          - type: 'null'
+          title: Idempotency-Key
       requestBody:
+        required: true
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/QuizRequest'
-        required: true
       responses:
         '200':
           description: Successful Response
@@ -1808,19 +2006,24 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Provider output was invalid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '503':
           description: Dependency unavailable
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-      security:
-      - HTTPBearer: []
   /api/v1/projects/{project_id}/quiz:
     get:
       tags:
       - quiz
       summary: List Quiz History
+      description: List saved Quiz sets for one owned workspace.
       operationId: list_quiz_history_api_v1_projects__project_id__quiz_get
       security:
       - HTTPBearer: []
@@ -1881,6 +2084,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Provider output was invalid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '503':
           description: Dependency unavailable
           content:
@@ -1892,6 +2101,7 @@ paths:
       tags:
       - sources
       summary: Get Run Sources
+      description: Return normalized sources for a caller-visible run.
       operationId: get_run_sources_api_v1_runs__run_id__sources_get
       security:
       - HTTPBearer: []
@@ -1952,6 +2162,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Provider output was invalid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '503':
           description: Dependency unavailable
           content:
@@ -1963,6 +2179,7 @@ paths:
       tags:
       - developer-trace
       summary: Get Trace
+      description: Return one trace through the same role policy used by MCP.
       operationId: get_trace_api_v1_dev_traces__trace_id__get
       security:
       - HTTPBearer: []
@@ -2023,6 +2240,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Provider output was invalid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '503':
           description: Dependency unavailable
           content:
@@ -2034,6 +2257,7 @@ paths:
       tags:
       - evidence-review
       summary: Create Research Run
+      description: Create an idempotent asynchronous research workflow run.
       operationId: create_research_run_api_v1_research_runs_post
       security:
       - HTTPBearer: []
@@ -2101,6 +2325,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Provider output was invalid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '503':
           description: Dependency unavailable
           content:
@@ -2112,6 +2342,7 @@ paths:
       tags:
       - evidence-review
       summary: Get Workflow Run
+      description: Return an owner-visible workflow run or conceal its absence.
       operationId: get_workflow_run_api_v1_runs__run_id__get
       security:
       - HTTPBearer: []
@@ -2172,6 +2403,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Provider output was invalid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '503':
           description: Dependency unavailable
           content:
@@ -2183,6 +2420,8 @@ paths:
       tags:
       - evidence-review
       summary: Stream Run Events
+      description: Stream bounded resumable server-sent events for an owner-visible
+        run.
       operationId: stream_run_events_api_v1_runs__run_id__events_get
       security:
       - HTTPBearer: []
@@ -2258,6 +2497,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Provider output was invalid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '503':
           description: Dependency unavailable
           content:
@@ -2269,6 +2514,7 @@ paths:
       tags:
       - evidence-review
       summary: Create Human Decision
+      description: Record an idempotent human review decision for a workflow run.
       operationId: create_human_decision_api_v1_runs__run_id__decisions_post
       security:
       - HTTPBearer: []
@@ -2343,6 +2589,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Provider output was invalid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '503':
           description: Dependency unavailable
           content:
@@ -2354,6 +2606,7 @@ paths:
       tags:
       - evidence-review
       summary: List Claims
+      description: List claims belonging to an active caller-owned project.
       operationId: list_claims_api_v1_projects__project_id__claims_get
       security:
       - HTTPBearer: []
@@ -2414,6 +2667,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Provider output was invalid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '503':
           description: Dependency unavailable
           content:
@@ -2425,6 +2684,7 @@ paths:
       tags:
       - evidence-review
       summary: List Claim Relations
+      description: List evidence relations belonging to a caller-owned project.
       operationId: list_claim_relations_api_v1_projects__project_id__claim_relations_get
       security:
       - HTTPBearer: []
@@ -2485,6 +2745,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Provider output was invalid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '503':
           description: Dependency unavailable
           content:
@@ -2496,6 +2762,7 @@ paths:
       tags:
       - evidence-review
       summary: List Reports
+      description: List generated reports for a caller-owned project.
       operationId: list_reports_api_v1_projects__project_id__reports_get
       security:
       - HTTPBearer: []
@@ -2556,6 +2823,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Provider output was invalid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '503':
           description: Dependency unavailable
           content:
@@ -2567,6 +2840,7 @@ paths:
       tags:
       - evidence-review
       summary: Get Report
+      description: Return an owner-visible report with its section details.
       operationId: get_report_api_v1_reports__report_id__get
       security:
       - HTTPBearer: []
@@ -2627,6 +2901,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Provider output was invalid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '503':
           description: Dependency unavailable
           content:
@@ -2638,6 +2918,7 @@ paths:
       tags:
       - evidence-review
       summary: List Pipeline Versions
+      description: List pipeline versions visible to the authenticated caller.
       operationId: list_pipeline_versions_api_v1_pipeline_versions_get
       responses:
         '200':
@@ -2688,6 +2969,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Provider output was invalid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '503':
           description: Dependency unavailable
           content:
@@ -2701,6 +2988,7 @@ paths:
       tags:
       - evidence-review
       summary: List Evaluation Datasets
+      description: List evaluation datasets for an authenticated administrator.
       operationId: list_evaluation_datasets_api_v1_evaluation_datasets_get
       security:
       - HTTPBearer: []
@@ -2763,6 +3051,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Provider output was invalid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '503':
           description: Dependency unavailable
           content:
@@ -2774,6 +3068,7 @@ paths:
       tags:
       - evidence-review
       summary: Refresh Report
+      description: Enqueue an idempotent refresh of an owner-visible report.
       operationId: refresh_report_api_v1_reports__report_id__refresh_post
       security:
       - HTTPBearer: []
@@ -2848,6 +3143,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Provider output was invalid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '503':
           description: Dependency unavailable
           content:
@@ -2859,6 +3160,7 @@ paths:
       tags:
       - evidence-review
       summary: Create Evaluation Run
+      description: Create a privileged idempotent evaluation run.
       operationId: create_evaluation_run_api_v1_evaluation_runs_post
       security:
       - HTTPBearer: []
@@ -2926,6 +3228,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Provider output was invalid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '503':
           description: Dependency unavailable
           content:
@@ -2937,6 +3245,7 @@ paths:
       tags:
       - evidence-review
       summary: Get Evaluation Run
+      description: Return an evaluation run visible to the authenticated caller.
       operationId: get_evaluation_run_api_v1_evaluation_runs__evaluation_run_id__get
       security:
       - HTTPBearer: []
@@ -2997,6 +3306,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Provider output was invalid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '503':
           description: Dependency unavailable
           content:
@@ -3008,6 +3323,7 @@ paths:
       tags:
       - evidence-review
       summary: Reliability
+      description: Return bounded reliability aggregates to an administrator.
       operationId: reliability_api_v1_dev_reliability_get
       security:
       - HTTPBearer: []
@@ -3070,6 +3386,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Provider output was invalid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '503':
           description: Dependency unavailable
           content:
@@ -3081,6 +3403,7 @@ paths:
       tags:
       - evidence-review
       summary: Create Fault Scenario
+      description: Create a non-production reliability exercise for an administrator.
       operationId: create_fault_scenario_api_v1_dev_fault_scenarios_post
       security:
       - HTTPBearer: []
@@ -3148,6 +3471,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Provider output was invalid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '503':
           description: Dependency unavailable
           content:
@@ -3159,6 +3488,7 @@ paths:
       tags:
       - evidence-review
       summary: Get Fault Scenario
+      description: Return a privileged fault-exercise record when it exists.
       operationId: get_fault_scenario_api_v1_dev_fault_scenarios__exercise_id__get
       security:
       - HTTPBearer: []
@@ -3219,6 +3549,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Provider output was invalid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '503':
           description: Dependency unavailable
           content:
@@ -3254,6 +3590,7 @@ components:
       - project_id
       - message
       title: AskRequest
+      description: Accept one bounded chat intent and optional evidence boundaries.
     AskResponse:
       properties:
         run_id:
@@ -3292,6 +3629,14 @@ components:
           type: boolean
           title: Rerank Degraded
           default: false
+        retrieval_degraded:
+          type: boolean
+          title: Retrieval Degraded
+          default: false
+        summary_degraded:
+          type: boolean
+          title: Summary Degraded
+          default: false
         fallback_reason:
           anyOf:
           - type: string
@@ -3307,6 +3652,8 @@ components:
       - trace_id
       - validation_status
       title: AskResponse
+      description: Return persisted Ask identifiers, evidence, and explicit degradation
+        state.
     Citation:
       properties:
         id:
@@ -3362,6 +3709,7 @@ components:
       - source_type
       - quote
       title: Citation
+      description: Represent a server-validated evidence reference exposed to clients.
     ClaimListResponse:
       properties:
         items:
@@ -3378,6 +3726,7 @@ components:
       required:
       - items
       title: ClaimListResponse
+      description: Wrap a cursor-compatible claim listing.
     ClaimRelationListResponse:
       properties:
         items:
@@ -3394,6 +3743,7 @@ components:
       required:
       - items
       title: ClaimRelationListResponse
+      description: Wrap a cursor-compatible claim-relation listing.
     ClaimRelationSummary:
       properties:
         source_claim_id:
@@ -3436,6 +3786,7 @@ components:
       - source_text
       - target_text
       title: ClaimRelationSummary
+      description: Describe a validated relationship between two claims.
     ClaimSummary:
       properties:
         claim_id:
@@ -3499,6 +3850,7 @@ components:
       - duplicate_count
       - source_version
       title: ClaimSummary
+      description: Summarize one evidence-backed claim and its review state.
     ConversationCreate:
       properties:
         title:
@@ -3510,6 +3862,7 @@ components:
       additionalProperties: false
       type: object
       title: ConversationCreate
+      description: Validate a request to create a named conversation.
     ConversationListResponse:
       properties:
         items:
@@ -3520,6 +3873,7 @@ components:
           title: Items
       type: object
       title: ConversationListResponse
+      description: Wrap a bounded conversation listing.
     ConversationMessage:
       properties:
         id:
@@ -3559,6 +3913,7 @@ components:
       - content
       - created_at
       title: ConversationMessage
+      description: Represent a persisted user or assistant conversation message.
     ConversationMessagesResponse:
       properties:
         conversation_id:
@@ -3575,6 +3930,7 @@ components:
       required:
       - conversation_id
       title: ConversationMessagesResponse
+      description: Wrap bounded chronological messages for one conversation.
     ConversationSummary:
       properties:
         id:
@@ -3606,6 +3962,7 @@ components:
       - created_at
       - updated_at
       title: ConversationSummary
+      description: Represent conversation metadata in owner-scoped listings.
     ConversationUpdate:
       properties:
         title:
@@ -3618,6 +3975,7 @@ components:
       required:
       - title
       title: ConversationUpdate
+      description: Validate a request to rename an existing conversation.
     CurrentUser:
       properties:
         id:
@@ -3642,6 +4000,7 @@ components:
       required:
       - id
       title: CurrentUser
+      description: Represent the authenticated identity passed across API boundaries.
     DeveloperTrace:
       properties:
         trace_id:
@@ -3716,6 +4075,7 @@ components:
       - validation_result
       - created_at
       title: DeveloperTrace
+      description: Aggregate privacy-bounded execution diagnostics for administrators.
     Difficulty:
       type: string
       enum:
@@ -3723,6 +4083,7 @@ components:
       - medium
       - hard
       title: Difficulty
+      description: Constrain quiz difficulty to supported levels.
     DocumentRecord:
       properties:
         id:
@@ -3795,6 +4156,7 @@ components:
       - created_at
       - updated_at
       title: DocumentRecord
+      description: Represent owner-scoped document metadata and lifecycle status.
     DocumentStatus:
       type: string
       enum:
@@ -3807,6 +4169,7 @@ components:
       - expired
       - deleted
       title: DocumentStatus
+      description: Enumerate durable document-ingestion lifecycle states.
     ErrorDetail:
       properties:
         code:
@@ -3830,6 +4193,7 @@ components:
       - message
       - request_id
       title: ErrorDetail
+      description: Represent the stable machine and human fields of an API error.
     ErrorResponse:
       properties:
         error:
@@ -3838,6 +4202,7 @@ components:
       required:
       - error
       title: ErrorResponse
+      description: Wrap API error details in the public response envelope.
     EvaluationDatasetListResponse:
       properties:
         items:
@@ -3849,6 +4214,7 @@ components:
       required:
       - items
       title: EvaluationDatasetListResponse
+      description: Wrap evaluation datasets visible to an administrator.
     EvaluationDatasetSummary:
       properties:
         dataset_id:
@@ -3884,6 +4250,7 @@ components:
       - version
       - case_count
       title: EvaluationDatasetSummary
+      description: Summarize a versioned evaluation dataset.
     EvaluationRunAccepted:
       properties:
         evaluation_run_id:
@@ -3909,6 +4276,7 @@ components:
       - case_count
       - status_url
       title: EvaluationRunAccepted
+      description: Acknowledge creation and budget boundary of an evaluation run.
     EvaluationRunCreate:
       properties:
         dataset_id:
@@ -3958,6 +4326,7 @@ components:
       - pipeline_version_id
       - metrics
       title: EvaluationRunCreate
+      description: Validate a bounded evaluation run request.
     EvaluationRunRecord:
       properties:
         evaluation_run_id:
@@ -4023,6 +4392,7 @@ components:
       - progress
       - created_at
       title: EvaluationRunRecord
+      description: Expose evaluation progress and safe aggregate results.
     ExecutionPlan:
       properties:
         task_type:
@@ -4066,6 +4436,7 @@ components:
       - context_strategy
       - output_schema
       title: ExecutionPlan
+      description: Describe the bounded server-side plan selected for a query.
     FaultScenarioAccepted:
       properties:
         exercise_id:
@@ -4095,6 +4466,7 @@ components:
       - status_url
       - expires_at
       title: FaultScenarioAccepted
+      description: Acknowledge scheduling of a bounded reliability exercise.
     FaultScenarioCreate:
       properties:
         scenario:
@@ -4121,6 +4493,7 @@ components:
       - scenario
       - duration_seconds
       title: FaultScenarioCreate
+      description: Validate a bounded non-production reliability exercise.
     FaultScenarioRecord:
       properties:
         exercise_id:
@@ -4191,6 +4564,7 @@ components:
       - expires_at
       - created_at
       title: FaultScenarioRecord
+      description: Expose the lifecycle and safe result of a fault exercise.
     HumanDecisionAccepted:
       properties:
         decision_id:
@@ -4215,6 +4589,7 @@ components:
       - run_id
       - resume_status_url
       title: HumanDecisionAccepted
+      description: Acknowledge persistence of a human workflow decision.
     HumanDecisionCreate:
       properties:
         interrupt_key:
@@ -4246,6 +4621,7 @@ components:
       - interrupt_key
       - decision
       title: HumanDecisionCreate
+      description: Validate a human decision used to resume a paused workflow.
     JobRecord:
       properties:
         id:
@@ -4303,6 +4679,7 @@ components:
       - created_at
       - updated_at
       title: JobRecord
+      description: Represent an asynchronous job without exposing worker internals.
     JobStatus:
       type: string
       enum:
@@ -4312,6 +4689,7 @@ components:
       - failed
       - cancelled
       title: JobStatus
+      description: Enumerate asynchronous job lifecycle states.
     PipelineVersionListResponse:
       properties:
         items:
@@ -4323,6 +4701,7 @@ components:
       required:
       - items
       title: PipelineVersionListResponse
+      description: Wrap pipeline versions visible to the caller.
     PipelineVersionSummary:
       properties:
         pipeline_version_id:
@@ -4357,6 +4736,7 @@ components:
       - configuration
       - code_sha
       title: PipelineVersionSummary
+      description: Describe an immutable accepted evidence-pipeline version.
     ProjectCreate:
       properties:
         name:
@@ -4369,6 +4749,7 @@ components:
       required:
       - name
       title: ProjectCreate
+      description: Validate the caller-provided name for a new project.
     ProjectRecord:
       properties:
         id:
@@ -4421,6 +4802,34 @@ components:
       - created_at
       - updated_at
       title: ProjectRecord
+      description: Represent owner-scoped project metadata returned by the API.
+    QuizCoverage:
+      properties:
+        documents_available:
+          type: integer
+          minimum: 0.0
+          title: Documents Available
+        documents_covered:
+          type: integer
+          minimum: 0.0
+          title: Documents Covered
+        chunks_selected:
+          type: integer
+          maximum: 50.0
+          minimum: 0.0
+          title: Chunks Selected
+        truncated:
+          type: boolean
+          title: Truncated
+          default: false
+      type: object
+      required:
+      - documents_available
+      - documents_covered
+      - chunks_selected
+      title: QuizCoverage
+      description: Report how much of the available document set entered generation
+        context.
     QuizHistoryResponse:
       properties:
         project_id:
@@ -4437,6 +4846,7 @@ components:
       required:
       - project_id
       title: QuizHistoryResponse
+      description: Return bounded saved Quiz sets for one owned workspace.
     QuizQuestion:
       properties:
         id:
@@ -4490,6 +4900,7 @@ components:
       - answer
       - explanation
       title: QuizQuestion
+      description: Represent one validated question and its source citations.
     QuizRequest:
       properties:
         project_id:
@@ -4502,6 +4913,20 @@ components:
           minLength: 1
           title: Prompt
           default: Generate a quiz from my documents.
+        topic_query:
+          anyOf:
+          - type: string
+            maxLength: 1000
+            minLength: 1
+          - type: 'null'
+          title: Topic Query
+        resource_scope:
+          type: string
+          enum:
+          - all_ready_documents
+          - topic
+          title: Resource Scope
+          default: all_ready_documents
         single_choice_count:
           type: integer
           maximum: 20.0
@@ -4525,6 +4950,8 @@ components:
       required:
       - project_id
       title: QuizRequest
+      description: Separate generation instructions from optional topic retrieval
+        semantics.
     QuizResponse:
       properties:
         quiz_set:
@@ -4544,13 +4971,17 @@ components:
           - failed
           - retrying
           title: Validation Status
+        coverage:
+          $ref: '#/components/schemas/QuizCoverage'
       type: object
       required:
       - quiz_set
       - run_id
       - trace_id
       - validation_status
+      - coverage
       title: QuizResponse
+      description: Return a generated quiz with durable identifiers and honest coverage.
     QuizSet:
       properties:
         id:
@@ -4572,6 +5003,7 @@ components:
       - sources
       - questions
       title: QuizSet
+      description: Group one generated set of source-backed questions.
     ReliabilityResponse:
       properties:
         window_hours:
@@ -4633,6 +5065,7 @@ components:
       - input_tokens
       - output_tokens
       title: ReliabilityResponse
+      description: Return bounded operational aggregates without raw trace payloads.
     ReportDetail:
       properties:
         report_id:
@@ -4692,6 +5125,7 @@ components:
       - affected_section_count
       - sections
       title: ReportDetail
+      description: Extend report metadata with ordered section records.
     ReportListResponse:
       properties:
         items:
@@ -4708,6 +5142,7 @@ components:
       required:
       - items
       title: ReportListResponse
+      description: Wrap a cursor-compatible report listing.
     ReportRefreshAccepted:
       properties:
         run_id:
@@ -4736,6 +5171,7 @@ components:
       - impacted_section_keys
       - events_url
       title: ReportRefreshAccepted
+      description: Acknowledge the planned incremental report revision.
     ReportRefreshCreate:
       properties:
         changed_document_ids:
@@ -4759,6 +5195,7 @@ components:
       required:
       - pipeline_version_id
       title: ReportRefreshCreate
+      description: Validate the evidence changes that require report regeneration.
     ReportSectionRecord:
       properties:
         section_id:
@@ -4800,6 +5237,7 @@ components:
       - evidence_snapshot
       - validation_status
       title: ReportSectionRecord
+      description: Represent one evidence-snapshotted report section.
     ReportSummary:
       properties:
         report_id:
@@ -4853,6 +5291,7 @@ components:
       - validation_status
       - affected_section_count
       title: ReportSummary
+      description: Summarize report revision and validation state.
     ResearchRunAccepted:
       properties:
         run_id:
@@ -4881,6 +5320,7 @@ components:
       - events_url
       - created_at
       title: ResearchRunAccepted
+      description: Acknowledge creation of an asynchronous research run.
     ResearchRunCreate:
       properties:
         project_id:
@@ -4920,6 +5360,7 @@ components:
       - research_goal
       - pipeline_version_id
       title: ResearchRunCreate
+      description: Validate a request to start a bounded research workflow.
     RunSourcesResponse:
       properties:
         run_id:
@@ -4939,6 +5380,7 @@ components:
       - run_id
       - summary
       title: RunSourcesResponse
+      description: Return source counts and validated citations for one run.
     RuntimeRerankConfig:
       properties:
         provider:
@@ -4969,6 +5411,7 @@ components:
       - version
       - updated_at
       title: RuntimeRerankConfig
+      description: Expose the versioned rerank provider selected at runtime.
     RuntimeRerankConfigUpdate:
       properties:
         provider:
@@ -4989,6 +5432,7 @@ components:
       - provider
       - expected_version
       title: RuntimeRerankConfigUpdate
+      description: Validate an optimistic update to the runtime rerank provider.
     SourceScope:
       properties:
         document_ids:
@@ -5004,6 +5448,8 @@ components:
           default: false
       type: object
       title: SourceScope
+      description: Constrain the documents and web access available to a research
+        run.
     SourceSummary:
       properties:
         local_chunks:
@@ -5020,18 +5466,21 @@ components:
           default: 0
       type: object
       title: SourceSummary
+      description: Summarize the evidence mix returned with an answer.
     SourceType:
       type: string
       enum:
       - local_doc
       - web_page
       title: SourceType
+      description: Identify whether cited evidence is local or web-derived.
     TaskType:
       type: string
       enum:
       - answer
       - quiz
       title: TaskType
+      description: Select the high-level operation requested from the query pipeline.
     ToolCallTrace:
       properties:
         id:
@@ -5075,6 +5524,7 @@ components:
       - input_summary
       - status
       title: ToolCallTrace
+      description: Summarize a tool call without exposing raw sensitive payloads.
     UploadCompleteRequest:
       properties:
         checksum_sha256:
@@ -5091,8 +5541,11 @@ components:
           title: Extracted Text
           description: Local development fallback. Production worker should extract
             text from R2.
+      additionalProperties: false
       type: object
       title: UploadCompleteRequest
+      description: Accept the upload checksum and the explicitly local-only extraction
+        fallback.
     UploadUrlRequest:
       properties:
         project_id:
@@ -5136,6 +5589,7 @@ components:
       - mime_type
       - size_bytes
       title: UploadUrlRequest
+      description: Validate metadata for a scoped direct-upload reservation.
     UploadUrlResponse:
       properties:
         document_id:
@@ -5164,6 +5618,7 @@ components:
       - r2_object_key
       - expires_in_seconds
       title: UploadUrlResponse
+      description: Return a bounded direct-upload reservation and storage identity.
     WorkflowRunRecord:
       properties:
         run_id:
@@ -5246,6 +5701,7 @@ components:
       - progress
       - created_at
       title: WorkflowRunRecord
+      description: Expose durable workflow state and safe output to its owner.
   securitySchemes:
     HTTPBearer:
       type: http

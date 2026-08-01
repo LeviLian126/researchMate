@@ -1,3 +1,5 @@
+"""Expose owner-scoped asynchronous job status lookup."""
+
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, status
@@ -17,6 +19,7 @@ def get_job(
     user: CurrentUser = Depends(get_current_user),
     repository: ResearchMateRepository = Depends(get_store),
 ) -> JobRecord:
+    """Return a job only when it is visible to the authenticated caller."""
     job = repository.get_job(user, job_id)
     if job is None:
         raise_api_error(status.HTTP_404_NOT_FOUND, "JOB_NOT_FOUND", "Job was not found.")

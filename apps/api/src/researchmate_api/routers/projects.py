@@ -1,3 +1,5 @@
+"""Expose owner-scoped project creation, lookup, listing, and deletion routes."""
+
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, status
@@ -26,6 +28,7 @@ def create_project(
     user: CurrentUser = Depends(get_current_user),
     repository: ResearchMateRepository = Depends(get_store),
 ) -> ProjectRecord:
+    """Create a project owned by the authenticated caller."""
     return repository.create_project(user, payload)
 
 
@@ -35,6 +38,7 @@ def list_projects(
     user: CurrentUser = Depends(get_current_user),
     repository: ResearchMateRepository = Depends(get_store),
 ) -> list[ProjectRecord]:
+    """List projects owned by the authenticated caller."""
     return repository.list_projects(user)
 
 
@@ -45,6 +49,7 @@ def get_project(
     user: CurrentUser = Depends(get_current_user),
     repository: ResearchMateRepository = Depends(get_store),
 ) -> ProjectRecord:
+    """Return one project without revealing other owners' resources."""
     project = repository.get_project(user, project_id)
     if project is None:
         raise_api_error(status.HTTP_404_NOT_FOUND, "PROJECT_NOT_FOUND", "Project was not found.")
@@ -58,6 +63,7 @@ def delete_project(
     user: CurrentUser = Depends(get_current_user),
     repository: ResearchMateRepository = Depends(get_store),
 ) -> dict[str, str]:
+    """Enqueue cleanup for a caller-owned project."""
     job = repository.delete_project(user, project_id)
     if job is None:
         raise_api_error(status.HTTP_404_NOT_FOUND, "PROJECT_NOT_FOUND", "Project was not found.")

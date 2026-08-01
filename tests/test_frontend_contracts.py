@@ -1,3 +1,5 @@
+"""Verify static frontend routes, API usage, security, and product boundaries."""
+
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -5,6 +7,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 # 验证前端 MVP 页面已经覆盖项目、问答、资料库、测验和开发者 Trace。
 def test_frontend_mvp_pages_exist() -> None:
+    """Require every approved MVP page to exist in the app tree."""
     required_pages = [
         "apps/web/app/page.tsx",
         "apps/web/app/app/page.tsx",
@@ -31,6 +34,7 @@ def test_frontend_mvp_pages_exist() -> None:
 
 # 验证前端页面连接当前 API 契约中的核心路由。
 def test_frontend_calls_mvp_api_contracts() -> None:
+    """Require frontend data flows to use the approved API routes."""
     source = "\n".join(
         path.read_text(encoding="utf-8")
         for path in [
@@ -40,6 +44,7 @@ def test_frontend_calls_mvp_api_contracts() -> None:
             ROOT / "apps/web/app/app/projects/[projectId]/quiz/page.tsx",
             ROOT / "apps/web/app/app/projects/[projectId]/labs/page.tsx",
             ROOT / "apps/web/app/components/chat-workspace.tsx",
+            ROOT / "apps/web/app/components/use-chat-workspace.ts",
             ROOT / "apps/web/app/components/app-sidebar.tsx",
             ROOT / "apps/web/app/dev/traces/[traceId]/page.tsx",
             ROOT / "apps/web/app/lib/api.ts",
@@ -68,6 +73,7 @@ def test_frontend_calls_mvp_api_contracts() -> None:
 
 # 验证普通应用导航不暴露 Developer Trace 入口。
 def test_regular_project_pages_do_not_nav_to_dev_trace() -> None:
+    """Keep developer traces out of regular project navigation."""
     regular_pages = [
         ROOT / "apps/web/app/app/page.tsx",
         ROOT / "apps/web/app/app/projects/[projectId]/library/page.tsx",
@@ -81,6 +87,7 @@ def test_regular_project_pages_do_not_nav_to_dev_trace() -> None:
 
 # 验证前端代码不引用后端 secret 名称，避免误导部署到浏览器环境。
 def test_frontend_does_not_reference_backend_secret_names() -> None:
+    """Prevent backend credential names from entering browser source."""
     frontend_files = list((ROOT / "apps/web/app").rglob("*.tsx")) + list((ROOT / "apps/web/app").rglob("*.ts"))
     combined = "\n".join(path.read_text(encoding="utf-8") for path in frontend_files)
     forbidden_tokens = [
@@ -99,6 +106,7 @@ def test_frontend_does_not_reference_backend_secret_names() -> None:
 
 # Evidence review uses the authenticated API boundary and visibly covers recovery states.
 def test_evidence_frontend_covers_async_and_recovery_states() -> None:
+    """Require evidence UI coverage for asynchronous and recovery states."""
     source = (ROOT / "apps/web/app/app/projects/[projectId]/labs/page.tsx").read_text(encoding="utf-8")
     api_source = (ROOT / "apps/web/app/lib/api.ts").read_text(encoding="utf-8")
 
@@ -117,6 +125,7 @@ def test_evidence_frontend_covers_async_and_recovery_states() -> None:
 
 # Provider credentials and direct LLM calls remain outside the browser bundle.
 def test_frontend_does_not_call_model_provider_directly() -> None:
+    """Prevent browser code from bypassing the server provider boundary."""
     frontend_files = list((ROOT / "apps/web/app").rglob("*.tsx")) + list((ROOT / "apps/web/app").rglob("*.ts"))
     combined = "\n".join(path.read_text(encoding="utf-8") for path in frontend_files)
     forbidden_provider_calls = [
@@ -131,6 +140,7 @@ def test_frontend_does_not_call_model_provider_directly() -> None:
 
 # Preview and production authenticate through a persisted Supabase session and never a dev fallback.
 def test_frontend_uses_supabase_session_outside_local_development() -> None:
+    """Require managed environments to authenticate with Supabase sessions."""
     package = (ROOT / "apps/web/package.json").read_text(encoding="utf-8")
     auth = (ROOT / "apps/web/app/components/auth-gate.tsx").read_text(encoding="utf-8")
     supabase = (ROOT / "apps/web/app/lib/supabase.ts").read_text(encoding="utf-8")
@@ -168,9 +178,17 @@ def test_frontend_uses_supabase_session_outside_local_development() -> None:
 
 
 def test_sidebar_and_chat_match_unified_product_boundaries() -> None:
+    """Keep navigation and chat behavior within the unified product scope."""
     sidebar = (ROOT / "apps/web/app/components/app-sidebar.tsx").read_text(encoding="utf-8")
-    chat = (ROOT / "apps/web/app/components/chat-workspace.tsx").read_text(
-        encoding="utf-8"
+    chat = "\n".join(
+        (ROOT / path).read_text(encoding="utf-8")
+        for path in (
+            "apps/web/app/components/chat-workspace.tsx",
+            "apps/web/app/components/chat-composer.tsx",
+            "apps/web/app/components/conversation-thread.tsx",
+            "apps/web/app/components/project-quiz-drawer.tsx",
+            "apps/web/app/components/use-chat-workspace.ts",
+        )
     )
     project_nav = (ROOT / "apps/web/app/components/project-nav.tsx").read_text(
         encoding="utf-8"

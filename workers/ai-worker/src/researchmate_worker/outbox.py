@@ -1,3 +1,5 @@
+"""Claim durable outbox events and publish them to stable Celery task names."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -10,6 +12,7 @@ from sqlalchemy import Engine, text
 
 @dataclass(frozen=True)
 class ClaimedOutboxEvent:
+    """Carry one leased outbox event and its validated publication payload."""
     id: UUID
     event_type: str
     payload: dict[str, Any]
@@ -18,6 +21,7 @@ class ClaimedOutboxEvent:
 
 
 class OutboxStore(Protocol):
+    """Define durable claim and publication transitions for outbox events."""
     def claim(self, limit: int, max_attempts: int) -> list[ClaimedOutboxEvent]: ...
 
     def mark_published(self, event_id: UUID) -> None: ...
@@ -28,10 +32,12 @@ class OutboxStore(Protocol):
 
 
 class TaskPublisher(Protocol):
+    """Define stable task publication independent of the Celery client."""
     def publish(self, event: ClaimedOutboxEvent) -> None: ...
 
 
 class OutboxDispatcher:
+    """Publish bounded batches while preserving at-least-once delivery semantics."""
     def __init__(
         self,
         store: OutboxStore,
@@ -46,6 +52,7 @@ class OutboxDispatcher:
         self.max_attempts = max_attempts
 
     def dispatch_once(self) -> int:
+        """Publish one bounded batch and persist each delivery outcome."""
         published = 0
         for event in self.store.claim(self.batch_size, self.max_attempts):
             try:
@@ -58,18 +65,21 @@ class OutboxDispatcher:
         return published
 
     def recover_stale_claims(self, minutes: int = 15) -> int:
+        """Return expired publication leases to the pending queue."""
         return self.store.requeue_stale(datetime.now(UTC) - timedelta(minutes=minutes))
 
 
 class SqlOutboxStore:
+    """Persist outbox leases, attempts, and publication outcomes."""
     def __init__(self, engine: Engine) -> None:
         self.engine = engine
 
     def claim(self, limit: int, max_attempts: int) -> list[ClaimedOutboxEvent]:
         with self.engine.begin() as connection:
-            rows = connection.execute(
-                text(
-                    """
+            rows = (
+                connection.execute(
+                    text(
+                        """
                     select id, event_type, payload, idempotency_key, attempts
                     from outbox_events
                     where status in ('pending', 'failed')
@@ -78,9 +88,12 @@ class SqlOutboxStore:
                     for update skip locked
                     limit :limit
                     """
-                ),
-                {"limit": limit, "max_attempts": max_attempts},
-            ).mappings().all()
+                    ),
+                    {"limit": limit, "max_attempts": max_attempts},
+                )
+                .mappings()
+                .all()
+            )
             events = [
                 ClaimedOutboxEvent(
                     id=row["id"],
@@ -153,6 +166,7 @@ class SqlOutboxStore:
 
 
 class CeleryTaskPublisher:
+    """Map durable event types to stable Celery task names."""
     TASK_BY_EVENT: ClassVar[dict[str, str]] = {
         "document.ingest.requested": "researchmate.ingest_document",
         "document.delete.requested": "researchmate.delete_document",

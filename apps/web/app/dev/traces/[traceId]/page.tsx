@@ -1,3 +1,4 @@
+// Presents a sanitized developer trace obtained through the role-protected API.
 "use client";
 
 import Link from "next/link";
@@ -5,6 +6,7 @@ import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { apiFetch, DeveloperTrace } from "../../../lib/api";
 
+/** Loads and displays the requested execution trace or a safe access failure. */
 export default function TracePage() {
   const params = useParams<{ traceId: string }>();
   const traceId = params.traceId;
@@ -12,6 +14,7 @@ export default function TracePage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    /** Loads the canonical trace whenever its route identifier changes. */
     async function loadTrace() {
       try {
         setTrace(await apiFetch<DeveloperTrace>(`/dev/traces/${traceId}`));

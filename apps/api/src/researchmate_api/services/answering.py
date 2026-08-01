@@ -1,3 +1,5 @@
+"""Build deterministic or provider-backed answers from server-approved evidence."""
+
 import json
 from uuid import uuid4
 
@@ -11,24 +13,28 @@ from researchmate_api.services.store import ChunkEntry
 
 
 class EvidenceClaimProposal(BaseModel):
+    """Validate a provider claim against server-assigned evidence identifiers."""
     text: str = Field(min_length=1, max_length=1200)
     evidence_ids: list[int] = Field(min_length=1, max_length=12)
 
 
 class GroundedAnswerProposal(BaseModel):
+    """Validate the structured grounded answer returned by a provider."""
     answer: str = Field(min_length=1, max_length=16_000)
     claims: list[EvidenceClaimProposal] = Field(min_length=1, max_length=40)
 
 
 class ProviderOutputError(ValueError):
-    pass
+    """Signal provider output that violates the grounded-answer contract."""
 
 
 def _source_type(value: SourceType | str) -> SourceType:
+    """Normalize persisted or schema source values to the shared enum."""
     return value if isinstance(value, SourceType) else SourceType(value)
 
 
 def _extract_json_object(content: str) -> str:
+    """Extract the outer JSON object from provider markdown or prose wrappers."""
     start, end = content.find("{"), content.rfind("}")
     if start < 0 or end <= start:
         raise ProviderOutputError("LLM response did not contain a JSON object")
@@ -36,6 +42,7 @@ def _extract_json_object(content: str) -> str:
 
 
 def _validate_grounded_proposal(content: str, evidence_count: int) -> GroundedAnswerProposal:
+    """Validate structured provider output and its evidence-index bounds."""
     try:
         proposal = GroundedAnswerProposal.model_validate_json(_extract_json_object(content))
     except ValidationError as exc:
@@ -47,6 +54,7 @@ def _validate_grounded_proposal(content: str, evidence_count: int) -> GroundedAn
 
 
 def _sum_optional_tokens(first: int | None, second: int | None) -> int | None:
+    """Combine provider token counts while preserving unavailable telemetry."""
     values = [value for value in (first, second) if value is not None]
     return sum(values) if values else None
 
@@ -57,6 +65,7 @@ def _repair_grounded_result(
     first_result: LLMResult,
     max_tokens: int | None,
 ) -> LLMResult:
+    """Request one bounded schema repair after an invalid grounded response."""
     repair_messages = [
         *messages,
         {
@@ -88,6 +97,7 @@ def build_llm_grounded_answer(
     history: list[ConversationMessage] | None = None,
     max_tokens: int | None = None,
 ) -> tuple[str, list[Citation], SourceSummary, LLMResult]:
+    """Generate and validate a grounded answer from allowlisted evidence."""
     if not chunks:
         raise ProviderOutputError("Grounded generation requires at least one evidence chunk")
     evidence = [
@@ -172,6 +182,7 @@ def build_llm_grounded_answer(
 def build_grounded_answer(
     query: str, chunks: list[ChunkEntry]
 ) -> tuple[str, list[Citation], SourceSummary]:
+    """Build a deterministic cited answer without a remote model call."""
     citations: list[Citation] = []
     for index, chunk in enumerate(chunks, start=1):
         citations.append(
@@ -212,6 +223,7 @@ def build_llm_chat_answer(
     history: list[ConversationMessage],
     max_tokens: int | None = None,
 ) -> tuple[str, LLMResult]:
+    """Generate a conversational answer when no evidence grounding is requested."""
     messages = [
         {
             "role": "system",
@@ -237,6 +249,7 @@ def _complete(
     messages: list[dict[str, str]],
     max_tokens: int | None,
 ):
+    """Call a provider with a bounded output when that capability is available."""
     bounded = getattr(provider, "complete_bounded", None)
     if max_tokens is not None and callable(bounded):
         return bounded(messages, max_tokens=max_tokens)
@@ -244,4 +257,5 @@ def _complete(
 
 
 def build_chat_answer(query: str) -> str:
+    """Return the deterministic local chat fallback."""
     return f"你问的是：“{query}”。当前运行使用本地确定性聊天回退；配置模型后可生成完整回答。"

@@ -1,3 +1,5 @@
+"""Own tenant-filtered Qdrant hybrid retrieval and vector projection operations."""
+
 from __future__ import annotations
 
 from collections import Counter
@@ -15,6 +17,7 @@ from researchmate_api.services.store import ChunkEntry
 
 
 class VectorStoreRequestError(RuntimeError):
+    """Normalize vector-store failures and their retryability."""
     def __init__(self, operation: str, *, retryable: bool = True) -> None:
         super().__init__(f"Vector store {operation} failed")
         self.operation = operation
@@ -22,6 +25,7 @@ class VectorStoreRequestError(RuntimeError):
 
 
 def sparse_text_vector(text: str) -> models.SparseVector:
+    """Build a deterministic sorted sparse vector from lexical tokens."""
     counts = Counter(tokenize(text))
     indexed = sorted(
         (
@@ -37,6 +41,7 @@ def sparse_text_vector(text: str) -> models.SparseVector:
 
 
 class QdrantHybridStore:
+    """Enforce owner filters around hybrid Qdrant queries and mutations."""
     def __init__(
         self,
         settings: Settings,
@@ -63,6 +68,7 @@ class QdrantHybridStore:
         source_type: SourceType | str,
         document_ids: list[str] | None = None,
     ) -> models.Filter:
+        """Build the mandatory owner, project, source, and document filter."""
         source_value = source_type.value if isinstance(source_type, SourceType) else source_type
         conditions: list[Any] = [
                 models.FieldCondition(key="user_id", match=models.MatchValue(value=user_id)),
@@ -85,6 +91,7 @@ class QdrantHybridStore:
         limit: int = 10,
         document_ids: list[str] | None = None,
     ) -> list[dict[str, Any]]:
+        """Fuse dense and sparse channels inside an owner-scoped query."""
         dense = self.embedding.embed([text], input_type="query")[0]
         query_filter = self.owner_filter(user_id, project_id, source_type, document_ids)
         try:
@@ -155,6 +162,7 @@ class QdrantHybridStore:
         model: str,
         limit: int,
     ) -> list[str]:
+        """Rerank an allowlist of owner-scoped candidate identifiers."""
         if not candidate_ids:
             return []
         query_filter = self.owner_filter(user_id, project_id, SourceType.LOCAL_DOC)
@@ -173,6 +181,7 @@ class QdrantHybridStore:
         return [str(point.payload.get("chunk_id", point.id)) for point in result.points]
 
     def rerank_ready(self) -> bool:
+        """Check that the optional rerank collection is configured and complete."""
         if not self.settings.qdrant_rerank_model or not self.settings.qdrant_rerank_model_is_free:
             return False
         try:
@@ -200,6 +209,7 @@ class QdrantHybridStore:
         return primary_count > 0 and rerank_count == primary_count
 
     def upsert_chunks(self, chunks: list[ChunkEntry], *, pipeline_version: str) -> None:
+        """Project chunks into owner-tagged dense, sparse, and rerank vectors."""
         if not chunks:
             return
         dense_vectors = self.embedding.embed([chunk.text for chunk in chunks], input_type="passage")
@@ -264,6 +274,7 @@ class QdrantHybridStore:
         user_id: str,
         project_id: str,
     ) -> None:
+        """Delete selected points without crossing their owner boundary."""
         if not point_ids:
             return
         owner_filter = models.Filter(
@@ -292,6 +303,7 @@ class QdrantHybridStore:
                 raise VectorStoreRequestError("rerank_delete") from exc
 
     def delete_project_points(self, *, user_id: str, project_id: str) -> None:
+        """Delete every vector projection belonging to one owner's project."""
         owner_filter = models.Filter(
             must=[
                 models.FieldCondition(key="user_id", match=models.MatchValue(value=user_id)),

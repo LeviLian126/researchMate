@@ -1,5 +1,9 @@
+"""Provide deterministic text chunking used by indexing jobs."""
+
+
 # 纯函数 chunker，供本地 worker 与 API adapter 复用测试。
 def chunk_text_for_index(text: str, target_size: int = 900) -> list[str]:
+    """Split normalized text into bounded chunks without dropping content."""
     normalized = "\n".join(line.strip() for line in text.splitlines() if line.strip())
     if not normalized:
         return []

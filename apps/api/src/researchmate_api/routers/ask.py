@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends, Request
+"""Map the HTTP Ask endpoint to idempotent grounded-query application services."""
+
+from fastapi import APIRouter, Depends, Header, Request
 
 from researchmate_api.dependencies import (
     get_chat_provider,
@@ -12,6 +14,7 @@ from researchmate_api.dependencies import (
 from researchmate_api.schemas.ask import AskRequest, AskResponse
 from researchmate_api.schemas.common import CurrentUser
 from researchmate_api.services.grounded_query import GroundedQueryError, GroundedQueryService
+from researchmate_api.services.idempotency import IdempotencyCoordinator, IdempotencyError
 from researchmate_api.services.llm import ChatProvider
 from researchmate_api.services.qdrant_store import QdrantHybridStore
 from researchmate_api.services.rerank import RerankCoordinator
@@ -31,9 +34,19 @@ def ask(
     hybrid_store: QdrantHybridStore | None = Depends(get_hybrid_store),
     web_search: TavilyWebSearchProvider | None = Depends(get_web_search),
     reranker: RerankCoordinator = Depends(get_reranker),
+    idempotency_key: str | None = Header(
+        default=None, alias="Idempotency-Key", min_length=8, max_length=160
+    ),
 ) -> AskResponse:
+    """Execute or replay one Ask request without duplicate provider calls or messages."""
+    coordinator = IdempotencyCoordinator(
+        repository, user, "ask", idempotency_key, payload
+    )
     try:
-        return GroundedQueryService(
+        replay = coordinator.begin()
+        if replay is not None:
+            return AskResponse.model_validate(replay)
+        response = GroundedQueryService(
             settings=request.app.state.settings,
             repository=repository,
             chat_provider=chat_provider,
@@ -41,5 +54,13 @@ def ask(
             reranker=reranker,
             web_search=web_search,
         ).execute(user, payload)
+        coordinator.complete(response)
+        return response
+    except IdempotencyError as exc:
+        raise_api_error(409, exc.code, exc.message)
     except GroundedQueryError as exc:
+        coordinator.abandon()
         raise_api_error(exc.status_code, exc.code, exc.message)
+    except Exception:
+        coordinator.abandon()
+        raise

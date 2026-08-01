@@ -1,3 +1,5 @@
+"""Define the unified Ask request, grounded proposal, and response contracts."""
+
 from typing import Literal
 from uuid import UUID
 
@@ -8,6 +10,7 @@ from researchmate_api.schemas.common import Citation, SourceSummary
 
 # 定义 Ask API 请求体。
 class AskRequest(BaseModel):
+    """Accept one bounded chat intent and optional evidence boundaries."""
     project_id: UUID
     conversation_id: UUID | None = None
     message: str = Field(min_length=1, max_length=8000)
@@ -18,6 +21,7 @@ class AskRequest(BaseModel):
 
 # 定义结构化回答中的单条 claim。
 class Claim(BaseModel):
+    """Represent one answer claim and its server-issued citation identifiers."""
     id: str = Field(min_length=1, max_length=120)
     text: str = Field(min_length=1, max_length=1200)
     citation_ids: list[UUID] = Field(default_factory=list, max_length=12)
@@ -25,6 +29,7 @@ class Claim(BaseModel):
 
 # 定义 LLM 必须输出的可溯源回答结构。
 class GroundedAnswer(BaseModel):
+    """Validate a provider answer against the grounded response contract."""
     sources: SourceSummary
     answer: str = Field(min_length=1, max_length=16000)
     claims: list[Claim] = Field(default_factory=list, max_length=80)
@@ -35,6 +40,7 @@ class GroundedAnswer(BaseModel):
 
 # 定义 Ask API 响应体。
 class AskResponse(BaseModel):
+    """Return persisted Ask identifiers, evidence, and explicit degradation state."""
     run_id: UUID
     conversation_id: UUID
     answer: str = Field(min_length=1, max_length=16000)
@@ -43,6 +49,8 @@ class AskResponse(BaseModel):
     trace_id: UUID
     validation_status: Literal["passed", "failed", "retrying"]
     rerank_degraded: bool = False
+    retrieval_degraded: bool = False
+    summary_degraded: bool = False
     fallback_reason: str | None = Field(default=None, max_length=300)
 
     model_config = ConfigDict(use_enum_values=True)

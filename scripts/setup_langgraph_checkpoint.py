@@ -1,9 +1,12 @@
+"""Create LangGraph-owned checkpoint tables during an approved schema phase."""
+
 from __future__ import annotations
 
 import os
 
 
 def main() -> None:
+    """Run protected LangGraph checkpoint setup against the configured database."""
     if os.getenv("ALLOW_SCHEMA_APPLY") != "1":
         raise SystemExit("Set ALLOW_SCHEMA_APPLY=1 for an explicitly approved schema apply")
     database_url = os.getenv("DATABASE_URL")

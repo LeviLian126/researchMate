@@ -1,9 +1,11 @@
+"""Verify lexical retrieval, fusion, packing, and rerank degradation behavior."""
+
 from datetime import UTC, datetime
 from uuid import uuid4
 
 from researchmate_api.config import Settings
 from researchmate_api.schemas.common import SourceType
-from researchmate_api.services.grounded_query import GroundedQueryService
+from researchmate_api.services.query_execution import limit_rerank_candidates
 from researchmate_api.services.rerank import NvidiaReranker, RerankCoordinator
 from researchmate_api.services.retrieval import (
     RetrievalCandidate,
@@ -29,6 +31,7 @@ def _chunk(text: str, title: str = "notes.md") -> ChunkEntry:
 
 
 def test_mixed_tokenizer_keeps_identifiers_and_chinese_bigrams() -> None:
+    """Preserve identifiers and Chinese bigrams in mixed tokenization."""
     tokens = tokenize("Qdrant multi_vector 支持中文检索 v1/ranking")
     assert "multi_vector" in tokens
     assert "v1/ranking" in tokens
@@ -37,6 +40,7 @@ def test_mixed_tokenizer_keeps_identifiers_and_chinese_bigrams() -> None:
 
 
 def test_bm25_weights_exact_phrase_title_and_repeated_hits() -> None:
+    """Weight exact phrases, titles, and repeated lexical hits."""
     exact = _chunk("Use runtime config for hot reload. runtime config is versioned.", "Rerank")
     loose = _chunk("A runtime can reload configuration.")
     unrelated = _chunk("Deployment rollback guide.")
@@ -46,6 +50,7 @@ def test_bm25_weights_exact_phrase_title_and_repeated_hits() -> None:
 
 
 def test_rrf_deduplicates_and_rewards_cross_channel_hits() -> None:
+    """Deduplicate fusion results while rewarding cross-channel evidence."""
     shared, lexical_only, semantic_only = _chunk("shared"), _chunk("lexical"), _chunk("semantic")
     lexical = [
         RetrievalCandidate(shared, 10, lexical_rank=1),
@@ -57,6 +62,7 @@ def test_rrf_deduplicates_and_rewards_cross_channel_hits() -> None:
 
 
 def test_context_packer_respects_budget_after_first_item() -> None:
+    """Respect the token budget after including the first candidate."""
     first = _chunk("a " * 20)
     oversized = _chunk("b " * 200)
     last = _chunk("c " * 20)
@@ -65,6 +71,7 @@ def test_context_packer_respects_budget_after_first_item() -> None:
 
 
 class _Response:
+    """Provide a minimal successful ranking response."""
     def raise_for_status(self) -> None:
         return None
 
@@ -73,6 +80,7 @@ class _Response:
 
 
 class _NvidiaClient:
+    """Record NVIDIA ranking requests and return stable rankings."""
     def __init__(self) -> None:
         self.payload = None
 
@@ -83,6 +91,7 @@ class _NvidiaClient:
 
 
 def test_nvidia_adapter_uses_ranking_api_and_top_n() -> None:
+    """Send the expected NVIDIA ranking payload and enforce top-n."""
     client = _NvidiaClient()
     settings = Settings(nvidia_api_key="secret", nvidia_rerank_model="rank-model")
     reranker = NvidiaReranker(settings, client=client)
@@ -99,6 +108,7 @@ def test_nvidia_adapter_uses_ranking_api_and_top_n() -> None:
 
 
 def test_auto_provider_degrades_deterministically_when_models_unavailable() -> None:
+    """Degrade automatic reranking to a deterministic order."""
     coordinator = RerankCoordinator(
         Settings(
             _env_file=None,
@@ -119,13 +129,14 @@ def test_auto_provider_degrades_deterministically_when_models_unavailable() -> N
 
 
 def test_provider_candidate_limit_preserves_web_and_document_diversity() -> None:
+    """Preserve evidence diversity when limiting provider candidates."""
     first, second = _chunk("first"), _chunk("second")
     repeated = _chunk("repeat")
     repeated.document_id = first.document_id
     web = _chunk("web")
     web.source_type = SourceType.WEB_PAGE
     web.document_id = None
-    limited = GroundedQueryService._limit_rerank_candidates(
+    limited = limit_rerank_candidates(
         [
             RetrievalCandidate(first, 1),
             RetrievalCandidate(repeated, 0.9),

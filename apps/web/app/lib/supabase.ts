@@ -1,3 +1,4 @@
+// Owns browser Supabase authentication, session restoration, refresh, persistence, and notifications.
 "use client";
 
 export interface BrowserAuthSession {
@@ -15,11 +16,13 @@ let currentSession: BrowserAuthSession | null | undefined;
 let refreshPromise: Promise<BrowserAuthSession | null> | null = null;
 let refreshTimer: number | null = null;
 
+/** Detects the explicit local mode where a development identity is allowed. */
 export function isLocalDevelopment(): boolean {
   const configured = process.env.NEXT_PUBLIC_APP_ENV;
   return process.env.NODE_ENV === "development" && (!configured || configured === "local");
 }
 
+/** Reads the public Supabase browser configuration only when both values are present. */
 function configuration(): { url: string; anonKey: string } | null {
   if (isLocalDevelopment()) return null;
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/$/, "");
@@ -27,14 +30,17 @@ function configuration(): { url: string; anonKey: string } | null {
   return url && anonKey ? { url, anonKey } : null;
 }
 
+/** Reports whether this deployment can offer Supabase authentication. */
 export function isSupabaseConfigured(): boolean {
   return configuration() !== null;
 }
 
+/** Broadcasts canonical authentication changes to active UI subscribers. */
 function notify(session: BrowserAuthSession | null) {
   for (const listener of listeners) listener(session);
 }
 
+/** Stores or clears the browser session and then notifies subscribers. */
 function persist(session: BrowserAuthSession | null) {
   currentSession = session;
   if (typeof window !== "undefined") {
@@ -54,6 +60,7 @@ function persist(session: BrowserAuthSession | null) {
   notify(session);
 }
 
+/** Extracts display-only identity claims without treating them as authorization. */
 function identityFromAccessToken(token: string): { email?: string; role?: string } {
   try {
     const segment = token.split(".")[1];
@@ -73,6 +80,7 @@ function identityFromAccessToken(token: string): { email?: string; role?: string
   }
 }
 
+/** Validates and normalizes the provider token response into browser session state. */
 function toSession(payload: Record<string, unknown>): BrowserAuthSession {
   if (typeof payload.access_token !== "string" || typeof payload.refresh_token !== "string") {
     throw new Error("Supabase Auth returned an invalid session payload.");
@@ -93,6 +101,7 @@ function toSession(payload: Record<string, unknown>): BrowserAuthSession {
   };
 }
 
+/** Consumes an OAuth redirect fragment and removes tokens from the visible URL. */
 function restoreRedirectSession(): BrowserAuthSession | null {
   if (typeof window === "undefined" || !window.location.hash) return null;
   const values = new URLSearchParams(window.location.hash.slice(1));
@@ -110,6 +119,7 @@ function restoreRedirectSession(): BrowserAuthSession | null {
   return session;
 }
 
+/** Restores a structurally valid persisted session from browser storage. */
 function restoreStoredSession(): BrowserAuthSession | null {
   if (typeof window === "undefined") return null;
   try {
@@ -133,6 +143,7 @@ function restoreStoredSession(): BrowserAuthSession | null {
   }
 }
 
+/** Sends a configured Supabase Auth request and normalizes provider failures. */
 async function authRequest(path: string, init: RequestInit): Promise<Record<string, unknown>> {
   const config = configuration();
   if (!config) throw new Error("Supabase Auth is not configured.");
@@ -146,6 +157,7 @@ async function authRequest(path: string, init: RequestInit): Promise<Record<stri
   return body;
 }
 
+/** Refreshes an expiring session and clears invalid refresh credentials. */
 async function refreshSession(refreshToken: string): Promise<BrowserAuthSession | null> {
   if (!refreshPromise) {
     refreshPromise = authRequest("/token?grant_type=refresh_token", {
@@ -165,6 +177,7 @@ async function refreshSession(refreshToken: string): Promise<BrowserAuthSession 
   return refreshPromise;
 }
 
+/** Returns a usable session, refreshing it when it approaches expiry. */
 export async function getSupabaseSession(): Promise<BrowserAuthSession | null> {
   if (!configuration()) return null;
   if (currentSession === undefined) {
@@ -177,11 +190,13 @@ export async function getSupabaseSession(): Promise<BrowserAuthSession | null> {
   return currentSession;
 }
 
+/** Subscribes to browser authentication state and returns an unsubscribe callback. */
 export function onAuthStateChange(listener: SessionListener): () => void {
   listeners.add(listener);
   return () => listeners.delete(listener);
 }
 
+/** Signs in with email and password and persists the resulting session. */
 export async function signInWithPassword(email: string, password: string): Promise<BrowserAuthSession> {
   const payload = await authRequest("/token?grant_type=password", { method: "POST", body: JSON.stringify({ email, password }) });
   const session = toSession(payload);
@@ -190,6 +205,7 @@ export async function signInWithPassword(email: string, password: string): Promi
 }
 
 /** Creates an email/password identity and persists a session when email confirmation is disabled. */
+/** Creates an account and reports whether email confirmation is still required. */
 export async function signUpWithPassword(
   email: string,
   password: string,
@@ -205,6 +221,7 @@ export async function signUpWithPassword(
   return "signed_in";
 }
 
+/** Requests a passwordless sign-in link for the supplied browser destination. */
 export async function sendMagicLink(email: string, redirectTo: string): Promise<void> {
   await authRequest(`/otp?redirect_to=${encodeURIComponent(redirectTo)}`, {
     method: "POST",
@@ -212,6 +229,7 @@ export async function sendMagicLink(email: string, redirectTo: string): Promise<
   });
 }
 
+/** Builds the configured GitHub OAuth authorization URL. */
 export function getGitHubOAuthUrl(redirectTo: string): string {
   const config = configuration();
   if (!config) throw new Error("Supabase Auth is not configured.");
@@ -228,10 +246,12 @@ export function getGitHubOAuthUrl(redirectTo: string): string {
   return authorize.toString();
 }
 
+/** Navigates the browser to the Supabase GitHub OAuth flow. */
 export function signInWithGitHub(redirectTo: string): void {
   window.location.assign(getGitHubOAuthUrl(redirectTo));
 }
 
+/** Revokes the current provider session when possible and always clears local state. */
 export async function signOut(): Promise<void> {
   const session = await getSupabaseSession();
   try {

@@ -109,7 +109,7 @@ services:
     dockerfilePath: ./workers/ai-worker/Dockerfile
     dockerContext: .
     dockerCommand: python -m researchmate_worker.render_combined
-    healthCheckPath: /api/v1/healthz
+    healthCheckPath: /api/v1/readyz
     autoDeployTrigger: checksPass
     envVars:
       - fromGroup: researchmate-backend

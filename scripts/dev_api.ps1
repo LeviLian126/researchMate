@@ -1,3 +1,4 @@
+# Start the local reloadable API with the pinned local Python environment.
 param([switch]$InstallDependencies)
 
 $ErrorActionPreference = "Stop"

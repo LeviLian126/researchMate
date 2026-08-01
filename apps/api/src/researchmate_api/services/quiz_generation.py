@@ -1,3 +1,5 @@
+"""Build deterministic or provider-backed quizzes from allowlisted evidence."""
+
 import json
 from typing import Literal
 from uuid import uuid4
@@ -16,6 +18,7 @@ class QuizGenerationError(ValueError):
 
 
 class _QuizProposalQuestion(BaseModel):
+    """Validate one provider-proposed quiz question."""
     type: Literal["single_choice", "fill_blank", "subjective"]
     question: str = Field(min_length=1, max_length=1200)
     options: list[str] | None = Field(default=None, max_length=4)
@@ -26,6 +29,7 @@ class _QuizProposalQuestion(BaseModel):
 
 
 class _QuizProposal(BaseModel):
+    """Validate the bounded set of provider-proposed quiz questions."""
     questions: list[_QuizProposalQuestion] = Field(min_length=1, max_length=40)
 
 
@@ -150,6 +154,7 @@ def generate_quiz_set(
     fill_blank_count: int,
     subjective_count: int,
 ) -> QuizSet:
+    """Build a deterministic local quiz with citations to supplied chunks."""
     questions: list[QuizQuestion] = []
     citation_by_chunk = {citation.chunk_id: citation for citation in citations if citation.chunk_id}
     source_chunks = chunks or []

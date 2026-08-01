@@ -1,0 +1,209 @@
+"""Validate task events and construct provider-backed worker services at process boundaries."""
+
+from __future__ import annotations
+
+from decimal import Decimal
+from functools import lru_cache
+from uuid import UUID
+
+from pydantic import BaseModel
+from researchmate_api.services.embedding import NvidiaEmbeddingProvider
+from researchmate_api.services.llm import NvidiaChatProvider
+from researchmate_api.services.object_storage import S3CompatibleObjectStorage
+from researchmate_api.services.qdrant_store import (
+    QdrantHybridStore,
+)
+from researchmate_api.services.web_search import TavilyWebSearchProvider
+from sqlalchemy import create_engine
+
+from researchmate_worker.budget import BudgetedChatProvider
+from researchmate_worker.config import WorkerSettings, psycopg_database_url
+from researchmate_worker.deletion import (
+    DocumentDeletionService,
+    ProjectDeletionService,
+    SqlDeletionStore,
+    SqlProjectDeletionStore,
+)
+from researchmate_worker.evaluation import (
+    EvaluationRunner,
+    QdrantCaseExecutor,
+    RagasFaithfulnessScorer,
+)
+from researchmate_worker.fault_simulation import FaultSimulationService
+from researchmate_worker.ingestion import (
+    DocumentIngestionService,
+    SqlIngestionStore,
+)
+from researchmate_worker.parsing import DoclingDocumentParser
+from researchmate_worker.workflow_runtime import (
+    SqlEvidenceWorkflowDomain,
+)
+
+
+class WorkflowTaskEvent(BaseModel):
+    """Validate the durable identifiers accepted by the workflowtask task."""
+
+    run_id: UUID
+    user_id: UUID | None = None
+    decision_id: UUID | None = None
+
+
+class EvaluationTaskEvent(BaseModel):
+    """Validate the durable identifiers accepted by the evaluationtask task."""
+
+    evaluation_run_id: UUID
+    user_id: UUID | None = None
+
+
+class FaultSimulationTaskEvent(BaseModel):
+    """Validate the durable identifiers accepted by the faultsimulationtask task."""
+
+    exercise_id: UUID
+    requested_by: UUID
+
+
+@lru_cache
+def build_ingestion_service() -> DocumentIngestionService:
+    """Construct the managed adapters required by document ingestion."""
+    settings = WorkerSettings()
+    if not settings.database_url:
+        raise RuntimeError("DATABASE_URL is required to execute ingestion tasks")
+    if not settings.object_storage_configured:
+        raise RuntimeError("S3-compatible object storage is required to execute ingestion tasks")
+    if settings.embedding_provider != "nvidia" or settings.nvidia_api_key is None:
+        raise RuntimeError("NVIDIA embeddings are required to execute ingestion tasks")
+    if not settings.qdrant_url:
+        raise RuntimeError("Qdrant is required to execute ingestion tasks")
+    engine = create_engine(psycopg_database_url(settings.database_url), pool_pre_ping=True)
+    embedding = NvidiaEmbeddingProvider(settings)  # type: ignore[arg-type]
+    vector_projection = QdrantHybridStore(  # type: ignore[arg-type]
+        settings,
+        embedding,
+    )
+    return DocumentIngestionService(
+        store=SqlIngestionStore(engine),
+        object_reader=S3CompatibleObjectStorage(settings),  # type: ignore[arg-type]
+        parser=DoclingDocumentParser(
+            max_file_size=settings.max_upload_bytes,
+            max_num_pages=settings.parser_max_pages,
+            artifacts_path=settings.docling_artifacts_path,
+            pdf_backend=settings.pdf_parser_backend,
+        ),
+        vector_projection=vector_projection,
+        pipeline_version=(f"{settings.parser_pipeline_version}-{settings.pdf_parser_backend}"),
+        lease_seconds=settings.ingestion_lease_seconds,
+        max_attempts=settings.ingestion_max_attempts,
+        max_upload_bytes=settings.max_upload_bytes,
+    )
+
+
+@lru_cache
+def build_deletion_service() -> DocumentDeletionService:
+    """Construct adapters for recoverable single-document deletion."""
+    settings = WorkerSettings()
+    if (
+        not settings.database_url
+        or not settings.object_storage_configured
+        or not settings.qdrant_url
+    ):
+        raise RuntimeError(
+            "Database, S3-compatible object storage, and Qdrant are required for deletion tasks"
+        )
+    engine = create_engine(psycopg_database_url(settings.database_url), pool_pre_ping=True)
+    embedding = NvidiaEmbeddingProvider(settings)  # type: ignore[arg-type]
+    vector_store = QdrantHybridStore(settings, embedding)  # type: ignore[arg-type]
+    return DocumentDeletionService(
+        store=SqlDeletionStore(engine),
+        object_storage=S3CompatibleObjectStorage(settings),  # type: ignore[arg-type]
+        vector_store=vector_store,
+        lease_seconds=settings.ingestion_lease_seconds,
+        max_attempts=settings.ingestion_max_attempts,
+    )
+
+
+@lru_cache
+def build_project_deletion_service() -> ProjectDeletionService:
+    """Construct adapters for recoverable project-wide deletion."""
+    settings = WorkerSettings()
+    if (
+        not settings.database_url
+        or not settings.object_storage_configured
+        or not settings.qdrant_url
+    ):
+        raise RuntimeError(
+            "Database, S3-compatible object storage, and Qdrant are required for deletion tasks"
+        )
+    engine = create_engine(psycopg_database_url(settings.database_url), pool_pre_ping=True)
+    embedding = NvidiaEmbeddingProvider(settings)  # type: ignore[arg-type]
+    vector_store = QdrantHybridStore(settings, embedding)  # type: ignore[arg-type]
+    return ProjectDeletionService(
+        store=SqlProjectDeletionStore(engine),
+        object_storage=S3CompatibleObjectStorage(settings),  # type: ignore[arg-type]
+        vector_store=vector_store,
+        lease_seconds=settings.ingestion_lease_seconds,
+        max_attempts=settings.ingestion_max_attempts,
+    )
+
+
+def build_workflow_domain(settings: WorkerSettings) -> SqlEvidenceWorkflowDomain:
+    """Construct the evidence workflow domain with budgeted providers."""
+    if not settings.database_url or not settings.qdrant_url:
+        raise RuntimeError("Database and Qdrant are required for workflow tasks")
+    if (
+        settings.nvidia_api_key is None
+        or settings.embedding_provider != "nvidia"
+        or settings.llm_provider != "nvidia"
+    ):
+        raise RuntimeError("NVIDIA chat and embedding providers are required for workflow tasks")
+    engine = create_engine(psycopg_database_url(settings.database_url), pool_pre_ping=True)
+    embedding = NvidiaEmbeddingProvider(settings)  # type: ignore[arg-type]
+    provider = BudgetedChatProvider(
+        NvidiaChatProvider(settings),  # type: ignore[arg-type]
+        engine,
+        reservation_usd=settings.workflow_call_budget_reservation_usd,
+        input_price_per_million_usd=Decimal(0),
+        output_price_per_million_usd=Decimal(0),
+        max_prompt_tokens=settings.workflow_max_prompt_tokens,
+    )
+    return SqlEvidenceWorkflowDomain(
+        engine=engine,
+        provider=provider,
+        vector_store=QdrantHybridStore(settings, embedding),  # type: ignore[arg-type]
+        pipeline_version=settings.workflow_pipeline_version,
+        web_search=(
+            TavilyWebSearchProvider(settings)  # type: ignore[arg-type]
+            if settings.web_search_provider == "tavily"
+            else None
+        ),
+    )
+
+
+def build_evaluation_runner(settings: WorkerSettings) -> EvaluationRunner:
+    """Construct the evaluation runner and its optional judge boundary."""
+    if not settings.database_url or not settings.qdrant_url or settings.nvidia_api_key is None:
+        raise RuntimeError("Database, Qdrant, and NVIDIA are required for evaluation tasks")
+    engine = create_engine(psycopg_database_url(settings.database_url), pool_pre_ping=True)
+    embedding = NvidiaEmbeddingProvider(settings)  # type: ignore[arg-type]
+    provider = NvidiaChatProvider(settings)  # type: ignore[arg-type]
+    return EvaluationRunner(
+        engine=engine,
+        executor=QdrantCaseExecutor(
+            engine,
+            QdrantHybridStore(settings, embedding),  # type: ignore[arg-type]
+            provider,
+        ),
+        faithfulness=RagasFaithfulnessScorer(
+            base_url=settings.nvidia_base_url,
+            api_key=settings.nvidia_api_key.get_secret_value(),
+            model=settings.nvidia_model,
+        ),
+    )
+
+
+def build_fault_simulation_service(settings: WorkerSettings) -> FaultSimulationService:
+    """Construct the database-backed reliability exercise service."""
+    if not settings.database_url:
+        raise RuntimeError("Database is required for reliability simulations")
+    return FaultSimulationService(
+        create_engine(psycopg_database_url(settings.database_url), pool_pre_ping=True)
+    )

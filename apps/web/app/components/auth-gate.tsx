@@ -1,3 +1,4 @@
+// Guards authenticated surfaces and owns browser sign-in and session-recovery presentation.
 "use client";
 
 import type { FormEvent, ReactNode } from "react";
@@ -21,6 +22,7 @@ import { warmApi } from "../lib/api";
 
 type AuthState = "loading" | "signed_out" | "signed_in" | "misconfigured" | "error";
 
+/** Resolves local, demo, and Supabase session states before rendering protected children. */
 export function AuthGate({ children }: { children: ReactNode }) {
   const local = isLocalDevelopment();
   const publicDemo = isPublicDemo();
@@ -80,6 +82,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
   );
 }
 
+/** Presents password, magic-link, and GitHub authentication entry points. */
 function SignInPanel() {
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
@@ -87,6 +90,7 @@ function SignInPanel() {
   const [busy, setBusy] = useState<"password" | "magic" | "github" | null>(null);
   const [message, setMessage] = useState<{ title: string; detail: string; kind: string } | null>(null);
 
+  /** Submits the current password sign-in or sign-up mode with recoverable feedback. */
   async function submitPassword(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setBusy("password");
@@ -117,6 +121,7 @@ function SignInPanel() {
     setBusy(null);
   }
 
+  /** Requests a passwordless email link without losing the current form state. */
   async function submitMagicLink() {
     if (!email) {
       setMessage({ title: "Email is required", detail: "Enter the email address that should receive the one-time sign-in link.", kind: "validation" });
@@ -133,6 +138,7 @@ function SignInPanel() {
     setBusy(null);
   }
 
+  /** Starts GitHub OAuth using the current origin as the return destination. */
   function submitGitHub() {
     setBusy("github");
     setMessage(null);
