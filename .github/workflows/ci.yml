@@ -90,8 +90,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Lint Dockerfiles
         run: |
-          docker run --rm -i hadolint/hadolint:v2.15.1-debian --ignore DL3008 - < apps/api/Dockerfile
-          docker run --rm -i hadolint/hadolint:v2.15.1-debian --ignore DL3008 - < workers/ai-worker/Dockerfile
+          docker run --rm -i hadolint/hadolint:v2.15.1-debian hadolint --ignore DL3008 - < apps/api/Dockerfile
+          docker run --rm -i hadolint/hadolint:v2.15.1-debian hadolint --ignore DL3008 - < workers/ai-worker/Dockerfile
       - uses: docker/setup-buildx-action@v4
       - name: Validate API Docker build
         uses: docker/build-push-action@v7
