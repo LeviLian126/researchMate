@@ -1,4 +1,4 @@
-// Exercises the visible signup, confirmation, cooldown, and resend sequence as one module flow.
+// Verifies that the signed-out workspace exposes GitHub as its only login path.
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -6,11 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const authMocks = vi.hoisted(() => ({
   getSupabaseSession: vi.fn().mockResolvedValue(null),
   onAuthStateChange: vi.fn().mockReturnValue(() => undefined),
-  resendSignupConfirmation: vi.fn().mockResolvedValue(undefined),
-  sendMagicLink: vi.fn().mockResolvedValue(undefined),
   signInWithGitHub: vi.fn(),
-  signInWithPassword: vi.fn().mockResolvedValue(undefined),
-  signUpWithPassword: vi.fn().mockResolvedValue("confirmation_required"),
   signOut: vi.fn().mockResolvedValue(undefined),
 }));
 
@@ -25,20 +21,12 @@ vi.mock("./brand-logo", () => ({ BrandLogo: () => <span>ResearchMate</span> }));
 
 import { AuthGate } from "./auth-gate";
 
-function setInput(input: HTMLInputElement, value: string) {
-  const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
-  setter?.call(input, value);
-  input.dispatchEvent(new Event("input", { bubbles: true }));
-}
-
-describe("AuthGate email confirmation flow", () => {
+describe("AuthGate GitHub login", () => {
   let container: HTMLDivElement;
   let root: Root;
 
   beforeEach(async () => {
     (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-08-04T00:00:00Z"));
     container = document.createElement("div");
     document.body.append(container);
     root = createRoot(container);
@@ -49,39 +37,35 @@ describe("AuthGate email confirmation flow", () => {
     act(() => root.unmount());
     container.remove();
     vi.clearAllMocks();
-    vi.useRealTimers();
   });
 
-  it("runs signup through confirmation and permits resend only after 60 seconds", async () => {
-    const signupTab = [...container.querySelectorAll("button")]
-      .find((button) => button.textContent === "Sign up");
-    expect(signupTab).toBeTruthy();
-    act(() => signupTab?.click());
+  it("shows only GitHub OAuth and starts it with the workspace callback", () => {
+    expect(container.querySelector("#auth-email")).toBeNull();
+    expect(container.querySelector("#auth-password")).toBeNull();
+    expect(container.textContent).not.toContain("Sign up");
+    expect(container.textContent).not.toContain("magic link");
 
-    const email = container.querySelector<HTMLInputElement>("#auth-email");
-    const password = container.querySelector<HTMLInputElement>("#auth-password");
-    expect(password?.minLength).toBe(8);
-    act(() => {
-      setInput(email!, "New@Example.TEST");
-      setInput(password!, "strong-password");
+    const githubButton = [...container.querySelectorAll("button")]
+      .find((button) => button.textContent === "Continue with GitHub");
+    expect(githubButton).toBeTruthy();
+
+    act(() => githubButton?.click());
+
+    expect(authMocks.signInWithGitHub)
+      .toHaveBeenCalledWith(`${window.location.origin}/app`);
+    expect(container.textContent).toContain("Opening GitHub…");
+  });
+
+  it("keeps the page recoverable when GitHub OAuth cannot start", () => {
+    authMocks.signInWithGitHub.mockImplementationOnce(() => {
+      throw new Error("provider unavailable");
     });
+    const githubButton = [...container.querySelectorAll("button")]
+      .find((button) => button.textContent === "Continue with GitHub");
 
-    await act(async () => {
-      container.querySelector("form")?.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
-    });
+    act(() => githubButton?.click());
 
-    expect(authMocks.signUpWithPassword).toHaveBeenCalledWith("New@Example.TEST", "strong-password");
-    expect(container.textContent).toContain("If this address is eligible for confirmation");
-    expect(container.textContent).toContain("Resend in 60s");
-
-    await act(async () => vi.advanceTimersByTimeAsync(60_000));
-    const resend = [...container.querySelectorAll("button")]
-      .find((button) => button.textContent === "Resend confirmation");
-    expect(resend).toBeTruthy();
-    await act(async () => resend?.click());
-
-    expect(authMocks.resendSignupConfirmation)
-      .toHaveBeenCalledWith("new@example.test", `${window.location.origin}/app`);
-    expect(container.textContent).toContain("Confirmation resent");
+    expect(container.textContent).toContain("GitHub sign-in is unavailable");
+    expect(githubButton?.hasAttribute("disabled")).toBe(false);
   });
 });
