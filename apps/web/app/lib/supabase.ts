@@ -27,7 +27,13 @@ function configuration(): { url: string; anonKey: string } | null {
   if (isLocalDevelopment()) return null;
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/$/, "");
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  return url && anonKey ? { url, anonKey } : null;
+  if (!url || !anonKey) return null;
+  try {
+    if (new URL(url).protocol !== "https:") return null;
+  } catch {
+    return null;
+  }
+  return { url, anonKey };
 }
 
 /** Reports whether this deployment can offer Supabase authentication. */
@@ -153,8 +159,24 @@ async function authRequest(path: string, init: RequestInit): Promise<Record<stri
   if (!headers.has("Authorization")) headers.set("Authorization", `Bearer ${config.anonKey}`);
   const response = await fetch(`${config.url}/auth/v1${path}`, { ...init, headers });
   const body = await response.json().catch(() => ({})) as Record<string, unknown>;
-  if (!response.ok) throw new Error(typeof body.msg === "string" ? body.msg : "Supabase Auth request failed.");
+  if (!response.ok) {
+    const providerMessage = [body.msg, body.message, body.error_description, body.error]
+      .find((value) => typeof value === "string");
+    throw new SupabaseAuthError(
+      typeof providerMessage === "string" ? providerMessage : "Supabase Auth request failed.",
+      response.status,
+      typeof body.code === "string" ? body.code : undefined,
+    );
+  }
   return body;
+}
+
+/** Preserves provider status and code so the UI can handle throttling without parsing text. */
+export class SupabaseAuthError extends Error {
+  constructor(message: string, readonly status: number, readonly code?: string) {
+    super(message);
+    this.name = "SupabaseAuthError";
+  }
 }
 
 /** Refreshes an expiring session and clears invalid refresh credentials. */
@@ -198,13 +220,12 @@ export function onAuthStateChange(listener: SessionListener): () => void {
 
 /** Signs in with email and password and persists the resulting session. */
 export async function signInWithPassword(email: string, password: string): Promise<BrowserAuthSession> {
-  const payload = await authRequest("/token?grant_type=password", { method: "POST", body: JSON.stringify({ email, password }) });
+  const payload = await authRequest("/token?grant_type=password", { method: "POST", body: JSON.stringify({ email: normalizeAuthEmail(email), password }) });
   const session = toSession(payload);
   persist(session);
   return session;
 }
 
-/** Creates an email/password identity and persists a session when email confirmation is disabled. */
 /** Creates an account and reports whether email confirmation is still required. */
 export async function signUpWithPassword(
   email: string,
@@ -212,7 +233,7 @@ export async function signUpWithPassword(
 ): Promise<"signed_in" | "confirmation_required"> {
   const payload = await authRequest("/signup", {
     method: "POST",
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({ email: normalizeAuthEmail(email), password }),
   });
   if (typeof payload.access_token !== "string" || typeof payload.refresh_token !== "string") {
     return "confirmation_required";
@@ -223,10 +244,35 @@ export async function signUpWithPassword(
 
 /** Requests a passwordless sign-in link for the supplied browser destination. */
 export async function sendMagicLink(email: string, redirectTo: string): Promise<void> {
-  await authRequest(`/otp?redirect_to=${encodeURIComponent(redirectTo)}`, {
+  await authRequest(`/otp?redirect_to=${encodeURIComponent(workspaceRedirect(redirectTo))}`, {
     method: "POST",
-    body: JSON.stringify({ email, create_user: false }),
+    body: JSON.stringify({ email: normalizeAuthEmail(email), create_user: false }),
   });
+}
+
+/** Resends an existing signup confirmation through Supabase's rate-limited endpoint. */
+export async function resendSignupConfirmation(email: string, redirectTo: string): Promise<void> {
+  await authRequest(`/resend?redirect_to=${encodeURIComponent(workspaceRedirect(redirectTo))}`, {
+    method: "POST",
+    body: JSON.stringify({ type: "signup", email: normalizeAuthEmail(email) }),
+  });
+}
+
+/** Canonicalizes email input without retaining it outside the active form. */
+export function normalizeAuthEmail(email: string): string {
+  return email.trim().toLowerCase();
+}
+
+/** Restricts provider callbacks to this deployment's authenticated workspace. */
+function workspaceRedirect(redirectTo: string): string {
+  if (typeof window === "undefined") throw new Error("Authentication links require a browser.");
+  const redirect = new URL(redirectTo, window.location.origin);
+  const isWorkspacePath = redirect.pathname === "/app" || redirect.pathname.startsWith("/app/");
+  if (redirect.origin !== window.location.origin || !isWorkspacePath) {
+    throw new Error("Authentication redirect must remain inside this application's /app workspace.");
+  }
+  redirect.hash = "";
+  return redirect.toString();
 }
 
 /** Builds the configured GitHub OAuth authorization URL. */
@@ -234,15 +280,10 @@ export function getGitHubOAuthUrl(redirectTo: string): string {
   const config = configuration();
   if (!config) throw new Error("Supabase Auth is not configured.");
   if (typeof window === "undefined") throw new Error("GitHub sign-in requires a browser.");
-  const redirect = new URL(redirectTo, window.location.origin);
-  const isWorkspacePath = redirect.pathname === "/app" || redirect.pathname.startsWith("/app/");
-  if (redirect.origin !== window.location.origin || !isWorkspacePath) {
-    throw new Error("GitHub sign-in redirect must remain inside this application's /app workspace.");
-  }
-  redirect.hash = "";
+  const redirect = workspaceRedirect(redirectTo);
   const authorize = new URL(`${config.url}/auth/v1/authorize`);
   authorize.searchParams.set("provider", "github");
-  authorize.searchParams.set("redirect_to", redirect.toString());
+  authorize.searchParams.set("redirect_to", redirect);
   return authorize.toString();
 }
 

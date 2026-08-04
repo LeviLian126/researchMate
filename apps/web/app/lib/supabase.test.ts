@@ -46,6 +46,17 @@ describe("Supabase configuration", () => {
     const auth = await import("./supabase");
     expect(auth.isSupabaseConfigured()).toBe(false);
   });
+
+  it("rejects a non-HTTPS managed authentication endpoint", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("NEXT_PUBLIC_APP_ENV", "production");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "http://auth.example.test");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "anon-key");
+    vi.resetModules();
+    const auth = await import("./supabase");
+
+    expect(auth.isSupabaseConfigured()).toBe(false);
+  });
 });
 
 describe("managed browser sessions", () => {
@@ -93,6 +104,38 @@ describe("managed browser sessions", () => {
       password: "secret",
     });
     expect(window.localStorage.getItem("researchmate_supabase_session")).toBeNull();
+  });
+
+  it("normalizes addresses and resends signup confirmation through the provider endpoint", async () => {
+    const auth = await loadConfiguredModule();
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response("{}", { status: 200 }),
+    );
+
+    await auth.resendSignupConfirmation("  New@Example.TEST ", `${window.location.origin}/app`);
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe(`https://auth.example.test/auth/v1/resend?redirect_to=${encodeURIComponent(`${window.location.origin}/app`)}`);
+    expect(JSON.parse(String(init?.body))).toEqual({
+      type: "signup",
+      email: "new@example.test",
+    });
+  });
+
+  it("never persists a submitted password", async () => {
+    vi.useFakeTimers();
+    const auth = await loadConfiguredModule();
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({
+      access_token: "header.payload.signature",
+      refresh_token: "refresh-1",
+      expires_in: 3600,
+      user: { email: "reader@example.test" },
+    }), { status: 200 }));
+
+    await auth.signInWithPassword("reader@example.test", "do-not-store-this-password");
+
+    expect(window.localStorage.getItem("researchmate_supabase_session"))
+      .not.toContain("do-not-store-this-password");
   });
 
   it("persists an immediate signup session and its privileged app role", async () => {
@@ -195,11 +238,22 @@ describe("managed browser sessions", () => {
       new Response("{}", { status: 200 }),
     );
 
-    await auth.sendMagicLink("reader@example.test", "https://app.example.test/callback?a=1");
+    await auth.sendMagicLink("reader@example.test", `${window.location.origin}/app/callback?a=1`);
 
     expect(fetchMock.mock.calls[0][0]).toBe(
-      "https://auth.example.test/auth/v1/otp?redirect_to=https%3A%2F%2Fapp.example.test%2Fcallback%3Fa%3D1",
+      `https://auth.example.test/auth/v1/otp?redirect_to=${encodeURIComponent(`${window.location.origin}/app/callback?a=1`)}`,
     );
+  });
+
+  it("rejects cross-origin email callbacks before contacting Supabase", async () => {
+    const auth = await loadConfiguredModule();
+    const fetchMock = vi.spyOn(globalThis, "fetch");
+
+    await expect(auth.sendMagicLink("reader@example.test", "https://attacker.example/app"))
+      .rejects.toThrow("redirect must remain inside");
+    await expect(auth.resendSignupConfirmation("reader@example.test", `${window.location.origin}/outside`))
+      .rejects.toThrow("redirect must remain inside");
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("surfaces provider messages and invalid session payloads", async () => {
