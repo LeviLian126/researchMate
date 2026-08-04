@@ -16,6 +16,14 @@ def test_render_blueprint_uses_one_shared_free_service_and_secret_prompts() -> N
     assert source.count("plan: free") == 1
     assert "researchmate-backend-dev" in source
     assert "dockerCommand: python -m researchmate_worker.render_combined" in source
+    assert "buildFilter:" in source
+    for backend_path in (
+        "apps/api/**",
+        "workers/ai-worker/**",
+        "infra/supabase/migrations/**",
+        "uv.lock",
+    ):
+        assert f"- {backend_path}" in source
     for secret in (
         "DATABASE_URL",
         "REDIS_URL",
@@ -101,6 +109,12 @@ def test_combined_runtime_waits_for_api_health_before_heavy_workers(monkeypatch)
 def test_render_image_uses_cpu_only_pytorch() -> None:
     """Prevent CUDA wheels from exhausting free-tier build and runtime resources."""
     source = (ROOT / "workers" / "ai-worker" / "Dockerfile").read_text(encoding="utf-8")
-    assert "https://download.pytorch.org/whl/cpu" in source
-    assert "torch==2.13.0+cpu" in source
-    assert "torchvision==0.28.0+cpu" in source
+    worker_project = (ROOT / "workers" / "ai-worker" / "pyproject.toml").read_text(
+        encoding="utf-8"
+    )
+    workspace = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    assert "pytorch-cpu" in workspace
+    assert "https://download.pytorch.org/whl/cpu" in workspace
+    assert "torch==2.13.0+cpu" in worker_project
+    assert "torchvision==0.28.0+cpu" in worker_project
+    assert "uv sync --frozen" in source

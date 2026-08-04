@@ -1,0 +1,23 @@
+[project]
+name = "researchmate-workspace"
+version = "0.1.0"
+description = "Locked development environment for the ResearchMate monorepo"
+requires-python = ">=3.13"
+dependencies = []
+
+[dependency-groups]
+dev = [
+  "coverage>=7.10.0,<8",
+  "httpx2>=2.5.0,<3",
+  "pytest>=9.0.0,<10",
+  "pyyaml>=6.0.0,<7",
+  "ruff==0.16.0",
+]
+
+[tool.uv.workspace]
+members = ["apps/api", "workers/ai-worker"]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true

@@ -154,12 +154,14 @@ npm run check:migrations</code></pre></article>
       <section id="cicd">
         <p class="eyebrow">CI/CD and release components</p><h2>Release identity across Vercel and Render</h2>
         <div class="proof-chain">
-          <div class="proof-step"><b>Repository gates</b><small>GitHub Actions defines pytest, Ruff, OpenAPI drift, migration validation, TypeScript/Next.js build, HTML link/contract checks, and npm dependency audit. A local subset was rerun before the latest demo fix.</small></div>
-          <div class="proof-step"><b>Vercel Production</b><small>GitHub <code>main</code> is the live MVP source. Vercel builds the web app and promotes a ready deployment to <code>research-mate-web.vercel.app</code>; deployment status is visible in Vercel.</small></div>
-          <div class="proof-step"><b>Smoke + rollback</b><small>Browser-smoke the bounded demo journey after deploy. Vercel retains previous production deployments, so rollback is a hosting action rather than a database rollback.</small></div>
-          <div class="proof-step"><b>Combined backend release</b><small>Render builds the repository Dockerfile directly, starts all three Python roles in one service, and must pass managed readiness before the web application can leave deterministic fallback mode.</small></div>
+          <div class="proof-step"><b>Parallel repository gates</b><small>GitHub Actions runs independent Python, web, browser E2E, and container jobs with dependency caches and stale-run cancellation. A stable <code>ci-success</code> job aggregates all four results for release consumers.</small></div>
+          <div class="proof-step"><b>Locked Python graph</b><small>One root <code>uv.lock</code> resolves the API, worker, CPU-only PyTorch source, and development tools. Local scripts, CI, and both production Dockerfiles install the same graph with <code>--frozen</code>.</small></div>
+          <div class="proof-step"><b>Automated browser acceptance</b><small>Playwright runs a deterministic credential-free Chromium journey covering personal chat, citations, conversation routing, project creation, and Quiz generation, while rejecting cloud requests and browser runtime errors.</small></div>
+          <div class="proof-step"><b>Container gate</b><small>Hadolint validates both Dockerfiles; BuildKit builds the API image and the worker dependency target; Trivy blocks unpatched high or critical image findings before <code>ci-success</code>.</small></div>
+          <div class="proof-step"><b>Vercel Production</b><small>Vercel may build the <code>main</code> commit in parallel, but its production alias waits for the GitHub <code>ci-success</code> Deployment Check before promotion. Previous deployments remain available for hosting rollback.</small></div>
+          <div class="proof-step"><b>Combined backend release</b><small>Render uses <code>checksPass</code>, builds only when backend, migration, lockfile, or container inputs change, then starts all three Python roles and requires managed readiness. Documentation-only changes no longer rebuild or restart the backend.</small></div>
         </div>
-        <div class="notice warning"><strong>Recorded state:</strong> the 1 August core browser journey passed against the deployed <code>main</code> lineage: ordinary chat and refresh recovery, text-layer PDF upload/indexing, grounded answer and page citation, Web, seven-question project Quiz generation and refresh recovery, conversation deletion, and project deletion. Bounded warm observations were 6.7 seconds ordinary, 16.3 seconds grounded, 14.6 seconds Web, and 53.3 seconds Quiz. The next release gates are latency distributions, Quiz latency reduction, authenticated provider switching/failover, large-corpus quality, direct RLS, telemetry, OCR, and recovery. No claim of production P95 or NVIDIA ranking availability is implied.</div>
+        <div class="notice warning"><strong>4 August local gate evidence:</strong> 207 Python tests passed with 67% coverage; 42 Vitest tests passed with the expanded application scope reporting 43.7% line coverage; the Next.js production build, zero-vulnerability npm production audit, Playwright Chromium journey, Ruff, OpenAPI, migration validation, Actionlint, and Hadolint passed. Linux image builds and Trivy scans remain GitHub-run evidence. The next product release gates remain latency distributions, Quiz latency reduction, authenticated provider switching/failover, large-corpus quality, direct RLS, telemetry, OCR, and recovery.</div>
       </section>
 
       <section id="decisions">
@@ -177,7 +179,7 @@ npm run check:migrations</code></pre></article>
     </div>
     <aside class="toc"><b>On this page</b><a href="#current-architecture">Current runtime</a><a href="#target-architecture">Target architecture</a><a href="#flows">Runtime flows</a><a href="#local-development">Verification environments</a><a href="#stack">Stack rationale</a><a href="#deployment">Deployment</a><a href="#cicd">CI/CD</a><a href="#decisions">Decisions</a></aside></div>
   </main>
-  <footer class="shell footer">ResearchMate architecture, runtime, and deployment evidence · inspected 27 July 2026</footer>
+  <footer class="shell footer">ResearchMate architecture, runtime, and deployment evidence · inspected 4 August 2026</footer>
   <script src="../assets/site.js"></script>
 </body>
 </html>

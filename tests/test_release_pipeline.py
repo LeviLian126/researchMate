@@ -11,14 +11,38 @@ def test_ci_runs_the_full_test_build_contract_and_security_gate() -> None:
     workflow = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
 
     assert '"test": "npm run test:python && npm run test:web"' in package
-    assert '"test:python": "python -m coverage run --branch' in package
+    assert '"test:python": "uv run --frozen coverage run --branch' in package
     assert "coverage report --fail-under=50" in package
     assert '"test:web": "npm --workspace @researchmate/web run test"' in package
+    assert '"test:e2e": "npm --workspace @researchmate/web run test:e2e"' in package
     assert "scripts/export_openapi.py --check" in package
     assert "scripts/apply_migrations.py --check-files" in package
     assert "npm ci" in workflow
-    assert "npm run check:all" in workflow
+    for job in ("python-quality", "web-quality", "browser-e2e", "container-quality", "ci-success"):
+        assert f"{job}:" in workflow
+    assert "uv sync --frozen --all-packages --group dev" in workflow
+    assert "npx playwright install --with-deps chromium" in workflow
+    assert "hadolint/hadolint:v2.15.1-debian" in workflow
+    assert "aquasec/trivy:0.73.0" in workflow
+    assert "target: dependencies" in workflow
+    assert "researchmate-worker-dependencies:ci" in workflow
     assert "permissions:\n      contents: read" in workflow
+
+
+def test_python_dependency_graph_is_locked_for_ci_and_images() -> None:
+    """Require one frozen dependency graph across local, CI, and container installs."""
+    workspace = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    lock = (ROOT / "uv.lock").read_text(encoding="utf-8")
+    api_image = (ROOT / "apps/api/Dockerfile").read_text(encoding="utf-8")
+    worker_image = (ROOT / "workers/ai-worker/Dockerfile").read_text(encoding="utf-8")
+
+    assert '[tool.uv.workspace]' in workspace
+    assert 'members = ["apps/api", "workers/ai-worker"]' in workspace
+    assert 'name = "researchmate-api"' in lock
+    assert 'name = "researchmate-ai-worker"' in lock
+    assert not (ROOT / "requirements-dev.txt").exists()
+    assert "uv sync --frozen --no-dev --package researchmate-api" in api_image
+    assert "uv sync --frozen --no-dev --all-packages" in worker_image
 
 
 def test_retired_delivery_paths_are_inert_and_cloudflare_sources_are_archived() -> None:
@@ -62,9 +86,11 @@ def test_container_images_are_non_root_and_worker_prefetches_pdf_models() -> Non
     api = (ROOT / "apps/api/Dockerfile").read_text(encoding="utf-8")
     worker = (ROOT / "workers/ai-worker/Dockerfile").read_text(encoding="utf-8")
 
-    assert "USER researchmate" in api
+    assert "USER 10001:10001" in api
     assert "HEALTHCHECK" in api
-    assert "USER researchmate" in worker
+    assert "USER 10001:10001" in worker
+    assert "uv.lock" in api
+    assert "uv.lock" in worker
     assert "docling-tools models download layout tableformer rapidocr" in worker
     assert "DOCLING_ARTIFACTS_PATH=/opt/docling/models" in worker
     assert "RESEARCHMATE_PROCESS_ROLE:-worker" in worker

@@ -8,6 +8,7 @@ if (-not (Test-Path $venvPath)) {
 }
 
 if ($InstallDependencies) {
-  uv pip install --python "$venvPath\Scripts\python.exe" -r requirements-dev.txt
+  $env:UV_PROJECT_ENVIRONMENT = $venvPath
+  uv sync --frozen --all-packages --group dev
 }
-& "$venvPath\Scripts\python.exe" -m uvicorn researchmate_api.main:app --app-dir apps/api/src --reload --host 127.0.0.1 --port 8000
+& "$venvPath\Scripts\python.exe" -m uvicorn researchmate_api.main:app --reload --host 127.0.0.1 --port 8000

@@ -6,11 +6,14 @@ export default defineConfig({
     environment: "jsdom",
     coverage: {
       provider: "v8",
-      include: ["app/lib/**/*.ts"],
+      // Cover both orchestration and presentation code instead of reporting a
+      // deceptively high number from utility modules alone.
+      include: ["app/lib/**/*.ts", "app/components/**/*.{ts,tsx}"],
+      exclude: ["app/**/*.test.{ts,tsx}"],
       reporter: ["text", "json-summary"],
       thresholds: {
-        lines: 50,
-        statements: 50,
+        lines: 40,
+        statements: 40,
       },
     },
   },

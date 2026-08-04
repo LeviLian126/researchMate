@@ -10,7 +10,7 @@ from researchmate_api.services.store import store
 
 
 @pytest.fixture(autouse=True)
-def reset_local_store() -> Generator[None, None, None]:
+def reset_local_store() -> Generator[None]:
     """Reset shared local persistence before and after each workflow test."""
     store.reset()
     yield

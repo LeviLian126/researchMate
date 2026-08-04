@@ -1,12 +1,23 @@
 """Verify MCP authentication, runtime fallback, and REST-equivalent access policies."""
 
+from collections.abc import Generator
 from uuid import UUID
 
+import pytest
 from fastapi.testclient import TestClient
 from researchmate_api.config import Settings
 from researchmate_api.main import create_app
+from researchmate_api.services.store import store
 
 ADMIN = UUID("00000000-0000-4000-8000-000000000099")
+
+
+@pytest.fixture(autouse=True)
+def reset_mcp_store() -> Generator[None]:
+    """Keep MCP policy tests independent from suite-wide quota and trace state."""
+    store.reset()
+    yield
+    store.reset()
 
 
 def _missing_mcp_runtime() -> None:

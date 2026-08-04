@@ -8,6 +8,7 @@ if (-not (Test-Path $venvPath)) {
 }
 
 if ($InstallDependencies) {
-  uv pip install --python "$venvPath\Scripts\python.exe" -r requirements-dev.txt
+  $env:UV_PROJECT_ENVIRONMENT = $venvPath
+  uv sync --frozen --all-packages --group dev
 }
 & "$venvPath\Scripts\python.exe" -m pytest tests/test_project_scaffold.py tests/test_api_workflow.py tests/test_frontend_contracts.py -q

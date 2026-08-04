@@ -26,6 +26,7 @@ logs/
 # Node and frontend outputs
 node_modules/
 .next/
+.next-e2e/
 *.tsbuildinfo
 apps/web/public/docs/
 out/
@@ -37,6 +38,8 @@ build/
 .turbo/
 .open-next/
 coverage/
+playwright-report/
+test-results/
 .coverage*
 npm-debug.log*
 yarn-debug.log*

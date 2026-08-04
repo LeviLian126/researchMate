@@ -111,6 +111,15 @@ services:
     dockerCommand: python -m researchmate_worker.render_combined
     healthCheckPath: /api/v1/readyz
     autoDeployTrigger: checksPass
+    buildFilter:
+      paths:
+        - apps/api/**
+        - workers/ai-worker/**
+        - infra/supabase/migrations/**
+        - scripts/apply_migrations.py
+        - scripts/provision_qdrant_rerank.py
+        - pyproject.toml
+        - uv.lock
     envVars:
       - fromGroup: researchmate-backend
       - key: AUTH_MODE

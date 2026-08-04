@@ -21,6 +21,7 @@ const contentSecurityPolicy = [
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  distDir: process.env.NEXT_DIST_DIR ?? ".next",
   async headers() {
     return [
       {
