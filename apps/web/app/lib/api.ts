@@ -284,7 +284,13 @@ export class ApiError extends Error {
   }
 }
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000/api/v1";
+// In production the API is reached through a same-origin Next.js rewrite so
+// that corporate/ISP proxies cannot intercept the cross-origin request to the
+// Render backend. In local development the frontend talks directly to the
+// local API server via NEXT_PUBLIC_API_BASE_URL.
+const API_BASE = isLocalDevelopment()
+  ? (process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000/api/v1")
+  : "/api/v1";
 let warmRequest: Promise<void> | null = null;
 
 /** Starts one best-effort health request to reduce first authenticated-request latency. */
