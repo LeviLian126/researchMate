@@ -8,7 +8,7 @@
 | --- | --- |
 | 审查 diff、审计 LLM 代码质量、检查测试有效性、运行静态门禁 | `code-and-test-review.md` |
 | 启动应用、运行 E2E 用户旅程、验证多分辨率前端视觉、调试运行时问题 | `runtime-frontend-qa.md` |
-| 安全审查(数据库、数据隐私、API、认证、依赖、文件上传、XSS、注入)和可靠性检查 | `security-and-reliability.md` |
+| 安全审查(threat model、数据库、数据隐私、API、认证、依赖、前端、SSRF、business logic、AI)和可靠性检查 | `security-and-reliability.md` |
 
 运行所有适用于本次变更的检查点。仅跳过确实无关的检查,并记录原因。不要仅仅因为麻烦而跳过某个检查点。
 
@@ -17,7 +17,7 @@
 | 风险 | 触发条件 | 变更内容 |
 | --- | --- | --- |
 | STANDARD | 未触及认证、支付、migration、公开 API、数据 schema 或文件上传 | 运行 CP9 基线项(无密钥泄露、无 XSS、无已知高风险依赖)+ CP11 基本扫描 |
-| HIGH_RISK | 触及上述任何一项 | 运行 CP9 全部 6 个安全域 + CP10 可靠性 + CP11 完整扫描 |
+| HIGH_RISK | 触及上述任何一项,或 AI/LLM 功能(prompt、tool calling、RAG、agent) | 运行 CP9 全部安全域 + CP10 可靠性 + CP11 完整扫描 |
 
 即使是 STANDARD 变更也必须运行基本安全检查。无密钥泄露、无 XSS、无已知高风险依赖是独立产品基线,不可省略。
 
@@ -33,7 +33,7 @@
 | CP6 | runtime-frontend-qa | E2E 用户旅程:核心流程端到端通过 |
 | CP7 | runtime-frontend-qa | 多分辨率前端:6 级设备矩阵全覆盖 |
 | CP8 | runtime-frontend-qa | 调试:CP5-CP7 失败时根因定位并修复 |
-| CP9 | security-and-reliability | 完整安全审查:数据库、隐私、API、认证、依赖、前端 |
+| CP9 | security-and-reliability | 完整安全审查:threat model、数据库、隐私、API、认证、依赖、前端、SSRF、business logic、AI |
 | CP10 | security-and-reliability | 可靠性:错误处理、重试、幂等性、并发、数据一致性 |
 | CP11 | security-and-reliability | 安全验证:非破坏性负向检查和工具扫描 |
 
@@ -60,7 +60,7 @@ QA 报告必须包含以下全部内容才能声称项目通过了 QA:
 1. **审查范围**:revision、base、变更文件列表。
 2. **检查点矩阵**:每个 CP 标注 PASS、FAIL 或 NOT_RUN,并附上使用的命令或观察结果。
 3. **缺陷列表**:每个缺陷标注严重级别、文件和行号、描述和修复方向。
-4. **安全结果**:数据库、数据隐私、API、认证和依赖安全各给一个结论。
+4. **安全结果**:数据库、数据隐私、API、认证、依赖、前端各给一个结论,以及本次变更运行的任何条件域(SSRF、business logic、AI)各给一个结论。
 5. **多分辨率结果**:6 个设备级别各附截图或观察结果。
 6. **结论**:PASS、FIX 或 BLOCKED。
 
@@ -80,6 +80,7 @@ QA 报告必须包含以下全部内容才能声称项目通过了 QA:
 - 认证和授权通过:无认证绕过、无 IDOR、session 安全。
 - 无已知高风险依赖漏洞。
 - 对于 HIGH_RISK 变更:完整安全审查通过。
+- 本次变更触发的所有条件安全域通过。
 
 ## 与其他节点的边界
 

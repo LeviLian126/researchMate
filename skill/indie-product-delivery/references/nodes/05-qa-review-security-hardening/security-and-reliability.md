@@ -6,6 +6,24 @@ STANDARD 变更运行 CP9 基线项加 CP11 基本扫描。HIGH_RISK 变更运�
 
 ## CP9: 完整安全审查
 
+### Review method
+
+检查每个域时,追踪攻击者可控输入到达的 sink,而非仅做模式匹配。对于每个候选问题,识别 source(攻击者可控输入)、broken or missing control、sink(危险操作或受保护动作)和 impact。一个模式如果没有可达的 source-to-sink 路径,就不是发现。
+
+仅在有具体反证时才 suppress 候选问题:已针对确切输出上下文验证的框架自动转义、在每条到达 sink 的路径上都存在等效 guard、或代码在范围内未发布或不可达。一个安全的兄弟路径不能用来清除另一条不同路径。不要因为端点"本就执行危险操作"或仅凭名称看起来是内部的就 suppress。
+
+按此顺序优先使用证据:现有针对性测试、最小回归测试、本地非破坏性复现,然后是完整的静态 source-control-sink 追踪。缺少测试环境是 proof gap,不是反证。
+
+### Quick threat model
+
+在域清单之前,用 3-5 行识别本项目的具体风险画像:
+
+- assets:本项目有哪些用户数据、密钥、支付权限或 admin 操作;
+- trust boundaries:unauthenticated、authenticated、tenant 和 admin 在哪里交汇;
+- high-impact paths:本架构使账号接管、跨租户访问、支付绕过、密钥暴露或 RCE 成为可能的高影响路径。
+
+用此步骤对各域加权:多租户 SaaS 必须优先 9D authorization;webhook 密集型服务必须优先 9G SSRF;支付产品必须优先 9H。此步骤聚焦清单;不替代清单。
+
 ### 9A 数据库安全
 
 | 检查项 | 要发现什么 | 严重级别 |
@@ -31,6 +49,7 @@ STANDARD 变更运行 CP9 基线项加 CP11 基本扫描。HIGH_RISK 变更运�
 | localStorage 滥用 | token 或敏感数据存储在 localStorage(可被 XSS 读取)而非 httpOnly cookie | Major |
 | 数据最小化 | 收集功能不需要的用户数据;收集了但从未使用的字段 | Major |
 | 数据留存 | 无留存或删除策略;无用户删除请求的处理逻辑 | Major |
+| 日志注入 | 攻击者输入包含换行符或控制字符,写入日志后伪造条目或隐藏攻击痕迹 | Major |
 
 ### 9C API 安全
 
@@ -45,6 +64,9 @@ STANDARD 变更运行 CP9 基线项加 CP11 基本扫描。HIGH_RISK 变更运�
 | 文件上传验证 | 无文件类型或大小检查;上传路径可被遍历;文件名未清洗或重命名 | Blocker |
 | 文件上传存储 | 上传文件存储在可 Web 访问的路径且可执行(例如 `.php`、`.js`) | Blocker |
 | 批量操作安全 | 批量删除或更新无确认或二次权限检查 | Major |
+| Path traversal | 来自用户输入的文件访问路径未规范化;`../` 或绝对路径在下载、导入或静态服务路径中逃逸目标目录 | Blocker |
+| 压缩包解压 | zip/tar 解压无路径包含检查;archive 中的 symlink 覆盖可信文件 | Blocker |
+| Mass assignment | 请求体自动绑定到模型;用户可设置 `role`、`isAdmin` 或 `tenantId` | Blocker |
 
 ### 9D 认证与授权
 
@@ -80,9 +102,50 @@ STANDARD 变更运行 CP9 基线项加 CP11 基本扫描。HIGH_RISK 变更运�
 | 客户端密钥 | API key 或密钥硬编码在前端代码中(用户可见) | Blocker |
 | postMessage | `window.postMessage` 接收方未验证 origin | Major |
 
+### 9G Server-side request forgery (SSRF)
+
+当项目具有出站 URL 功能时运行:webhook、URL 预览、图片或文档抓取、callback URL 或代理端点。
+
+| 检查项 | 要发现什么 | 严重级别 |
+| --- | --- | --- |
+| 来自用户输入的出站 URL | webhook、预览、图片抓取或 callback URL 接受用户提供的目标地址,无 scheme 和 host 验证 | Blocker |
+| 内网可达 | 用户 URL 可到达 loopback、link-local、private ranges 或 cloud metadata(169.254.169.254) | Blocker |
+| 重定向跟随 | HTTP 客户端跟随重定向但未重新验证最终目标 | Major |
+| DNS rebinding | 首次 DNS 解析通过验证但第二次解析到内网 IP | Major |
+| URL scheme | scheme 未限制;`file://`、`gopher://` 或 `dict://` 到达意外处理器 | Blocker |
+
+### 9H Business logic and payment security
+
+当项目具有支付、优惠券、配额或多步工作流逻辑时运行。否则标记 NOT_APPLICABLE。
+
+CP10 从可靠性工程视角覆盖幂等性和并发;本域从攻击者视角覆盖相同机制:用户能否利用它们绕过支付、配额或工作流约束。
+
+| 检查项 | 要发现什么 | 严重级别 |
+| --- | --- | --- |
+| 支付绕过 | 价格、数量或货币由客户端计算且被后端信任 | Blocker |
+| 优惠券滥用 | 优惠券可超出预期限制重复使用;优惠券被应用于不合格商品 | Major |
+| 配额绕过 | 速率限制或用量配额在客户端检查,或可通过竞态条件绕过 | Major |
+| 重复支付 | 重试或并发提交创建重复扣费;幂等工程见 CP10 | Blocker |
+| 工作流绕过 | 多步审批或验证通过直接调用后续步骤的 API 被跳过 | Blocker |
+| 竞态条件 | 对余额、库存或配额的 TOCTOU;并发请求利用 check-then-act 间隙 | Major |
+
+### 9I AI and LLM security
+
+仅在项目具有 AI 或 LLM 功能时运行:prompt 构造、tool 或 function calling、RAG 或检索、agent 工作流或模型生成输出。否则标记 NOT_APPLICABLE。
+
+| 检查项 | 要发现什么 | 严重级别 |
+| --- | --- | --- |
+| Prompt injection | 用户或检索到的内容可以覆盖系统指令或逃逸预期任务 | Blocker |
+| Tool authorization | 模型生成的 tool 调用在模型外部无能力或权限检查即被执行 | Blocker |
+| 数据外泄 | 模型输出发送到外部端点,或 tool 参数泄露密钥或其他租户数据 | Blocker |
+| 检索投毒 | RAG corpus 中的不可信文档可以注入指令或覆盖安全规则 | Major |
+| 模型输出作为代码 | 模型生成的代码、shell、SQL 或 config 未经验证即执行 | Blocker |
+| Context 中的密钥 | API key、token 或 PII 被传入模型 prompt 或 context window | Major |
+
 ### STANDARD 基线
 
 对于 STANDARD 变更,至少运行:仓库密钥检查(9E)、XSS 检查(9F)、依赖漏洞扫描(9E)和 HTTPS 检查(9B)。这四项是独立产品基线,与风险级别无关。
+当变更触及出站 URL 功能(webhook、预览、抓取)时也运行 9G,触及支付或配额逻辑时运行 9H,以及项目有 AI/LLM 功能且变更触及 prompt、tool 或检索代码时运行 9I。
 
 ## CP10: 可靠性
 
@@ -113,6 +176,8 @@ STANDARD 变更运行 CP9 基线项加 CP11 基本扫描。HIGH_RISK 变更运�
 | 过期 token | 使用过期 token 访问端点 | 401,不返回数据 |
 | 文件上传 | 上传可执行文件、过大文件或无类型文件 | 被拒绝 |
 | 密码重置 | 使用过期或已使用的重置 token | 被拒绝 |
+| SSRF | 提交指向 127.0.0.1 或 169.254.169.254 的 webhook 或 fetch URL | 被拒绝或被清洗 |
+| 支付幂等性 | 使用相同幂等键提交重复支付请求 | 无重复扣费 |
 
 ### 工具扫描
 

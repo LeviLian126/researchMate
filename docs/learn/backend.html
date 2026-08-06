@@ -6,6 +6,21 @@
   <meta content="ResearchMate backend learning guide: file-by-file breakdown of FastAPI routers, schemas, services, and persistence with authentication, provider adapters, and idempotency analysis." name="description"/>
   <title>ResearchMate . Backend learning</title>
   <link href="../assets/site.css" rel="stylesheet"/>
+  <style>
+    .layout section > h2 { cursor: pointer; user-select: none; }
+    .layout section > h2::before { content: "▾ "; color: var(--clay); font-size: 0.8em; transition: transform 0.2s; display: inline-block; }
+    .layout section.collapsed > h2::before { transform: rotate(-90deg); }
+    .layout section.collapsed > :not(h2):not(.eyebrow) { display: none; }
+  </style>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      document.querySelectorAll('.layout section > h2').forEach(function(h2) {
+        h2.addEventListener('click', function() {
+          h2.closest('section').classList.toggle('collapsed');
+        });
+      });
+    });
+  </script>
   <style>.module-nav{border-top:1px solid var(--g200)}.module-nav .shell{padding:6px 0 12px}.module-nav a{font-size:11.5px;padding:5px 11px}</style>
 </head>
 <body>
@@ -25,6 +40,7 @@
     <a href="infra.html">Infrastructure</a>
     <a href="cicd.html">CI/CD</a>
     <a href="contracts-tests.html">Contracts &amp; Tests</a>
+    <a href="flows.html">Flow analysis</a>
   </div></nav>
   <main class="shell">
     <div class="hero">

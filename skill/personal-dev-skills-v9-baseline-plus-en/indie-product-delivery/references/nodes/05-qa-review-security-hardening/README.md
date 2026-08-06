@@ -12,7 +12,7 @@ indie-product standards.
 | --- | --- |
 | review diff, audit LLM code quality, check test validity, run static gates | `code-and-test-review.md` |
 | start the app, run E2E user journeys, verify multi-resolution frontend visuals, debug runtime issues | `runtime-frontend-qa.md` |
-| security review (database, data privacy, API, auth, dependencies, file upload, XSS, injection) and reliability checks | `security-and-reliability.md` |
+| security review (threat model, database, data privacy, API, auth, dependencies, frontend, SSRF, business logic, AI) and reliability checks | `security-and-reliability.md` |
 
 Run every checkpoint that applies to the change. Skip only genuinely irrelevant
 checks and record why. Do not skip a checkpoint merely because it is inconvenient.
@@ -22,7 +22,7 @@ checks and record why. Do not skip a checkpoint merely because it is inconvenien
 | Risk | Trigger | What changes |
 | --- | --- | --- |
 | STANDARD | no auth, payment, migration, public API, data schema, or file upload touched | run CP9 baseline items (no secret leak, no XSS, no known-high-risk dependency) + CP11 basic scan |
-| HIGH_RISK | any of the above touched | run CP9 in full across all 6 security domains + CP10 reliability + CP11 full scan |
+| HIGH_RISK | any of the above touched, or AI/LLM features (prompt, tool calling, RAG, agent) | run CP9 in full across all security domains + CP10 reliability + CP11 full scan |
 
 Even STANDARD changes must run basic security checks. No secret leak, no XSS, and
 no known high-risk dependency are indie-product baselines, not optional.
@@ -39,7 +39,7 @@ no known high-risk dependency are indie-product baselines, not optional.
 | CP6 | runtime-frontend-qa | E2E user journeys: core flows pass end-to-end |
 | CP7 | runtime-frontend-qa | multi-resolution frontend: 6-level device matrix fully covered |
 | CP8 | runtime-frontend-qa | debug: root-cause and fix when CP5-CP7 fail |
-| CP9 | security-and-reliability | full security review: database, privacy, API, auth, dependencies, frontend |
+| CP9 | security-and-reliability | full security review: threat model, database, privacy, API, auth, dependencies, frontend, SSRF, business logic, AI |
 | CP10 | security-and-reliability | reliability: error handling, retry, idempotency, concurrency, data consistency |
 | CP11 | security-and-reliability | security verification: non-destructive negative checks and tool scans |
 
@@ -66,7 +66,7 @@ A QA report must contain all of the following to claim the project passed QA:
 1. **Review scope**: revision, base, changed file list.
 2. **Checkpoint matrix**: each CP marked PASS, FAIL, or NOT_RUN, with the command or observation used.
 3. **Defect list**: each defect with severity, file and line, description, and fix direction.
-4. **Security results**: one conclusion each for database, data privacy, API, auth, and dependency security.
+4. **Security results**: one conclusion each for database, data privacy, API, auth, dependency, frontend, and any conditional domain (SSRF, business logic, AI) run for this change.
 5. **Multi-resolution results**: screenshot or observation for each of the 6 device levels.
 6. **Verdict**: PASS, FIX, or BLOCKED.
 
@@ -86,6 +86,7 @@ All of the following must be satisfied to issue PASS:
 - Auth and authorization pass: no auth bypass, no IDOR, session secured.
 - No known high-risk dependency vulnerabilities.
 - For HIGH_RISK changes: full security review passes.
+- All conditional security domains triggered by this change pass.
 
 ## Boundaries with other nodes
 

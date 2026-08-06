@@ -5,6 +5,21 @@
   <title>Infrastructure . infra &amp; scripts</title>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <link href="../assets/site.css" rel="stylesheet"/>
+  <style>
+    .layout section > h2 { cursor: pointer; user-select: none; }
+    .layout section > h2::before { content: "▾ "; color: var(--clay); font-size: 0.8em; transition: transform 0.2s; display: inline-block; }
+    .layout section.collapsed > h2::before { transform: rotate(-90deg); }
+    .layout section.collapsed > :not(h2):not(.eyebrow) { display: none; }
+  </style>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      document.querySelectorAll('.layout section > h2').forEach(function(h2) {
+        h2.addEventListener('click', function() {
+          h2.closest('section').classList.toggle('collapsed');
+        });
+      });
+    });
+  </script>
 </head>
 <body>
   <header class="mast"><div class="shell mast-row"><a class="brand" href="../index.html">ResearchMate documentation</a><div class="mast-right"><span class="stamp">Infrastructure . 6 August 2026</span><a class="lang-toggle" href="infra.zh.html" hreflang="zh" lang="zh">Chinese</a></div></div></header>
@@ -23,6 +38,7 @@
     <a aria-current="page" href="infra.html">Infrastructure</a>
     <a href="cicd.html">CI/CD</a>
     <a href="contracts-tests.html">Contracts &amp; Tests</a>
+    <a href="flows.html">Flow analysis</a>
   </div></nav>
   <main class="shell">
     <div class="hero">

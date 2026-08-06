@@ -6,6 +6,21 @@
   <meta content="ResearchMate 共享合约与测试学习指南:contracts.ts 逐类型解析,三层契约镜像架构,36 个 Python 测试文件分析,Hermetic 测试策略,Mock 模式,覆盖率配置,前端 Vitest 与 Playwright 测试。" name="description"/>
   <title>ResearchMate &middot; 合约与测试学习</title>
   <link href="../assets/site.css" rel="stylesheet"/>
+  <style>
+    .layout section > h2 { cursor: pointer; user-select: none; }
+    .layout section > h2::before { content: "▾ "; color: var(--clay); font-size: 0.8em; transition: transform 0.2s; display: inline-block; }
+    .layout section.collapsed > h2::before { transform: rotate(-90deg); }
+    .layout section.collapsed > :not(h2):not(.eyebrow) { display: none; }
+  </style>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      document.querySelectorAll('.layout section > h2').forEach(function(h2) {
+        h2.addEventListener('click', function() {
+          h2.closest('section').classList.toggle('collapsed');
+        });
+      });
+    });
+  </script>
   <script src="../assets/site.js"></script>
   <style>.module-nav{border-top:1px solid var(--g200)}.module-nav .shell{padding:6px 0 12px}.module-nav a{font-size:11.5px;padding:5px 11px}</style>
 </head>

@@ -6,6 +6,21 @@
   <meta content="ResearchMate CI/CD 学习指南:逐文件解析 GitHub Actions 流水线、多阶段 Dockerfile、Render 部署配置、依赖管理与环境变量分类。" name="description"/>
   <title>ResearchMate . CI/CD 学习</title>
   <link href="../assets/site.css" rel="stylesheet"/>
+  <style>
+    .layout section > h2 { cursor: pointer; user-select: none; }
+    .layout section > h2::before { content: "▾ "; color: var(--clay); font-size: 0.8em; transition: transform 0.2s; display: inline-block; }
+    .layout section.collapsed > h2::before { transform: rotate(-90deg); }
+    .layout section.collapsed > :not(h2):not(.eyebrow) { display: none; }
+  </style>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      document.querySelectorAll('.layout section > h2').forEach(function(h2) {
+        h2.addEventListener('click', function() {
+          h2.closest('section').classList.toggle('collapsed');
+        });
+      });
+    });
+  </script>
   <style>.module-nav{border-top:1px solid var(--g200)}.module-nav .shell{padding:6px 0 12px}.module-nav a{font-size:11.5px;padding:5px 11px}</style>
 </head>
 <body>
@@ -25,6 +40,7 @@
     <a href="infra.zh.html">基础设施</a>
     <a aria-current="page" href="cicd.zh.html">CI/CD</a>
     <a href="contracts-tests.zh.html">合约与测试</a>
+    <a href="flows.zh.html">切面分析</a>
   </div></nav>
   <main class="shell">
     <div class="hero">

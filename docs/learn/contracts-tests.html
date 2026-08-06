@@ -6,6 +6,21 @@
   <meta content="ResearchMate contracts and tests learning guide: contracts.ts type-by-type breakdown, three-layer contract mirroring, 36 Python test files analyzed, hermetic testing strategy, mock patterns, coverage configuration, frontend Vitest and Playwright tests." name="description"/>
   <title>ResearchMate &middot; Contracts &amp; Tests learning</title>
   <link href="../assets/site.css" rel="stylesheet"/>
+  <style>
+    .layout section > h2 { cursor: pointer; user-select: none; }
+    .layout section > h2::before { content: "▾ "; color: var(--clay); font-size: 0.8em; transition: transform 0.2s; display: inline-block; }
+    .layout section.collapsed > h2::before { transform: rotate(-90deg); }
+    .layout section.collapsed > :not(h2):not(.eyebrow) { display: none; }
+  </style>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      document.querySelectorAll('.layout section > h2').forEach(function(h2) {
+        h2.addEventListener('click', function() {
+          h2.closest('section').classList.toggle('collapsed');
+        });
+      });
+    });
+  </script>
   <script src="../assets/site.js"></script>
   <style>.module-nav{border-top:1px solid var(--g200)}.module-nav .shell{padding:6px 0 12px}.module-nav a{font-size:11.5px;padding:5px 11px}</style>
 </head>

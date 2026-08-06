@@ -10,6 +10,37 @@ CP9 in full, CP10, and CP11 full scan.
 
 ## CP9: Full security review
 
+### Review method
+
+Check each domain by tracing attacker-controlled input to the sink it reaches, not by
+pattern-matching alone. For each candidate, identify the source (attacker-controlled
+input), the broken or missing control, the sink (dangerous operation or protected
+action), and the impact. A pattern without a reachable source-to-sink path is not a
+finding.
+
+Suppress a candidate only with concrete counterevidence: framework auto-escaping
+verified for the exact output context, an equivalent guard on every path to the sink,
+or code that is not shipped or reachable in scope. A safe sibling path does not clear
+a distinct path. Do not suppress because an endpoint is intended to perform a risky
+action or appears internal by name.
+
+Prefer evidence in this order: an existing focused test, a minimal regression test,
+a local non-destructive reproduction, then a complete static source-control-sink
+trace. A missing test environment is a proof gap, not counterevidence.
+
+### Quick threat model
+
+Before the domain checklist, identify this project's concrete risk profile in 3-5 lines:
+
+- assets: user data, secrets, payment authority, or admin actions this project has;
+- trust boundaries: where unauthenticated, authenticated, tenant, and admin meet;
+- high-impact paths: account takeover, cross-tenant access, payment bypass, secret
+  exposure, or RCE this architecture makes plausible.
+
+Use this to weight the domains: a multi-tenant SaaS must prioritize 9D authorization;
+a webhook-heavy service must prioritize 9G SSRF; a payment product must prioritize 9H.
+This step focuses the checklist; it does not replace it.
+
 ### 9A Database security
 
 | Check | What to find | Severity |
@@ -35,6 +66,7 @@ CP9 in full, CP10, and CP11 full scan.
 | localStorage misuse | token or sensitive data stored in localStorage (readable by XSS) instead of httpOnly cookie | Major |
 | Data minimization | collecting user data the feature does not need; fields gathered but never used | Major |
 | Data retention | no retention or deletion policy; no handling logic for user deletion requests | Major |
+| Log injection | attacker input with newlines or control chars written to logs, forging entries or hiding attack trails | Major |
 
 ### 9C API security
 
@@ -49,6 +81,9 @@ CP9 in full, CP10, and CP11 full scan.
 | File upload validation | no file type or size check; upload path can be traversed; filename not sanitized or renamed | Blocker |
 | File upload storage | uploaded files stored in a web-accessible path and are executable (e.g. `.php`, `.js`) | Blocker |
 | Batch operation safety | bulk delete or update without confirmation or secondary permission check | Major |
+| Path traversal | file access path from user input not canonicalized; `../` or absolute path escapes the intended directory in download, import, or static-serving paths | Blocker |
+| Archive extraction | zip/tar extraction without path containment; symlink in archive overwrites trusted files | Blocker |
+| Mass assignment | request body auto-bound to model; user can set `role`, `isAdmin`, or `tenantId` | Blocker |
 
 ### 9D Authentication and authorization
 
@@ -84,11 +119,60 @@ CP9 in full, CP10, and CP11 full scan.
 | Client-side secret | API key or secret hardcoded in frontend code (viewable by users) | Blocker |
 | postMessage | `window.postMessage` receiver does not validate origin | Major |
 
+### 9G Server-side request forgery (SSRF)
+
+Run when the project has outbound URL features: webhooks, URL previews, image or
+document fetchers, callback URLs, or proxy endpoints.
+
+| Check | What to find | Severity |
+| --- | --- | --- |
+| Outbound URL from user input | webhook, preview, image fetch, or callback URL accepts a user-supplied destination without scheme and host validation | Blocker |
+| Internal reach | user URL can reach loopback, link-local, private ranges, or cloud metadata (169.254.169.254) | Blocker |
+| Redirect following | HTTP client follows redirects without re-validating the final destination | Major |
+| DNS rebinding | first DNS resolution passes validation but second resolves to internal IP | Major |
+| URL scheme | scheme not restricted; `file://`, `gopher://`, or `dict://` reaches an unexpected handler | Blocker |
+
+### 9H Business logic and payment security
+
+Run when the project has payment, coupon, quota, or multi-step workflow logic. Mark
+NOT_APPLICABLE otherwise.
+
+CP10 covers idempotency and concurrency as reliability engineering; this domain
+covers the same mechanisms from an attacker perspective: can a user exploit them to
+bypass payment, quota, or workflow constraints.
+
+| Check | What to find | Severity |
+| --- | --- | --- |
+| Payment bypass | price, quantity, or currency computed client-side and trusted by backend | Blocker |
+| Coupon abuse | coupon reusable beyond intended limit; coupon applied to ineligible items | Major |
+| Quota bypass | rate limit or usage quota checked client-side or bypassable via race condition | Major |
+| Duplicate payment | retry or concurrent submission creates a duplicate charge; see CP10 for idempotency engineering | Blocker |
+| Workflow bypass | multi-step approval or verification skipped by direct API call to a later step | Blocker |
+| Race condition | TOCTOU on balance, inventory, or quota; concurrent requests exploit a check-then-act gap | Major |
+
+### 9I AI and LLM security
+
+Run only when the project has AI or LLM features: prompt construction, tool or
+function calling, RAG or retrieval, agent workflows, or model-generated output.
+Mark NOT_APPLICABLE otherwise.
+
+| Check | What to find | Severity |
+| --- | --- | --- |
+| Prompt injection | user or retrieved content can override system instructions or escape the intended task | Blocker |
+| Tool authorization | model-generated tool calls executed without capability or permission checks outside the model | Blocker |
+| Data exfiltration | model output sent to external endpoints, or tool arguments leak secrets or other-tenant data | Blocker |
+| Retrieval poisoning | untrusted documents in the RAG corpus can inject instructions or override safety rules | Major |
+| Model output as code | model-generated code, shell, SQL, or config executed without validation | Blocker |
+| Secret in context | API keys, tokens, or PII passed into model prompts or context windows | Major |
+
 ### STANDARD baseline
 
 For STANDARD changes, run at minimum: secret-in-repo check (9E), XSS check (9F),
 dependency vulnerability scan (9E), and HTTPS check (9B). These four are indie-product
-baselines regardless of risk level.
+baselines regardless of risk level. Also run 9G when the change touches outbound URL
+features (webhooks, previews, fetchers), 9H when it touches payment or quota logic,
+and 9I when the project has AI/LLM features and the change touches prompt, tool, or
+retrieval code.
 
 ## CP10: Reliability
 
@@ -121,6 +205,8 @@ credentials, run DoS, make real payments, or run third-party scanners.
 | Expired token | use an expired token to access an endpoint | 401, no data returned |
 | File upload | upload an executable, oversized, or no-type file | rejected |
 | Password reset | use an expired or already-used reset token | rejected |
+| SSRF | submit a webhook or fetch URL pointing to 127.0.0.1 or 169.254.169.254 | rejected or sanitized |
+| Payment idempotency | submit a duplicate payment request with the same idempotency key | no duplicate charge |
 
 ### Tool scans
 
