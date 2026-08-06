@@ -51,7 +51,7 @@
           <article class="fact"><b>React</b><p>UI 库,大量使用 Client Components(<code>"use client"</code>)。通过 hooks(<code>useState</code>, <code>useEffect</code>, <code>useRef</code>, <code>useMemo</code>, <code>useCallback</code>)管理状态,不使用 Redux 或 Zustand 等外部状态库。组件分为容器组件(ChatWorkspace)、展示组件(ConversationThread, ChatComposer)和 UI 原语(ui/*)三层。</p></article>
           <article class="fact"><b>Tailwind CSS v4.3.3</b><p>原子化 CSS 框架,通过 <code>@tailwindcss/postcss</code> 插件集成。<code>globals.css</code> 使用 <code>@import "tailwindcss"</code> 和 <code>@theme inline</code> 定义设计令牌(CSS 变量),支持 light/dark 双主题和 <code>prefers-reduced-motion</code>。组件使用 <code>cn()</code> 工具函数合并 Tailwind 类名。</p></article>
           <article class="fact"><b>shadcn/ui</b><p>基于 Radix UI 原语的可定制组件系统。apps/web 包含 15 个 <code>ui/</code> 组件,依赖 9 个 <code>@radix-ui</code> 包。组件使用 <code>class-variance-authority</code>(cva)定义变体,通过 <code>tailwind-merge</code> 去重冲突的类名。不是 npm 包,而是复制到项目中的源码文件。</p></article>
-          <article class="fact"><b>Vitest 4.1.10</b><p>单元测试框架,使用 <code>jsdom</code> 环境模拟浏览器。通过 <code>@vitest/coverage-v8</code> 收集覆盖率,覆盖 <code>app/lib/**/*.ts</code> 和 <code>app/components/**/*.{ts,tsx}</code>,覆盖率基线 40%(lines/statements)。测试文件与源码同目录(<code>.test.ts</code> 后缀),共 8 个测试文件。</p></article>
+          <article class="fact"><b>Vitest 4.1.10</b><p>单元测试框架,使用 <code>jsdom</code> 环境模拟浏览器。通过 <code>@vitest/coverage-v8</code> 收集覆盖率,覆盖 <code>app/lib/**/*.ts</code> 和 <code>app/components/**/*.{ts,tsx}</code>,覆盖率基线 40%(lines/statements)。测试文件与源码同目录(<code>.test.ts</code> 后缀),共 7 个测试文件。</p></article>
           <article class="fact"><b>Playwright 1.62.1</b><p>E2E 测试框架,仅使用 Chromium。通过 <code>webServer</code> 配置在 <code>127.0.0.1:3100</code> 启动 demo 模式 Next.js,测试文件在 <code>e2e/</code> 目录。验证完整用户旅程:发消息、看引用、建项目、生成 quiz,同时检查无浏览器错误和外部请求。</p></article>
           <article class="fact"><b>Supabase Auth</b><p>认证服务,支持 GitHub OAuth 和邮箱密码。<code>supabase.ts</code> 自实现浏览器端 session 管理(不依赖 <code>@supabase/supabase-js</code>),包括 JWT 解码、refresh token 轮转、localStorage 持久化和 OAuth 重定向恢复。AuthGate 组件守卫所有受保护路由。</p></article>
         </div>
@@ -60,7 +60,7 @@
       <section id="tree">
         <p class="eyebrow">完整目录树</p>
         <h2>apps/web/ 文件结构</h2>
-        <p class="sub">下方是 apps/web/ 的完整文件树,排除 <code>.next/</code> 构建产物和 <code>node_modules/</code>。共 50 个源码文件(不含配置和资源文件):9 个页面路由、10 个业务组件、15 个 shadcn/ui 组件、6 个 lib 模块、8 个测试文件、1 个 E2E 测试。</p>
+        <p class="sub">下方是 apps/web/ 的完整文件树,排除 <code>.next/</code> 构建产物和 <code>node_modules/</code>。共 50 个源码文件(不含配置和资源文件):11 个页面路由、10 个业务组件、15 个 shadcn/ui 组件、6 个 lib 模块、7 个测试文件、1 个 E2E 测试。</p>
         <pre class="command-block"><code>apps/web/
 ├── AGENTS.md
 ├── CLAUDE.md
@@ -319,7 +319,7 @@
         <div class="lane"><span class="lane-label">vitest.config.ts</span><p>Vitest 配置。environment: jsdom(模拟浏览器 DOM)。resolve.alias: <code>@/</code> → <code>app/</code>(与 tsconfig paths 一致)。coverage: provider v8,include <code>app/lib/**/*.ts</code> 和 <code>app/components/**/*.{ts,tsx}</code>,exclude <code>**/*.test.{ts,tsx}</code>。thresholds: lines/statements 40%(覆盖率基线)。</p></div>
         <div class="lane"><span class="lane-label">playwright.config.ts</span><p>Playwright E2E 配置。port 3100,baseURL <code>http://127.0.0.1:3100</code>。testMatch <code>**/*.e2e.ts</code>。仅 chromium project。CI 环境:retries 2,workers 1,reporter line + html。webServer:启动 <code>next dev --port 3100</code>,设置 <code>NEXT_PUBLIC_DEMO_MODE=true</code> 和 <code>NEXT_DIST_DIR=.next-e2e</code>(使用独立的构建目录避免与开发服务器冲突)。reuseExistingServer: 非 CI 时复用已运行的服务器。</p></div>
         <div class="lane"><span class="lane-label">postcss.config.mjs</span><p>PostCSS 配置,仅注册 <code>@tailwindcss/postcss</code> 插件。Tailwind CSS v4 不再使用 <code>tailwind.config.js</code>,而是通过 PostCSS 插件 + CSS 中的 <code>@import "tailwindcss"</code> 和 <code>@theme inline</code> 指令配置。</p></div>
-        <div class="lane"><span class="lane-label">package.json</span><p>包名 <code>@researchmate/web</code>。6 个 scripts:dev, build, start, lint(tsc --noEmit), test(vitest run --coverage), test:e2e(playwright test)。12 个 dependencies(9 个 @radix-ui + next/react/tailwind 等)和 8 个 devDependencies(playwright, vitest, typescript 6.0.3 等)。</p></div>
+        <div class="lane"><span class="lane-label">package.json</span><p>包名 <code>@researchmate/web</code>。6 个 scripts:dev, build, start, lint(tsc --noEmit), test(vitest run --coverage), test:e2e(playwright test)。20 个 dependencies(9 个 @radix-ui + next/react/tailwind 等)和 8 个 devDependencies(playwright, vitest, typescript 6.0.3 等)。</p></div>
       </section>
 
       <section id="e2e">

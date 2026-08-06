@@ -1,0 +1,782 @@
+﻿<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="utf-8"/>
+  <title>基础设施 . infra &amp; scripts</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <link href="../assets/site.css" rel="stylesheet"/>
+</head>
+<body>
+  <header class="mast"><div class="shell mast-row"><a class="brand" href="../index.zh.html">ResearchMate 文档</a><div class="mast-right"><span class="stamp">基础设施 . 2026 年 8 月 6 日</span><a class="lang-toggle" href="infra.html" hreflang="en" lang="en">English</a></div></div></header>
+  <nav aria-label="文档" class="global"><div class="shell">
+    <a href="../index.zh.html">概览</a>
+    <a href="../product/index.zh.html">产品与路线图</a>
+    <a href="../architecture/index.zh.html">架构与技术栈</a>
+    <a href="../contracts/data/index.zh.html">数据库</a>
+    <a href="../contracts/api/index.zh.html">API</a>
+    <a aria-current="page" href="index.zh.html">学习</a>
+  </div></nav>
+  <nav aria-label="Learning modules" class="global module-nav"><div class="shell">
+    <a href="frontend.zh.html">Frontend</a>
+    <a href="backend.zh.html">Backend</a>
+    <a href="worker.zh.html">Worker</a>
+    <a aria-current="page" href="infra.zh.html">基础设施</a>
+    <a href="cicd.zh.html">CI/CD</a>
+    <a href="contracts-tests.zh.html">Contracts &amp; Tests</a>
+  </div></nav>
+  <main class="shell">
+    <div class="hero">
+      <p class="eyebrow">Supabase / PostgreSQL RLS / Qdrant / 10 个迁移 / 45 个端点</p>
+      <h1>基础设施 . infra &amp; scripts</h1>
+      <p class="lede">ResearchMate 基础设施层定义了全部持久化与协调基础设施:Supabase/PostgreSQL 作为唯一真相源,Qdrant 提供向量检索,OpenAPI 规范锁定 45 个端点的 API 契约。本页逐文件解析 infra/ 目录下的 10 个 SQL 迁移、2 个 Qdrant 集合配置、1 个 OpenAPI 规范,以及 scripts/ 目录下的 8 个运维脚本。</p>
+      <div class="meta">
+        <span class="status local">34 张表(31 业务 + 3 协调)</span>
+        <span class="status local">10 个 SQL 迁移</span>
+        <span class="status local">2 个 Qdrant 集合</span>
+        <span class="status local">45 个端点 / 11 个 tag</span>
+        <span class="status local">65 个 schema</span>
+        <span class="status local">8 个脚本</span>
+      </div>
+    </div>
+    <div class="layout"><div class="content">
+      <section id="stack">
+        <p class="eyebrow">技术栈基础</p>
+        <h2>5 个基础设施组件</h2>
+        <p class="sub">每张卡片说明该组件的通用职责,以及 ResearchMate 中的具体用法。</p>
+        <div class="grid">
+          <article class="fact"><b>Supabase</b><p>PostgreSQL 托管平台,提供数据库、认证(auth.uid())、存储和 Edge Functions。ResearchMate 使用其 PostgreSQL 实例作为唯一真相源,所有业务表和协调表均在此创建。RLS 策略直接在数据库层强制多租户隔离。</p></article>
+          <article class="fact"><b>PostgreSQL RLS</b><p>Row Level Security 在数据库层强制每行数据的访问控制。全部 31 张业务表均启用 RLS,通过 auth.uid() 实现按用户隔离。pipeline_versions 支持 developer/admin 角色策略,outbox_events 不设认证用户策略(仅 service-role)。</p></article>
+          <article class="fact"><b>Database migrations</b><p>10 个 additive SQL 迁移,按 YYYYMMDDNNN 版本前缀排序。apply_migrations.py 在 advisory lock 下执行,用 SHA-256 校验和追踪已应用迁移,拒绝 DROP DATABASE 和空文件。</p></article>
+          <article class="fact"><b>Qdrant collections</b><p>两个向量集合:researchmate_chunks(v1,dense 4096 维 + sparse,RRF 融合)和 researchmate_chunks_v2(multivector 96 维,MAX_SIM,late-interaction rerank)。两者均强制 user_id + project_id + source_type 三重过滤。</p></article>
+          <article class="fact"><b>OpenAPI spec</b><p>45 个端点分布在 11 个 tag 下,65 个 schema(含 HTTPBearer 安全方案)。openapi.yaml 由 export_openapi.py 从 FastAPI 应用确定性渲染,支持 --check 模式校验跟踪文件是否过期。</p></article>
+        </div>
+      </section>
+      <section id="tree">
+        <p class="eyebrow">完整目录树</p>
+        <h2>infra/ 与 scripts/ 文件结构</h2>
+        <p class="sub">infra/ 包含 3 个子目录(openapi、qdrant、supabase),scripts/ 包含 8 个脚本文件。</p>
+        <pre class="command-block"><code>infra/
+  openapi/
+    openapi.yaml              168 KB  45 endpoints / 11 tags / 65 schemas
+  qdrant/
+    researchmate_chunks.json  676 B   v1 collection config (dense + sparse + RRF)
+  supabase/
+    migrations/
+      202605260001_initial_schema.sql                   11.9 KB
+      202607150002_evidence_review_schema.sql           22.2 KB
+      202607150003_job_delivery_lease.sql                499 B
+      202607150004_evaluation_delivery_lease.sql          422 B
+      202607150005_evaluation_budget_and_fault_exercises.sql  2.7 KB
+      202607160006_runtime_readiness_and_workflow_budget.sql  2.4 KB
+      202607280007_unified_chat_and_runtime_rerank.sql   3.3 KB
+      202607280008_remove_source_modes.sql                253 B
+      202607290009_personal_chat_project_memory_and_quiz.sql  1.1 KB
+      202608010010_api_idempotency.sql                   1.1 KB
+
+scripts/
+  apply_migrations.py            3.6 KB  Validate &amp; apply ordered migrations
+  bootstrap_demo_catalog.py      5.8 KB  Bootstrap demo pipeline + eval dataset
+  check_contracts.ps1              524 B  Run pytest contract tests
+  dev_api.ps1                      491 B  Start uvicorn dev server
+  export_openapi.py              1.2 KB  Render/verify OpenAPI artifact
+  provision_qdrant_rerank.py     6.3 KB  Provision Qdrant v2 backfill
+  repair_docs_html_encoding.py   3.3 KB  Repair corrupted HTML docs
+  setup_langgraph_checkpoint.py    979 B  Create LangGraph checkpoint tables</code></pre>
+      </section>
+      <section id="migrations">
+        <p class="eyebrow">SQL 迁移逐文件详解</p>
+        <h2>10 个迁移按顺序解析</h2>
+        <p class="sub">每个迁移均为 additive(仅添加,不破坏已有数据),按版本号前缀 YYYYMMDDNNN 排序执行。</p>
+        <details id="migration-01"><summary>1. 202605260001_initial_schema.sql</summary>
+          <dl class="kv">
+            <dt>Version</dt><dd><code>202605260001</code></dd>
+            <dt>表</dt><dd>profiles, projects, documents, document_pages, chunks, conversations, messages, ask_runs, tool_calls, citations, quiz_sets, quiz_questions, jobs, deletion_jobs, api_usage(15 张表)</dd>
+            <dt>字段与索引</dt><dd>8 个 enum、12 个索引、owner_user_id() 辅助函数</dd>
+            <dt>RLS</dt><dd>全部 15 张表启用 RLS。使用 auth.uid() 实现按 owner 限定的 SELECT/INSERT/UPDATE/DELETE。document_pages、tool_calls、citations、quiz_questions 无独立策略(在迁移 002 中补齐)。</dd>
+            <dt>增量说明</dt><dd>单次 additive 迁移创建完整核心数据模型。文档上限 25 MB,chunks 通过 qdrant_point_id 引用 Qdrant。</dd>
+          </dl>
+        </details>
+        <details id="migration-02"><summary>2. 202607150002_evidence_review_schema.sql</summary>
+          <dl class="kv">
+            <dt>Version</dt><dd><code>202607150002</code></dd>
+            <dt>表</dt><dd>pipeline_versions, workflow_runs, run_events, research_questions, claims, claim_evidence, claim_relations, reports, report_sections, human_decisions, outbox_events, evaluation_datasets, evaluation_cases, evaluation_runs, evaluation_scores(15 张表)</dd>
+            <dt>字段与索引</dt><dd>17 个索引(含 evaluation_cases.labels 的 GIN 索引);claim_evidence、claim_relations 使用复合主键;idempotency_key 唯一约束</dd>
+            <dt>RLS</dt><dd>全部 15 张新表启用 RLS。补齐迁移 001 的 4 个继承式所有权缺口。pipeline_versions 设置 developer/admin 的 INSERT/UPDATE/DELETE 策略。outbox_events 不设认证用户策略(仅 service-role)。</dd>
+            <dt>增量说明</dt><dd>新增完整的 evidence-review 与 evaluation 子系统。PostgreSQL 保持为唯一真相源;R2、Qdrant、Redis 均为外部投影或协调服务。</dd>
+          </dl>
+        </details>
+        <details id="migration-03"><summary>3. 202607150003_job_delivery_lease.sql</summary>
+          <dl class="kv">
+            <dt>Version</dt><dd><code>202607150003</code></dd>
+            <dt>表</dt><dd>无新表(修改 jobs)</dd>
+            <dt>字段与索引</dt><dd>为 jobs 增加 attempts、lease_owner、lease_expires_at、started_at、completed_at 列;新增 idx_jobs_dispatch_lease</dd>
+            <dt>RLS</dt><dd>无 RLS 变更。</dd>
+            <dt>增量说明</dt><dd>支持基于 lease 的安全至少一次 Celery 执行与并发控制。</dd>
+          </dl>
+        </details>
+        <details id="migration-04"><summary>4. 202607150004_evaluation_delivery_lease.sql</summary>
+          <dl class="kv">
+            <dt>Version</dt><dd><code>202607150004</code></dd>
+            <dt>表</dt><dd>无新表(修改 evaluation_runs)</dd>
+            <dt>字段与索引</dt><dd>为 evaluation_runs 增加 attempts、lease_owner、lease_expires_at 列;新增 idx_evaluation_runs_dispatch_lease</dd>
+            <dt>RLS</dt><dd>无 RLS 变更。</dd>
+            <dt>增量说明</dt><dd>支持可恢复的 evaluation-run 所有权,实现有界并行用例执行。</dd>
+          </dl>
+        </details>
+        <details id="migration-05"><summary>5. 202607150005_evaluation_budget_and_fault_exercises.sql</summary>
+          <dl class="kv">
+            <dt>Version</dt><dd><code>202607150005</code></dd>
+            <dt>表</dt><dd>fault_exercises(1 张新表)</dd>
+            <dt>字段与索引</dt><dd>为 evaluation_runs 增加 budget_limit_usd(默认 1.0,fail-closed)、budget_reserved_usd、last_error_code;fault_exercises 含 scenario 枚举、lease 列、request_hash 唯一约束</dd>
+            <dt>RLS</dt><dd>fault_exercises 启用 RLS:owner SELECT + INSERT(requested_by = auth.uid())。无 UPDATE/DELETE 策略。</dd>
+            <dt>增量说明</dt><dd>引入 fail-closed 成本预算与可审计、非破坏性的可靠性演练。</dd>
+          </dl>
+        </details>
+        <details id="migration-06"><summary>6. 202607160006_runtime_readiness_and_workflow_budget.sql</summary>
+          <dl class="kv">
+            <dt>Version</dt><dd><code>202607160006</code></dd>
+            <dt>表</dt><dd>runtime_heartbeats(1 张协调表)</dd>
+            <dt>字段与索引</dt><dd>为 workflow_runs 增加 delivery_attempts、lease_owner、lease_expires_at、budget_limit_usd(默认 1.0,上限 25)、budget_reserved_usd、actual_cost_usd 列及预算约束;runtime_heartbeats 含 component 枚举(worker/dispatcher)</dd>
+            <dt>RLS</dt><dd>runtime_heartbeats 启用 RLS 但不设浏览器策略;REVOKE all from anon, authenticated。更新 pipeline_versions SELECT 策略以允许发现 accepted 版本。</dd>
+            <dt>增量说明</dt><dd>运维就绪监控与 fail-closed 研究预算(含成本上限)。</dd>
+          </dl>
+        </details>
+        <details id="migration-07"><summary>7. 202607280007_unified_chat_and_runtime_rerank.sql</summary>
+          <dl class="kv">
+            <dt>Version</dt><dd><code>202607280007</code></dd>
+            <dt>表</dt><dd>runtime_ai_config(1 张协调表)</dd>
+            <dt>字段与索引</dt><dd>为 conversations 增加 summary 系列列;为 messages 增加 ask_run_id;为 ask_runs 增加 web_enabled、context_strategy(6 个值)、rerank_provider、rerank_degraded、fallback_reason;向 runtime_ai_config 插入初始记录('rerank','auto')</dd>
+            <dt>RLS</dt><dd>runtime_ai_config 启用 RLS:仅 admin/developer 可 SELECT + UPDATE。expand 阶段将 source_mode 默认值设为 'local_only'。</dd>
+            <dt>增量说明</dt><dd>从 source_mode 迁移到统一的 context_strategy + rerank provider。两阶段 expand-then-contract 迁移。</dd>
+          </dl>
+        </details>
+        <details id="migration-08"><summary>8. 202607280008_remove_source_modes.sql</summary>
+          <dl class="kv">
+            <dt>Version</dt><dd><code>202607280008</code></dd>
+            <dt>表</dt><dd>无新表(contract 阶段删除列)</dd>
+            <dt>字段与索引</dt><dd>从 ask_runs 删除 source_mode 和 resolved_mode;从 quiz_sets 删除 source_mode</dd>
+            <dt>RLS</dt><dd>无 RLS 变更。</dd>
+            <dt>增量说明</dt><dd>Contract 阶段:统一 runtime 已上线,之后才删除这些退役列。</dd>
+          </dl>
+        </details>
+        <details id="migration-09"><summary>9. 202607290009_personal_chat_project_memory_and_quiz.sql</summary>
+          <dl class="kv">
+            <dt>Version</dt><dd><code>202607290009</code></dd>
+            <dt>表</dt><dd>无新表(修改 projects、documents、enum)</dd>
+            <dt>字段与索引</dt><dd>为 projects 增加 kind(personal/workspace)、memory 系列列及每用户一个 personal 项目的唯一偏索引;为 documents 增加 conversation_id;向 quiz_question_type 枚举增加 fill_blank 和 subjective</dd>
+            <dt>RLS</dt><dd>无 RLS 变更。</dd>
+            <dt>增量说明</dt><dd>个人聊天工作区、项目级记忆摘要,以及扩展的 quiz 题型。</dd>
+          </dl>
+        </details>
+        <details id="migration-10"><summary>10. 202608010010_api_idempotency.sql</summary>
+          <dl class="kv">
+            <dt>Version</dt><dd><code>202608010010</code></dd>
+            <dt>表</dt><dd>api_idempotency(1 张协调表)</dd>
+            <dt>字段与索引</dt><dd>复合主键(user_id, operation, idempotency_key);request_hash 为 SHA-256(64 位十六进制);state(pending/succeeded);CHECK 约束确保 pending+null response 或 succeeded</dd>
+            <dt>RLS</dt><dd>api_idempotency 启用 RLS:owner ALL 策略(user_id = auth.uid())。</dd>
+            <dt>增量说明</dt><dd>为高成本的 Ask 和 Quiz 操作持久化防重放请求标识。</dd>
+          </dl>
+        </details>
+      </section>
+      <section id="tables">
+        <p class="eyebrow">数据库表清单</p>
+        <h2>34 张表(31 业务 + 3 协调)</h2>
+        <p class="sub">31 张业务表支撑用户数据、文档、聊天、证据审查与评估;3 张协调表(runtime_heartbeats、runtime_ai_config、api_idempotency)服务于后端运维。</p>
+        <div class="scroll"><table class="dense">
+          <thead><tr>
+            <th>#</th>
+            <th>表名</th>
+            <th>来源迁移</th>
+            <th>分组</th>
+            <th>关键列</th>
+            <th>RLS 策略</th>
+          </tr></thead>
+          <tbody>
+            <tr id="table-profiles">
+              <td>1</td>
+              <td><code>profiles</code></td>
+              <td><code>001</code></td>
+              <td>identity</td>
+              <td>id (PK), email, provider, role (user/developer/admin)</td>
+              <td>auth.uid() = id (SELECT)</td>
+            </tr>
+            <tr id="table-projects">
+              <td>2</td>
+              <td><code>projects</code></td>
+              <td><code>001</code></td>
+              <td>identity</td>
+              <td>id (PK), user_id, name, status, kind, memory_summary_text</td>
+              <td>auth.uid() = user_id (ALL)</td>
+            </tr>
+            <tr id="table-documents">
+              <td>3</td>
+              <td><code>documents</code></td>
+              <td><code>001</code></td>
+              <td>documents</td>
+              <td>id (PK), user_id, project_id, filename, file_type, status, r2_object_key</td>
+              <td>auth.uid() = user_id (ALL)</td>
+            </tr>
+            <tr id="table-document_pages">
+              <td>4</td>
+              <td><code>document_pages</code></td>
+              <td><code>001</code></td>
+              <td>documents</td>
+              <td>id (PK), document_id, page_no, slide_no, text, metadata</td>
+              <td>通过 documents 继承(SELECT,002 补齐)</td>
+            </tr>
+            <tr id="table-chunks">
+              <td>5</td>
+              <td><code>chunks</code></td>
+              <td><code>001</code></td>
+              <td>documents</td>
+              <td>id (PK), user_id, project_id, document_id, source_type, text, qdrant_point_id</td>
+              <td>auth.uid() = user_id (ALL)</td>
+            </tr>
+            <tr id="table-conversations">
+              <td>6</td>
+              <td><code>conversations</code></td>
+              <td><code>001</code></td>
+              <td>chat</td>
+              <td>id (PK), user_id, project_id, title, summary_text, summary_token_count</td>
+              <td>auth.uid() = user_id (ALL)</td>
+            </tr>
+            <tr id="table-messages">
+              <td>7</td>
+              <td><code>messages</code></td>
+              <td><code>001</code></td>
+              <td>chat</td>
+              <td>id (PK), user_id, project_id, conversation_id, role, content, ask_run_id</td>
+              <td>auth.uid() = user_id (ALL)</td>
+            </tr>
+            <tr id="table-ask_runs">
+              <td>8</td>
+              <td><code>ask_runs</code></td>
+              <td><code>001</code></td>
+              <td>chat</td>
+              <td>id (PK), user_id, project_id, conversation_id, message, task_type, context_strategy, rerank_provider, web_enabled</td>
+              <td>auth.uid() = user_id (ALL)</td>
+            </tr>
+            <tr id="table-tool_calls">
+              <td>9</td>
+              <td><code>tool_calls</code></td>
+              <td><code>001</code></td>
+              <td>chat</td>
+              <td>id (PK), ask_run_id, tool_name, input, output_summary, status, latency_ms</td>
+              <td>通过 ask_runs 继承(SELECT,002 补齐)</td>
+            </tr>
+            <tr id="table-citations">
+              <td>10</td>
+              <td><code>citations</code></td>
+              <td><code>001</code></td>
+              <td>chat</td>
+              <td>id (PK), ask_run_id, chunk_id, document_id, source_type, quote, claim_id</td>
+              <td>通过 ask_runs 继承(SELECT,002 补齐)</td>
+            </tr>
+            <tr id="table-quiz_sets">
+              <td>11</td>
+              <td><code>quiz_sets</code></td>
+              <td><code>001</code></td>
+              <td>quiz</td>
+              <td>id (PK), user_id, project_id, ask_run_id, title, sources_summary</td>
+              <td>auth.uid() = user_id (ALL)</td>
+            </tr>
+            <tr id="table-quiz_questions">
+              <td>12</td>
+              <td><code>quiz_questions</code></td>
+              <td><code>001</code></td>
+              <td>quiz</td>
+              <td>id (PK), quiz_set_id, type, question, options, answer, explanation, difficulty</td>
+              <td>通过 quiz_sets 继承(SELECT,002 补齐)</td>
+            </tr>
+            <tr id="table-jobs">
+              <td>13</td>
+              <td><code>jobs</code></td>
+              <td><code>001</code></td>
+              <td>ops</td>
+              <td>id (PK), user_id, project_id, document_id, type, status, progress, attempts, lease_owner</td>
+              <td>auth.uid() = user_id (ALL)</td>
+            </tr>
+            <tr id="table-deletion_jobs">
+              <td>14</td>
+              <td><code>deletion_jobs</code></td>
+              <td><code>001</code></td>
+              <td>ops</td>
+              <td>id (PK), user_id, project_id, document_id, status, target_types</td>
+              <td>auth.uid() = user_id (ALL)</td>
+            </tr>
+            <tr id="table-api_usage">
+              <td>15</td>
+              <td><code>api_usage</code></td>
+              <td><code>001</code></td>
+              <td>ops</td>
+              <td>id (PK), user_id, usage_date, kind, count, unique(user_id, usage_date, kind)</td>
+              <td>auth.uid() = user_id (ALL)</td>
+            </tr>
+            <tr id="table-pipeline_versions">
+              <td>16</td>
+              <td><code>pipeline_versions</code></td>
+              <td><code>002</code></td>
+              <td>evidence</td>
+              <td>id (PK), name, version, status, configuration, prompt_hash, code_sha, created_by</td>
+              <td>Accepted=公开;draft/candidate=创建者+admin;dev/admin I/U/D</td>
+            </tr>
+            <tr id="table-workflow_runs">
+              <td>17</td>
+              <td><code>workflow_runs</code></td>
+              <td><code>002</code></td>
+              <td>evidence</td>
+              <td>id (PK), user_id, project_id, pipeline_version_id, kind, status, idempotency_key, budget_limit_usd, lease_owner</td>
+              <td>auth.uid() = user_id (SELECT + INSERT)</td>
+            </tr>
+            <tr id="table-run_events">
+              <td>18</td>
+              <td><code>run_events</code></td>
+              <td><code>002</code></td>
+              <td>evidence</td>
+              <td>id (bigint PK), run_id, sequence, node_key, event_type, attempt, status, cost_usd</td>
+              <td>通过 workflow_runs 继承(SELECT)</td>
+            </tr>
+            <tr id="table-research_questions">
+              <td>19</td>
+              <td><code>research_questions</code></td>
+              <td><code>002</code></td>
+              <td>evidence</td>
+              <td>id (PK), user_id, project_id, parent_id, source_run_id, question, status, priority, plan_order</td>
+              <td>auth.uid() = user_id (SELECT)</td>
+            </tr>
+            <tr id="table-claims">
+              <td>20</td>
+              <td><code>claims</code></td>
+              <td><code>002</code></td>
+              <td>evidence</td>
+              <td>id (PK), user_id, project_id, question_id, source_run_id, text, normalized_key, stance, confidence, review_status</td>
+              <td>auth.uid() = user_id (SELECT)</td>
+            </tr>
+            <tr id="table-claim_evidence">
+              <td>21</td>
+              <td><code>claim_evidence</code></td>
+              <td><code>002</code></td>
+              <td>evidence</td>
+              <td>claim_id + citation_id + relation (PK), extraction_score, extractor_version</td>
+              <td>通过 claims + citations 双重继承(SELECT)</td>
+            </tr>
+            <tr id="table-claim_relations">
+              <td>22</td>
+              <td><code>claim_relations</code></td>
+              <td><code>002</code></td>
+              <td>evidence</td>
+              <td>source_claim_id + target_claim_id + relation (PK), confidence, rationale_summary</td>
+              <td>通过 source + target claims 双重继承(SELECT)</td>
+            </tr>
+            <tr id="table-reports">
+              <td>23</td>
+              <td><code>reports</code></td>
+              <td><code>002</code></td>
+              <td>evidence</td>
+              <td>id (PK), user_id, project_id, source_run_id, title, status, revision, validation_status</td>
+              <td>auth.uid() = user_id (SELECT)</td>
+            </tr>
+            <tr id="table-report_sections">
+              <td>24</td>
+              <td><code>report_sections</code></td>
+              <td><code>002</code></td>
+              <td>evidence</td>
+              <td>id (PK), report_id, parent_section_id, section_key, position, heading, body_markdown, evidence_snapshot</td>
+              <td>通过 reports 继承(SELECT)</td>
+            </tr>
+            <tr id="table-human_decisions">
+              <td>25</td>
+              <td><code>human_decisions</code></td>
+              <td><code>002</code></td>
+              <td>evidence</td>
+              <td>id (PK), run_id, event_id, user_id, interrupt_key, decision, proposed_payload, final_payload</td>
+              <td>通过 workflow_runs 继承(SELECT);INSERT 需 owner 或 dev/admin</td>
+            </tr>
+            <tr id="table-outbox_events">
+              <td>26</td>
+              <td><code>outbox_events</code></td>
+              <td><code>002</code></td>
+              <td>evidence</td>
+              <td>id (PK), aggregate_type, aggregate_id, event_type, payload, idempotency_key, status, attempts</td>
+              <td>无认证用户策略(仅 service-role)</td>
+            </tr>
+            <tr id="table-evaluation_datasets">
+              <td>27</td>
+              <td><code>evaluation_datasets</code></td>
+              <td><code>002</code></td>
+              <td>evaluation</td>
+              <td>id (PK), user_id, project_id, name, version, status, description</td>
+              <td>Owner SELECT + I/U/D(仅 draft)</td>
+            </tr>
+            <tr id="table-evaluation_cases">
+              <td>28</td>
+              <td><code>evaluation_cases</code></td>
+              <td><code>002</code></td>
+              <td>evaluation</td>
+              <td>id (PK), dataset_id, case_key, input, expected_output, expected_evidence, labels</td>
+              <td>通过 evaluation_datasets 继承(仅 draft 可写)</td>
+            </tr>
+            <tr id="table-evaluation_runs">
+              <td>29</td>
+              <td><code>evaluation_runs</code></td>
+              <td><code>002</code></td>
+              <td>evaluation</td>
+              <td>id (PK), user_id, project_id, dataset_id, pipeline_version_id, status, idempotency_key, budget_limit_usd, lease_owner</td>
+              <td>Owner SELECT + INSERT(需 frozen 数据集)</td>
+            </tr>
+            <tr id="table-evaluation_scores">
+              <td>30</td>
+              <td><code>evaluation_scores</code></td>
+              <td><code>002</code></td>
+              <td>evaluation</td>
+              <td>id (PK), evaluation_run_id, case_id, metric_name, metric_version, value, passed, judge_model</td>
+              <td>通过 evaluation_runs 继承(SELECT)</td>
+            </tr>
+            <tr id="table-fault_exercises">
+              <td>31</td>
+              <td><code>fault_exercises</code></td>
+              <td><code>005</code></td>
+              <td>evaluation</td>
+              <td>id (PK), requested_by, target_run_id, scenario, duration_seconds, status, request_hash, idempotency_key, lease_owner</td>
+              <td>Owner SELECT + INSERT(requested_by = auth.uid())</td>
+            </tr>
+            <tr id="table-runtime_heartbeats">
+              <td>32</td>
+              <td><code>runtime_heartbeats</code> <span class="tag warn">coord</span></td>
+              <td><code>006</code></td>
+              <td>coordination</td>
+              <td>component (PK: worker/dispatcher), instance_id, status, safe_metadata, updated_at</td>
+              <td>启用 RLS,REVOKE from anon/authenticated(仅后端)</td>
+            </tr>
+            <tr id="table-runtime_ai_config">
+              <td>33</td>
+              <td><code>runtime_ai_config</code> <span class="tag warn">coord</span></td>
+              <td><code>007</code></td>
+              <td>coordination</td>
+              <td>config_key (PK), provider, version, updated_at, updated_by</td>
+              <td>仅 admin/developer SELECT + UPDATE</td>
+            </tr>
+            <tr id="table-api_idempotency">
+              <td>34</td>
+              <td><code>api_idempotency</code> <span class="tag warn">coord</span></td>
+              <td><code>010</code></td>
+              <td>coordination</td>
+              <td>user_id + operation + idempotency_key (PK), request_hash, state, response</td>
+              <td>Owner ALL(user_id = auth.uid())</td>
+            </tr>
+          </tbody>
+        </table></div>
+      </section>
+      <section id="qdrant">
+        <p class="eyebrow">Qdrant 配置详解</p>
+        <h2>两个向量集合</h2>
+        <p class="sub">researchmate_chunks 是主检索集合(dense + sparse + RRF 融合);researchmate_chunks_v2 是 rerank 回填集合(multivector late-interaction)。两者均强制 tenant 过滤。</p>
+        <h3>researchmate_chunks (v1)</h3>
+        <p>主检索集合,定义在 <code>infra/qdrant/researchmate_chunks.json</code>。支持 hybrid retrieval:dense 向量(4096 维,Cosine 距离)+ sparse 向量(IDF modifier),使用 RRF(Relative Reciprocal Fusion)融合排序。</p>
+        <dl class="kv">
+          <dt>collection</dt><dd><code>researchmate_chunks</code></dd>
+          <dt>dense.size</dt><dd><code>4096</code></dd>
+          <dt>dense.distance</dt><dd><code>Cosine</code></dd>
+          <dt>sparse.modifier</dt><dd><code>idf</code></dd>
+          <dt>fusion</dt><dd><code>rrf</code></dd>
+          <dt>Payload schema</dt><dd>user_id (keyword)<br/>project_id (keyword)<br/>document_id (keyword)<br/>chunk_id (keyword)<br/>source_type (keyword)<br/>page_no (integer)<br/>slide_no (integer)<br/>title (text)<br/>url (keyword)<br/>content_hash (keyword)<br/>pipeline_version (keyword)<br/>expires_at (datetime)</dd>
+          <dt>Required filters</dt><dd><code>user_id</code> + <code>project_id</code> + <code>source_type</code>(三重 tenant 过滤)</dd>
+        </dl>
+        <h3>researchmate_chunks_v2 (rerank)</h3>
+        <p>Rerank 回填集合,由 <code>scripts/provision_qdrant_rerank.py</code> 程序化创建。使用 multivector(late-interaction)嵌入,96 维,Cosine 距离,MAX_SIM 比较器。HNSW m=0(暴力搜索,适合小集合)。回填版本 <code>20260728_answerai_colbert_small_v1</code>。</p>
+        <dl class="kv">
+          <dt>collection</dt><dd><code>researchmate_chunks_v2</code></dd>
+          <dt>vector name</dt><dd><code>multi</code></dd>
+          <dt>multivector.size</dt><dd><code>96</code></dd>
+          <dt>multivector.distance</dt><dd><code>Cosine</code></dd>
+          <dt>multivector.comparator</dt><dd><code>MAX_SIM</code></dd>
+          <dt>hnsw.m</dt><dd><code>0 (brute-force)</code></dd>
+          <dt>payload indexes</dt><dd><code>user_id, project_id, document_id, source_type (all keyword)</code></dd>
+          <dt>验证</dt><dd>点数校验 + 租户过滤样本查询校验;chunk ID 的 SHA-256 摘要存入 researchmate_vector_migrations</dd>
+        </dl>
+      </section>
+      <section id="openapi">
+        <p class="eyebrow">OpenAPI 规范详解</p>
+        <h2>45 个端点 / 11 个 tag / 65 个 schema</h2>
+        <p class="sub">openapi.yaml(168 KB)由 export_openapi.py 从 FastAPI 应用确定性渲染。39 个 path 上承载 45 个端点(method x path 组合),按 11 个 tag 分组。65 个 schema 含 64 个 component schema 和 HTTPBearer 安全方案。</p>
+        <h3>Tag 分布</h3>
+        <div class="scroll"><table class="dense">
+          <thead><tr>
+            <th>Tag</th>
+            <th>端点数</th>
+            <th>路径列表</th>
+          </tr></thead><tbody>
+            <tr>
+              <td><code>health</code></td>
+              <td>2</td>
+              <td><code>GET /api/v1/healthz</code><br/><code>GET /api/v1/readyz</code></td>
+            </tr>
+            <tr>
+              <td><code>auth</code></td>
+              <td>1</td>
+              <td><code>GET /api/v1/me</code></td>
+            </tr>
+            <tr>
+              <td><code>projects</code></td>
+              <td>5</td>
+              <td><code>POST /api/v1/projects</code><br/><code>GET /api/v1/projects</code><br/><code>GET /api/v1/projects/{project_id}</code><br/><code>PATCH /api/v1/projects/{project_id}</code><br/><code>DELETE /api/v1/projects/{project_id}</code></td>
+            </tr>
+            <tr>
+              <td><code>documents</code></td>
+              <td>7</td>
+              <td><code>POST /api/v1/documents/upload-url</code><br/><code>POST /api/v1/documents</code><br/><code>GET /api/v1/documents</code><br/><code>GET /api/v1/projects/{project_id}/documents</code><br/><code>GET /api/v1/conversations/{conversation_id}/documents</code><br/><code>GET /api/v1/documents/{document_id}</code><br/><code>POST /api/v1/documents/{document_id}/complete</code><br/><code>DELETE /api/v1/documents/{document_id}</code></td>
+            </tr>
+            <tr>
+              <td><code>jobs</code></td>
+              <td>1</td>
+              <td><code>GET /api/v1/jobs/{job_id}</code></td>
+            </tr>
+            <tr>
+              <td><code>conversations</code></td>
+              <td>8</td>
+              <td><code>POST /api/v1/conversations</code><br/><code>GET /api/v1/conversations</code><br/><code>GET /api/v1/projects/{project_id}/conversations</code><br/><code>GET /api/v1/conversations/{conversation_id}/messages</code><br/><code>POST /api/v1/conversations/{conversation_id}/messages</code><br/><code>GET /api/v1/conversations/{conversation_id}</code><br/><code>PATCH /api/v1/conversations/{conversation_id}</code><br/><code>DELETE /api/v1/conversations/{conversation_id}</code></td>
+            </tr>
+            <tr>
+              <td><code>ask</code></td>
+              <td>1</td>
+              <td><code>POST /api/v1/ask</code></td>
+            </tr>
+            <tr>
+              <td><code>quiz</code></td>
+              <td>2</td>
+              <td><code>POST /api/v1/quiz</code><br/><code>GET /api/v1/projects/{project_id}/quiz</code></td>
+            </tr>
+            <tr>
+              <td><code>sources</code></td>
+              <td>1</td>
+              <td><code>GET /api/v1/runs/{run_id}/sources</code></td>
+            </tr>
+            <tr>
+              <td><code>developer-trace</code></td>
+              <td>1</td>
+              <td><code>GET /api/v1/dev/traces/{trace_id}</code></td>
+            </tr>
+            <tr>
+              <td><code>evidence-review</code></td>
+              <td>16</td>
+              <td><code>POST /api/v1/research-runs</code><br/><code>GET /api/v1/runs/{run_id}</code><br/><code>GET /api/v1/runs/{run_id}/events</code><br/><code>POST /api/v1/runs/{run_id}/decisions</code><br/><code>GET /api/v1/projects/{project_id}/claims</code><br/><code>GET /api/v1/projects/{project_id}/claim-relations</code><br/><code>GET /api/v1/projects/{project_id}/reports</code><br/><code>GET /api/v1/reports/{report_id}</code><br/><code>GET /api/v1/pipeline-versions</code><br/><code>GET /api/v1/evaluation-datasets</code><br/><code>POST /api/v1/reports/{report_id}/refresh</code><br/><code>POST /api/v1/evaluation-runs</code><br/><code>GET /api/v1/evaluation-runs/{evaluation_run_id}</code><br/><code>POST /api/v1/dev/reliability</code><br/><code>POST /api/v1/dev/fault-scenarios</code><br/><code>DELETE /api/v1/dev/fault-scenarios/{exercise_id}</code></td>
+            </tr>
+            <tr><td><strong>合计</strong></td><td><strong>45</strong></td><td><strong>39 个 path / 11 个 tag</strong></td></tr>
+          </tbody></table></div>
+        <h3>65 个 schema(含 HTTPBearer)</h3>
+        <p>64 个 component schema + 1 个 HTTPBearer 安全方案 = 65。按字母排序:</p>
+        <div class="grid">
+          <article class="fact"><b>AskRequest</b></article>
+          <article class="fact"><b>AskResponse</b></article>
+          <article class="fact"><b>Citation</b></article>
+          <article class="fact"><b>ClaimListResponse</b></article>
+          <article class="fact"><b>ClaimRelationListResponse</b></article>
+          <article class="fact"><b>ClaimRelationSummary</b></article>
+          <article class="fact"><b>ClaimSummary</b></article>
+          <article class="fact"><b>ConversationCreate</b></article>
+          <article class="fact"><b>ConversationListResponse</b></article>
+          <article class="fact"><b>ConversationMessage</b></article>
+          <article class="fact"><b>ConversationMessagesResponse</b></article>
+          <article class="fact"><b>ConversationSummary</b></article>
+          <article class="fact"><b>ConversationUpdate</b></article>
+          <article class="fact"><b>CurrentUser</b></article>
+          <article class="fact"><b>DeveloperTrace</b></article>
+          <article class="fact"><b>Difficulty</b></article>
+          <article class="fact"><b>DocumentRecord</b></article>
+          <article class="fact"><b>DocumentStatus</b></article>
+          <article class="fact"><b>ErrorDetail</b></article>
+          <article class="fact"><b>ErrorResponse</b></article>
+          <article class="fact"><b>EvaluationDatasetListResponse</b></article>
+          <article class="fact"><b>EvaluationDatasetSummary</b></article>
+          <article class="fact"><b>EvaluationRunAccepted</b></article>
+          <article class="fact"><b>EvaluationRunCreate</b></article>
+          <article class="fact"><b>EvaluationRunRecord</b></article>
+          <article class="fact"><b>ExecutionPlan</b></article>
+          <article class="fact"><b>FaultScenarioAccepted</b></article>
+          <article class="fact"><b>FaultScenarioCreate</b></article>
+          <article class="fact"><b>FaultScenarioRecord</b></article>
+          <article class="fact"><b>HumanDecisionAccepted</b></article>
+          <article class="fact"><b>HumanDecisionCreate</b></article>
+          <article class="fact"><b>JobRecord</b></article>
+          <article class="fact"><b>JobStatus</b></article>
+          <article class="fact"><b>PipelineVersionListResponse</b></article>
+          <article class="fact"><b>PipelineVersionSummary</b></article>
+          <article class="fact"><b>ProjectCreate</b></article>
+          <article class="fact"><b>ProjectRecord</b></article>
+          <article class="fact"><b>QuizCoverage</b></article>
+          <article class="fact"><b>QuizHistoryResponse</b></article>
+          <article class="fact"><b>QuizQuestion</b></article>
+          <article class="fact"><b>QuizRequest</b></article>
+          <article class="fact"><b>QuizResponse</b></article>
+          <article class="fact"><b>QuizSet</b></article>
+          <article class="fact"><b>ReliabilityResponse</b></article>
+          <article class="fact"><b>ReportDetail</b></article>
+          <article class="fact"><b>ReportListResponse</b></article>
+          <article class="fact"><b>ReportRefreshAccepted</b></article>
+          <article class="fact"><b>ReportRefreshCreate</b></article>
+          <article class="fact"><b>ReportSectionRecord</b></article>
+          <article class="fact"><b>ReportSummary</b></article>
+          <article class="fact"><b>ResearchRunAccepted</b></article>
+          <article class="fact"><b>ResearchRunCreate</b></article>
+          <article class="fact"><b>RunSourcesResponse</b></article>
+          <article class="fact"><b>RuntimeRerankConfig</b></article>
+          <article class="fact"><b>RuntimeRerankConfigUpdate</b></article>
+          <article class="fact"><b>SourceScope</b></article>
+          <article class="fact"><b>SourceSummary</b></article>
+          <article class="fact"><b>SourceType</b></article>
+          <article class="fact"><b>TaskType</b></article>
+          <article class="fact"><b>ToolCallTrace</b></article>
+          <article class="fact"><b>UploadCompleteRequest</b></article>
+          <article class="fact"><b>UploadUrlRequest</b></article>
+          <article class="fact"><b>UploadUrlResponse</b></article>
+          <article class="fact"><b>WorkflowRunRecord</b></article>
+          <article class="fact"><b>HTTPBearer</b><p>安全方案(securitySchemes),非 component schema</p></article>
+        </div>
+      </section>
+      <section id="scripts">
+        <p class="eyebrow">scripts/ 逐文件详解</p>
+        <h2>8 个运维脚本</h2>
+        <p class="sub">5 个 Python 脚本 + 2 个 PowerShell 脚本 + 1 个编码修复脚本。所有脚本均使用环境变量门控或审批标志。</p>
+        <details id="script-01"><summary>1. apply_migrations.py</summary>
+          <dl class="kv">
+            <dt>Language</dt><dd><code>Python</code></dd>
+            <dt>行数</dt><dd>96</dd>
+            <dt>职责</dt><dd>校验并显式应用有序 additive PostgreSQL 迁移。强制唯一版本前缀、拒绝空文件和 DROP DATABASE、获取 pg_advisory_xact_lock、用 SHA-256 校验和追踪已应用迁移,校验和不匹配时报错。需要 ALLOW_SCHEMA_APPLY=1。</dd>
+            <dt>细节</dt><dd>两种模式:--check-files(仅校验)和 --apply(完整执行)。Advisory lock key 726334129。单事务执行。</dd>
+          </dl>
+        </details>
+        <details id="script-02"><summary>2. bootstrap_demo_catalog.py</summary>
+          <dl class="kv">
+            <dt>Language</dt><dd><code>Python</code></dd>
+            <dt>行数</dt><dd>150</dd>
+            <dt>职责</dt><dd>从已就绪的项目 chunks 引导创建 accepted demo pipeline version 和 frozen evaluation dataset。为明确批准的 developer/admin 用户和项目创建幂等目录记录。需要 ALLOW_DEMO_BOOTSTRAP=1。</dd>
+            <dt>细节</dt><dd>读取最多 --case-limit(默认 10,上限 50)个已就绪 chunks,生成具有确定性 case_key 的 evaluation cases,冻结数据集,以 JSON 返回 pipeline_version_id + dataset_id。</dd>
+          </dl>
+        </details>
+        <details id="script-03"><summary>3. check_contracts.ps1</summary>
+          <dl class="kv">
+            <dt>Language</dt><dd><code>PowerShell</code></dd>
+            <dt>行数</dt><dd>14</dd>
+            <dt>职责</dt><dd>使用固定本地 Python 环境(D:\software\env\researchmate)运行 pytest,校验 test_project_scaffold、test_api_workflow 和 test_frontend_contracts 核心仓库契约。</dd>
+            <dt>细节</dt><dd>venv 不存在时自动创建;可选 -InstallDependencies 参数运行 uv sync --frozen --all-packages --group dev。</dd>
+          </dl>
+        </details>
+        <details id="script-04"><summary>4. dev_api.ps1</summary>
+          <dl class="kv">
+            <dt>Language</dt><dd><code>PowerShell</code></dd>
+            <dt>行数</dt><dd>13</dd>
+            <dt>职责</dt><dd>使用固定 venv(D:\software\env\researchmate)在 127.0.0.1:8000 启动本地可重载 uvicorn API 服务器。</dd>
+            <dt>细节</dt><dd>venv 不存在时自动创建;可选 -InstallDependencies 运行 uv sync。执行:python -m uvicorn researchmate_api.main:app --reload --host 127.0.0.1 --port 8000</dd>
+          </dl>
+        </details>
+        <details id="script-05"><summary>5. export_openapi.py</summary>
+          <dl class="kv">
+            <dt>Language</dt><dd><code>Python</code></dd>
+            <dt>行数</dt><dd>36</dd>
+            <dt>职责</dt><dd>将 FastAPI OpenAPI schema 渲染为确定性 YAML,写入或校验 infra/openapi/openapi.yaml 跟踪文件。使用 Settings(app_env='test', llm_provider='fake') 生成稳定 schema。</dd>
+            <dt>细节</dt><dd>默认写入文件;--check 在跟踪文件过期时报错。import 路径插入 apps/api/src 用于模块解析。</dd>
+          </dl>
+        </details>
+        <details id="script-06"><summary>6. provision_qdrant_rerank.py</summary>
+          <dl class="kv">
+            <dt>Language</dt><dd><code>Python</code></dd>
+            <dt>行数</dt><dd>152</dd>
+            <dt>职责</dt><dd>引导并验证经明确批准的 Qdrant rerank 回填。创建 researchmate_chunks_v2 集合(多向量/late-interaction 嵌入),创建 payload 索引,以 32 条为一批回填向量,并记录验证元数据。需要 ALLOW_QDRANT_RERANK_BACKFILL=1 和 QDRANT_RERANK_MODEL_IS_FREE=true。</dd>
+            <dt>细节</dt><dd>回填版本 20260728_answerai_colbert_small_v1。创建 researchmate_vector_migrations 追踪表,验证点数和租户过滤样本查询,存储 chunk ID 的 SHA-256 摘要。</dd>
+          </dl>
+        </details>
+        <details id="script-07"><summary>7. repair_docs_html_encoding.py</summary>
+          <dl class="kv">
+            <dt>Language</dt><dd><code>Python</code></dd>
+            <dt>行数</dt><dd>83</dd>
+            <dt>职责</dt><dd>修复已知的 HTML 文档编码损坏。恢复被乱码替换的导航标签,修复 summary 标签,恢复 7 个文档页的 lead 段落,将每页内联样式替换为共享 site.css 链接。</dd>
+            <dt>细节</dt><dd>两个阶段:repair_common_wrappers(正则修复)和 unify_shared_styles(共享样式表的相对路径计算)。</dd>
+          </dl>
+        </details>
+        <details id="script-08"><summary>8. setup_langgraph_checkpoint.py</summary>
+          <dl class="kv">
+            <dt>Language</dt><dd><code>Python</code></dd>
+            <dt>行数</dt><dd>26</dd>
+            <dt>职责</dt><dd>在经批准的 schema 阶段创建 LangGraph 拥有的 checkpoint 表。将 DATABASE_URL 从 postgresql+psycopg:// 转换为 postgresql:// 并调用 PostgresSaver.setup()。需要 ALLOW_SCHEMA_APPLY=1。</dd>
+            <dt>细节</dt><dd>LangGraph 拥有并版本化其 checkpoint DDL。仅在受保护的发布迁移阶段运行,切勿在任务交付期间并发运行。</dd>
+          </dl>
+        </details>
+      </section>
+      <section id="proof-chain">
+        <p class="eyebrow">迁移执行流程</p>
+        <h2>apply_migrations.py proof chain</h2>
+        <p class="sub">7 步验证链确保迁移安全、有序、可审计地应用。</p>
+        <div class="proof-chain">
+          <div class="proof-step"><b>1. Enforce unique prefixes</b><small>migration_files() 排序所有 .sql 文件,校验版本前缀(第一个下划线前的 YYYYMMDDNNN 部分)在整个集合中唯一。</small></div>
+          <div class="proof-step"><b>2. Reject destructive content</b><small>validate_files() 对每个文件去空白,拒绝空迁移,阻止包含 DROP DATABASE 的文件(不区分大小写)。</small></div>
+          <div class="proof-step"><b>3. Approval gate</b><small>apply 路径需要环境变量 ALLOW_SCHEMA_APPLY=1。未设置时脚本立即退出,不触碰数据库。</small></div>
+          <div class="proof-step"><b>4. Advisory transaction lock</b><small>pg_advisory_xact_lock(726334129) 在当前事务内串行化迁移执行,防止并发运行。</small></div>
+          <div class="proof-step"><b>5. Tracking table bootstrap</b><small>如不存在则创建 researchmate_schema_migrations(version PK, checksum_sha256, applied_at),随后读取所有已应用记录。</small></div>
+          <div class="proof-step"><b>6. Checksum verification</b><small>对追踪表中已有的每个文件重新计算 SHA-256 并比较。任何漂移触发 RuntimeError,中止执行。</small></div>
+          <div class="proof-step"><b>7. Apply and record</b><small>未应用的迁移按序在事务内执行,然后连同 SHA-256 摘要插入追踪表。事务仅提交一次。</small></div>
+        </div>
+      </section>
+      <section id="relationships">
+        <p class="eyebrow">表关系图</p>
+        <h2>27 条外键关系</h2>
+        <p class="sub">cascade 表示级联删除,set null 表示置空,restrict 表示禁止删除。</p>
+        <div class="relation-ledger">
+          <div class="relation-edge cascade"><code>profiles &rarr; projects</code><small>cascade &middot; user_id</small></div>
+          <div class="relation-edge cascade"><code>projects &rarr; documents</code><small>cascade &middot; project_id</small></div>
+          <div class="relation-edge cascade"><code>documents &rarr; document_pages</code><small>cascade &middot; document_id</small></div>
+          <div class="relation-edge cascade"><code>projects &rarr; chunks</code><small>cascade &middot; project_id</small></div>
+          <div class="relation-edge cascade"><code>documents &rarr; chunks</code><small>cascade &middot; document_id</small></div>
+          <div class="relation-edge cascade"><code>projects &rarr; conversations</code><small>cascade &middot; project_id</small></div>
+          <div class="relation-edge cascade"><code>conversations &rarr; messages</code><small>cascade &middot; conversation_id</small></div>
+          <div class="relation-edge cascade"><code>conversations &rarr; documents</code><small>cascade &middot; conversation_id(009 新增)</small></div>
+          <div class="relation-edge cascade"><code>projects &rarr; ask_runs</code><small>cascade &middot; project_id</small></div>
+          <div class="relation-edge cascade"><code>ask_runs &rarr; tool_calls</code><small>cascade &middot; ask_run_id</small></div>
+          <div class="relation-edge cascade"><code>ask_runs &rarr; citations</code><small>cascade &middot; ask_run_id</small></div>
+          <div class="relation-edge set-null"><code>ask_runs &rarr; quiz_sets</code><small>set null &middot; ask_run_id</small></div>
+          <div class="relation-edge cascade"><code>quiz_sets &rarr; quiz_questions</code><small>cascade &middot; quiz_set_id</small></div>
+          <div class="relation-edge "><code>pipeline_versions &rarr; workflow_runs</code><small>restrict &middot; pipeline_version_id</small></div>
+          <div class="relation-edge cascade"><code>workflow_runs &rarr; run_events</code><small>cascade &middot; run_id</small></div>
+          <div class="relation-edge cascade"><code>workflow_runs &rarr; research_questions</code><small>cascade &middot; source_run_id</small></div>
+          <div class="relation-edge set-null"><code>research_questions &rarr; claims</code><small>set null &middot; question_id</small></div>
+          <div class="relation-edge cascade"><code>claims &rarr; claim_evidence</code><small>cascade &middot; claim_id</small></div>
+          <div class="relation-edge cascade"><code>citations &rarr; claim_evidence</code><small>cascade &middot; citation_id</small></div>
+          <div class="relation-edge cascade"><code>claims &rarr; claim_relations</code><small>cascade &middot; source/target_claim_id</small></div>
+          <div class="relation-edge "><code>workflow_runs &rarr; reports</code><small>restrict &middot; source_run_id</small></div>
+          <div class="relation-edge cascade"><code>reports &rarr; report_sections</code><small>cascade &middot; report_id</small></div>
+          <div class="relation-edge cascade"><code>workflow_runs &rarr; human_decisions</code><small>cascade &middot; run_id</small></div>
+          <div class="relation-edge cascade"><code>evaluation_datasets &rarr; evaluation_cases</code><small>cascade &middot; dataset_id</small></div>
+          <div class="relation-edge "><code>pipeline_versions &rarr; evaluation_runs</code><small>restrict &middot; pipeline_version_id</small></div>
+          <div class="relation-edge cascade"><code>evaluation_runs &rarr; evaluation_scores</code><small>cascade &middot; evaluation_run_id</small></div>
+          <div class="relation-edge set-null"><code>workflow_runs &rarr; fault_exercises</code><small>set null &middot; target_run_id</small></div>
+        </div>
+      </section>
+      <section id="further">
+        <p class="eyebrow">延伸阅读</p>
+        <h2>相关文档</h2>
+        <div class="doc-index">
+          <a class="doc-link" href="../contracts/data/index.zh.html"><b>数据库契约</b><span>完整的表定义、RLS 策略与数据生命周期。</span></a>
+          <a class="doc-link" href="../contracts/api/index.zh.html"><b>API 契约</b><span>45 个端点的请求/响应规范与认证流程。</span></a>
+          <a class="doc-link" href="../architecture/index.zh.html"><b>架构与技术栈</b><span>系统分层、数据流与安全边界。</span></a>
+          <a class="doc-link" href="backend.zh.html"><b>后端学习</b><span>FastAPI 应用的逐文件源码解析。</span></a>
+          <a class="doc-link" href="worker.zh.html"><b>Worker 学习</b><span>Celery worker 的任务交付与 lease 机制。</span></a>
+          <a class="doc-link" href="cicd.zh.html"><b>CI/CD</b><span>持续集成与部署流程。</span></a>
+        </div>
+      </section>
+    </div>
+    <aside class="toc"><b>目录</b>
+      <a href="#stack">技术栈基础</a>
+      <a href="#tree">目录树</a>
+      <a href="#migrations">SQL 迁移</a>
+      <a href="#tables">表清单</a>
+      <a href="#qdrant">Qdrant</a>
+      <a href="#openapi">OpenAPI</a>
+      <a href="#scripts">脚本</a>
+      <a href="#proof-chain">迁移流程</a>
+      <a href="#relationships">表关系</a>
+      <a href="#further">延伸阅读</a>
+    </aside></div>
+  </main>
+  <footer class="shell footer">ResearchMate 基础设施学习指南 . 2026 年 8 月 6 日</footer>
+  <script src="../assets/site.js"></script>
+</body>
+</html>

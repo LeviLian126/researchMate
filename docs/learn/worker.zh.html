@@ -9,22 +9,22 @@
   <style>.module-nav{border-top:1px solid var(--g200)}.module-nav .shell{padding:6px 0 12px}.module-nav a{font-size:11.5px;padding:5px 11px}</style>
 </head>
 <body>
-  <header class="mast"><div class="shell mast-row"><a class="brand" href="../index.html">ResearchMate documentation</a><div class="mast-right"><span class="stamp">Worker . 2026 年 8 月 6 日</span><a class="lang-toggle" href="worker.html" hreflang="en" lang="en">English</a></div></div></header>
-  <nav aria-label="Documentation" class="global"><div class="shell">
-    <a href="../index.html">概览</a>
-    <a href="../product/index.html">产品与路线图</a>
-    <a href="../architecture/index.html">架构与技术栈</a>
-    <a href="../contracts/data/index.html">数据库</a>
-    <a href="../contracts/api/index.html">API</a>
-    <a aria-current="page" href="index.html">学习</a>
+  <header class="mast"><div class="shell mast-row"><a class="brand" href="../index.zh.html">ResearchMate 文档</a><div class="mast-right"><span class="stamp">Worker . 2026 年 8 月 6 日</span><a class="lang-toggle" href="worker.html" hreflang="en" lang="en">English</a></div></div></header>
+  <nav aria-label="文档" class="global"><div class="shell">
+    <a href="../index.zh.html">概览</a>
+    <a href="../product/index.zh.html">产品与路线图</a>
+    <a href="../architecture/index.zh.html">架构与技术栈</a>
+    <a href="../contracts/data/index.zh.html">数据库</a>
+    <a href="../contracts/api/index.zh.html">API</a>
+    <a aria-current="page" href="index.zh.html">学习</a>
   </div></nav>
   <nav aria-label="Learning modules" class="global module-nav"><div class="shell">
-    <a href="frontend.html">Frontend</a>
-    <a href="backend.html">Backend</a>
-    <a aria-current="page" href="worker.html">Worker</a>
-    <a href="infra.html">Infrastructure</a>
-    <a href="cicd.html">CI/CD</a>
-    <a href="contracts-tests.html">Contracts &amp; Tests</a>
+    <a href="frontend.zh.html">Frontend</a>
+    <a href="backend.zh.html">Backend</a>
+    <a aria-current="page" href="worker.zh.html">Worker</a>
+    <a href="infra.zh.html">Infrastructure</a>
+    <a href="cicd.zh.html">CI/CD</a>
+    <a href="contracts-tests.zh.html">Contracts &amp; Tests</a>
   </div></nav>
   <main class="shell">
     <div class="hero">
@@ -261,3 +261,197 @@
         </div>
         <div class="notice"><strong>7 种 event type 到 6 个 task name:</strong> document.ingest.requested、document.delete.requested、project.delete.requested、workflow.run.requested、workflow.resume.requested(均映射到 run_workflow)、evaluation.run.requested、fault.exercise.requested。队列路由:deletion event 到 deletion 队列,workflow event 到 workflow 队列,evaluation event 到 evaluation 队列,fault event 到 reliability 队列,ingestion event 到配置的 ingestion 队列。</div>
       </section>
+      <section id="queue-config">
+        <p class="eyebrow">Celery 队列配置</p>
+        <h2>6 个 task 路由到 5 个队列</h2>
+        <p class="sub">每个 task 设有有界 max_retries 和指数退避 min(300, 2^min(retries+1, 8))。组合部署的 worker 以 --pool=solo --concurrency=1 消费全部 5 个队列。</p>
+        <div class="scroll"><table class="dense">
+          <thead><tr><th>Task name</th><th>Queue</th><th>max_retries</th><th>Event type(s)</th><th>Service</th></tr></thead>
+          <tbody>
+            <tr><td><code>researchmate.ingest_document</code></td><td>ingestion</td><td>5</td><td>document.ingest.requested</td><td>DocumentIngestionService</td></tr>
+            <tr><td><code>researchmate.delete_document</code></td><td>deletion</td><td>5</td><td>document.delete.requested</td><td>DocumentDeletionService</td></tr>
+            <tr><td><code>researchmate.delete_project</code></td><td>deletion</td><td>8</td><td>project.delete.requested</td><td>ProjectDeletionService</td></tr>
+            <tr><td><code>researchmate.run_workflow</code></td><td>workflow</td><td>5</td><td>workflow.run.requested, workflow.resume.requested</td><td>SqlEvidenceWorkflowDomain</td></tr>
+            <tr><td><code>researchmate.run_evaluation</code></td><td>evaluation</td><td>3</td><td>evaluation.run.requested</td><td>EvaluationRunner</td></tr>
+            <tr><td><code>researchmate.run_fault_simulation</code></td><td>reliability</td><td>3</td><td>fault.exercise.requested</td><td>FaultSimulationService</td></tr>
+          </tbody>
+        </table></div>
+        <div class="notice"><strong>5 个队列:</strong> ingestion、deletion、workflow、evaluation、reliability。两个 deletion task 共享 deletion 队列。render_combined.py 中的 QUEUES 常量为 "ingestion,deletion,workflow,evaluation,reliability"。</div>
+      </section>
+
+      <section id="worker-api-graph">
+        <p class="eyebrow">Worker 到 API 的依赖</p>
+        <h2>Worker &rarr; API 依赖图</h2>
+        <p class="sub">Worker 从 researchmate_api 包导入 adapter、schema 和 domain 函数。箭头从 worker 模块指向它所导入的 API 模块。</p>
+        <pre class="command-block"><code>task_builders.py
+  → researchmate_api.services.llm          (NvidiaChatProvider, ChatProvider)
+  → researchmate_api.services.embedding    (NvidiaEmbeddingProvider)
+  → researchmate_api.services.qdrant_store (QdrantHybridStore)
+  → researchmate_api.services.object_storage (S3CompatibleObjectStorage)
+  → researchmate_api.services.web_search   (TavilyWebSearchProvider)
+
+budget.py
+  → researchmate_api.services.llm          (ChatProvider, LLMResult)
+
+workflow_execution.py
+  → researchmate_api.schemas.common        (SourceType)
+  → researchmate_api.services.evidence_generation (ExtractedClaim, ReportProposal, synthesize_report)
+  → researchmate_api.services.web_search   (WebSearchRequestError)
+
+workflow_commit.py
+  → researchmate_api.schemas.common        (SourceType)
+  → researchmate_api.services.evidence_generation (ReportProposal)
+
+workflow_loader.py
+  → researchmate_api.services.store        (ChunkEntry)
+
+evaluation_executor.py
+  → researchmate_api.schemas.common        (SourceType)
+  → researchmate_api.services.answering    (build_llm_grounded_answer)
+  → researchmate_api.services.llm          (ChatProvider)
+  → researchmate_api.services.qdrant_store (QdrantHybridStore)
+  → researchmate_api.services.store        (ChunkEntry)
+
+ingestion_models.py
+  → researchmate_api.services.store        (ChunkEntry)
+
+ingestion_projections.py
+  → researchmate_api.schemas.common        (SourceType)
+  → researchmate_api.services.store        (ChunkEntry)
+
+deletion_document.py / deletion_project.py
+  → researchmate_api.services.object_storage (ObjectStorageRequestError)
+  → researchmate_api.services.qdrant_store (VectorStoreRequestError)
+
+tasks.py
+  → researchmate_api.services.evidence_generation (EvidenceGenerationError)
+  → researchmate_api.services.llm          (ProviderRequestError)
+  → researchmate_api.services.qdrant_store (VectorStoreRequestError)</code></pre>
+        <div class="notice"><strong>共享 adapter 层:</strong> Worker 复用与 API 完全相同的 adapter 类(NvidiaChatProvider、QdrantHybridStore、S3CompatibleObjectStorage、TavilyWebSearchProvider)。task_builders.py 从 WorkerSettings 构造它们,为 workflow 运行将 NvidiaChatProvider 包装在 BudgetedChatProvider 中。两个包之间没有重复的 adapter。</div>
+      </section>
+
+      <section id="internal-graph">
+        <p class="eyebrow">内部模块依赖</p>
+        <h2>内部模块依赖图</h2>
+        <p class="sub">Worker 源码文件之间的依赖关系,按层分组。箭头从依赖方指向被依赖方。</p>
+        <pre class="command-block"><code>tasks.py (Celery task registration)
+  → celery_app.py        (celery_app instance, retry signals)
+  → config.py            (WorkerSettings, psycopg_database_url)
+  → task_builders.py     (build_* functions, task event models)
+  → budget.py            (WorkflowBudgetExceeded)
+  → ingestion.py         (IngestionEvent, IngestionFailure)
+  → deletion.py          (DocumentDeletionEvent, ProjectDeletionEvent)
+  → evaluation.py        (EvaluationRuntimeError)
+  → evidence_graph.py    (build_evidence_graph)
+  → workflow_runtime.py  (WorkflowRuntimeError)
+
+task_builders.py (service construction)
+  → config.py            (WorkerSettings)
+  → budget.py            (BudgetedChatProvider)
+  → ingestion.py         (DocumentIngestionService, SqlIngestionStore)
+  → deletion.py          (DocumentDeletionService, ProjectDeletionService)
+  → evaluation.py        (EvaluationRunner, QdrantCaseExecutor, RagasFaithfulnessScorer)
+  → fault_simulation.py  (FaultSimulationService)
+  → parsing.py           (DoclingDocumentParser)
+  → workflow_runtime.py  (SqlEvidenceWorkflowDomain)
+
+workflow_runtime.py
+  → workflow_core.py     (SqlEvidenceWorkflowDomain base class)
+  → evidence_graph.py    (EvidenceWorkflowState)
+  → workflow_models.py   (WorkflowPipelineConfig, WorkflowRuntimeError)
+
+workflow_core.py (SqlEvidenceWorkflowDomain)
+  → workflow_execution.py (WorkflowExecutionMixin)
+  → workflow_commit.py    (WorkflowCommitMixin)
+  → workflow_events.py    (WorkflowEventsMixin)
+  → workflow_models.py    (WorkflowPipelineConfig, WorkflowRuntimeError)
+
+workflow_commit.py
+  → workflow_loader.py   (WorkflowEvidenceLoaderMixin)
+  → workflow_models.py   (WorkflowRuntimeError, _json)
+  → evidence_graph.py    (EvidenceWorkflowState)
+
+evaluation_runner.py
+  → evaluation_persistence.py (EvaluationPersistenceMixin)
+  → evaluation_scoring.py     (deterministic_scores)
+  → evaluation_summary.py     (_safe_evaluation_error)
+  → evaluation_models.py      (CaseExecutor, ClaimedEvaluation, etc.)
+
+evaluation_persistence.py
+  → evaluation_models.py  (ClaimedEvaluation, MetricScore, etc.)
+  → evaluation_summary.py (_metric_aggregates, build_regression_summary, json_dumps)
+
+deletion.py (facade)
+  → deletion_document.py  (SqlDeletionStore, DocumentDeletionService)
+  → deletion_models.py    (DeletionRecord, Protocol contracts)
+  → deletion_project.py   (SqlProjectDeletionStore, ProjectDeletionService)
+
+deletion_document.py / deletion_project.py
+  → deletion_models.py    (Protocol contracts, records)
+  → ingestion.py          (IngestionFailure)
+
+ingestion.py (facade)
+  → ingestion_models.py       (events, records, protocols)
+  → ingestion_projections.py  (build_projections)
+  → ingestion_service.py      (DocumentIngestionService)
+  → ingestion_store.py        (SqlIngestionStore)
+
+ingestion_service.py
+  → ingestion_models.py       (IngestionFailure, protocols)
+  → ingestion_projections.py  (build_projections)
+
+ingestion_projections.py
+  → ingestion_models.py   (IngestionRecord, PageProjections, ParsedBlock)
+  → jobs.py               (chunk_text_for_index)
+
+dispatch_outbox.py
+  → celery_app.py     (celery_app instance)
+  → config.py         (WorkerSettings)
+  → outbox.py         (OutboxDispatcher, SqlOutboxStore, CeleryTaskPublisher)
+  → runtime_health.py (record_heartbeat)
+
+celery_app.py
+  → config.py         (WorkerSettings, psycopg_database_url)
+  → runtime_health.py (record_heartbeat)</code></pre>
+        <div class="notice"><strong>Facade 模式:</strong> ingestion.py、deletion.py 和 evaluation.py 是纯重导出 facade。它们提供稳定的导入入口,使 task_builders.py 和 tasks.py 每个域只依赖单一模块。域内文件的内部重构不会破坏下游导入。</div>
+      </section>
+
+      <section id="further-reading">
+        <p class="eyebrow">延伸阅读</p>
+        <h2>相关文档</h2>
+        <div class="doc-index">
+          <a class="doc-link" href="../architecture/index.zh.html"><b>架构与技术栈</b><span>系统概览中的 Celery、LangGraph、Qdrant 和 outbox 模式</span></a>
+          <a class="doc-link" href="backend.zh.html"><b>后端学习</b><span>FastAPI router、service 和持久层,它们入队由此 worker 消费的 outbox event</span></a>
+          <a class="doc-link" href="../contracts/data/index.zh.html"><b>数据库</b><span>jobs、documents、chunks、workflow_runs、outbox_events、evaluation_runs 的表结构</span></a>
+          <a class="doc-link" href="../contracts/api/index.zh.html"><b>API</b><span>触发 ingestion、deletion、workflow 和 evaluation task 的 REST 端点</span></a>
+          <a class="doc-link" href="infra.zh.html"><b>基础设施</b><span>部署拓扑、进程监管和托管服务配置</span></a>
+          <a class="doc-link" href="cicd.zh.html"><b>CI/CD</b><span>构建、测试和部署 worker 镜像的流水线阶段</span></a>
+        </div>
+      </section>
+
+    </div>
+    <aside class="toc"><b>本页目录</b>
+      <a href="#stack">技术栈</a>
+      <a href="#tree">目录树</a>
+      <a href="#config-entry">配置与入口</a>
+      <a href="#ingestion">Ingestion</a>
+      <a href="#outbox">Outbox</a>
+      <a href="#langgraph">LangGraph</a>
+      <a href="#deletion">Deletion</a>
+      <a href="#evaluation">Evaluation</a>
+      <a href="#reliability">可靠性</a>
+      <a href="#supervision">进程监管</a>
+      <a href="#ingestion-slice">Ingestion proof chain</a>
+      <a href="#workflow-slice">Workflow proof chain</a>
+      <a href="#outbox-slice">Outbox proof chain</a>
+      <a href="#queue-config">队列配置</a>
+      <a href="#worker-api-graph">Worker &rarr; API 依赖图</a>
+      <a href="#internal-graph">内部依赖图</a>
+      <a href="#further-reading">延伸阅读</a>
+    </aside></div>
+  </main>
+  <footer class="shell footer">ResearchMate Worker 学习指南 . 撰写于 2026 年 8 月 6 日</footer>
+  <script src="../assets/site.js"></script>
+</body>
+</html>
+

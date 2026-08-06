@@ -1,0 +1,412 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width,initial-scale=1" name="viewport"/>
+  <meta content="ResearchMate CI/CD learning guide: GitHub Actions pipeline, multi-stage Dockerfiles, Render deployment, dependency management, and environment configuration explained file-by-file." name="description"/>
+  <title>ResearchMate . CI/CD learning</title>
+  <link href="../assets/site.css" rel="stylesheet"/>
+  <style>.module-nav{border-top:1px solid var(--g200)}.module-nav .shell{padding:6px 0 12px}.module-nav a{font-size:11.5px;padding:5px 11px}</style>
+</head>
+<body>
+  <header class="mast"><div class="shell mast-row"><a class="brand" href="../index.html">ResearchMate documentation</a><div class="mast-right"><span class="stamp">CI/CD . 6 August 2026</span><a class="lang-toggle" href="cicd.zh.html" hreflang="zh" lang="zh">中文</a></div></div></header>
+  <nav aria-label="Documentation" class="global"><div class="shell">
+    <a href="../index.html">Overview</a>
+    <a href="../product/index.html">Product &amp; roadmap</a>
+    <a href="../architecture/index.html">Architecture &amp; stack</a>
+    <a href="../contracts/data/index.html">Database</a>
+    <a href="../contracts/api/index.html">API</a>
+    <a aria-current="page" href="index.html">Learn</a>
+  </div></nav>
+  <nav aria-label="Learning modules" class="global module-nav"><div class="shell">
+    <a href="frontend.html">Frontend</a>
+    <a href="backend.html">Backend</a>
+    <a href="worker.html">Worker</a>
+    <a href="infra.html">Infrastructure</a>
+    <a aria-current="page" href="cicd.html">CI/CD</a>
+    <a href="contracts-tests.html">Contracts &amp; Tests</a>
+  </div></nav>
+  <main class="shell">
+    <div class="hero">
+      <p class="eyebrow">GitHub Actions / Docker / Render / Vercel / uv / npm workspaces</p>
+      <h1>CI/CD . Pipeline &amp; deployment</h1>
+      <p class="lede">ResearchMate ships through a five-job GitHub Actions pipeline that gates every push and pull request, two multi-stage Dockerfiles that produce hardened container images, and a single Render Free service that auto-deploys when CI checks pass. This page walks through every configuration file that defines the build, test, scan, and deploy lifecycle.</p>
+      <div class="meta">
+        <span class="status local">5 CI jobs</span>
+        <span class="status local">2 Dockerfiles</span>
+        <span class="status local">48 env vars in render.yaml</span>
+        <span class="status local">11 sync:false secrets</span>
+        <span class="status local">autoDeploy on checksPass</span>
+        <span class="status local">Dual-lock: uv.lock + package-lock.json</span>
+      </div>
+    </div>
+    <div class="layout"><div class="content">
+
+      <section id="stack">
+        <p class="eyebrow">Technology stack fundamentals</p>
+        <h2>7 tools that define the build and deploy lifecycle</h2>
+        <p class="sub">Each card explains what the tool does in general and how ResearchMate uses it specifically.</p>
+        <div class="grid two">
+          <article class="fact"><b>CI/CD</b><p>Continuous Integration / Continuous Deployment is the practice of automatically testing, building, scanning, and deploying every code change through a reproducible pipeline. ResearchMate treats CI as the single source of truth for release readiness: no commit reaches production unless all five gate jobs pass and the ci-success aggregator confirms every result equals success.</p></article>
+          <article class="fact"><b>GitHub Actions</b><p>Workflow automation platform triggered on push to main or develop and on every pull request. The researchmate-ci workflow uses a concurrency group with cancel-in-progress to kill stale runs, pins every action to a major version, and runs five jobs with explicit timeout-minutes ranging from 20 to 35 minutes. The ci-success job uses if: always() with needs to aggregate all four quality gates.</p></article>
+          <article class="fact"><b>Docker</b><p>Containerization engine producing reproducible runtime images. Both Dockerfiles use multi-stage builds with a pinned uv stage and python:3.13-slim base. Layered COPY directives separate dependency manifests from source code to maximize build-cache hits. The API image runs as a non-root user (uid 10001); the worker image adds system libraries and pre-downloads Docling models. CI validates both with hadolint and Trivy.</p></article>
+          <article class="fact"><b>Render</b><p>Cloud deployment platform hosting the combined backend-plus-worker service as a single Free-tier Docker web service in the Oregon region. render.yaml declares one envVarGroups block with 48 entries (37 with values, 11 sync:false secrets), an autoDeployTrigger of checksPass, and a buildFilter that limits rebuilds to relevant path patterns. The healthCheckPath /api/v1/readyz confirms runtime readiness.</p></article>
+          <article class="fact"><b>Vercel</b><p>Frontend deployment platform for the Next.js 16.3.0 web application in apps/web. Vercel builds and serves the production frontend independently from the backend. CORS_ALLOWED_ORIGINS in render.yaml is set to the Vercel origin so the API accepts browser requests from the deployed frontend.</p></article>
+          <article class="fact"><b>uv</b><p>Python package manager and project manager by Astral, pinned to version 0.12.1 in both CI and Dockerfiles. uv resolves the monorepo workspace (apps/api + workers/ai-worker), installs locked dependencies via uv.lock with the --frozen flag, and supports --all-packages for installing every workspace member in one command. The setup-uv action enables caching in CI for faster runs.</p></article>
+          <article class="fact"><b>npm workspaces</b><p>JavaScript monorepo management with npm 11.6.0 declared via packageManager in the root package.json. The workspaces array includes apps/web and packages/shared. CI runs npm install --no-audit --no-fund to install the full workspace tree, and the package-lock.json lockfile guarantees reproducible JavaScript dependency resolution across local and CI environments.</p></article>
+        </div>
+      </section>
+
+      <section id="ci-pipeline">
+        <p class="eyebrow">CI pipeline</p>
+        <h2>ci.yml . five jobs, four parallel gates</h2>
+        <p class="sub">The workflow triggers on push to main/develop and on every pull request. A concurrency group cancels in-progress runs when a new commit lands. The ci-success job runs always() and verifies that all four quality gates returned success.</p>
+        <div class="scroll">
+          <table>
+            <thead><tr><th>Job</th><th>Runner</th><th>Timeout</th><th>Key steps</th><th>Gate condition</th></tr></thead>
+            <tbody>
+              <tr>
+                <td><b>python-quality</b></td>
+                <td>ubuntu-latest</td>
+                <td>35 min</td>
+                <td>
+                  <p>setup-uv 0.12.1 (enable-cache) + setup-python 3.13</p>
+                  <p><code>uv sync --frozen --all-packages --group dev</code></p>
+                  <p><code>npm run test:python</code></p>
+                  <p><code>npm run check:lint &amp;&amp; npm run check:openapi &amp;&amp; npm run check:migrations</code></p>
+                </td>
+                <td>Coverage threshold 50%, ruff clean, OpenAPI export matches, migrations valid</td>
+              </tr>
+              <tr>
+                <td><b>web-quality</b></td>
+                <td>ubuntu-latest</td>
+                <td>20 min</td>
+                <td>
+                  <p>setup-node 22 (cache: npm)</p>
+                  <p><code>npm install --no-audit --no-fund</code></p>
+                  <p><code>npm run test:web</code></p>
+                  <p><code>npm run check:web</code></p>
+                  <p><code>npm run check:audit</code></p>
+                </td>
+                <td>Vitest suite passes, next build succeeds, npm audit no moderate+ vulns</td>
+              </tr>
+              <tr>
+                <td><b>browser-e2e</b></td>
+                <td>ubuntu-latest</td>
+                <td>20 min</td>
+                <td>
+                  <p>setup-node 22 (cache: npm)</p>
+                  <p><code>npm install --no-audit --no-fund</code></p>
+                  <p><code>npx playwright install --with-deps chromium</code></p>
+                  <p><code>npm run test:e2e</code></p>
+                  <p>Upload playwright-report artifact on failure (7-day retention)</p>
+                </td>
+                <td>Playwright acceptance flow passes</td>
+              </tr>
+              <tr>
+                <td><b>container-quality</b></td>
+                <td>ubuntu-latest</td>
+                <td>25 min</td>
+                <td>
+                  <p>hadolint v2.15.1 on both Dockerfiles (--ignore DL3008)</p>
+                  <p>docker/setup-buildx-action v4</p>
+                  <p>Build API image: researchmate-api:ci (load, cache gha)</p>
+                  <p>Build worker deps target: researchmate-worker-dependencies:ci</p>
+                  <p>Trivy 0.73.0 scan --exit-code 1 --severity HIGH,CRITICAL on both images</p>
+                </td>
+                <td>Dockerfiles lint clean, both images build, zero HIGH/CRITICAL unfixed CVEs</td>
+              </tr>
+              <tr>
+                <td><b>ci-success</b></td>
+                <td>ubuntu-latest</td>
+                <td>default</td>
+                <td>
+                  <p><code>if: always()</code> + <code>needs: [python-quality, web-quality, browser-e2e, container-quality]</code></p>
+                  <p>Reads four env vars (PYTHON_RESULT, WEB_RESULT, E2E_RESULT, CONTAINER_RESULT)</p>
+                  <p>Runs four <code>test "$VAR" = success</code> assertions</p>
+                </td>
+                <td>All four preceding jobs must equal success</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="notice"><strong>Concurrency control:</strong> The workflow declares <code>concurrency: group: researchmate-ci-${{ github.workflow }}-${{ github.ref }}</code> with <code>cancel-in-progress: true</code>. When a developer pushes twice in quick succession, the first run is cancelled mid-flight and only the latest commit is tested.</div>
+        <div class="command-block"><code>npm run test:python
+  = uv run --frozen coverage run --branch \
+      --source=apps/api/src/researchmate_api,workers/ai-worker/src/researchmate_worker \
+      -m pytest -q
+  &amp;&amp; uv run --frozen coverage report --fail-under=50
+
+npm run check:lint
+  = uv run --frozen ruff check apps/api/src workers/ai-worker/src tests</code></div>
+      </section>
+
+      <section id="api-dockerfile">
+        <p class="eyebrow">Dockerfile . API</p>
+        <h2>apps/api/Dockerfile . two-stage, non-root, health-checked</h2>
+        <p class="sub">The API Dockerfile produces a slim production image that runs uvicorn behind Render's managed proxy. It prioritizes cache efficiency, least-privilege execution, and built-in health verification.</p>
+        <div class="grid two">
+          <article class="fact"><b>Multi-stage build</b><p>Stage 1 copies the uv and uvx binaries from <code>ghcr.io/astral-sh/uv:0.12.1</code>. Stage 2 builds the runtime on <code>python:3.13-slim</code>. The uv binary is copied as a static asset, so the final image carries no build toolchain.</p></article>
+          <article class="fact"><b>Non-root user</b><p>Creates a dedicated group <code>researchmate</code> (gid 10001) and user (uid 10001) with <code>--no-create-home --shell /usr/sbin/nologin</code>. The <code>USER 10001:10001</code> directive ensures the process never runs as root inside the container.</p></article>
+          <article class="fact"><b>Layered COPY</b><p>Dependency manifests are copied before source code: <code>pyproject.toml uv.lock</code> first, then <code>apps/api/pyproject.toml</code> and <code>workers/ai-worker/pyproject.toml</code>, then <code>apps/api</code> source. This ordering lets Docker cache the <code>uv sync</code> layer and invalidate it only when dependencies change.</p></article>
+          <article class="fact"><b>uv sync</b><p><code>uv sync --frozen --no-dev --package researchmate-api</code> installs exactly the locked production dependencies for the API workspace member, skipping dev tools and refusing lockfile drift.</p></article>
+          <article class="fact"><b>HEALTHCHECK</b><p><code>--interval=30s --timeout=5s --start-period=20s --retries=3</code> calls <code>python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/healthz', timeout=3)"</code>. Three consecutive failures mark the container unhealthy.</p></article>
+          <article class="fact"><b>CMD (shell form)</b><p><code>sh -c "exec python -m uvicorn researchmate_api.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 2 --proxy-headers"</code>. Shell form is required so Render's runtime PORT value expands safely. The <code>--proxy-headers</code> flag trusts Render's load-balancer X-Forwarded-* headers.</p></article>
+        </div>
+        <div class="command-block"><code>FROM ghcr.io/astral-sh/uv:0.12.1 AS uv
+FROM python:3.13-slim AS runtime
+
+COPY --from=uv /uv /uvx /bin/
+RUN groupadd --gid 10001 researchmate \
+    &amp;&amp; useradd --uid 10001 --gid researchmate --no-create-home --shell /usr/sbin/nologin researchmate
+
+COPY pyproject.toml uv.lock /app/
+COPY apps/api/pyproject.toml /app/apps/api/pyproject.toml
+COPY workers/ai-worker/pyproject.toml /app/workers/ai-worker/pyproject.toml
+COPY apps/api /app/apps/api
+RUN uv sync --frozen --no-dev --package researchmate-api
+
+USER 10001:10001
+EXPOSE 8000
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD ["python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/healthz', timeout=3)"]
+CMD ["sh", "-c", "exec python -m uvicorn researchmate_api.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 2 --proxy-headers"]</code></div>
+      </section>
+
+      <section id="worker-dockerfile">
+        <p class="eyebrow">Dockerfile . Worker</p>
+        <h2>workers/ai-worker/Dockerfile . three-stage, system deps, role switching</h2>
+        <p class="sub">The worker Dockerfile builds the CPU-only combined backend-plus-worker runtime used by Render's Free tier. It adds system libraries for Docling, pre-downloads ML models, and switches between dispatcher and worker roles via an environment variable.</p>
+        <div class="grid two">
+          <article class="fact"><b>Three stages</b><p>Stage 1 (<code>uv</code>) copies the uv binary. Stage 2 (<code>dependencies</code>) installs system packages and Python dependencies on python:3.13-slim. Stage 3 (<code>runtime</code>) extends dependencies to download Docling models and set ownership, keeping the model artifacts in a separate cacheable layer.</p></article>
+          <article class="fact"><b>System dependencies</b><p><code>apt-get install --yes --no-install-recommends libgl1 libglib2.0-0</code> provides the shared libraries that Docling and OpenCV require for PDF rendering and image processing. The apt cache is cleaned immediately to minimize image size.</p></article>
+          <article class="fact"><b>Docling models</b><p><code>docling-tools models download layout tableformer rapidocr -o /opt/docling/models</code> pre-fetches three model bundles into <code>DOCLING_ARTIFACTS_PATH=/opt/docling/models</code>. <code>chown -R researchmate:researchmate /opt/docling</code> ensures the non-root user can read them at runtime.</p></article>
+          <article class="fact"><b>--all-packages</b><p><code>uv sync --frozen --no-dev --all-packages</code> installs every workspace member (researchmate-api + researchmate-worker) in one resolved graph. This is required because Render runs the combined runtime via <code>python -m researchmate_worker.render_combined</code>, which imports both packages.</p></article>
+          <article class="fact"><b>Role switching</b><p>The CMD inspects <code>RESEARCHMATE_PROCESS_ROLE</code>. When set to <code>dispatcher</code>, it runs <code>exec researchmate-dispatch-outbox</code>. Otherwise it starts a Celery worker consuming 5 queues (ingestion, deletion, workflow, evaluation, reliability) with <code>--concurrency=2</code>.</p></article>
+          <article class="fact"><b>torch CPU index</b><p>The worker pyproject.toml pins <code>torch==2.13.0+cpu</code> and <code>torchvision==0.28.0+cpu</code> via <code>[tool.uv.sources]</code> pointing to the <code>pytorch-cpu</code> index. This avoids pulling CUDA drivers on Free-tier hosts that have no GPU.</p></article>
+        </div>
+        <div class="command-block"><code>FROM ghcr.io/astral-sh/uv:0.12.1 AS uv
+FROM python:3.13-slim AS dependencies
+
+COPY --from=uv /uv /uvx /bin/
+RUN apt-get update \
+    &amp;&amp; apt-get install --yes --no-install-recommends libgl1 libglib2.0-0 \
+    &amp;&amp; rm -rf /var/lib/apt/lists/*
+
+COPY pyproject.toml uv.lock /app/
+COPY apps/api /app/apps/api
+COPY workers/ai-worker /app/workers/ai-worker
+RUN uv sync --frozen --no-dev --all-packages
+
+FROM dependencies AS runtime
+RUN docling-tools models download layout tableformer rapidocr -o /opt/docling/models \
+    &amp;&amp; chown -R researchmate:researchmate /opt/docling
+
+USER 10001:10001
+CMD ["sh", "-c", "if [ \"${RESEARCHMATE_PROCESS_ROLE:-worker}\" = dispatcher ]; then exec researchmate-dispatch-outbox; \
+else exec python -m celery -A researchmate_worker.celery_app:celery_app worker --loglevel=INFO \
+--queues=ingestion,deletion,workflow,evaluation,reliability --concurrency=2; fi"]</code></div>
+      </section>
+
+      <section id="render-yaml">
+        <p class="eyebrow">render.yaml</p>
+        <h2>Render deployment blueprint . 48 env vars, 1 service, auto-deploy on CI pass</h2>
+        <p class="sub">render.yaml declares the single Render Free-tier service and its full environment configuration. It centralizes 48 environment variables into one named group, restricts rebuilds to relevant paths, and triggers deploys only after GitHub checks pass.</p>
+        <div class="kv">
+          <dt>envVarGroups</dt>
+          <dd>
+            <p>One group named <code>researchmate-backend</code> with <strong>48 entries</strong>: 37 carry explicit values (synced across previews), and 11 are marked <code>sync: false</code> (server-only secrets entered manually in the Render dashboard).</p>
+            <p><b>sync:false secrets (11):</b> DATABASE_URL, REDIS_URL, OBJECT_STORAGE_ACCESS_KEY_ID, OBJECT_STORAGE_SECRET_ACCESS_KEY, QDRANT_URL, QDRANT_API_KEY, NVIDIA_API_KEY, TAVILY_API_KEY, LANGFUSE_PUBLIC_KEY, LANGFUSE_SECRET_KEY, OTEL_EXPORTER_OTLP_TRACES_HEADERS</p>
+          </dd>
+          <dt>services[0]</dt>
+          <dd>
+            <p><code>type: web</code>, <code>name: researchmate-backend-dev</code>, <code>runtime: docker</code>, <code>plan: free</code>, <code>region: oregon</code>, <code>branch: main</code></p>
+          </dd>
+          <dt>dockerfilePath</dt>
+          <dd><p><code>./workers/ai-worker/Dockerfile</code> with <code>dockerContext: .</code>. The worker Dockerfile is used because Render runs the combined runtime.</p></dd>
+          <dt>dockerCommand</dt>
+          <dd><p><code>python -m researchmate_worker.render_combined</code> overrides the Dockerfile CMD, launching the combined API-plus-worker process managed by Render.</p></dd>
+          <dt>healthCheckPath</dt>
+          <dd><p><code>/api/v1/readyz</code>. Render probes this path to determine service readiness before routing traffic.</p></dd>
+          <dt>autoDeployTrigger</dt>
+          <dd><p><code>checksPass</code>. Render deploys only after GitHub Actions checks on the main branch report success, creating a hard dependency between CI green and production deploy.</p></dd>
+          <dt>buildFilter</dt>
+          <dd>
+            <p>Seven path patterns that limit when a rebuild is triggered:</p>
+            <p><code>apps/api/**</code>, <code>workers/ai-worker/**</code>, <code>infra/supabase/migrations/**</code>, <code>scripts/apply_migrations.py</code>, <code>scripts/provision_qdrant_rerank.py</code>, <code>pyproject.toml</code>, <code>uv.lock</code></p>
+          </dd>
+          <dt>envVars (service-level)</dt>
+          <dd>
+            <p>Three overrides applied on top of the group:</p>
+            <p><code>AUTH_MODE=supabase</code>, <code>REPOSITORY_BACKEND=postgres</code>, <code>CORS_ALLOWED_ORIGINS=https://research-mate-web.vercel.app</code></p>
+          </dd>
+        </div>
+        <div class="notice"><strong>Rerank model:</strong> <code>QDRANT_RERANK_MODEL</code> is set to <code>answerdotai/answerai-colbert-small-v1</code> with dimension 96 and <code>QDRANT_RERANK_MODEL_IS_FREE=true</code>. The <code>RUN_QDRANT_RERANK_BACKFILL=1</code> flag triggers the provision script on first boot.</div>
+      </section>
+
+      <section id="dependency-mgmt">
+        <p class="eyebrow">Dependency management</p>
+        <h2>Dual-lock strategy across Python and JavaScript</h2>
+        <p class="sub">ResearchMate manages dependencies with two independent lockfiles: uv.lock for the Python workspace and package-lock.json for the npm workspace. Both are committed to the repository and used with --frozen flags in CI and Docker to guarantee reproducible installs.</p>
+        <div class="grid two">
+          <article class="fact"><b>Root package.json</b><p>Declares <code>packageManager: npm@11.6.0</code> and <code>workspaces: ["apps/web", "packages/shared"]</code>. Defines 17 scripts including <code>test:python</code>, <code>test:web</code>, <code>test:e2e</code>, <code>check:lint</code>, <code>check:openapi</code>, <code>check:migrations</code>, <code>check:web</code>, <code>check:audit</code>, and the umbrella <code>check:all</code>. The private flag prevents accidental npm publish.</p></article>
+          <article class="fact"><b>Root pyproject.toml</b><p>Declares the uv workspace (<code>members = ["apps/api", "workers/ai-worker"]</code>) and the dev dependency group: <code>coverage&gt;=7.10.0,&lt;8</code>, <code>httpx2&gt;=2.5.0,&lt;3</code>, <code>pytest&gt;=9.0.0,&lt;10</code>, <code>pyyaml&gt;=6.0.0,&lt;7</code>, <code>ruff==0.16.0</code>. A dedicated <code>pytorch-cpu</code> index is declared for torch CPU wheels.</p></article>
+          <article class="fact"><b>apps/api/pyproject.toml</b><p>17 production dependencies including FastAPI, Pydantic, SQLAlchemy, psycopg, PyJWT, qdrant-client, redis, boto3, OpenAI SDK, Langfuse, and four OpenTelemetry packages (<code>opentelemetry-api</code>, <code>opentelemetry-exporter-otlp-proto-http</code>, <code>opentelemetry-instrumentation-fastapi</code>, <code>opentelemetry-sdk</code>). Ruff is configured with line-length=100 and ignores B008 and BLE001.</p></article>
+          <article class="fact"><b>workers/ai-worker/pyproject.toml</b><p>18 production dependencies including Celery[redis], Docling (pinned 2.111.0), LangGraph, RAGAS 0.4.3, torch 2.13.0+cpu, torchvision 0.28.0+cpu, and pypdf. Declares the <code>researchmate-dispatch-outbox</code> console script. Sources torch and torchvision from the pytorch-cpu index.</p></article>
+          <article class="fact"><b>apps/web/package.json</b><p>Next.js 16.3.0 with React, 10 Radix UI primitives, Tailwind CSS 4, lucide-react, and class-variance-authority. Dev tools: Vitest 4 with coverage-v8, Playwright 1.62, TypeScript 6.0.3, jsdom. The <code>type: module</code> flag enables ESM.</p></article>
+          <article class="fact"><b>Dual-lock strategy</b><p>uv.lock pins the complete Python dependency graph (including transitive deps and the pytorch-cpu index). package-lock.json pins the npm workspace tree. CI and Dockerfiles use <code>--frozen</code> (uv) and <code>npm install</code> (reads lockfile by default). Neither lockfile is edited manually; both are regenerated by their respective package managers.</p></article>
+        </div>
+        <div class="command-block"><code># Python dev group (root pyproject.toml)
+[dependency-groups]
+dev = [
+  "coverage&gt;=7.10.0,&lt;8",
+  "httpx2&gt;=2.5.0,&lt;3",
+  "pytest&gt;=9.0.0,&lt;10",
+  "pyyaml&gt;=6.0.0,&lt;7",
+  "ruff==0.16.0",
+]
+
+# CI install command
+uv sync --frozen --all-packages --group dev
+
+# Docker install command (API only)
+uv sync --frozen --no-dev --package researchmate-api
+
+# Docker install command (combined worker)
+uv sync --frozen --no-dev --all-packages</code></div>
+      </section>
+
+      <section id="env-example">
+        <p class="eyebrow">.env.example</p>
+        <h2>7 categories of environment configuration</h2>
+        <p class="sub">The .env.example file documents every variable accepted by the runtime, grouped into seven categories. Values use placeholders for secrets and safe defaults for non-secret configuration.</p>
+        <div class="scroll">
+          <table>
+            <thead><tr><th>Category</th><th>Key variables</th><th>Notes</th></tr></thead>
+            <tbody>
+              <tr>
+                <td><b>1. Frontend public</b></td>
+                <td><code>APP_ENV</code>, <code>AUTH_MODE</code>, <code>NEXT_PUBLIC_APP_ENV</code>, <code>NEXT_PUBLIC_SUPABASE_URL</code>, <code>NEXT_PUBLIC_SUPABASE_ANON_KEY</code>, <code>NEXT_PUBLIC_API_BASE_URL</code></td>
+                <td>Exposed to the browser via NEXT_PUBLIC_ prefix. Local dev uses AUTH_MODE=development.</td>
+              </tr>
+              <tr>
+                <td><b>2. Database &amp; Supabase</b></td>
+                <td><code>REPOSITORY_BACKEND</code>, <code>DATABASE_URL</code>, <code>SUPABASE_URL</code>, <code>SUPABASE_JWKS_URL</code></td>
+                <td>Local dev defaults to memory backend. Production uses postgres with JWKS for JWT verification.</td>
+              </tr>
+              <tr>
+                <td><b>3. Object storage</b></td>
+                <td><code>OBJECT_STORAGE_ENDPOINT_URL</code>, <code>OBJECT_STORAGE_ACCESS_KEY_ID</code>, <code>OBJECT_STORAGE_SECRET_ACCESS_KEY</code>, <code>OBJECT_STORAGE_BUCKET</code>, <code>OBJECT_STORAGE_REGION</code></td>
+                <td>S3-compatible. Supabase Storage is the no-card dev default; R2 legacy vars still supported.</td>
+              </tr>
+              <tr>
+                <td><b>4. Vector database</b></td>
+                <td><code>QDRANT_URL</code>, <code>QDRANT_API_KEY</code>, <code>QDRANT_COLLECTION</code>, <code>QDRANT_RERANK_COLLECTION</code>, <code>QDRANT_RERANK_MODEL</code>, <code>QDRANT_RERANK_DIMENSION</code>, <code>RERANK_PROVIDER_DEFAULT</code>, <code>NVIDIA_RERANK_MODEL</code>, <code>CHAT_*_TOKEN_BUDGET</code>, <code>FULL_CONTEXT_TOKEN_LIMIT</code></td>
+                <td>Rerank model: answerdotai/answerai-colbert-small-v1, dimension 96. Token budgets control context window partitioning.</td>
+              </tr>
+              <tr>
+                <td><b>5. LLM &amp; embedding</b></td>
+                <td><code>LLM_PROVIDER</code>, <code>NVIDIA_API_KEY</code>, <code>NVIDIA_BASE_URL</code>, <code>NVIDIA_MODEL</code>, <code>LLM_TEMPERATURE</code>, <code>LLM_MAX_TOKENS</code>, <code>EMBEDDING_PROVIDER</code>, <code>NVIDIA_EMBEDDING_MODEL</code>, <code>EMBEDDING_DIMENSION</code></td>
+                <td>Local dev uses fake providers. Production uses NVIDIA NIM with cost tracking vars.</td>
+              </tr>
+              <tr>
+                <td><b>6. Search &amp; crawl</b></td>
+                <td><code>WEB_SEARCH_PROVIDER</code>, <code>TAVILY_API_KEY</code>, <code>TAVILY_BASE_URL</code>, <code>WEB_SEARCH_TIMEOUT_SECONDS</code></td>
+                <td>Disabled locally. Production uses Tavily with a 30-second timeout.</td>
+              </tr>
+              <tr>
+                <td><b>7. Runtime, jobs &amp; observability</b></td>
+                <td><code>REDIS_URL</code>, <code>RUNTIME_HEARTBEAT_SECONDS</code>, <code>WORKFLOW_LEASE_SECONDS</code>, <code>RESEARCHMATE_PROCESS_ROLE</code>, <code>CORS_ALLOWED_ORIGINS</code>, <code>MAX_UPLOAD_BYTES</code>, <code>DOCLING_ARTIFACTS_PATH</code>, <code>LANGGRAPH_STRICT_MSGPACK</code>, <code>LOG_LEVEL</code>, <code>OTEL_ENABLED</code>, <code>OTEL_EXPORTER_OTLP_TRACES_ENDPOINT</code>, <code>LANGFUSE_ENABLED</code>, <code>LANGFUSE_PUBLIC_KEY</code>, <code>LANGFUSE_SECRET_KEY</code></td>
+                <td>Observability disabled locally (OTEL_ENABLED=false, LANGFUSE_ENABLED=false). Required and separately keyed in preview/production.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="full-flow">
+        <p class="eyebrow">CI/CD full flow</p>
+        <h2>From commit to live service in six proof steps</h2>
+        <p class="sub">Every push to main or develop, and every pull request, follows this chain. A failure at any step blocks deployment; Render's autoDeployTrigger: checksPass is the final gate.</p>
+        <div class="proof-chain">
+          <div class="proof-step"><b>1. Source change</b><small>Developer pushes to main/develop or opens a PR. GitHub Actions triggers the researchmate-ci workflow. The concurrency group cancels any in-progress run for the same ref.</small></div>
+          <div class="proof-step"><b>2. Four parallel gates</b><small>python-quality (lint + test + coverage 50% + OpenAPI + migrations), web-quality (Vitest + build + audit), browser-e2e (Playwright), and container-quality (hadolint + Docker build + Trivy scan) run concurrently on ubuntu-latest.</small></div>
+          <div class="proof-step"><b>3. ci-success aggregator</b><small>Runs with if: always() and needs all four jobs. Asserts PYTHON_RESULT, WEB_RESULT, E2E_RESULT, and CONTAINER_RESULT all equal success. If any gate failed or was cancelled, this step fails and the workflow is red.</small></div>
+          <div class="proof-step"><b>4. Render checksPass</b><small>Render observes GitHub check statuses on the main branch. autoDeployTrigger: checksPass means a new deploy begins only when all checks report success. The buildFilter ensures irrelevant path changes do not trigger a rebuild.</small></div>
+          <div class="proof-step"><b>5. Docker build &amp; deploy</b><small>Render builds the image from workers/ai-worker/Dockerfile with dockerContext: ., applies the 48 env vars from the researchmate-backend group plus 3 service-level overrides, and starts the container with dockerCommand: python -m researchmate_worker.render_combined.</small></div>
+          <div class="proof-step"><b>6. Health check live</b><small>Render probes /api/v1/readyz. Once the endpoint returns 200, the service is marked live and traffic is routed. RUN_SCHEMA_MIGRATIONS=1 and RUN_QDRANT_RERANK_BACKFILL=1 run on first boot before readiness.</small></div>
+        </div>
+      </section>
+
+      <section id="deployment-arch">
+        <p class="eyebrow">Deployment architecture</p>
+        <h2>One Render service, one Vercel frontend, five managed dependencies</h2>
+        <p class="sub">The production topology runs a combined API-plus-worker process on a single Render Free container, with the Next.js frontend on Vercel and managed cloud services for data, vectors, cache, LLM, search, and observability.</p>
+        <div class="visual-panel">
+          <div class="visual-head"><h3>Service topology</h3><p>Render hosts the Docker container built from the worker Dockerfile. Vercel hosts the Next.js frontend. External managed services connect via environment variables.</p></div>
+          <div class="architecture-map">
+            <div class="arch-column">
+              <span>Source</span>
+              <button class="arch-node" data-title="GitHub repository" data-detail="Monorepo with apps/api, workers/ai-worker, apps/web, packages/shared. Main branch is the deploy target."><b>GitHub repo</b><small>main / develop / PR</small></button>
+            </div>
+            <div class="arch-column">
+              <span>CI</span>
+              <button class="arch-node" data-title="GitHub Actions" data-detail="researchmate-ci workflow: 5 jobs, concurrency cancel-in-progress, pinned action versions."><b>GitHub Actions</b><small>5 jobs, 4 parallel gates</small></button>
+            </div>
+            <div class="arch-column">
+              <span>Backend deploy</span>
+              <button class="arch-node" data-title="Render Free service" data-detail="Docker runtime, Oregon region, autoDeploy on checksPass, healthCheckPath /api/v1/readyz."><b>Render (Free)</b><small>combined API + worker</small></button>
+            </div>
+            <div class="arch-column">
+              <span>Frontend deploy</span>
+              <button class="arch-node" data-title="Vercel" data-detail="Next.js 16.3.0 production build. CORS_ALLOWED_ORIGINS points to the Vercel origin."><b>Vercel</b><small>Next.js web app</small></button>
+            </div>
+            <div class="arch-column">
+              <span>Data layer</span>
+              <button class="arch-node" data-title="Supabase" data-detail="PostgreSQL database, S3-compatible Storage, Auth/JWKS. DATABASE_URL and SUPABASE_URL are sync:false secrets."><b>Supabase</b><small>Postgres + Storage + Auth</small></button>
+              <button class="arch-node" data-title="Qdrant Cloud" data-detail="Vector database with dense + sparse + rerank collections. QDRANT_URL is sync:false."><b>Qdrant Cloud</b><small>chunks + rerank</small></button>
+              <button class="arch-node" data-title="Upstash Redis" data-detail="Celery broker and result backend. REDIS_URL is sync:false."><b>Upstash Redis</b><small>Celery broker</small></button>
+            </div>
+            <div class="arch-column">
+              <span>AI &amp; observability</span>
+              <button class="arch-node" data-title="NVIDIA NIM" data-detail="LLM chat completions and embeddings via OpenAI SDK. NVIDIA_API_KEY is sync:false."><b>NVIDIA NIM</b><small>LLM + embedding</small></button>
+              <button class="arch-node" data-title="Tavily" data-detail="Web search API. TAVILY_API_KEY is sync:false."><b>Tavily</b><small>web search</small></button>
+              <button class="arch-node" data-title="Langfuse" data-detail="LLM observability and OpenTelemetry trace export. LANGFUSE keys and OTEL headers are sync:false."><b>Langfuse</b><small>traces + observations</small></button>
+            </div>
+          </div>
+          <div class="arch-inspector" data-arch-title="Select a node" data-arch-body="Click any node above to see its deployment details."></div>
+        </div>
+        <div class="notice"><strong>Combined runtime:</strong> Render's dockerCommand <code>python -m researchmate_worker.render_combined</code> starts both the FastAPI API server and the Celery worker in a single process, designed for Free-tier constraints where only one service is allowed. The <code>RESEARCHMATE_PROCESS_ROLE</code> variable controls whether the outbox dispatcher runs instead of the Celery worker.</div>
+      </section>
+
+      <section id="further-reading">
+        <p class="eyebrow">Further reading</p>
+        <h2>Related documentation</h2>
+        <div class="doc-index">
+          <a class="doc-link" href="../architecture/index.html"><b>Architecture &amp; stack</b><span>System overview, deployment topology, and managed service boundaries</span></a>
+          <a class="doc-link" href="backend.html"><b>Backend learning</b><span>FastAPI application that runs inside the API Docker image and on Render</span></a>
+          <a class="doc-link" href="worker.html"><b>Worker learning</b><span>Celery worker and LangGraph runtime built into the worker Docker image</span></a>
+          <a class="doc-link" href="infra.html"><b>Infrastructure</b><span>Managed service configuration, Supabase migrations, and Qdrant provisioning scripts</span></a>
+          <a class="doc-link" href="frontend.html"><b>Frontend learning</b><span>Next.js application deployed to Vercel</span></a>
+          <a class="doc-link" href="contracts-tests.html"><b>Contracts &amp; Tests</b><span>Test suite, contract checks, and coverage thresholds enforced by CI</span></a>
+        </div>
+      </section>
+
+    </div>
+    <aside class="toc"><b>On this page</b>
+      <a href="#stack">Tech stack</a>
+      <a href="#ci-pipeline">CI pipeline</a>
+      <a href="#api-dockerfile">API Dockerfile</a>
+      <a href="#worker-dockerfile">Worker Dockerfile</a>
+      <a href="#render-yaml">render.yaml</a>
+      <a href="#dependency-mgmt">Dependency mgmt</a>
+      <a href="#env-example">.env.example</a>
+      <a href="#full-flow">Full flow</a>
+      <a href="#deployment-arch">Deployment arch</a>
+      <a href="#further-reading">Further reading</a>
+    </aside></div>
+  </main>
+  <footer class="shell footer">ResearchMate CI/CD learning guide . written 6 August 2026</footer>
+  <script src="../assets/site.js"></script>
+</body>
+</html>

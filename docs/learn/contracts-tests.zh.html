@@ -1,0 +1,409 @@
+﻿<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width,initial-scale=1" name="viewport"/>
+  <meta content="ResearchMate 共享合约与测试学习指南:contracts.ts 逐类型解析,三层契约镜像架构,36 个 Python 测试文件分析,Hermetic 测试策略,Mock 模式,覆盖率配置,前端 Vitest 与 Playwright 测试。" name="description"/>
+  <title>ResearchMate &middot; 合约与测试学习</title>
+  <link href="../assets/site.css" rel="stylesheet"/>
+  <script src="../assets/site.js"></script>
+  <style>.module-nav{border-top:1px solid var(--g200)}.module-nav .shell{padding:6px 0 12px}.module-nav a{font-size:11.5px;padding:5px 11px}</style>
+</head>
+<body>
+  <header class="mast"><div class="shell mast-row"><a class="brand" href="../index.zh.html">ResearchMate 文档</a><div class="mast-right"><span class="stamp">合约与测试 &middot; 2026 年 8 月 6 日</span><a class="lang-toggle" href="contracts-tests.html" hreflang="en" lang="en">English</a></div></div></header>
+  <nav aria-label="文档" class="global"><div class="shell">
+    <a href="../index.zh.html">概览</a>
+    <a href="../product/index.zh.html">产品与路线图</a>
+    <a href="../architecture/index.zh.html">架构与技术栈</a>
+    <a href="../contracts/data/index.zh.html">数据库</a>
+    <a href="../contracts/api/index.zh.html">API</a>
+    <a aria-current="page" href="index.zh.html">学习</a>
+  </div></nav>
+  <nav aria-label="子页面" class="global module-nav"><div class="shell">
+    <a href="frontend.zh.html">前端</a>
+    <a href="backend.zh.html">后端</a>
+    <a href="worker.zh.html">Worker</a>
+    <a href="infra.zh.html">基础设施</a>
+    <a href="cicd.zh.html">CI/CD</a>
+    <a aria-current="page" href="contracts-tests.zh.html">合约与测试</a>
+  </div></nav>
+  <main class="shell">
+    <div class="hero">
+      <p class="eyebrow">TypeScript contracts / Pydantic / pytest / Vitest / Playwright / Hermetic testing</p>
+      <h1>合约与测试 &middot; packages/shared + tests</h1>
+      <p class="lede">ResearchMate 测试套件是一个 Hermetic、合约优先的验证系统。单个 TypeScript 文件(contracts.ts)定义了 23 个共享类型,在 Pydantic schema 和 SQL migration 中镜像。Python 测试套件包含 36 个 test_*.py 文件,分为 HTTP 集成测试、单元测试、Worker 测试、工作流测试和契约源码检视测试五类。每个测试都在无外部依赖的情况下运行,使用 fake provider、内存 store 和源码文件检视。本页逐类型解析每个合约,逐文件解析每个测试。</p>
+      <div class="meta">
+        <span class="status local">23 个合约类型(4 type + 19 interface)</span>
+        <span class="status local">36 个 test_*.py 文件</span>
+        <span class="status local">3 个 Python 基础设施文件 + 1 个 INI 配置</span>
+        <span class="status local">7 个 Vitest + 1 个 Playwright 前端测试</span>
+        <span class="status local">三层契约镜像架构</span>
+        <span class="status local">Hermetic &middot; 无外部依赖</span>
+      </div>
+    </div>
+    <div class="layout"><div class="content">
+
+      <section id="stack">
+        <p class="eyebrow">技术栈基础</p>
+        <h2>驱动合约与测试的 7 个核心依赖</h2>
+        <p class="sub">每张卡片说明该技术的通用职责,以及 ResearchMate 在合约验证中的具体用法。</p>
+        <div class="grid two">
+          <article class="fact"><b>TypeScript type contracts</b><p>单个文件 packages/shared/src/contracts.ts 定义了 23 个导出类型(4 个 <code>export type</code> + 19 个 <code>export interface</code>),作为 API 数据形状的权威来源。前端通过 <code>@researchmate/shared</code> workspace 包直接导入这些类型。该文件不含运行时代码,只有类型声明,确保对 bundle 大小零影响。</p></article>
+          <article class="fact"><b>Pydantic</b><p>Python 数据验证库。后端将每个 TypeScript 合约镜像为 apps/api/src/researchmate_api/schemas/ 下的 Pydantic 模型。Pydantic 在请求边界强制执行字段类型、可选 vs 必填、枚举约束和验证器逻辑。test_project_scaffold.py 验证后端 Pydantic 合约与 contracts.ts 定义的请求形状一致。</p></article>
+          <article class="fact"><b>pytest</b><p>Python 测试框架(锁定 9.0+)。pytest.ini 配置 <code>-p no:cacheprovider --basetemp=.pytest-temp</code> 以确保确定性、无缓存的运行。conftest.py 将 API 和 worker 源码路径插入 sys.path。测试函数使用 <code>def test_*</code> 命名,<code>pytest.raises</code> 验证预期失败,<code>pytest.importorskip</code> 处理 SQLAlchemy 等可选依赖。</p></article>
+          <article class="fact"><b>Vitest</b><p>前端单元测试框架,在 apps/web/vitest.config.ts 中配置 jsdom 环境和 v8 coverage provider。7 个测试文件覆盖 API 客户端逻辑、auth gate、展示组件、demo 模式、邮件限流、幂等 intent 和 Supabase session 处理。覆盖率阈值要求 app/lib 和 app/components 达到 40% 行和语句覆盖。</p></article>
+          <article class="fact"><b>Playwright</b><p>浏览器验收测试框架。apps/web/playwright.config.ts 在 demo 模式(NEXT_PUBLIC_DEMO_MODE=true)下对端口 3100 的本地 Next.js dev server 运行测试。1 个 E2E 测试文件(demo-workspace.e2e.ts)验证确定性 client-only demo 运行时。CI 中 retries=2、单 worker;本地运行完全并行。</p></article>
+          <article class="fact"><b>Hermetic testing</b><p>整个 Python 测试套件是 hermetic 的:无真实 PostgreSQL、Qdrant、Redis、LLM 或外部 HTTP 调用。FastAPI TestClient 创建进程内应用,<code>Settings(app_env="test", llm_provider="fake")</code>。autouse <code>reset_local_store</code> fixture 在每个测试前后清除内存 store。源码检视测试从磁盘读取文件,不执行应用代码。</p></article>
+          <article class="fact"><b>Dependency injection testing</b><p>后端通过工厂函数构造所有 managed provider(store、chat provider、hybrid store、reranker),从 <code>app.state</code> 读取。测试通过构造 <code>create_app(settings=Settings(...))</code> 使用 fake provider 覆盖这些工厂,或使用 <code>monkeypatch</code> 替换模块级函数。reset 保护的 store 之外不修改全局单例。</p></article>
+        </div>
+      </section>
+
+      <section id="shared-package">
+        <p class="eyebrow">packages/shared</p>
+        <h2>API 数据形状的唯一真相来源</h2>
+        <p class="sub">packages/shared 是一个无运行时代码的 npm workspace 包。其 package.json 将其声明为 type-only 模块,主入口为 contracts.ts。</p>
+        <h3>package.json</h3>
+        <pre class="command-block"><code>{
+  "name": "@researchmate/shared",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "main": "src/contracts.ts",
+  "types": "src/contracts.ts"
+}</code></pre>
+        <div class="notice"><code>main</code> 和 <code>types</code> 均指向 <code>src/contracts.ts</code>。因为该文件只包含类型声明(无可执行代码),导入它对前端 bundle 大小零影响。前端通过 npm workspaces 解析 <code>@researchmate/shared</code>,使每个组件和 API client 都能直接访问权威类型。</div>
+
+        <h3>contracts.ts &middot; 23 个类型,逐类型详解</h3>
+        <p class="sub">该文件定义了 4 个 <code>export type</code> 别名和 19 个 <code>export interface</code> 声明。源码中所有注释为中文,类型名和字段名为英文。以下逐个说明每个类型及其用途和关键字段。</p>
+        <div class="grid two">
+          <article class="fact"><b>1. TaskType <code>(type)</code></b><p>联合类型:<code>"answer" | "quiz"</code>。定义请求代表的任务类型。Task 只决定要做什么,不决定怎么做。Router 检查请求以确定用户是在提问还是生成 quiz。</p></article>
+          <article class="fact"><b>2. ToolName <code>(type)</code></b><p>8 个工具名的联合类型:<code>query_local_docs</code>、<code>search_web</code>、<code>read_url</code>、<code>crawl_url_optional</code>、<code>rerank_evidence</code>、<code>generate_answer</code>、<code>generate_quiz</code>、<code>save_quiz</code>。后端通过 ExecutionPlan 控制给定请求允许使用哪些工具,强制执行安全边界。</p></article>
+          <article class="fact"><b>3. ExecutionPlan <code>(interface)</code></b><p>定义一次请求解析后的执行计划。字段:<code>task_type</code>、<code>allowed_tools</code>(ToolName[])、<code>requires_local_docs</code>、<code>requires_web</code>、<code>context_strategy</code>(6 值联合:chat、full_context、hybrid_retrieval、web、hybrid_retrieval_web、quiz)、<code>output_schema</code>(ChatAnswer、GroundedAnswer 或 QuizSet)。</p></article>
+          <article class="fact"><b>4. SourceSummary <code>(interface)</code></b><p>定义回答顶部的来源计数摘要。字段:<code>local_chunks</code>(number)、<code>web_pages</code>(number)。出现在 GroundedAnswer 和 QuizSet 中。</p></article>
+          <article class="fact"><b>5. Citation <code>(interface)</code></b><p>定义本地或网络证据引用。字段:<code>id</code>、<code>source_type</code>("local_doc" | "web_page")、<code>document_id?</code>、<code>chunk_id?</code>、<code>page_no?</code>、<code>slide_no?</code>、<code>url?</code>、<code>quote</code>(必填 string)、<code>claim_id?</code>。每个 grounded answer 必须通过此结构引用其来源。</p></article>
+          <article class="fact"><b>6. GroundedAnswer <code>(interface)</code></b><p>定义可溯源、有证据支撑的回答的结构化输出。字段:<code>sources</code>(SourceSummary)、<code>answer</code>(string)、<code>citations</code>(Citation[])、<code>trace_id</code>(string)、<code>validation_status</code>("passed" | "failed" | "retrying")。AskResponse 继承此 interface。</p></article>
+          <article class="fact"><b>7. AskResponse <code>(interface, extends GroundedAnswer)</code></b><p>定义 Ask API 响应。新增字段:<code>run_id</code>、<code>conversation_id</code>、<code>rerank_degraded</code>、<code>retrieval_degraded</code>、<code>summary_degraded</code>(均为 boolean)、<code>fallback_reason?</code>。三个 degraded flag 让前端能向用户展示降级通知。</p></article>
+          <article class="fact"><b>8. QuizQuestion <code>(interface)</code></b><p>定义单个 quiz 题目。字段:<code>id</code>、<code>type</code>("single_choice" | "fill_blank" | "subjective")、<code>question</code>、<code>options?</code>(string[] | null)、<code>answer</code>、<code>explanation</code>、<code>difficulty</code>("easy" | "medium" | "hard")、<code>source_citations</code>(Citation[])。每个题目必须可追溯到来源证据。</p></article>
+          <article class="fact"><b>9. QuizSet <code>(interface)</code></b><p>定义 quiz 的结构化输出。字段:<code>id</code>、<code>sources</code>(SourceSummary)、<code>questions</code>(QuizQuestion[])。sources 字段镜像 GroundedAnswer,使前端能渲染一致的来源面板。</p></article>
+          <article class="fact"><b>10. QuizResourceScope <code>(type)</code></b><p>联合类型:<code>"all_ready_documents" | "topic"</code>。定义 quiz 生成的资料选择模式。"all_ready_documents" 使用项目中所有 ready 文档;"topic" 按 topic query 过滤。</p></article>
+          <article class="fact"><b>11. QuizRequest <code>(interface)</code></b><p>定义 Quiz API 请求。字段:<code>project_id</code>(必填)、<code>prompt?</code>、<code>topic_query?</code>、<code>resource_scope?</code>(QuizResourceScope)、<code>single_choice_count?</code>、<code>fill_blank_count?</code>、<code>subjective_count?</code>。后端为所有可选字段提供合理默认值。</p></article>
+          <article class="fact"><b>12. QuizCoverage <code>(interface)</code></b><p>定义实际进入生成上下文的资料覆盖情况。字段:<code>documents_available</code>、<code>documents_covered</code>、<code>chunks_selected</code>、<code>truncated</code>(boolean)。让前端显示 quiz 是否覆盖了所有文档或被 token budget 截断。</p></article>
+          <article class="fact"><b>13. QuizResponse <code>(interface)</code></b><p>定义 Quiz API 响应。字段:<code>quiz_set</code>(QuizSet)、<code>run_id</code>、<code>trace_id</code>、<code>validation_status</code>、<code>coverage</code>(QuizCoverage)。将 quiz payload 与运行时元数据和覆盖诊断结合。</p></article>
+          <article class="fact"><b>14. QuizHistoryResponse <code>(interface)</code></b><p>定义 quiz 历史响应。字段:<code>project_id</code>、<code>quiz_sets</code>(QuizSet[])。由 quiz 历史端点返回,列出项目之前生成的 quiz 集合。</p></article>
+          <article class="fact"><b>15. ProjectRecord <code>(interface)</code></b><p>定义项目记录。字段:<code>id</code>、<code>user_id</code>、<code>name</code>、<code>kind</code>("personal" | "workspace")、<code>status</code>("active" | "deleting" | "deleted" | "expired" | string)、<code>expires_at?</code>、<code>created_at</code>、<code>updated_at</code>、<code>deleted_at?</code>。status 联合类型包含 string 逃逸舱以支持前向兼容。</p></article>
+          <article class="fact"><b>16. DocumentStatus <code>(type)</code></b><p>8 个状态的联合类型:<code>uploaded</code>、<code>parsing</code>、<code>parsed</code>、<code>indexing</code>、<code>ready</code>、<code>failed</code>、<code>expired</code>、<code>deleted</code>。定义文档生命周期状态机。只有 "ready" 文档可作为 quiz 或 answer 的证据。</p></article>
+          <article class="fact"><b>17. DocumentRecord <code>(interface)</code></b><p>定义文档记录。字段:<code>id</code>、<code>user_id</code>、<code>project_id</code>、<code>conversation_id?</code>、<code>filename</code>、<code>file_type</code>("pdf" | "docx" | "pptx" | string)、<code>mime_type</code>、<code>size_bytes</code>、<code>status</code>(DocumentStatus)、<code>error_message?</code>、<code>expires_at?</code>、<code>created_at</code>、<code>updated_at</code>、<code>deleted_at?</code>。</p></article>
+          <article class="fact"><b>18. UploadUrlRequest <code>(interface)</code></b><p>定义上传地址请求。字段:<code>project_id</code>、<code>conversation_id?</code>、<code>filename</code>、<code>file_type</code>("pdf" | "docx" | "pptx")、<code>mime_type</code>、<code>size_bytes</code>。由前端发送,从 object storage provider 获取 presigned upload URL。</p></article>
+          <article class="fact"><b>19. UploadCompleteRequest <code>(interface)</code></b><p>定义本地开发上传完成请求。字段:<code>checksum_sha256?</code>、<code>extracted_text?</code>。在本地开发中,前端直接发送提取的文本,而不是触发 worker 解析任务。</p></article>
+          <article class="fact"><b>20. UploadUrlResponse <code>(interface)</code></b><p>定义上传地址响应。字段:<code>document_id</code>、<code>upload_url</code>、<code>r2_object_key</code>、<code>expires_in_seconds</code>。前端将文件上传到 <code>upload_url</code>,然后使用 document_id 调用 complete 端点。</p></article>
+          <article class="fact"><b>21. JobRecord <code>(interface)</code></b><p>定义 job 状态记录。字段:<code>id</code>、<code>user_id</code>、<code>project_id?</code>、<code>document_id?</code>、<code>type</code>(string)、<code>status</code>("pending" | "running" | "succeeded" | "failed" | "cancelled")、<code>progress</code>(number 0-100)、<code>error_message?</code>、<code>created_at</code>、<code>updated_at</code>。</p></article>
+          <article class="fact"><b>22. DeveloperTrace <code>(interface)</code></b><p>定义用于调试和可观测性的 developer trace 记录。字段:<code>trace_id</code>、<code>user_id</code>、<code>project_id</code>、<code>run_id</code>、<code>execution_plan</code>(ExecutionPlan)、<code>router_reason</code>、<code>retrieved_chunks</code>(Record[])、<code>tool_calls</code>(Record[])、<code>validation_result</code>(Record)、<code>created_at</code>。仅管理员可访问。</p></article>
+          <article class="fact"><b>23. ErrorResponse <code>(interface)</code></b><p>定义统一错误响应。单个 <code>error</code> 对象包含三个字段:<code>code</code>(机器可读错误码)、<code>message</code>(人类可读消息)、<code>request_id</code>(关联 ID)。每个 API 错误都遵循此结构,实现一致的前端错误处理。</p></article>
+        </div>
+      </section>
+
+      <section id="mirroring">
+        <p class="eyebrow">三层契约镜像架构</p>
+        <h2>TypeScript 到 Pydantic 到 SQL</h2>
+        <p class="sub">同一数据形状在三层中表达,每层在不同边界强制执行。</p>
+        <div class="proof-chain">
+          <div class="proof-step"><b>Layer 1 &middot; TypeScript(权威层)</b><small>packages/shared/src/contracts.ts -- 23 个类型。前端直接导入。无运行时代码,bundle 零成本。这是其他两层必须镜像的唯一真相来源。</small></div>
+          <div class="proof-step"><b>Layer 2 &middot; Pydantic(请求边界)</b><small>apps/api/src/researchmate_api/schemas/ -- 镜像每个 TypeScript interface 的 Python 模型。FastAPI 使用这些模型进行自动请求验证、OpenAPI 生成和响应序列化。字段名完全匹配。</small></div>
+          <div class="proof-step"><b>Layer 3 &middot; SQL(持久化边界)</b><small>infra/supabase/migrations/ -- 带 RLS policy 的 PostgreSQL 表定义。列类型和约束镜像 Pydantic 模型。test_database_migration_contract.py 验证 migration 保留 schema 和 RLS 合约。</small></div>
+        </div>
+        <div class="notice"><strong>为什么要三层?</strong> TypeScript 给前端编译时安全。Pydantic 给后端运行时验证和自动 OpenAPI 文档。SQL 给数据库结构完整性和 row-level security。对 contracts.ts 的修改必须传播到所有三层,契约源码检视测试验证这种一致性。</div>
+      </section>
+
+      <section id="consistency">
+        <p class="eyebrow">契约一致性保障</p>
+        <h2>测试如何强制执行镜像</h2>
+        <p class="sub">6 个契约源码检视测试在不运行应用代码的情况下验证三层保持同步。</p>
+        <div class="grid two">
+          <article class="fact"><b>Frontend 到 API 合约</b><p>test_frontend_contracts.py 读取前端源码文件,验证前端只调用 contracts.ts 中批准的 API 路由。检查 MVP 页面是否存在、前端不引用后端 secret 名称、不直接调用 model provider。</p></article>
+          <article class="fact"><b>Shared 到 Pydantic 合约</b><p>test_project_scaffold.py 包含 <code>test_shared_contracts_define_unified_chat_outputs</code> 和 <code>test_backend_pydantic_contracts_validate_request_shape</code>,验证共享 TypeScript 合约和后端 Pydantic 模型在请求和响应形状上一致。</p></article>
+          <article class="fact"><b>SQL 到 schema 合约</b><p>test_database_migration_contract.py 读取 migration SQL 文件,验证 additive migration 保留 schema、RLS 和幂等性合约。检查所有计划表已定义、RLS policy 关闭初始缺口、durable run 和 evaluation 幂等键按 owner 唯一。</p></article>
+          <article class="fact"><b>Postgres 到 repository 合约</b><p>test_release_safety_contracts.py 验证 Qdrant rerank projection 索引每个过滤字段、evaluation budget 和 fault audit migration 是 fail-closed 的、workflow claim 版本被序列化和递增。</p></article>
+          <article class="fact"><b>OpenAPI 到 route 合约</b><p>test_project_scaffold.py 包含 <code>test_openapi_contract_declares_mvp_routes</code>,验证生成的 OpenAPI spec 声明所有 MVP 路由。test_evidence_api.py 包含 <code>test_evidence_routes_are_exposed_in_generated_openapi</code>。</p></article>
+          <article class="fact"><b>Docs 到 source 合约</b><p>test_project_scaffold.py 包含测试验证 docs 本地链接可解析、docs 使用英文 HTML 无并行 markdown、docs 分离当前真相和归档计划、数据库和 API docs 与完整源码合约一致。</p></article>
+        </div>
+      </section>
+
+      <section id="test-tree">
+        <p class="eyebrow">tests/ 目录结构</p>
+        <h2>36 个测试文件 + 3 个基础设施文件 + 1 个 INI 配置</h2>
+        <p class="sub">tests/ 目录包含 36 个 test_*.py 文件、3 个 Python 基础设施文件(conftest.py、api_workflow_fixtures.py、api_workflow_support.py)、1 个 pytest.ini 配置文件,以及一个包含测试 PDF 的 fixtures/ 目录。</p>
+        <pre class="command-block"><code>tests/
+├── pytest.ini                              # addopts: -p no:cacheprovider --basetemp=.pytest-temp
+├── conftest.py                             # sys.path setup: API_SRC + WORKER_SRC
+├── api_workflow_fixtures.py                # reset_local_store (autouse), client (TestClient fake)
+├── api_workflow_support.py                 # HEADERS, create_ready_document helper
+│
+├── fixtures/
+│   └── acceptance-text.pdf                 # 真实 PDF fixture,用于 parser 兼容性测试
+│
+├── HTTP 集成测试 (6 个文件)
+│   ├── test_api_policy_workflow.py         # API 生命周期、安全、developer-policy 工作流
+│   ├── test_api_regressions.py             # 修复后的 Ask、Quiz、配额、幂等性回归
+│   ├── test_api_workflow.py                # 核心 HTTP 工作流:Ask、Quiz、项目、对话
+│   ├── test_evidence_api.py                # Evidence API 所有权、幂等性、权限、路由
+│   ├── test_mcp_boundary.py                # MCP 认证、运行时降级、REST 等价策略
+│   └── test_runtime_foundation.py          # 认证、配置、请求 ID、readiness 基础
+│
+├── 单元测试 (15 个文件)
+│   ├── test_document_deletion.py           # 跨外部 projection 的删除顺序
+│   ├── test_document_ingestion.py          # 摄取状态转换、内容 projection
+│   ├── test_enabled_ai_runtime.py          # 锁定的 AI runtime 依赖兼容性
+│   ├── test_evidence_generation.py         # 仅接受服务端签发的标识符
+│   ├── test_evidence_postgres_unit.py      # 使用隔离 unit double 的 evidence repository
+│   ├── test_fault_simulation.py            # 有界恢复,无外部变更
+│   ├── test_grounded_generation.py         # 服务端 evidence allowlist 强制
+│   ├── test_hybrid_retrieval.py            # 向量检索形状、强制 owner 过滤
+│   ├── test_hybrid_retrieval_and_rerank.py # 词法检索、fusion、packing、rerank
+│   ├── test_llm_provider.py                # NVIDIA chat adapter 请求和错误合约
+│   ├── test_object_storage.py              # S3 上传签名、元数据、凭证选择
+│   ├── test_postgres_repository_contract.py# Repository 所有权、事务、交付
+│   ├── test_query_policies.py              # 检索、上下文、范围、trace、幂等性
+│   ├── test_runtime_safety_extensions.py   # Source scope、budget、pipeline-version 安全
+│   └── test_web_search_provider.py         # Tavily 消毒、边界、重试映射
+│
+├── Worker 单元测试 (7 个文件)
+│   ├── test_worker_config_unit.py          # Worker 配置 projection、provider 兼容性
+│   ├── test_worker_parsing_unit.py         # 文档解析、provenance 合约
+│   ├── test_worker_runtime_bootstrap_unit.py# Heartbeat、dispatcher、bootstrap 边界
+│   ├── test_worker_tasks.py                # 任务注册、event payload 验证
+│   ├── test_worker_task_execution_unit.py  # 任务路由、删除序列化、重试
+│   ├── test_outbox_dispatcher.py           # Outbox 交付结果、worker 路由
+│   └── test_evaluation_metrics.py          # 确定性评估指标、回归
+│
+├── 工作流单元测试 (2 个文件)
+│   ├── test_workflow_planning_retrieval_unit.py  # 规划、owned-evidence 检索
+│   └── test_workflow_review_commit_unit.py       # 审查决策、synthesis、持久化
+│
+└── 契约源码检视测试 (6 个文件)
+    ├── test_database_migration_contract.py # Additive migration 保留 schema、RLS
+    ├── test_frontend_contracts.py          # 前端路由、API 使用、安全边界
+    ├── test_project_scaffold.py            # 仓库 scaffold、docs、合约文件
+    ├── test_release_pipeline.py            # 发布自动化、容器、secret 安全
+    ├── test_release_safety_contracts.py    # Fail-closed migration、运行时安全
+    └── test_render_deployment.py           # Render 配置、组合运行时启动</code></pre>
+      </section>
+
+      <section id="test-config">
+        <p class="eyebrow">测试配置详解</p>
+        <h2>3 个 Python 基础设施文件 + 1 个 INI 配置文件</h2>
+        <p class="sub">测试基础设施由 conftest.py、api_workflow_fixtures.py、api_workflow_support.py(3 个 Python 文件)和 pytest.ini(1 个 INI 配置文件)组成。它们共同提供导入路径、HTTP client fixture 和确定性测试隔离。</p>
+
+        <h3>pytest.ini</h3>
+        <p>一个极简的两行配置,禁用 pytest cache provider 并设置本地 base temp 目录。确保测试运行是确定性的,不在仓库外留下产物。</p>
+        <pre class="command-block"><code>[pytest]
+addopts = -p no:cacheprovider --basetemp=.pytest-temp</code></pre>
+        <div class="notice"><code>-p no:cacheprovider</code> 阻止 pytest 写入 <code>.pytest_cache/</code>,避免跨 CI 运行的非确定性行为。<code>--basetemp=.pytest-temp</code> 将所有临时文件重定向到仓库本地目录,已被 gitignore。</div>
+
+        <h3>conftest.py</h3>
+        <p>将两个源码目录插入 <code>sys.path</code>,使测试模块无需安装即可从 API 和 worker 包导入。这是每个测试隐式依赖的唯一文件。</p>
+        <pre class="command-block"><code>ROOT = Path(__file__).resolve().parents[1]
+API_SRC = ROOT / "apps/api/src"
+WORKER_SRC = ROOT / "workers/ai-worker/src"
+sys.path.insert(0, str(API_SRC))
+sys.path.insert(0, str(WORKER_SRC))</code></pre>
+
+        <h3>api_workflow_fixtures.py</h3>
+        <p>为 HTTP 集成测试提供两个 pytest fixture。<code>reset_local_store</code> fixture 是 autouse 的,意味着在导入它的每个测试前后运行,清除内存 store。<code>client</code> fixture 使用 fake LLM provider 构建 FastAPI TestClient。</p>
+        <pre class="command-block"><code>@pytest.fixture(autouse=True)
+def reset_local_store() -> Generator[None]:
+    store.reset()
+    yield
+    store.reset()
+
+@pytest.fixture()
+def client() -> TestClient:
+    return TestClient(create_app(settings=Settings(
+        app_env="test", llm_provider="fake"
+    )))</code></pre>
+
+        <h3>api_workflow_support.py</h3>
+        <p>共享确定性 HTTP headers 和 <code>create_ready_document</code> helper,该 helper 创建项目、上传文档、用提取的文本完成上传、并等待 ingestion job 成功。此 helper 是每个需要 ready evidence 的 HTTP 工作流测试的基础。</p>
+        <pre class="command-block"><code>HEADERS = {"Authorization": "Bearer dev"}
+USER_A_HEADERS = {"Authorization": "Bearer dev-user-a"}
+USER_B_HEADERS = {"Authorization": "Bearer dev-user-b"}
+
+def create_ready_document(client, headers=HEADERS) -> tuple[str, str]:
+    # POST /api/v1/projects 然后 POST /documents/upload-url 然后
+    # POST /documents/{id}/complete 然后 GET /jobs/{id} (等待 succeeded)
+    return project_id, document_id</code></pre>
+
+        <h3>fixtures/</h3>
+        <p>单个目录,包含 <code>acceptance-text.pdf</code>(703 字节),一个真实的极简 PDF,被 test_worker_parsing_unit.py 用于验证轻量级 pypdf parser 与真实 PDF 文件兼容,无需 Docling 视觉模型。</p>
+      </section>
+
+      <section id="http-tests">
+        <p class="eyebrow">HTTP 集成测试</p>
+        <h2>6 个文件 &middot; FastAPI TestClient</h2>
+        <p class="sub">这些测试从 <code>fastapi.testclient</code> 导入 <code>TestClient</code>,通过进程内 FastAPI 应用执行完整 HTTP 请求-响应周期。不启动真实 HTTP server;TestClient 直接包装 ASGI app。</p>
+        <div class="grid two">
+          <article class="fact"><b>test_api_workflow.py</b><p>9 个测试,验证核心 HTTP 工作流:本地 Ask 含 sources 和 trace、trace 仅管理员可访问、项目和文档的用户隔离、quiz 生成和历史、quiz 输出大小拒绝、个人 chat 附件、个人项目 quiz 拒绝、无文档时的纯 Chat、对话恢复和跨用户隐藏。从 api_workflow_support 导入 <code>create_ready_document</code>。</p></article>
+          <article class="fact"><b>test_api_policy_workflow.py</b><p>10 个测试,验证 API 生命周期和安全:对话重命名/删除与跨用户隐藏、已删除项目的对话隐藏、删除项目时拒绝 chat 和 quiz、管理员版本化 rerank 配置、小文档无关查询弃答、MIME 不匹配拒绝、非十六进制 checksum 拒绝、移除的 source selector 拒绝、executable catalog fail-closed、evaluation catalog 开发者角色。</p></article>
+          <article class="fact"><b>test_api_regressions.py</b><p>5 个测试,验证修复后的回归:无效对话不消耗 Ask 配额、Ask 幂等性重放不产生重复消息、幂等键 body 不匹配返回 conflict、quiz 默认指令适用于中文文档、quiz 幂等性重放相同聚合。</p></article>
+          <article class="fact"><b>test_evidence_api.py</b><p>5 个测试,验证 evidence API 合约:research-run 按 owner 限定且幂等、幂等键重用不同 body 被拒绝、evaluation 和 reliability 需要特权身份、evidence 路由在生成的 OpenAPI 中暴露、fault exercise 状态 URL 可查询且按 owner 限定。每个测试创建自己的 TestClient。</p></article>
+          <article class="fact"><b>test_mcp_boundary.py</b><p>5 个测试,验证 MCP 认证和降级:MCP 需要与 REST 相同的 bearer 边界、缺失 SDK 返回明确的已认证 503、已安装 MCP runtime 在 REST bearer 边界后初始化、MCP 个人项目搜索需要对话范围、MCP trace 访问匹配 REST 管理员策略。使用 monkeypatch 模拟缺失的 MCP 模块。</p></article>
+          <article class="fact"><b>test_runtime_foundation.py</b><p>8 个测试,验证运行时基础:production 拒绝 development auth、启用的可观测性和 web provider 需要凭证、配置的 CORS 和 request ID 已应用、liveness probe 不依赖同步线程池、本地 readiness 明确且不收费、managed readiness 需要活跃后台交付、未知 bearer token fail-closed、显式 development identity 在本地可用。</p></article>
+        </div>
+      </section>
+
+      <section id="unit-tests">
+        <p class="eyebrow">单元测试</p>
+        <h2>15 个文件 &middot; 隔离 double 和内存 store</h2>
+        <p class="sub">这些测试使用轻量级 double(SimpleNamespace、RecordingConnection、EmptyResult)和内存 store 验证单个模块、服务和 provider adapter。不使用 HTTP client。</p>
+        <div class="grid two">
+          <article class="fact"><b>test_document_deletion.py</b><p>3 个测试:删除在最终化数据库前移除外部 projection、可重试 object delete 保持数据库清理 pending、项目删除在数据库级联前移除所有外部对象。验证 Qdrant、object storage 和 PostgreSQL 之间的正确删除顺序。</p></article>
+          <article class="fact"><b>test_document_ingestion.py</b><p>3 个测试:ingestion 构建稳定的 page 和 chunk projection、checksum 不匹配是终端错误且永不到达 parser、可重试 projection 失败在尝试限制前重新入队。使用 SHA-256 和 UUID 进行确定性 projection 验证。</p></article>
+          <article class="fact"><b>test_enabled_ai_runtime.py</b><p>2 个测试:LangGraph graph 执行有界本地路径、RAGAS 和 strict checkpoint serializer 以锁定兼容性导入。验证锁定的依赖版本支持有界本地合约,无网络调用。</p></article>
+          <article class="fact"><b>test_evidence_generation.py</b><p>3 个测试:evidence generation pipeline 仅接受服务端 ID、claim 提取拒绝未知 evidence ID、reconciliation 拒绝自环。使用 SimpleNamespace 和 JSON 模拟 pipeline 状态。</p></article>
+          <article class="fact"><b>test_evidence_postgres_unit.py</b><p>7 个测试:progress 使用安全 payload 并限制不可信值、get_run 设置 owner context 并映射 review 状态、get_run 对隐藏资源返回 None、list events 需要所有权并保留顺序、accepted response 使用稳定资源 URL、refresh acceptance 使用持久化或 fallback section、evidence 写入需要活跃项目但不拒绝全局 dataset。使用 RecordingConnection 和 EmptyResult double。</p></article>
+          <article class="fact"><b>test_fault_simulation.py</b><p>1 个测试:fault simulation 记录恢复但不做外部变更。验证 FaultSimulationService 执行有界恢复路径而不做任何外部状态变更。</p></article>
+          <article class="fact"><b>test_grounded_generation.py</b><p>6 个测试:model 只能选择服务端提供的 evidence、quiz provider 接收用户指令和服务端 evidence、grounded answer 规范化数据库 source type 字符串、超出范围的 evidence 引用被拒绝、无效 grounded 输出获得一次有界修复尝试、web citation 不引用临时 chunk 行。</p></article>
+          <article class="fact"><b>test_hybrid_retrieval.py</b><p>6 个测试:embedding 区分 query 和 passage 模式、hybrid query 包含 dense/sparse/RRF 和所有 owner 过滤、sparse vector 稳定且有序、upsert 使用 named vector 和 owner payload、delete points 在 vector 边界保持 owner 过滤、delete project points 移除 owner 边界内的每个点。</p></article>
+          <article class="fact"><b>test_hybrid_retrieval_and_rerank.py</b><p>7 个测试:混合 tokenizer 保留标识符和中文 bigram、BM25 加权精确短语/标题/重复命中、RRF 去重并奖励跨通道命中、context packer 在首项后遵守 budget、NVIDIA adapter 使用 ranking API 和 top_n、auto provider 确定性降级、provider candidate limit 保留 web 和文档多样性。</p></article>
+          <article class="fact"><b>test_llm_provider.py</b><p>4 个测试:非流式 completion 使用批准的 model 参数、stream 跳过空 chunk 并分离 reasoning 和 content、provider 无法在没有 NVIDIA 配置时启动、timeout 被规范化但不泄露 provider 详情。使用 SimpleNamespace 模拟 OpenAI-compatible client。</p></article>
+          <article class="fact"><b>test_object_storage.py</b><p>2 个测试:R2 adapter presign 并规范化元数据、generic S3 endpoint 使用自己的凭证集。验证 presigned URL 生成和 R2 与 generic S3 endpoint 之间的凭证隔离,使用 Settings 和 SecretStr。</p></article>
+          <article class="fact"><b>test_postgres_repository_contract.py</b><p>10 个测试:Postgres URL 选择 psycopg3 driver、preview 需要 Postgres 和 DATABASE_URL、resource lookup 设置 RLS subject 和 owner 谓词、upload factory 接收已验证的内容元数据、completion 验证预留 object、completion 在一个方法中持久化 job 和 outbox intent、async repository 合约使用真实 job 类型、文档变更需要活跃父项目、项目范围写入锁定活跃项目转换、活跃项目锁保持静态 helper 调用合约。使用 RecordingConnection double 和 pytest.importorskip 处理 SQLAlchemy。</p></article>
+          <article class="fact"><b>test_query_policies.py</b><p>8 个测试:pack_chunks 永不允许首 chunk 超出 budget、bound_messages 截断一个过大的近期消息、project_memory 保留不可信用户 provenance、小文档仍需要相关 evidence、个人项目拒绝项目范围 scope、trace policy 即使对 trace owner 也是特权的、幂等性重放并拒绝 body 不匹配、对话清理在附件失败后回滚。</p></article>
+          <article class="fact"><b>test_runtime_safety_extensions.py</b><p>5 个测试:source scope 拒绝重复 document ID、workflow budget 在调用前预留并持久化使用量、workflow budget 在 reservation 被拒绝时在 provider 之前失败、workflow budget 在数据库 reservation 之前拒绝过大的 prompt、pipeline runtime configuration 不是未验证的 label。</p></article>
+          <article class="fact"><b>test_web_search_provider.py</b><p>2 个测试:Tavily 搜索有界、稳定且丢弃不安全结果、Tavily 重试性从 status 派生。验证结果消毒、计数边界和 HTTP status 到重试的映射。</p></article>
+        </div>
+      </section>
+
+      <section id="worker-tests">
+        <p class="eyebrow">Worker 单元测试</p>
+        <h2>7 个文件 &middot; Celery task、parsing、outbox、evaluation</h2>
+        <p class="sub">这些测试验证 AI worker 的配置、解析、运行时 bootstrap、任务注册、任务执行、outbox 分发和评估指标。它们直接从 <code>researchmate_worker</code> 导入,使用 monkeypatch 避免启动外部服务。</p>
+        <div class="grid two">
+          <article class="fact"><b>test_worker_config_unit.py</b><p>3 个测试:worker database URL 选择 psycopg3、worker settings 接受共享的 Qdrant rerank projection 合约、worker settings 构造每个共享 provider adapter。验证 WorkerSettings 正确将配置投影到所有 managed provider。</p></article>
+          <article class="fact"><b>test_worker_parsing_unit.py</b><p>9 个测试:provenance 序列化保留 source offset、parser 拒绝不支持/不完整/失败的转换、PDF parser 使用轻量级 page text 无需视觉模型、PDF parser 报告缺失 text layer 而不回退到 Docling、真实 PDF fixture 与轻量级 parser 兼容、ingestion service 版本化并传递 PDF backend、Office 文档使用有界 OOXML 解析无需 Docling、DOCX parser 接受非规范 archive member path、PPTX OOXML parser 保留 slide number。使用 <code>inspect.getsource</code> 和真实 <code>acceptance-text.pdf</code> fixture。</p></article>
+          <article class="fact"><b>test_worker_runtime_bootstrap_unit.py</b><p>8 个测试:runtime heartbeat 写入有界元数据、build dispatcher 需要数据库并使用配置限制、dispatcher once 记录 heartbeat 并退出、task builder 在无 managed 配置时 fail-closed、bootstrap 失败更新有界且可选、job bootstrap 失败不覆盖活跃 worker lease、task bootstrap 失败标记 job 为终端、无效 worker settings 仍标记已发布的 job。全部使用 monkeypatch。</p></article>
+          <article class="fact"><b>test_worker_tasks.py</b><p>2 个测试:Celery 注册 ingestion task 而不启动外部服务、ingestion event 拒绝不完整的 outbox payload。验证 Celery 边界的任务注册稳定性和 event payload 验证。</p></article>
+          <article class="fact"><b>test_worker_task_execution_unit.py</b><p>6 个测试:ingestion 和 deletion 序列化文档移除、项目删除回收过期的 ingestion lease、ingestion 和 deletion task 转发已验证 event、可重试 ingestion 使用有界退避、evaluation 和 fault task 转发 worker identity、可重试 evaluation 使用有界退避。使用 <code>inspect.getsource</code> 和 monkeypatch。</p></article>
+          <article class="fact"><b>test_outbox_dispatcher.py</b><p>3 个测试:dispatcher 标记每个发布结果而不丢失批次、fault exercise 路由到有界 reliability worker、项目删除路由到 deletion queue。直接从 <code>researchmate_worker.outbox</code> 导入,验证 SqlOutboxStore 批次领取和 CeleryTaskPublisher 路由。</p></article>
+          <article class="fact"><b>test_evaluation_metrics.py</b><p>3 个测试:确定性评估指标调和 evidence 集合、evidence recall 暴露缺失的期望 chunk、回归摘要分离执行质量和基线回归。验证三个确定性指标(schema_valid、citation_precision、evidence_recall)和回归摘要聚合,无需 LLM judge。</p></article>
+        </div>
+      </section>
+
+      <section id="workflow-tests">
+        <p class="eyebrow">工作流单元测试</p>
+        <h2>2 个文件 &middot; LangGraph evidence workflow</h2>
+        <p class="sub">这些测试使用基于 deque 的 double 和 monkeypatch 执行 LangGraph evidence workflow 的规划、检索、审查、synthesis 和 commit 节点。</p>
+        <div class="grid two">
+          <article class="fact"><b>test_workflow_planning_retrieval_unit.py</b><p>5 个测试:pipeline configuration 和 runtime error 保留合约、bind_run 在可用时调用 provider hook、plan 对新 run 使用 provider 对 refresh 使用精确 section、retrieve 从 owned chunk 提取 claim、retrieve 对缺失 evidence 或 web provider fail-closed。使用 collections.deque 和 contextmanager 进行确定性状态转换。</p></article>
+          <article class="fact"><b>test_workflow_review_commit_unit.py</b><p>8 个测试:review payload 对低置信度和不可信 source 需要 human review、review payload 在宽松策略下跳过不需要的 review、edit decision 拒绝畸形 payload、edit 和 reject decision 仅更新允许的 claim、拒绝所有 claim 时 fail-closed、reconcile/synthesize/validate 保留 evidence、resume 和失败状态使用稳定数据库合约、resume 拒绝未知 decision。执行完整的 review-to-commit 弧。</p></article>
+        </div>
+      </section>
+
+      <section id="contract-inspection-tests">
+        <p class="eyebrow">契约源码检视测试</p>
+        <h2>6 个文件 &middot; 文件系统检视,不执行代码</h2>
+        <p class="sub">这些测试使用 <code>pathlib.Path</code> 从文件系统读取源码文件和配置,验证结构合约。它们不导入应用代码或启动任何服务。它们是保持三层镜像同步的护栏。</p>
+        <div class="grid two">
+          <article class="fact"><b>test_database_migration_contract.py</b><p>4 个测试:additive migration 定义所有计划表、migration 关闭初始子表 RLS 缺口、计划表有 RLS 且 outbox 无 user policy、durable run 和 evaluation 幂等性按 owner 唯一。读取 SQL migration 文件并用 regex 解析以验证 schema、RLS 和唯一性约束。</p></article>
+          <article class="fact"><b>test_frontend_contracts.py</b><p>8 个测试:前端 MVP 页面存在、前端调用 MVP API 合约、常规项目页面不导航到 dev trace、前端不引用后端 secret 名称、evidence 前端覆盖异步和恢复状态、前端不直接调用 model provider、前端在本地开发外使用 Supabase session、sidebar 和 chat 匹配统一产品边界。使用 <code>read_text()</code> 读取前端源码文件。</p></article>
+          <article class="fact"><b>test_project_scaffold.py</b><p>15 个测试:必需合约文件存在、docs 本地链接可解析、OpenAPI 合约声明 MVP 路由、docs 使用英文 HTML 无并行 markdown、docs 分离当前真相和归档计划、数据库和 API docs 与完整源码合约一致、overview 深度链接到权威详情 section、docs 有唯一 ID 和一个页面标题、质量脚本不引用遗留 handoff docs、docs HTML 不含问号乱码、数据库 schema 有安全边界、shared 合约定义统一 chat 输出、后端 Pydantic 合约验证请求形状、Postgres 对话提交重新检查活跃项目、本地验证策略在部署环境上保持集成。</p></article>
+          <article class="fact"><b>test_release_pipeline.py</b><p>7 个测试:CI 运行完整测试/构建合约和安全门、Python 依赖图被 CI 和镜像锁定、退役交付路径已惰性且 Cloudflare 源码已归档、容器镜像非 root 且 worker 预取 PDF 模型、migration runner 需要审批锁和 checksum、仓库源码不含 provider secret、web 发布设置基线浏览器安全 header。读取 CI 工作流 YAML、Dockerfile 和 render.yaml。</p></article>
+          <article class="fact"><b>test_release_safety_contracts.py</b><p>5 个测试:Qdrant rerank projection 索引每个过滤字段、evaluation budget 和 fault audit migration 是 fail-closed 的、runtime readiness 和 workflow budget migration 是 fail-closed 的、workflow claim 版本被序列化和递增、report refresh 过滤变更文档并保留不受影响的 section。读取 migration SQL 和源码文件。</p></article>
+          <article class="fact"><b>test_render_deployment.py</b><p>5 个测试:Render blueprint 使用一个共享免费服务和 secret prompt、NVIDIA 免费 endpoint 无运行时价格字段、Render runtime 启动 API/worker/dispatcher、组合运行时在重 worker 前等待 API 健康、Render 镜像使用仅 CPU PyTorch。读取 render.yaml 和 Dockerfile。</p></article>
+        </div>
+      </section>
+
+      <section id="hermetic">
+        <p class="eyebrow">Hermetic 测试原则</p>
+        <h2>零外部依赖</h2>
+        <p class="sub">整个测试套件是 hermetic 的。没有任何测试需要运行中的 PostgreSQL、Qdrant、Redis、LLM API 或外部 HTTP endpoint。这使得套件快速、确定且可在任何 CI 环境中安全运行。</p>
+        <div class="grid two">
+          <article class="fact"><b>Fake LLM provider</b><p>每个 HTTP 集成测试使用 <code>Settings(app_env="test", llm_provider="fake")</code> 构造 FastAPI app。fake provider 返回确定性、预编排的响应,无任何网络调用。这意味着 Ask 和 Quiz 工作流可以在没有 LLM API key 的情况下端到端测试。</p></article>
+          <article class="fact"><b>内存 store</b><p>后端 <code>store</code> 单例在 <code>app_env="test"</code> 时是内存实现。autouse <code>reset_local_store</code> fixture 在每个测试前后调用 <code>store.reset()</code>,确保测试函数间完全隔离。</p></article>
+          <article class="fact"><b>TestClient 而非 HTTP server</b><p>FastAPI <code>TestClient</code> 在进程内包装 ASGI 应用。不打开 socket,不绑定端口。这消除了网络不稳定性,使测试比真实 HTTP 集成快几个数量级。</p></article>
+          <article class="fact"><b>源码检视不执行</b><p>6 个契约源码检视测试使用 <code>pathlib.Path.read_text()</code> 从磁盘读取文件,用 regex 或字符串匹配解析。它们验证结构合约(文件存在、内容模式、schema 正确性)而不导入或执行任何应用代码。</p></article>
+          <article class="fact"><b>Unit double</b><p>单元测试使用轻量级 double 替代真实基础设施:<code>SimpleNamespace</code> 用于 mock 对象、<code>RecordingConnection</code> 用于在无数据库情况下捕获 SQL 语句、<code>EmptyResult</code> 用于模拟查询响应、<code>collections.deque</code> 用于确定性工作流状态转换。</p></article>
+          <article class="fact"><b>无真实 PDF 解析模型</b><p>test_worker_parsing_unit.py 使用轻量级 pypdf backend 和 703 字节的真实 PDF fixture。Docling 视觉 pipeline(需要 torch)在测试中从不加载。parser 验证文本提取、provenance 序列化和 OOXML 解析,无需重型 ML 依赖。</p></article>
+        </div>
+      </section>
+
+      <section id="mock-strategy">
+        <p class="eyebrow">Mock 策略</p>
+        <h2>分层隔离模式</h2>
+        <p class="sub">测试套件使用经过深思熟虑的分层 mock 策略。每层隔离不同边界,技术选择取决于需要验证什么。</p>
+        <div class="grid two">
+          <article class="fact"><b>monkeypatch(Python)</b><p>pytest 内置 <code>monkeypatch</code> fixture 用于在运行时替换模块级函数和属性。例如 test_mcp_boundary.py monkeypatch <code>build_mcp_server</code> 以抛出 <code>ModuleNotFoundError</code>,模拟缺失的 MCP SDK。test_worker_runtime_bootstrap_unit.py monkeypatch dispatcher 和 heartbeat 函数以避免启动真实进程。</p></article>
+          <article class="fact"><b>SimpleNamespace</b><p>Python <code>types.SimpleNamespace</code> 创建具有任意属性的轻量级 mock 对象。在单元测试中广泛使用,用于模拟 provider 响应、LLM completion 和工作流状态,无需定义完整的 mock 类。例如 test_llm_provider.py 使用 SimpleNamespace 模拟 OpenAI-compatible client 响应对象。</p></article>
+          <article class="fact"><b>RecordingConnection / EmptyResult</b><p>test_evidence_postgres_unit.py 和 test_postgres_repository_contract.py 定义了 <code>RecordingConnection</code>(捕获每条 SQL 语句和参数)和 <code>EmptyResult</code>(从查询返回 None)。这些 double 让测试在不连接 PostgreSQL 的情况下验证 repository 发出正确的 SQL 和参数。</p></article>
+          <article class="fact"><b>通过 Settings 的 fake provider</b><p>不 mock 单个 LLM 调用,而是使用 <code>llm_provider="fake"</code> 构造整个 FastAPI app。这在依赖注入边界将真实 NVIDIA chat provider 替换为确定性 fake,执行完整的请求流程,包括路由、验证和响应序列化。</p></article>
+          <article class="fact"><b>vi.fn() 和 vi.hoisted()(TypeScript)</b><p>前端 Vitest 测试使用 <code>vi.fn()</code> 创建 mock 函数,<code>vi.hoisted()</code> 创建必须在模块导入前可用的 mock。例如 auth-gate.test.tsx hoist Supabase session mock,api.test.ts mock fetch 以在无网络调用的情况下验证 API client 行为。</p></article>
+          <article class="fact"><b>renderToStaticMarkup</b><p>presentation.test.tsx 使用 React <code>renderToStaticMarkup</code> 将组件渲染为 HTML 字符串进行断言。这避免了完整 DOM 测试库的复杂性,同时仍验证组件渲染了预期的可见 chat 和 quiz 状态。</p></article>
+        </div>
+      </section>
+
+      <section id="coverage">
+        <p class="eyebrow">覆盖率配置</p>
+        <h2>Python coverage + 前端 v8 coverage</h2>
+        <p class="sub">覆盖率在两个层面配置:Python 测试套件使用 <code>coverage</code> 包(锁定 7.10+),前端使用 Vitest 内置 v8 coverage provider 并强制阈值。</p>
+        <div class="grid two">
+          <article class="fact"><b>Python 依赖(pyproject.toml)</b><p>根 <code>pyproject.toml</code> 将 <code>coverage&gt;=7.10.0,&lt;8</code> 和 <code>pytest&gt;=9.0.0,&lt;10</code> 锁定为 dev 依赖。coverage 包在测试执行期间检测 Python 源码文件,生成行和分支覆盖率报告。</p></article>
+          <article class="fact"><b>pytest.ini</b><p>禁用 cache provider(<code>-p no:cacheprovider</code>)以防止过期缓存影响覆盖率结果。设置 <code>--basetemp=.pytest-temp</code> 将所有临时测试产物保留在仓库内。</p></article>
+          <article class="fact"><b>Vitest v8 coverage</b><p>apps/web/vitest.config.ts 配置 v8 coverage provider,<code>include: ["app/lib/**/*.ts", "app/components/**/*.{ts,tsx}"]</code>,<code>exclude: ["app/**/*.test.{ts,tsx}"]</code>。Reporter:text 和 json-summary。阈值:40% 行和 40% 语句。</p></article>
+          <article class="fact"><b>覆盖率范围理由</b><p>Vitest coverage 包含编排代码(app/lib)和展示代码(app/components),但排除测试文件本身。40% 阈值是有意保守的:确保核心逻辑被测试,而不迫使对每个工具函数写脆弱的测试。<code>coverage-v8</code> 包提供原生 V8 检测。</p></article>
+          <article class="fact"><b>Playwright trace 保留</b><p>apps/web/playwright.config.ts 设置 <code>trace: "retain-on-failure"</code>、<code>screenshot: "only-on-failure"</code> 和 <code>video: "retain-on-failure"</code>。仅在测试失败时生成调试产物,保持 CI 产物存储清洁。</p></article>
+          <article class="fact"><b>CI 覆盖率强制</b><p>test_release_pipeline.py 包含 <code>test_ci_runs_the_full_test_build_contract_and_security_gate</code>,读取 CI 工作流 YAML 并验证完整测试套件(包括覆盖率)在任何部署前作为强制门运行。这使得覆盖率强制成为合约,而非约定。</p></article>
+        </div>
+      </section>
+
+      <section id="frontend-tests">
+        <p class="eyebrow">前端测试</p>
+        <h2>7 个 Vitest 单元测试 + 1 个 Playwright E2E 测试</h2>
+        <p class="sub">前端测试套件位于 apps/web/,分为 Vitest 单元测试(jsdom 环境)和 Playwright 浏览器验收测试(demo 模式)。</p>
+        <h3>Vitest 单元测试(7 个文件)</h3>
+        <div class="grid two">
+          <article class="fact"><b>api.test.ts</b><p>验证 client API 授权、错误映射、流式传输和文件元数据 helper。测试 apiFetch、ApiError、describeApiError、fileTypeFromName。使用 <code>vi.fn()</code> mock fetch 以执行成功、错误和流式路径。</p></article>
+          <article class="fact"><b>auth-gate.test.tsx</b><p>验证未登录工作区将 GitHub 作为唯一登录路径。使用 <code>vi.hoisted()</code> 在模块导入前 mock Supabase session,<code>createRoot</code> 和 <code>act</code> 进行 DOM 渲染。测试未登录和已登录状态。</p></article>
+          <article class="fact"><b>presentation.test.tsx</b><p>执行前端覆盖率中包含的可见 chat 和 quiz 状态。使用 <code>renderToStaticMarkup</code> 将 ChatComposer、ConversationThread 和 ProjectQuizDrawer 渲染为 HTML 字符串进行断言。从 <code>../lib/api</code> 导入类型。</p></article>
+          <article class="fact"><b>auth-email-rate-limit.test.ts</b><p>验证重发冷却的开始、边界和过期状态。测试 <code>AUTH_EMAIL_COOLDOWN_MS</code>、<code>nextEmailCooldown</code> 和 <code>remainingEmailCooldown</code>,使用确定性时间戳。</p></article>
+          <article class="fact"><b>demo.test.ts</b><p>验证公开 demo 的确定性状态转换和受支持的 API 表面。测试 <code>demoFetch</code>、<code>demoRunEvents</code> 和 <code>isPublicDemo</code>。Stub <code>NODE_ENV</code> 和 <code>NEXT_PUBLIC_DEMO_MODE</code> 环境变量。</p></article>
+          <article class="fact"><b>idempotent-intent.test.ts</b><p>验证稳定的重试键、intent 轮换和仅在成功时清理的语义。测试 <code>clearCompletedIntent</code> 和 <code>resolveIntentKey</code>,使用 mock key generator 验证幂等用户 intent 行为。</p></article>
+          <article class="fact"><b>supabase.test.ts</b><p>验证浏览器 session 恢复、Supabase 请求边界和登出清理。Mock Supabase client 以测试 session 持久化、token 刷新和登出状态清理(在 production 环境中)。</p></article>
+        </div>
+        <h3>Playwright E2E 测试(1 个文件)</h3>
+        <div class="grid two">
+          <article class="fact"><b>demo-workspace.e2e.ts</b><p>对确定性 client-only demo 运行时执行浏览器验收测试。Playwright 配置在端口 3100 启动 Next.js dev server,<code>NEXT_PUBLIC_DEMO_MODE=true</code>,<code>NEXT_PUBLIC_API_BASE_URL</code> 指向本地 server。测试仅在 Chromium 中运行,本地 <code>fullyParallel: true</code>,CI 中 <code>workers: 1</code>。webServer 配置在启动测试前等待 <code>/app?new=1</code> 响应。</p></article>
+        </div>
+      </section>
+
+      <section id="dependency-graph">
+        <p class="eyebrow">测试依赖关系图</p>
+        <h2>测试如何连接到源码和基础设施</h2>
+        <p class="sub">依赖关系图显示哪些测试文件从哪些源码包导入,以及它们依赖哪些基础设施文件。</p>
+        <div class="proof-chain">
+          <div class="proof-step"><b>conftest.py 到 sys.path</b><small>每个测试文件依赖 conftest.py,它将 apps/api/src 和 workers/ai-worker/src 插入 sys.path。没有这个,任何测试模块都无法从 researchmate_api 或 researchmate_worker 导入。</small></div>
+          <div class="proof-step"><b>HTTP 测试到 api_workflow_support + fixtures</b><small>test_api_workflow.py 和 test_api_policy_workflow.py 从 api_workflow_support.py 导入 HEADERS、USER_A/B_HEADERS 和 create_ready_document。它们通过 pytest_plugins 激活 api_workflow_fixtures.py 以获取 autouse reset_local_store 和 client fixture。</small></div>
+          <div class="proof-step"><b>HTTP 测试到 researchmate_api.main + config</b><small>test_evidence_api.py、test_mcp_boundary.py 和 test_runtime_foundation.py 通过直接从 researchmate_api 导入 create_app 和 Settings 构建自己的 TestClient,获得对应用配置的细粒度控制。</small></div>
+          <div class="proof-step"><b>单元测试到 researchmate_api.services + schemas</b><small>单元测试导入特定 service(store、object_storage、persistence.postgres)和 schema(common、document)以验证单个模块。它们使用 SimpleNamespace 和 RecordingConnection double 替代真实基础设施。</small></div>
+          <div class="proof-step"><b>Worker 测试到 researchmate_worker 模块</b><small>Worker 单元测试从 researchmate_worker.outbox、celery_app、ingestion、config、parsing 和 evaluation 模块导入。它们使用 monkeypatch 避免启动 Celery worker 或连接 Redis。</small></div>
+          <div class="proof-step"><b>契约测试到 pathlib.Path</b><small>6 个契约源码检视测试仅依赖文件系统。它们使用 Path.read_text() 读取源码文件、SQL migration、YAML 配置和 Dockerfile,通过字符串匹配和 regex 验证结构合约。</small></div>
+          <div class="proof-step"><b>前端测试到 @researchmate/shared + app/lib</b><small>Vitest 测试从 ../lib/api(从 @researchmate/shared 重新导出)导入类型,测试 app/components 中的组件。Playwright 测试依赖 Next.js dev server 和 demo 模式运行时。</small></div>
+        </div>
+      </section>
+
+      <section id="further-reading">
+        <p class="eyebrow">延伸阅读</p>
+        <h2>深度学习路径</h2>
+        <div class="doc-index">
+          <a class="doc-link" href="../contracts/api/index.zh.html#operations"><b>API 合约</b><span>45 个 REST 操作的完整合约、请求/响应形状和集成状态。</span></a>
+          <a class="doc-link" href="../contracts/data/index.zh.html#tables"><b>数据库设计</b><span>31 张表的完整字段、关系、完整性和 RLS 台账,镜像 Pydantic 和 TypeScript 合约。</span></a>
+          <a class="doc-link" href="backend.zh.html"><b>Backend 学习</b><span>逐文件解析 FastAPI router、Pydantic schema、service 和持久化层,它们镜像 contracts.ts。</span></a>
+          <a class="doc-link" href="worker.zh.html"><b>Worker 学习</b><span>Celery task、文档摄取、LangGraph workflow、Outbox 模式和 evaluation,由 worker 测试验证。</span></a>
+          <a class="doc-link" href="frontend.zh.html"><b>Frontend 学习</b><span>Next.js 组件、API client 和状态管理,由 Vitest 和 Playwright 测试执行。</span></a>
+          <a class="doc-link" href="../architecture/index.zh.html#stack"><b>架构与技术栈</b><span>运行时边界、技术栈论证和故障恢复,由契约测试强制执行。</span></a>
+        </div>
+      </section>
+
+    </div></div>
+  </main>
+  <footer class="foot"><div class="shell"><p>ResearchMate documentation &middot; 合约与测试学习指南 &middot; 2026 年 8 月 6 日</p></div></footer>
+</body>
+</html>

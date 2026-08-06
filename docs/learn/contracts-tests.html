@@ -1,0 +1,409 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width,initial-scale=1" name="viewport"/>
+  <meta content="ResearchMate contracts and tests learning guide: contracts.ts type-by-type breakdown, three-layer contract mirroring, 36 Python test files analyzed, hermetic testing strategy, mock patterns, coverage configuration, frontend Vitest and Playwright tests." name="description"/>
+  <title>ResearchMate &middot; Contracts &amp; Tests learning</title>
+  <link href="../assets/site.css" rel="stylesheet"/>
+  <script src="../assets/site.js"></script>
+  <style>.module-nav{border-top:1px solid var(--g200)}.module-nav .shell{padding:6px 0 12px}.module-nav a{font-size:11.5px;padding:5px 11px}</style>
+</head>
+<body>
+  <header class="mast"><div class="shell mast-row"><a class="brand" href="../index.html">ResearchMate documentation</a><div class="mast-right"><span class="stamp">Contracts &amp; Tests &middot; 6 August 2026</span><a class="lang-toggle" href="contracts-tests.zh.html" hreflang="zh" lang="zh">中文</a></div></div></header>
+  <nav aria-label="Documentation" class="global"><div class="shell">
+    <a href="../index.html">Overview</a>
+    <a href="../product/index.html">Product &amp; roadmap</a>
+    <a href="../architecture/index.html">Architecture &amp; stack</a>
+    <a href="../contracts/data/index.html">Database</a>
+    <a href="../contracts/api/index.html">API</a>
+    <a aria-current="page" href="index.html">Learn</a>
+  </div></nav>
+  <nav aria-label="Learning modules" class="global module-nav"><div class="shell">
+    <a href="frontend.html">Frontend</a>
+    <a href="backend.html">Backend</a>
+    <a href="worker.html">Worker</a>
+    <a href="infra.html">Infrastructure</a>
+    <a href="cicd.html">CI/CD</a>
+    <a aria-current="page" href="contracts-tests.html">Contracts &amp; Tests</a>
+  </div></nav>
+  <main class="shell">
+    <div class="hero">
+      <p class="eyebrow">TypeScript contracts / Pydantic / pytest / Vitest / Playwright / Hermetic testing</p>
+      <h1>Contracts &amp; Tests &middot; packages/shared + tests</h1>
+      <p class="lede">The ResearchMate test suite is a hermetic, contract-first verification system. A single TypeScript file (contracts.ts) defines 23 shared types that mirror across Pydantic schemas and SQL migrations. The Python test suite contains 36 test_*.py files organized into HTTP integration, unit, worker, workflow, and contract-source-inspection categories. Every test runs without external dependencies, using fake providers, in-memory stores, and source-file inspection. This page walks through every contract type and every test file.</p>
+      <div class="meta">
+        <span class="status local">23 contract types (4 type + 19 interface)</span>
+        <span class="status local">36 test_*.py files</span>
+        <span class="status local">3 Python infra files + 1 INI config</span>
+        <span class="status local">7 Vitest + 1 Playwright frontend tests</span>
+        <span class="status local">Three-layer contract mirroring</span>
+        <span class="status local">Hermetic &middot; no external dependencies</span>
+      </div>
+    </div>
+    <div class="layout"><div class="content">
+
+      <section id="stack">
+        <p class="eyebrow">Technology stack fundamentals</p>
+        <h2>7 foundations that power contracts &amp; tests</h2>
+        <p class="sub">Each card explains what the technology does in general and how ResearchMate uses it for contract verification.</p>
+        <div class="grid two">
+          <article class="fact"><b>TypeScript type contracts</b><p>A single file, packages/shared/src/contracts.ts, defines 23 exported types (4 <code>export type</code> + 19 <code>export interface</code>) that serve as the authoritative API data shape. The frontend imports these types directly via the <code>@researchmate/shared</code> workspace package. No runtime code exists in this file, only type declarations, ensuring zero bundle-size impact.</p></article>
+          <article class="fact"><b>Pydantic</b><p>Python data-validation library. The backend mirrors every TypeScript contract into Pydantic models under apps/api/src/researchmate_api/schemas/. Pydantic enforces field types, optional vs. required, enum constraints, and validator logic at request boundary. test_project_scaffold.py verifies that backend Pydantic contracts validate the request shape defined by contracts.ts.</p></article>
+          <article class="fact"><b>pytest</b><p>Python test framework (pinned to 9.0+). pytest.ini configures <code>-p no:cacheprovider --basetemp=.pytest-temp</code> for deterministic, cache-free runs. conftest.py inserts API and worker source paths into sys.path. Test functions use plain <code>def test_*</code> naming, <code>pytest.raises</code> for expected failures, and <code>pytest.importorskip</code> for optional dependencies like SQLAlchemy.</p></article>
+          <article class="fact"><b>Vitest</b><p>Frontend unit-test framework configured in apps/web/vitest.config.ts with jsdom environment and v8 coverage provider. Seven test files cover API client logic, auth gate, presentation components, demo mode, email rate limiting, idempotent intents, and Supabase session handling. Coverage thresholds enforce 40% lines and statements across app/lib and app/components.</p></article>
+          <article class="fact"><b>Playwright</b><p>Browser acceptance-test framework. apps/web/playwright.config.ts runs against a local Next.js dev server in demo mode (NEXT_PUBLIC_DEMO_MODE=true) on port 3100. One E2E test file (demo-workspace.e2e.ts) exercises the deterministic client-only demo runtime. CI runs with retries=2 and a single worker; local runs are fully parallel.</p></article>
+          <article class="fact"><b>Hermetic testing</b><p>The entire Python test suite is hermetic: no real PostgreSQL, Qdrant, Redis, LLM, or external HTTP calls. The FastAPI TestClient creates an in-process application with <code>Settings(app_env="test", llm_provider="fake")</code>. An autouse <code>reset_local_store</code> fixture wipes the in-memory store before and after each test. Source-inspection tests read files from disk without executing application code.</p></article>
+          <article class="fact"><b>Dependency injection testing</b><p>The backend constructs all managed providers (store, chat provider, hybrid store, reranker) through factory functions read from <code>app.state</code>. Tests override these factories by constructing <code>create_app(settings=Settings(...))</code> with the fake provider, or by using <code>monkeypatch</code> to swap module-level functions. No global singletons are mutated outside the reset-protected store.</p></article>
+        </div>
+      </section>
+
+      <section id="shared-package">
+        <p class="eyebrow">packages/shared</p>
+        <h2>The single source of truth for API data shapes</h2>
+        <p class="sub">packages/shared is an npm workspace package with no runtime code. Its package.json declares it as a type-only module whose main entry is contracts.ts.</p>
+        <h3>package.json</h3>
+        <pre class="command-block"><code>{
+  "name": "@researchmate/shared",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "main": "src/contracts.ts",
+  "types": "src/contracts.ts"
+}</code></pre>
+        <div class="notice">Both <code>main</code> and <code>types</code> point to <code>src/contracts.ts</code>. Because the file contains only type declarations (no executable code), importing it adds zero bytes to the frontend bundle. The frontend resolves <code>@researchmate/shared</code> through npm workspaces, giving every component and API client direct access to the authoritative types.</div>
+
+        <h3>contracts.ts &middot; 23 types, type-by-type</h3>
+        <p class="sub">The file defines 4 <code>export type</code> aliases and 19 <code>export interface</code> declarations. Every comment in the source is written in Chinese; the type names and field names are English. Below is each type with its purpose and key fields.</p>
+        <div class="grid two">
+          <article class="fact"><b>1. TaskType <code>(type)</code></b><p>Union: <code>"answer" | "quiz"</code>. Defines what kind of task a request represents. Task only decides what to do, not how. The router inspects the request to determine whether the user is asking a question or generating a quiz.</p></article>
+          <article class="fact"><b>2. ToolName <code>(type)</code></b><p>Union of 8 tool names: <code>query_local_docs</code>, <code>search_web</code>, <code>read_url</code>, <code>crawl_url_optional</code>, <code>rerank_evidence</code>, <code>generate_answer</code>, <code>generate_quiz</code>, <code>save_quiz</code>. The backend uses ExecutionPlan to control which tools are allowed for a given request, enforcing the security boundary.</p></article>
+          <article class="fact"><b>3. ExecutionPlan <code>(interface)</code></b><p>Defines the parsed execution plan for one request. Fields: <code>task_type</code>, <code>allowed_tools</code> (ToolName[]), <code>requires_local_docs</code>, <code>requires_web</code>, <code>context_strategy</code> (6-value union: chat, full_context, hybrid_retrieval, web, hybrid_retrieval_web, quiz), <code>output_schema</code> (ChatAnswer, GroundedAnswer, or QuizSet).</p></article>
+          <article class="fact"><b>4. SourceSummary <code>(interface)</code></b><p>Defines the source count summary shown at the top of an answer. Fields: <code>local_chunks</code> (number), <code>web_pages</code> (number). Appears in GroundedAnswer and QuizSet.</p></article>
+          <article class="fact"><b>5. Citation <code>(interface)</code></b><p>Defines a local or web evidence citation. Fields: <code>id</code>, <code>source_type</code> ("local_doc" | "web_page"), <code>document_id?</code>, <code>chunk_id?</code>, <code>page_no?</code>, <code>slide_no?</code>, <code>url?</code>, <code>quote</code> (required string), <code>claim_id?</code>. Every grounded answer must cite its sources through this structure.</p></article>
+          <article class="fact"><b>6. GroundedAnswer <code>(interface)</code></b><p>Defines the structured output for a traceable, evidence-backed answer. Fields: <code>sources</code> (SourceSummary), <code>answer</code> (string), <code>citations</code> (Citation[]), <code>trace_id</code> (string), <code>validation_status</code> ("passed" | "failed" | "retrying"). AskResponse extends this interface.</p></article>
+          <article class="fact"><b>7. AskResponse <code>(interface, extends GroundedAnswer)</code></b><p>Defines the Ask API response. Adds: <code>run_id</code>, <code>conversation_id</code>, <code>rerank_degraded</code>, <code>retrieval_degraded</code>, <code>summary_degraded</code> (all boolean), <code>fallback_reason?</code>. The three degraded flags let the frontend surface degradation notices to the user.</p></article>
+          <article class="fact"><b>8. QuizQuestion <code>(interface)</code></b><p>Defines a single quiz question. Fields: <code>id</code>, <code>type</code> ("single_choice" | "fill_blank" | "subjective"), <code>question</code>, <code>options?</code> (string[] | null), <code>answer</code>, <code>explanation</code>, <code>difficulty</code> ("easy" | "medium" | "hard"), <code>source_citations</code> (Citation[]). Every question must trace back to source evidence.</p></article>
+          <article class="fact"><b>9. QuizSet <code>(interface)</code></b><p>Defines the structured output for a quiz. Fields: <code>id</code>, <code>sources</code> (SourceSummary), <code>questions</code> (QuizQuestion[]). The sources field mirrors GroundedAnswer so the frontend can render consistent source panels.</p></article>
+          <article class="fact"><b>10. QuizResourceScope <code>(type)</code></b><p>Union: <code>"all_ready_documents" | "topic"</code>. Defines the resource selection mode for quiz generation. "all_ready_documents" uses every ready document in the project; "topic" filters by a topic query.</p></article>
+          <article class="fact"><b>11. QuizRequest <code>(interface)</code></b><p>Defines the Quiz API request. Fields: <code>project_id</code> (required), <code>prompt?</code>, <code>topic_query?</code>, <code>resource_scope?</code> (QuizResourceScope), <code>single_choice_count?</code>, <code>fill_blank_count?</code>, <code>subjective_count?</code>. The backend provides sensible defaults for all optional fields.</p></article>
+          <article class="fact"><b>12. QuizCoverage <code>(interface)</code></b><p>Defines the actual resource coverage that entered the generation context. Fields: <code>documents_available</code>, <code>documents_covered</code>, <code>chunks_selected</code>, <code>truncated</code> (boolean). Lets the frontend show whether the quiz covered all documents or was truncated by token budget.</p></article>
+          <article class="fact"><b>13. QuizResponse <code>(interface)</code></b><p>Defines the Quiz API response. Fields: <code>quiz_set</code> (QuizSet), <code>run_id</code>, <code>trace_id</code>, <code>validation_status</code>, <code>coverage</code> (QuizCoverage). Combines the quiz payload with runtime metadata and coverage diagnostics.</p></article>
+          <article class="fact"><b>14. QuizHistoryResponse <code>(interface)</code></b><p>Defines the quiz history response. Fields: <code>project_id</code>, <code>quiz_sets</code> (QuizSet[]). Returned by the quiz history endpoint to list previously generated quiz sets for a project.</p></article>
+          <article class="fact"><b>15. ProjectRecord <code>(interface)</code></b><p>Defines a project record. Fields: <code>id</code>, <code>user_id</code>, <code>name</code>, <code>kind</code> ("personal" | "workspace"), <code>status</code> ("active" | "deleting" | "deleted" | "expired" | string), <code>expires_at?</code>, <code>created_at</code>, <code>updated_at</code>, <code>deleted_at?</code>. The status union includes a string escape hatch for forward compatibility.</p></article>
+          <article class="fact"><b>16. DocumentStatus <code>(type)</code></b><p>Union of 8 statuses: <code>uploaded</code>, <code>parsing</code>, <code>parsed</code>, <code>indexing</code>, <code>ready</code>, <code>failed</code>, <code>expired</code>, <code>deleted</code>. Defines the document lifecycle state machine. Only "ready" documents can serve as quiz or answer evidence.</p></article>
+          <article class="fact"><b>17. DocumentRecord <code>(interface)</code></b><p>Defines a document record. Fields: <code>id</code>, <code>user_id</code>, <code>project_id</code>, <code>conversation_id?</code>, <code>filename</code>, <code>file_type</code> ("pdf" | "docx" | "pptx" | string), <code>mime_type</code>, <code>size_bytes</code>, <code>status</code> (DocumentStatus), <code>error_message?</code>, <code>expires_at?</code>, <code>created_at</code>, <code>updated_at</code>, <code>deleted_at?</code>.</p></article>
+          <article class="fact"><b>18. UploadUrlRequest <code>(interface)</code></b><p>Defines the upload URL request. Fields: <code>project_id</code>, <code>conversation_id?</code>, <code>filename</code>, <code>file_type</code> ("pdf" | "docx" | "pptx"), <code>mime_type</code>, <code>size_bytes</code>. Sent by the frontend to obtain a presigned upload URL from the object storage provider.</p></article>
+          <article class="fact"><b>19. UploadCompleteRequest <code>(interface)</code></b><p>Defines the local development upload completion request. Fields: <code>checksum_sha256?</code>, <code>extracted_text?</code>. In local development, the frontend sends extracted text directly instead of triggering a worker parse job.</p></article>
+          <article class="fact"><b>20. UploadUrlResponse <code>(interface)</code></b><p>Defines the upload URL response. Fields: <code>document_id</code>, <code>upload_url</code>, <code>r2_object_key</code>, <code>expires_in_seconds</code>. The frontend uploads the file to <code>upload_url</code> and then calls the complete endpoint with the document_id.</p></article>
+          <article class="fact"><b>21. JobRecord <code>(interface)</code></b><p>Defines a job status record. Fields: <code>id</code>, <code>user_id</code>, <code>project_id?</code>, <code>document_id?</code>, <code>type</code> (string), <code>status</code> ("pending" | "running" | "succeeded" | "failed" | "cancelled"), <code>progress</code> (number 0-100), <code>error_message?</code>, <code>created_at</code>, <code>updated_at</code>.</p></article>
+          <article class="fact"><b>22. DeveloperTrace <code>(interface)</code></b><p>Defines the developer trace record for debugging and observability. Fields: <code>trace_id</code>, <code>user_id</code>, <code>project_id</code>, <code>run_id</code>, <code>execution_plan</code> (ExecutionPlan), <code>router_reason</code>, <code>retrieved_chunks</code> (Record[]), <code>tool_calls</code> (Record[]), <code>validation_result</code> (Record), <code>created_at</code>. Access is admin-only.</p></article>
+          <article class="fact"><b>23. ErrorResponse <code>(interface)</code></b><p>Defines the unified error response. A single <code>error</code> object with three fields: <code>code</code> (machine-readable error code), <code>message</code> (human-readable message), <code>request_id</code> (correlation ID). Every API error follows this shape, enabling consistent frontend error handling.</p></article>
+        </div>
+      </section>
+
+      <section id="mirroring">
+        <p class="eyebrow">Three-layer contract mirroring</p>
+        <h2>TypeScript to Pydantic to SQL</h2>
+        <p class="sub">The same data shape is expressed in three layers, each enforcing it at a different boundary.</p>
+        <div class="proof-chain">
+          <div class="proof-step"><b>Layer 1 &middot; TypeScript (authoritative)</b><small>packages/shared/src/contracts.ts -- 23 types. The frontend imports these directly. No runtime code, zero bundle cost. This is the single source of truth that the other two layers must mirror.</small></div>
+          <div class="proof-step"><b>Layer 2 &middot; Pydantic (request boundary)</b><small>apps/api/src/researchmate_api/schemas/ -- Python models that mirror every TypeScript interface. FastAPI uses these for automatic request validation, OpenAPI generation, and response serialization. Field names match exactly.</small></div>
+          <div class="proof-step"><b>Layer 3 &middot; SQL (persistence boundary)</b><small>infra/supabase/migrations/ -- PostgreSQL table definitions with RLS policies. Column types and constraints mirror the Pydantic models. test_database_migration_contract.py verifies that migrations preserve schema and RLS contracts.</small></div>
+        </div>
+        <div class="notice"><strong>Why three layers?</strong> TypeScript gives the frontend compile-time safety. Pydantic gives the backend runtime validation and automatic OpenAPI docs. SQL gives the database structural integrity and row-level security. A change to contracts.ts must propagate to all three layers, and the contract-source-inspection tests verify this consistency.</div>
+      </section>
+
+      <section id="consistency">
+        <p class="eyebrow">Contract consistency guarantees</p>
+        <h2>How tests enforce the mirror</h2>
+        <p class="sub">Six contract-source-inspection tests verify that the three layers stay in sync without running application code.</p>
+        <div class="grid two">
+          <article class="fact"><b>Frontend to API contract</b><p>test_frontend_contracts.py reads frontend source files and verifies that the frontend calls only approved API routes from contracts.ts. It checks that MVP pages exist, that the frontend does not reference backend secret names, and that it does not call model providers directly.</p></article>
+          <article class="fact"><b>Shared to Pydantic contract</b><p>test_project_scaffold.py includes <code>test_shared_contracts_define_unified_chat_outputs</code> and <code>test_backend_pydantic_contracts_validate_request_shape</code>, which verify that the shared TypeScript contracts and backend Pydantic models agree on request and response shapes.</p></article>
+          <article class="fact"><b>SQL to schema contract</b><p>test_database_migration_contract.py reads migration SQL files and verifies that additive migrations preserve schema, RLS, and idempotency contracts. It checks that all planned tables are defined, that RLS policies close initial gaps, and that durable run and evaluation idempotency keys are unique per owner.</p></article>
+          <article class="fact"><b>Postgres to repository contract</b><p>test_release_safety_contracts.py verifies that Qdrant rerank projection indexes every filter field, that evaluation budget and fault audit migrations are fail-closed, and that workflow claim versions are serialized and incremented.</p></article>
+          <article class="fact"><b>OpenAPI to route contract</b><p>test_project_scaffold.py includes <code>test_openapi_contract_declares_mvp_routes</code>, verifying that the generated OpenAPI spec declares all MVP routes. test_evidence_api.py includes <code>test_evidence_routes_are_exposed_in_generated_openapi</code>.</p></article>
+          <article class="fact"><b>Docs to source contract</b><p>test_project_scaffold.py includes tests that verify docs local links resolve, docs use English HTML without parallel markdown, docs separate current truth from archived plans, and database and API docs reconcile complete source contracts.</p></article>
+        </div>
+      </section>
+
+      <section id="test-tree">
+        <p class="eyebrow">tests/ directory structure</p>
+        <h2>36 test files + 3 infrastructure files + 1 INI config</h2>
+        <p class="sub">The tests/ directory contains 36 test_*.py files, 3 Python infrastructure files (conftest.py, api_workflow_fixtures.py, api_workflow_support.py), 1 pytest.ini configuration file, and a fixtures/ directory with one test PDF.</p>
+        <pre class="command-block"><code>tests/
+├── pytest.ini                              # addopts: -p no:cacheprovider --basetemp=.pytest-temp
+├── conftest.py                             # sys.path setup: API_SRC + WORKER_SRC
+├── api_workflow_fixtures.py                # reset_local_store (autouse), client (TestClient fake)
+├── api_workflow_support.py                 # HEADERS, create_ready_document helper
+│
+├── fixtures/
+│   └── acceptance-text.pdf                 # Real PDF fixture for parser compatibility tests
+│
+├── HTTP integration tests (6 files)
+│   ├── test_api_policy_workflow.py         # API lifecycle, security, developer-policy workflows
+│   ├── test_api_regressions.py             # Repaired Ask, Quiz, quota, idempotency regressions
+│   ├── test_api_workflow.py                # Core HTTP workflows: Ask, Quiz, projects, conversations
+│   ├── test_evidence_api.py                # Evidence API ownership, idempotency, privilege, routes
+│   ├── test_mcp_boundary.py                # MCP auth, runtime fallback, REST-equivalent policies
+│   └── test_runtime_foundation.py          # Auth, config, request ID, readiness foundations
+│
+├── Unit tests (15 files)
+│   ├── test_document_deletion.py           # Deletion order across external projections
+│   ├── test_document_ingestion.py          # Ingestion state transitions, content projections
+│   ├── test_enabled_ai_runtime.py          # Pinned AI runtime dependency compatibility
+│   ├── test_evidence_generation.py         # Server-issued identifier enforcement
+│   ├── test_evidence_postgres_unit.py      # Evidence repository with isolated unit doubles
+│   ├── test_fault_simulation.py            # Bounded recovery without external mutation
+│   ├── test_grounded_generation.py         # Server evidence allowlist enforcement
+│   ├── test_hybrid_retrieval.py            # Vector retrieval shapes, mandatory owner filters
+│   ├── test_hybrid_retrieval_and_rerank.py # Lexical retrieval, fusion, packing, rerank
+│   ├── test_llm_provider.py                # NVIDIA chat adapter request and error contracts
+│   ├── test_object_storage.py              # S3 upload signing, metadata, credential selection
+│   ├── test_postgres_repository_contract.py# Repository ownership, transaction, delivery
+│   ├── test_query_policies.py              # Retrieval, context, scope, trace, idempotency
+│   ├── test_runtime_safety_extensions.py   # Source scope, budget, pipeline-version safety
+│   └── test_web_search_provider.py         # Tavily sanitization, bounds, retry mapping
+│
+├── Worker unit tests (7 files)
+│   ├── test_worker_config_unit.py          # Worker config projection, provider compatibility
+│   ├── test_worker_parsing_unit.py         # Document parsing, provenance contracts
+│   ├── test_worker_runtime_bootstrap_unit.py# Heartbeat, dispatcher, bootstrap boundaries
+│   ├── test_worker_tasks.py                # Task registration, event payload validation
+│   ├── test_worker_task_execution_unit.py  # Task routing, deletion serialization, retry
+│   ├── test_outbox_dispatcher.py           # Outbox delivery outcomes, worker routing
+│   └── test_evaluation_metrics.py          # Deterministic evaluation metrics, regression
+│
+├── Workflow unit tests (2 files)
+│   ├── test_workflow_planning_retrieval_unit.py  # Planning, owned-evidence retrieval
+│   └── test_workflow_review_commit_unit.py       # Review decisions, synthesis, persistence
+│
+└── Contract source inspection tests (6 files)
+    ├── test_database_migration_contract.py # Additive migrations preserve schema, RLS
+    ├── test_frontend_contracts.py          # Frontend routes, API usage, security boundaries
+    ├── test_project_scaffold.py            # Repository scaffold, docs, contract files
+    ├── test_release_pipeline.py            # Release automation, container, secret safety
+    ├── test_release_safety_contracts.py    # Fail-closed migration, runtime safety
+    └── test_render_deployment.py           # Render config, combined-runtime startup</code></pre>
+      </section>
+
+      <section id="test-config">
+        <p class="eyebrow">Test configuration</p>
+        <h2>3 Python infrastructure files + 1 INI config</h2>
+        <p class="sub">The test infrastructure consists of conftest.py, api_workflow_fixtures.py, api_workflow_support.py (3 Python files), and pytest.ini (1 INI configuration file). Together they provide import paths, HTTP client fixtures, and deterministic test isolation.</p>
+
+        <h3>pytest.ini</h3>
+        <p>A minimal two-line configuration that disables the pytest cache provider and sets a local base temp directory. This ensures test runs are deterministic and do not leave artifacts outside the repository.</p>
+        <pre class="command-block"><code>[pytest]
+addopts = -p no:cacheprovider --basetemp=.pytest-temp</code></pre>
+        <div class="notice"><code>-p no:cacheprovider</code> prevents pytest from writing <code>.pytest_cache/</code>, which could cause non-deterministic behavior across CI runs. <code>--basetemp=.pytest-temp</code> redirects all temporary files to a repository-local directory that is gitignored.</div>
+
+        <h3>conftest.py</h3>
+        <p>Inserts two source directories into <code>sys.path</code> so that test modules can import from both the API and worker packages without installation. This is the only file that every test implicitly depends on.</p>
+        <pre class="command-block"><code>ROOT = Path(__file__).resolve().parents[1]
+API_SRC = ROOT / "apps/api/src"
+WORKER_SRC = ROOT / "workers/ai-worker/src"
+sys.path.insert(0, str(API_SRC))
+sys.path.insert(0, str(WORKER_SRC))</code></pre>
+
+        <h3>api_workflow_fixtures.py</h3>
+        <p>Provides two pytest fixtures for HTTP integration tests. The <code>reset_local_store</code> fixture is autouse, meaning it runs before and after every test that imports it, wiping the in-memory store. The <code>client</code> fixture builds a FastAPI TestClient with the fake LLM provider.</p>
+        <pre class="command-block"><code>@pytest.fixture(autouse=True)
+def reset_local_store() -> Generator[None]:
+    store.reset()
+    yield
+    store.reset()
+
+@pytest.fixture()
+def client() -> TestClient:
+    return TestClient(create_app(settings=Settings(
+        app_env="test", llm_provider="fake"
+    )))</code></pre>
+
+        <h3>api_workflow_support.py</h3>
+        <p>Shares deterministic HTTP headers and a <code>create_ready_document</code> helper that creates a project, uploads a document, completes it with extracted text, and waits for the ingestion job to succeed. This helper is the foundation of every HTTP workflow test that needs ready evidence.</p>
+        <pre class="command-block"><code>HEADERS = {"Authorization": "Bearer dev"}
+USER_A_HEADERS = {"Authorization": "Bearer dev-user-a"}
+USER_B_HEADERS = {"Authorization": "Bearer dev-user-b"}
+
+def create_ready_document(client, headers=HEADERS) -> tuple[str, str]:
+    # POST /api/v1/projects then POST /documents/upload-url then
+    # POST /documents/{id}/complete then GET /jobs/{id} (wait for succeeded)
+    return project_id, document_id</code></pre>
+
+        <h3>fixtures/</h3>
+        <p>A single directory containing <code>acceptance-text.pdf</code> (703 bytes), a real minimal PDF used by test_worker_parsing_unit.py to verify that the lightweight pypdf parser is compatible with real PDF files without requiring Docling visual models.</p>
+      </section>
+
+      <section id="http-tests">
+        <p class="eyebrow">HTTP integration tests</p>
+        <h2>6 files &middot; FastAPI TestClient</h2>
+        <p class="sub">These tests import <code>TestClient</code> from <code>fastapi.testclient</code> and exercise the full HTTP request-response cycle through an in-process FastAPI application. No real HTTP server is started; TestClient wraps the ASGI app directly.</p>
+        <div class="grid two">
+          <article class="fact"><b>test_api_workflow.py</b><p>9 tests exercising core HTTP workflows: local Ask with sources and trace, admin-only trace access, user isolation for projects and documents, quiz generation and history, quiz output size rejection, personal chat attachments, personal project quiz rejection, plain Chat without documents, conversation resume and cross-user concealment. Imports <code>create_ready_document</code> from api_workflow_support.</p></article>
+          <article class="fact"><b>test_api_policy_workflow.py</b><p>10 tests verifying API lifecycle and security: conversation rename/delete with cross-user concealment, deleted project conversation concealment, deleting project rejects chat and quiz, admin-versioned rerank config, small document unrelated query abstention, MIME mismatch rejection, non-hex checksum rejection, removed source selector rejection, executable catalog fail-closed, evaluation catalog developer role.</p></article>
+          <article class="fact"><b>test_api_regressions.py</b><p>5 tests exercising repaired regressions: invalid conversation does not consume Ask quota, Ask idempotency replays without duplicate messages, idempotency key body mismatch returns conflict, quiz default instructions work for Chinese documents, quiz idempotency replays the same aggregate.</p></article>
+          <article class="fact"><b>test_evidence_api.py</b><p>5 tests verifying evidence API contracts: research-run owner-scoped and idempotent, idempotency key reuse with different body rejected, evaluation and reliability require privileged identity, evidence routes exposed in generated OpenAPI, fault exercise status URL queryable and owner-scoped. Creates its own TestClient per test.</p></article>
+          <article class="fact"><b>test_mcp_boundary.py</b><p>5 tests verifying MCP authentication and fallback: MCP requires same bearer boundary as REST, missing SDK returns explicit authenticated 503, installed MCP runtime initializes behind REST bearer boundary, MCP personal project search requires conversation scope, MCP trace access matches REST admin policy. Uses monkeypatch to simulate missing MCP module.</p></article>
+          <article class="fact"><b>test_runtime_foundation.py</b><p>8 tests verifying runtime foundations: production rejects development auth, enabled observability and web providers require credentials, configured CORS and request ID applied, liveness probe independent of sync thread pool, local readiness explicit and non-charging, managed readiness requires live background delivery, unknown bearer token fails closed, explicit development identity available locally.</p></article>
+        </div>
+      </section>
+
+      <section id="unit-tests">
+        <p class="eyebrow">Unit tests</p>
+        <h2>15 files &middot; isolated doubles and in-memory stores</h2>
+        <p class="sub">These tests verify individual modules, services, and provider adapters using lightweight doubles (SimpleNamespace, RecordingConnection, EmptyResult) and the in-memory store. No HTTP client is used.</p>
+        <div class="grid two">
+          <article class="fact"><b>test_document_deletion.py</b><p>3 tests: deletion removes external projections before finalizing database, retryable object delete keeps database cleanup pending, project deletion removes all external objects before database cascade. Verifies the correct deletion order across Qdrant, object storage, and PostgreSQL.</p></article>
+          <article class="fact"><b>test_document_ingestion.py</b><p>3 tests: ingestion builds stable page and chunk projections, checksum mismatch is terminal and never reaches parser, retryable projection failure requeues before attempt limit. Uses SHA-256 and UUID for deterministic projection verification.</p></article>
+          <article class="fact"><b>test_enabled_ai_runtime.py</b><p>2 tests: LangGraph graph executes a bounded local path, RAGAS and strict checkpoint serializer import with pinned compatibility. Verifies that pinned dependency versions support the bounded local contracts without network calls.</p></article>
+          <article class="fact"><b>test_evidence_generation.py</b><p>3 tests: evidence generation pipeline accepts only server IDs, claim extraction rejects unknown evidence IDs, reconciliation rejects self-edges. Uses SimpleNamespace and JSON to simulate pipeline state.</p></article>
+          <article class="fact"><b>test_evidence_postgres_unit.py</b><p>7 tests: progress uses safe payload and clamps untrusted values, get_run sets owner context and maps review state, get_run returns None for concealed resource, list events requires ownership and preserves sequence, accepted responses use stable resource URLs, refresh acceptance uses persisted or fallback sections, evidence writes require active projects without rejecting global datasets. Uses RecordingConnection and EmptyResult doubles.</p></article>
+          <article class="fact"><b>test_fault_simulation.py</b><p>1 test: fault simulation records recovery without external mutation. Verifies that the FaultSimulationService exercises bounded recovery paths without making any external state changes.</p></article>
+          <article class="fact"><b>test_grounded_generation.py</b><p>6 tests: model can only select server-supplied evidence, quiz provider receives user instructions and server evidence, grounded answer normalizes database source type strings, out-of-range evidence reference rejected, invalid grounded output gets one bounded repair attempt, web citation does not reference ephemeral chunk row.</p></article>
+          <article class="fact"><b>test_hybrid_retrieval.py</b><p>6 tests: embedding distinguishes query and passage modes, hybrid query has dense/sparse/RRF and all owner filters, sparse vector is stable and sorted, upsert uses named vectors and owner payload, delete points keeps owner filter at vector boundary, delete project points removes every point inside owner boundary.</p></article>
+          <article class="fact"><b>test_hybrid_retrieval_and_rerank.py</b><p>7 tests: mixed tokenizer keeps identifiers and Chinese bigrams, BM25 weights exact phrase/title/repeated hits, RRF deduplicates and rewards cross-channel hits, context packer respects budget after first item, NVIDIA adapter uses ranking API and top_n, auto provider degrades deterministically, provider candidate limit preserves web and document diversity.</p></article>
+          <article class="fact"><b>test_llm_provider.py</b><p>4 tests: non-streaming completion uses approved model parameters, stream skips empty chunks and separates reasoning from content, provider cannot start without NVIDIA configuration, timeout is normalized without leaking provider details. Uses SimpleNamespace to simulate the OpenAI-compatible client.</p></article>
+          <article class="fact"><b>test_object_storage.py</b><p>2 tests: R2 adapter presigns and normalizes metadata, generic S3 endpoint uses its own credential set. Verifies presigned URL generation and credential isolation between R2 and generic S3 endpoints using Settings and SecretStr.</p></article>
+          <article class="fact"><b>test_postgres_repository_contract.py</b><p>10 tests: Postgres URLs select psycopg3 driver, preview requires Postgres and DATABASE_URL, resource lookup sets RLS subject and owner predicate, upload factory receives validated content metadata, completion verifies reserved object, completion persists job and outbox intent in one method, async repository contract uses real job types, document mutations require active parent project, project-scoped writes lock active project transition, active project lock keeps static helper call contract. Uses RecordingConnection double and pytest.importorskip for SQLAlchemy.</p></article>
+          <article class="fact"><b>test_query_policies.py</b><p>8 tests: pack_chunks never allows first chunk over budget, bound_messages truncates one oversized recent message, project_memory preserves untrusted user provenance, small document still requires relevant evidence, personal project rejects project-wide scope, trace policy is privileged even for trace owner, idempotency replays and rejects body mismatch, conversation cleanup rolls back after attachment failure.</p></article>
+          <article class="fact"><b>test_runtime_safety_extensions.py</b><p>5 tests: source scope rejects duplicate document IDs, workflow budget reserves before call and persists usage, workflow budget fails before provider when reservation denied, workflow budget rejects oversized prompt before database reservation, pipeline runtime configuration is not an unvalidated label.</p></article>
+          <article class="fact"><b>test_web_search_provider.py</b><p>2 tests: Tavily search is bounded, stable, and discards unsafe results, Tavily retryability is derived from status. Verifies result sanitization, count bounds, and HTTP status-to-retry mapping.</p></article>
+        </div>
+      </section>
+
+      <section id="worker-tests">
+        <p class="eyebrow">Worker unit tests</p>
+        <h2>7 files &middot; Celery tasks, parsing, outbox, evaluation</h2>
+        <p class="sub">These tests verify the AI worker configuration, parsing, runtime bootstrap, task registration, task execution, outbox dispatch, and evaluation metrics. They import directly from <code>researchmate_worker</code> and use monkeypatch to avoid starting external services.</p>
+        <div class="grid two">
+          <article class="fact"><b>test_worker_config_unit.py</b><p>3 tests: worker database URLs select psycopg3, worker settings accept the shared Qdrant rerank projection contract, worker settings construct every shared provider adapter. Verifies that WorkerSettings properly projects configuration to all managed providers.</p></article>
+          <article class="fact"><b>test_worker_parsing_unit.py</b><p>9 tests: provenance serialization preserves source offsets, parser rejects unsupported/incomplete/failed conversion, PDF parser uses lightweight page text without visual models, PDF parser reports missing text layer without Docling fallback, real PDF fixture compatible with lightweight parser, ingestion service versions and passes PDF backend, Office documents use bounded OOXML parsing without Docling, DOCX parser accepts noncanonical archive member paths, PPTX OOXML parser preserves slide numbers. Uses <code>inspect.getsource</code> and the real <code>acceptance-text.pdf</code> fixture.</p></article>
+          <article class="fact"><b>test_worker_runtime_bootstrap_unit.py</b><p>8 tests: runtime heartbeat writes bounded metadata, build dispatcher requires database and uses configured limits, dispatcher once records heartbeat and exits, task builders fail closed without managed configuration, bootstrap failure update is bounded and optional, job bootstrap failure does not overwrite active worker lease, task bootstrap failure marks job terminal, invalid worker settings still mark the published job. All use monkeypatch.</p></article>
+          <article class="fact"><b>test_worker_tasks.py</b><p>2 tests: Celery registers ingestion task without starting external services, ingestion event rejects incomplete outbox payload. Verifies task registration stability and event payload validation at the Celery boundary.</p></article>
+          <article class="fact"><b>test_worker_task_execution_unit.py</b><p>6 tests: ingestion and deletion serialize document removal, project deletion reclaims expired ingestion leases, ingestion and deletion tasks forward validated events, retryable ingestion uses bounded backoff, evaluation and fault tasks forward worker identity, retryable evaluation uses bounded backoff. Uses <code>inspect.getsource</code> and monkeypatch.</p></article>
+          <article class="fact"><b>test_outbox_dispatcher.py</b><p>3 tests: dispatcher marks each publish outcome without losing the batch, fault exercise is routed to bounded reliability worker, project deletion is routed to the deletion queue. Imports directly from <code>researchmate_worker.outbox</code> to verify SqlOutboxStore batch claiming and CeleryTaskPublisher routing.</p></article>
+          <article class="fact"><b>test_evaluation_metrics.py</b><p>3 tests: deterministic evaluation metrics reconcile evidence sets, evidence recall exposes missing expected chunks, regression summary separates execution quality and baseline regression. Verifies the three deterministic metrics (schema_valid, citation_precision, evidence_recall) and regression summary aggregation without an LLM judge.</p></article>
+        </div>
+      </section>
+
+      <section id="workflow-tests">
+        <p class="eyebrow">Workflow unit tests</p>
+        <h2>2 files &middot; LangGraph evidence workflow</h2>
+        <p class="sub">These tests exercise the LangGraph evidence workflow planning, retrieval, review, synthesis, and commit nodes using deque-based doubles and monkeypatch.</p>
+        <div class="grid two">
+          <article class="fact"><b>test_workflow_planning_retrieval_unit.py</b><p>5 tests: pipeline configuration and runtime error preserve contracts, bind_run calls provider hook when available, plan uses provider for new runs and exact sections for refresh, retrieve extracts claims from owned chunks, retrieve fails closed for missing evidence or web provider. Uses collections.deque and contextmanager for deterministic state transitions.</p></article>
+          <article class="fact"><b>test_workflow_review_commit_unit.py</b><p>8 tests: review payload requires human review for low-confidence and untrusted sources, review payload skips unneeded review under relaxed policy, edit decision rejects malformed payloads, edit and reject decisions update only allowed claims, rejecting every claim fails closed, reconcile/synthesize/validate preserve evidence, resume and failure state use stable database contracts, resume rejects unknown decision. Exercises the full review-to-commit arc.</p></article>
+        </div>
+      </section>
+
+      <section id="contract-inspection-tests">
+        <p class="eyebrow">Contract source inspection tests</p>
+        <h2>6 files &middot; filesystem inspection without execution</h2>
+        <p class="sub">These tests read source files and configuration from the filesystem using <code>pathlib.Path</code> and verify structural contracts. They do not import application code or start any services. They are the guardrails that keep the three-layer mirror in sync.</p>
+        <div class="grid two">
+          <article class="fact"><b>test_database_migration_contract.py</b><p>4 tests: additive migration defines all planned tables, migration closes initial child RLS gaps, planned tables have RLS and outbox has no user policy, durable run and evaluation idempotency are unique per owner. Reads SQL migration files and parses them with regex to verify schema, RLS, and uniqueness constraints.</p></article>
+          <article class="fact"><b>test_frontend_contracts.py</b><p>8 tests: frontend MVP pages exist, frontend calls MVP API contracts, regular project pages do not navigate to dev trace, frontend does not reference backend secret names, evidence frontend covers async and recovery states, frontend does not call model provider directly, frontend uses Supabase session outside local development, sidebar and chat match unified product boundaries. Reads frontend source files with <code>read_text()</code>.</p></article>
+          <article class="fact"><b>test_project_scaffold.py</b><p>15 tests: required contract files exist, docs local links resolve, OpenAPI contract declares MVP routes, docs use English HTML without parallel markdown, docs separate current truth from archived plans, database and API docs reconcile complete source contracts, overview deep links to authoritative detail sections, docs have unique IDs and one page title, quality scripts do not reference legacy handoff docs, docs HTML do not contain question mark garbled text, database schema has security boundaries, shared contracts define unified chat outputs, backend Pydantic contracts validate request shape, Postgres conversation commit rechecks active project, local verification policy keeps integration on deployed environment.</p></article>
+          <article class="fact"><b>test_release_pipeline.py</b><p>7 tests: CI runs full test/build contract and security gate, Python dependency graph is locked for CI and images, retired delivery paths are inert and Cloudflare sources archived, container images are non-root and worker prefetches PDF models, migration runner requires approval lock and checksum, repository sources do not contain provider secrets, web release sets baseline browser security headers. Reads CI workflow YAML, Dockerfiles, and render.yaml.</p></article>
+          <article class="fact"><b>test_release_safety_contracts.py</b><p>5 tests: Qdrant rerank projection indexes every filter field, evaluation budget and fault audit migration is fail-closed, runtime readiness and workflow budget migration is fail-closed, workflow claim versions are serialized and incremented, report refresh filters changed documents and preserves unaffected sections. Reads migration SQL and source files.</p></article>
+          <article class="fact"><b>test_render_deployment.py</b><p>5 tests: Render blueprint uses one shared free service and secret prompts, NVIDIA free endpoint has no runtime price fields, Render runtime starts API/worker/dispatcher, combined runtime waits for API health before heavy workers, Render image uses CPU-only PyTorch. Reads render.yaml and Dockerfile.</p></article>
+        </div>
+      </section>
+
+      <section id="hermetic">
+        <p class="eyebrow">Hermetic testing principle</p>
+        <h2>Zero external dependencies</h2>
+        <p class="sub">The entire test suite is hermetic. No test requires a running PostgreSQL, Qdrant, Redis, LLM API, or external HTTP endpoint. This makes the suite fast, deterministic, and safe to run in any CI environment.</p>
+        <div class="grid two">
+          <article class="fact"><b>Fake LLM provider</b><p>Every HTTP integration test constructs the FastAPI app with <code>Settings(app_env="test", llm_provider="fake")</code>. The fake provider returns deterministic, pre-scripted responses without any network call. This means Ask and Quiz workflows can be tested end-to-end without an LLM API key.</p></article>
+          <article class="fact"><b>In-memory store</b><p>The backend <code>store</code> singleton is an in-memory implementation when <code>app_env="test"</code>. The autouse <code>reset_local_store</code> fixture calls <code>store.reset()</code> before and after each test, ensuring complete isolation between test functions.</p></article>
+          <article class="fact"><b>TestClient instead of HTTP server</b><p>FastAPI <code>TestClient</code> wraps the ASGI application in-process. No socket is opened, no port is bound. This eliminates network flakiness and makes tests orders of magnitude faster than a real HTTP integration.</p></article>
+          <article class="fact"><b>Source inspection without execution</b><p>Six contract-source-inspection tests read files from disk using <code>pathlib.Path.read_text()</code> and parse them with regex or string matching. They verify structural contracts (file existence, content patterns, schema correctness) without importing or executing any application code.</p></article>
+          <article class="fact"><b>Unit doubles</b><p>Unit tests use lightweight doubles instead of real infrastructure: <code>SimpleNamespace</code> for mock objects, <code>RecordingConnection</code> to capture SQL statements without a database, <code>EmptyResult</code> to simulate query responses, and <code>collections.deque</code> for deterministic workflow state transitions.</p></article>
+          <article class="fact"><b>No real PDF parsing models</b><p>test_worker_parsing_unit.py uses the lightweight pypdf backend and a 703-byte real PDF fixture. Docling visual pipeline (which requires torch) is never loaded in tests. The parser verifies text extraction, provenance serialization, and OOXML parsing without heavy ML dependencies.</p></article>
+        </div>
+      </section>
+
+      <section id="mock-strategy">
+        <p class="eyebrow">Mock strategy</p>
+        <h2>Layered isolation patterns</h2>
+        <p class="sub">The test suite uses a deliberate, layered mock strategy. Each layer isolates a different boundary, and the choice of technique depends on what needs to be verified.</p>
+        <div class="grid two">
+          <article class="fact"><b>monkeypatch (Python)</b><p>pytest built-in <code>monkeypatch</code> fixture is used to swap module-level functions and attributes at runtime. For example, test_mcp_boundary.py monkeypatches <code>build_mcp_server</code> to raise <code>ModuleNotFoundError</code>, simulating a missing MCP SDK. test_worker_runtime_bootstrap_unit.py monkeypatches dispatcher and heartbeat functions to avoid starting real processes.</p></article>
+          <article class="fact"><b>SimpleNamespace</b><p>Python <code>types.SimpleNamespace</code> creates lightweight mock objects with arbitrary attributes. Used extensively in unit tests to simulate provider responses, LLM completions, and workflow state without defining full mock classes. For example, test_llm_provider.py uses SimpleNamespace to simulate the OpenAI-compatible client response object.</p></article>
+          <article class="fact"><b>RecordingConnection / EmptyResult</b><p>test_evidence_postgres_unit.py and test_postgres_repository_contract.py define <code>RecordingConnection</code> (captures every SQL statement and parameters) and <code>EmptyResult</code> (returns None from queries). These doubles let tests verify that the repository issues correct SQL with correct parameters without connecting to PostgreSQL.</p></article>
+          <article class="fact"><b>Fake provider via Settings</b><p>Instead of mocking individual LLM calls, the suite constructs the entire FastAPI app with <code>llm_provider="fake"</code>. This swaps the real NVIDIA chat provider for a deterministic fake at the dependency-injection boundary, exercising the full request flow including routing, validation, and response serialization.</p></article>
+          <article class="fact"><b>vi.fn() and vi.hoisted() (TypeScript)</b><p>Frontend Vitest tests use <code>vi.fn()</code> for mock functions and <code>vi.hoisted()</code> for mocks that must be available before module imports. For example, auth-gate.test.tsx hoists Supabase session mocks, and api.test.ts mocks fetch to verify API client behavior without network calls.</p></article>
+          <article class="fact"><b>renderToStaticMarkup</b><p>presentation.test.tsx uses React <code>renderToStaticMarkup</code> to render components to HTML strings for assertion. This avoids the complexity of a full DOM testing library while still verifying that components render the expected visible chat and quiz states.</p></article>
+        </div>
+      </section>
+
+      <section id="coverage">
+        <p class="eyebrow">Coverage configuration</p>
+        <h2>Python coverage + frontend v8 coverage</h2>
+        <p class="sub">Coverage is configured at two levels: the Python test suite uses the <code>coverage</code> package (pinned 7.10+), and the frontend uses Vitest built-in v8 coverage provider with threshold enforcement.</p>
+        <div class="grid two">
+          <article class="fact"><b>Python dependencies (pyproject.toml)</b><p>The root <code>pyproject.toml</code> pins <code>coverage&gt;=7.10.0,&lt;8</code> and <code>pytest&gt;=9.0.0,&lt;10</code> as dev dependencies. The coverage package instruments Python source files during test execution and produces line and branch coverage reports.</p></article>
+          <article class="fact"><b>pytest.ini</b><p>Disables the cache provider (<code>-p no:cacheprovider</code>) to prevent stale cache from affecting coverage results. Sets <code>--basetemp=.pytest-temp</code> to keep all temporary test artifacts inside the repository.</p></article>
+          <article class="fact"><b>Vitest v8 coverage</b><p>apps/web/vitest.config.ts configures the v8 coverage provider with <code>include: ["app/lib/**/*.ts", "app/components/**/*.{ts,tsx}"]</code> and <code>exclude: ["app/**/*.test.{ts,tsx}"]</code>. Reporters: text and json-summary. Thresholds: 40% lines and 40% statements.</p></article>
+          <article class="fact"><b>Coverage scope rationale</b><p>The Vitest coverage includes orchestration code (app/lib) and presentation code (app/components) but excludes test files themselves. The 40% threshold is intentionally modest: it ensures that core logic is tested without forcing brittle tests on every utility function. The <code>coverage-v8</code> package provides native V8 instrumentation.</p></article>
+          <article class="fact"><b>Playwright trace retention</b><p>apps/web/playwright.config.ts sets <code>trace: "retain-on-failure"</code>, <code>screenshot: "only-on-failure"</code>, and <code>video: "retain-on-failure"</code>. This produces debugging artifacts only when a test fails, keeping the CI artifact store clean.</p></article>
+          <article class="fact"><b>CI coverage enforcement</b><p>test_release_pipeline.py includes <code>test_ci_runs_the_full_test_build_contract_and_security_gate</code>, which reads the CI workflow YAML and verifies that the full test suite (including coverage) runs as a mandatory gate before any deployment. This makes coverage enforcement a contract, not a convention.</p></article>
+        </div>
+      </section>
+
+      <section id="frontend-tests">
+        <p class="eyebrow">Frontend tests</p>
+        <h2>7 Vitest unit tests + 1 Playwright E2E test</h2>
+        <p class="sub">The frontend test suite lives in apps/web/ and is split into Vitest unit tests (jsdom environment) and Playwright browser acceptance tests (demo mode).</p>
+        <h3>Vitest unit tests (7 files)</h3>
+        <div class="grid two">
+          <article class="fact"><b>api.test.ts</b><p>Verifies client API authorization, error mapping, streaming, and file metadata helpers. Tests apiFetch, ApiError, describeApiError, fileTypeFromName. Mocks fetch with <code>vi.fn()</code> to exercise success, error, and streaming paths.</p></article>
+          <article class="fact"><b>auth-gate.test.tsx</b><p>Verifies that the signed-out workspace exposes GitHub as its only login path. Uses <code>vi.hoisted()</code> to mock Supabase session before module import, <code>createRoot</code> and <code>act</code> for DOM rendering. Tests signed-out and signed-in states.</p></article>
+          <article class="fact"><b>presentation.test.tsx</b><p>Exercises visible chat and quiz states included in frontend coverage. Uses <code>renderToStaticMarkup</code> to render ChatComposer, ConversationThread, and ProjectQuizDrawer to HTML strings for assertion. Imports types from <code>../lib/api</code>.</p></article>
+          <article class="fact"><b>auth-email-rate-limit.test.ts</b><p>Verifies the resend cooldown at its start, boundary, and expired states. Tests <code>AUTH_EMAIL_COOLDOWN_MS</code>, <code>nextEmailCooldown</code>, and <code>remainingEmailCooldown</code> with deterministic timestamps.</p></article>
+          <article class="fact"><b>demo.test.ts</b><p>Verifies the public demo deterministic state transitions and supported API surface. Tests <code>demoFetch</code>, <code>demoRunEvents</code>, and <code>isPublicDemo</code>. Stubs <code>NODE_ENV</code> and <code>NEXT_PUBLIC_DEMO_MODE</code> environment variables.</p></article>
+          <article class="fact"><b>idempotent-intent.test.ts</b><p>Verifies stable retry keys, intent rotation, and success-only cleanup semantics. Tests <code>clearCompletedIntent</code> and <code>resolveIntentKey</code> with mock key generators to verify idempotent user intent behavior.</p></article>
+          <article class="fact"><b>supabase.test.ts</b><p>Verifies browser session restoration, Supabase request boundaries, and sign-out cleanup. Mocks the Supabase client to test session persistence, token refresh, and sign-out state cleanup in production environment.</p></article>
+        </div>
+        <h3>Playwright E2E tests (1 file)</h3>
+        <div class="grid two">
+          <article class="fact"><b>demo-workspace.e2e.ts</b><p>Runs browser acceptance tests against the deterministic client-only demo runtime. The Playwright config starts a Next.js dev server on port 3100 with <code>NEXT_PUBLIC_DEMO_MODE=true</code> and <code>NEXT_PUBLIC_API_BASE_URL</code> pointed to the local server. Tests run in Chromium only, with <code>fullyParallel: true</code> locally and <code>workers: 1</code> in CI. The webServer config waits for <code>/app?new=1</code> to respond before starting tests.</p></article>
+        </div>
+      </section>
+
+      <section id="dependency-graph">
+        <p class="eyebrow">Test dependency graph</p>
+        <h2>How tests connect to source and infrastructure</h2>
+        <p class="sub">The dependency graph shows which test files import from which source packages, and which infrastructure files they depend on.</p>
+        <div class="proof-chain">
+          <div class="proof-step"><b>conftest.py to sys.path</b><small>Every test file depends on conftest.py, which inserts apps/api/src and workers/ai-worker/src into sys.path. Without this, no test module could import from researchmate_api or researchmate_worker.</small></div>
+          <div class="proof-step"><b>HTTP tests to api_workflow_support + fixtures</b><small>test_api_workflow.py and test_api_policy_workflow.py import HEADERS, USER_A/B_HEADERS, and create_ready_document from api_workflow_support.py. They activate api_workflow_fixtures.py via pytest_plugins to get the autouse reset_local_store and client fixtures.</small></div>
+          <div class="proof-step"><b>HTTP tests to researchmate_api.main + config</b><small>test_evidence_api.py, test_mcp_boundary.py, and test_runtime_foundation.py construct their own TestClient by importing create_app and Settings directly from researchmate_api, giving them fine-grained control over app configuration.</small></div>
+          <div class="proof-step"><b>Unit tests to researchmate_api.services + schemas</b><small>Unit tests import specific services (store, object_storage, persistence.postgres) and schemas (common, document) to verify individual modules. They use SimpleNamespace and RecordingConnection doubles instead of real infrastructure.</small></div>
+          <div class="proof-step"><b>Worker tests to researchmate_worker modules</b><small>Worker unit tests import from researchmate_worker.outbox, celery_app, ingestion, config, parsing, and evaluation modules. They use monkeypatch to avoid starting Celery workers or connecting to Redis.</small></div>
+          <div class="proof-step"><b>Contract tests to pathlib.Path</b><small>The 6 contract-source-inspection tests depend only on the filesystem. They read source files, SQL migrations, YAML configs, and Dockerfiles using Path.read_text() and verify structural contracts through string matching and regex.</small></div>
+          <div class="proof-step"><b>Frontend tests to @researchmate/shared + app/lib</b><small>Vitest tests import types from ../lib/api (which re-exports from @researchmate/shared) and test components from app/components. Playwright tests depend on the Next.js dev server and demo mode runtime.</small></div>
+        </div>
+      </section>
+
+      <section id="further-reading">
+        <p class="eyebrow">Further reading</p>
+        <h2>Deep learning paths</h2>
+        <div class="doc-index">
+          <a class="doc-link" href="../contracts/api/index.html#operations"><b>API contracts</b><span>Complete REST operation contracts, request/response shapes, and integration status for 45 operations.</span></a>
+          <a class="doc-link" href="../contracts/data/index.html#tables"><b>Database design</b><span>Complete field, relationship, integrity, and RLS ledger for 31 tables, mirroring the Pydantic and TypeScript contracts.</span></a>
+          <a class="doc-link" href="backend.html"><b>Backend learning</b><span>File-by-file walkthrough of FastAPI routers, Pydantic schemas, services, and persistence layer that mirror contracts.ts.</span></a>
+          <a class="doc-link" href="worker.html"><b>Worker learning</b><span>Celery tasks, document ingestion, LangGraph workflow, Outbox pattern, and evaluation that the worker tests verify.</span></a>
+          <a class="doc-link" href="frontend.html"><b>Frontend learning</b><span>Next.js components, API client, and state management that the Vitest and Playwright tests exercise.</span></a>
+          <a class="doc-link" href="../architecture/index.html#stack"><b>Architecture &amp; stack</b><span>Runtime boundaries, stack justification, and failure recovery that the contract tests enforce.</span></a>
+        </div>
+      </section>
+
+    </div></div>
+  </main>
+  <footer class="foot"><div class="shell"><p>ResearchMate documentation &middot; Contracts &amp; Tests learning guide &middot; 6 August 2026</p></div></footer>
+</body>
+</html>
