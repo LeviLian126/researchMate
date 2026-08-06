@@ -49,7 +49,8 @@ Check that a missing price, schema, route, deployment fact, or validation result
 ## HTML and browser checks
 
 - Open the board directly and confirm its essential content renders with JavaScript disabled.
-- At desktop, constrained desktop, tablet, and mobile widths, inspect horizontal overflow, long source paths, dense tables, code blocks, sticky navigation, details controls, and diagrams.
+- At desktop, constrained desktop, tablet, and mobile widths, inspect horizontal overflow, long source paths (including backslash-style Windows paths that stack text inside narrow cells), dense tables, code blocks, sticky navigation, details controls, and diagrams.
+- Confirm long pages use collapsible disclosures so the first viewport shows the current truth without forcing an immediate scroll. Open every toggle at once and verify the expanded page still reads as structured sections, not a formless wall.
 - Exercise the table of contents, filters, disclosure controls, copy controls, and architecture links by keyboard. Confirm visible focus, meaningful labels, and no keyboard traps.
 - Check contrast, status text/markers beyond color, reduced-motion behavior, semantic headings/landmarks, and labels or alternatives for non-text visuals.
 - When a reference site governs the frontend, compare the implementation with the selected reference archetype at matching viewport sizes. Check content width, type scale/line height, section rhythm, navigation, panel geometry, borders/radii, density, disclosure behavior, breakpoint transitions, and focus/interaction states. A palette-only resemblance does not pass.

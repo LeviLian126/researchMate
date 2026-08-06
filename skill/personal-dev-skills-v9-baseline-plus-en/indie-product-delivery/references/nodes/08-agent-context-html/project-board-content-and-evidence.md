@@ -1,6 +1,6 @@
 # Project Board Content Model and Evidence
 
-Use this reference to turn Node01 product truth and Node02 architecture truth into a complete HTML documentation set. Show the current summary immediately; put dense records on focused linked pages and use disclosure controls inside those pages where helpful.
+Use this reference to turn Node01 product truth and Node02 architecture truth into a complete HTML documentation set. Show the current summary immediately; put dense records on focused linked pages and use disclosure controls to keep long pages navigable.
 
 ## Sections
 

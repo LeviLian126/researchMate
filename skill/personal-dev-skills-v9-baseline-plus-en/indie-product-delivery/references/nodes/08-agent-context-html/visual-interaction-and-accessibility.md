@@ -55,7 +55,7 @@ Treat the pages as professional engineering documentation, not a teaser. Use the
 | API/actions | endpoint index plus expandable request/response/error contract |
 | risks and next actions | severity/impact ledger and a short prioritized action queue |
 
-Use `<details>` and `<summary>` for field-level database and API detail. Keep the contract summary, status, and evidence visible outside the collapsed body so readers can decide what to open.
+Use `<details>` and `<summary>` to keep long pages navigable. When a section would force excessive scrolling before the reader reaches the next decision, wrap the subordinate detail in a collapsible disclosure: lengthy technical explanations, full ledgers, field-level database and API contracts, route/endpoint bodies, and recovery procedures. Keep the summary, status, evidence, and one-line decision visible outside the collapsed body so readers can decide what to open. A page that opens to mostly closed toggles hides the current state; a page that collapses nothing when it is already too long to scan defeats the board. The first viewport should show the current truth, with each toggle revealing a deeper layer on demand.
 
 ## Progressive interaction
 
@@ -76,7 +76,8 @@ Do not add interactions merely because they are possible. Never hide project sta
 - On narrow screens, preserve reading order. Let tables, code, paths, and contracts scroll inside a bounded container or wrap safely; do not shrink them into unreadable text.
 - Test desktop, constrained desktop, tablet, and mobile widths for sticky overlap, long labels, map readability, table overflow, and keyboard reachability.
 - Treat nested layout as a separate responsive state. A three- or four-column flow that works at page width must become two columns or a vertical rail inside a half-width card; never preserve it with fixed child minimum widths.
-- Apply `min-width: 0` to grid/flex children, allow long code and paths to wrap safely, and adapt or remove connector arrows when a sequence wraps.
+- Apply `min-width: 0` to grid/flex children and adapt or remove connector arrows when a sequence wraps.
+- Long file paths, source paths, and backslash-style Windows paths are a layout hazard inside narrow table cells, cards, and nav pills. Ensure path-bearing text has `overflow-wrap: anywhere` and path-heavy tables sit in a `.scroll` container with `overflow-x: auto`; confirm the longest real path wraps cleanly instead of stacking into a narrow text tower or pushing siblings aside.
 - Reserve horizontal scrolling for genuinely two-dimensional tables, matrices, or diagrams. Normal cards, comparisons, status lanes, and step flows must reflow without clipped text, overlapping arrows, or nested scrollbars.
 
 ## Keep the artifact inspectable and portable
