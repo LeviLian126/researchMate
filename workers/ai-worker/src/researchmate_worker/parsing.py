@@ -118,7 +118,18 @@ class DoclingDocumentParser:
         max_xml_bytes = min(self.max_file_size * 4, 32 * 1024 * 1024)
         if info.file_size > max_xml_bytes:
             raise ParserAdapterError("PARSER_FILE_TOO_LARGE")
-        return ElementTree.fromstring(archive.read(resolved))
+        # Stream-decompress with a running byte counter to guard against zip bombs
+        # that report a small file_size but embed a large decompressed payload.
+        decompressed = bytearray()
+        with archive.open(resolved) as stream:
+            while len(decompressed) <= max_xml_bytes:
+                chunk = stream.read(65536)
+                if not chunk:
+                    break
+                decompressed.extend(chunk)
+            if len(decompressed) > max_xml_bytes:
+                raise ParserAdapterError("PARSER_FILE_TOO_LARGE")
+        return ElementTree.fromstring(decompressed)
 
     @staticmethod
     def _structural_anchor(

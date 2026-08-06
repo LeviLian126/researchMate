@@ -42,6 +42,9 @@ code, .mono { font: 12px/1.5 var(--mono); background: var(--g100); padding: .12e
 .mast-row, .visual-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; }
 .brand { font: 500 18px/1.25 var(--serif); text-decoration: none; }
 .stamp, .eyebrow { font: 11px/1.35 var(--mono); color: var(--g500); letter-spacing: .045em; text-transform: uppercase; }
+.mast-right { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; justify-content: flex-end; }
+.lang-toggle { display: inline-flex; align-items: center; border: 1px solid var(--g300); border-radius: 999px; background: var(--paper); padding: 6px 14px; color: var(--g700); font: 600 12px/1 var(--sans); text-decoration: none; white-space: nowrap; letter-spacing: 0; text-transform: none; }
+.lang-toggle:hover, .lang-toggle:focus-visible { border-color: var(--clay); color: var(--clay-dark); }
 .global { background: var(--ivory); }
 .global .shell { display: flex; flex-wrap: wrap; gap: 8px; padding: 8px 0 24px; }
 .global a { border: 1px solid var(--g300); border-radius: 999px; background: var(--paper); padding: 7px 14px; color: var(--g700); font-size: 12.5px; line-height: 1; text-decoration: none; }
@@ -369,8 +372,10 @@ html:not(.js) [data-filter-status] { display: none; }
   .shell { width: min(var(--max), calc(100% - 32px)); }
   .mast { padding-top: 20px; }
   .mast-row, .visual-head { display: block; }
-  .stamp { display: block; margin-top: 7px; }
-  .global .shell { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 18px; scrollbar-width: thin; }
+ .stamp { display: block; margin-top: 7px; }
+  .mast-right { margin-top: 7px; }
+  .mast-right .stamp { margin-top: 0; }
+ .global .shell { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 18px; scrollbar-width: thin; }
   .global a { flex: 0 0 auto; }
   .hero { padding: 34px 0 42px; }
   .landing main > section { padding: 54px 0 60px; }

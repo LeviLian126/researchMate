@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from collections import Counter
 from hashlib import sha256
 from math import log1p
@@ -15,6 +16,7 @@ from researchmate_api.services.embedding import NvidiaEmbeddingProvider
 from researchmate_api.services.retrieval import tokenize
 from researchmate_api.services.store import ChunkEntry
 
+LOGGER = logging.getLogger(__name__)
 
 class VectorStoreRequestError(RuntimeError):
     """Normalize vector-store failures and their retryability."""
@@ -186,7 +188,8 @@ class QdrantHybridStore:
             return False
         try:
             info = self.client.get_collection(self.rerank_collection)
-        except Exception:
+        except Exception as exc:
+            LOGGER.warning("rerank_collection_check_failed error=%s", type(exc).__name__)
             return False
         vectors = getattr(getattr(info.config, "params", None), "vectors", None)
         if not isinstance(vectors, dict) or "multi" not in vectors:
@@ -204,7 +207,8 @@ class QdrantHybridStore:
                     exact=True,
                 ).count
             )
-        except Exception:
+        except Exception as exc:
+            LOGGER.warning("rerank_count_check_failed error=%s", type(exc).__name__)
             return False
         return primary_count > 0 and rerank_count == primary_count
 

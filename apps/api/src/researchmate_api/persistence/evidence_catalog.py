@@ -47,6 +47,11 @@ class PostgresEvidenceCatalogMixin:
                     left join claim_relations crc on crc.source_claim_id = c.id
                     left join claim_relations crd on crd.source_claim_id = c.id
                     where c.project_id = :project_id and c.user_id = :user_id
+  and exists (
+    select 1 from projects p
+    where p.id = c.project_id and p.user_id = :user_id
+      and p.status = 'active' and p.deleted_at is null
+  )
                     group by c.id order by c.created_at desc limit 200
                     """
                 ),
@@ -85,6 +90,11 @@ class PostgresEvidenceCatalogMixin:
                     join claims target on target.id = r.target_claim_id
                     where source.user_id = :user_id and target.user_id = :user_id
                       and source.project_id = :project_id and target.project_id = :project_id
+  and exists (
+    select 1 from projects p
+    where p.id = :project_id and p.user_id = :user_id
+      and p.status = 'active' and p.deleted_at is null
+  )
                     order by r.created_at desc limit 300
                     """
                 ),
@@ -117,6 +127,11 @@ class PostgresEvidenceCatalogMixin:
                         as affected_section_count
                     from reports r left join report_sections s on s.report_id = r.id
                     where r.project_id = :project_id and r.user_id = :user_id
+  and exists (
+    select 1 from projects p
+    where p.id = :project_id and p.user_id = :user_id
+      and p.status = 'active' and p.deleted_at is null
+  )
                     group by r.id order by r.revision desc limit 100
                     """
                 ),
@@ -227,6 +242,11 @@ class PostgresEvidenceCatalogMixin:
                     left join evaluation_cases c on c.dataset_id=d.id
                     where d.user_id=:user_id and d.status='frozen'
                       and (:project_id is null or d.project_id=:project_id)
+  and (:project_id is null or exists (
+    select 1 from projects p
+    where p.id = :project_id and p.user_id = :user_id
+      and p.status = 'active' and p.deleted_at is null
+  ))
                     group by d.id order by d.name,d.version desc
                     """
                 ),

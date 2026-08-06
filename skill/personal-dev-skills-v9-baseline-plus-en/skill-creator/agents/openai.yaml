@@ -1,0 +1,4 @@
+interface:
+  display_name: "Skill Creator"
+  short_description: "Create, test, and improve reusable skills"
+  default_prompt: "Use $skill-creator to create or improve this skill, test its behavior, and package the complete result."

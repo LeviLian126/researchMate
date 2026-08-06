@@ -1,0 +1,185 @@
+<!-- 定义 ResearchMate 的证据支撑运行时拓扑、部署冻结和技术决策。 -->
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width,initial-scale=1" name="viewport"/>
+  <meta content="ResearchMate 当前和目标架构、经过论证的技术栈、原生 Windows 开发、学生友好的部署、CI/CD、故障恢复和成本边界。" name="description"/>
+  <title>ResearchMate · 架构与技术栈</title>
+  <link href="../assets/site.css" rel="stylesheet"/>
+</head>
+<body>
+  <header class="mast"><div class="shell mast-row"><a class="brand" href="../index.zh.html">ResearchMate 文档</a><div class="mast-right"><span class="stamp">架构状态 · 2026 年 7 月 27 日</span><a class="lang-toggle" href="index.html" hreflang="en" lang="en">English</a></div></div></header>
+  <nav aria-label="文档" class="global"><div class="shell"><a href="../index.zh.html">概览</a><a href="../product/index.zh.html">产品与路线图</a><a aria-current="page" href="index.zh.html">架构与技术栈</a><a href="../contracts/data/index.zh.html">数据库</a><a href="../contracts/api/index.zh.html">API</a></div></nav>
+  <main class="shell">
+    <div class="hero">
+      <p class="eyebrow">运行时形态 / 技术论证 / 部署边界</p>
+      <h1>系统架构与部署边界</h1>
+      <p class="lede">本页面定义系统边界和技术决策。所选的免费层拓扑使用 Vercel Hobby 进行 Web 部署，使用一个 Render Free Web Service 运行 FastAPI、一个 Celery <code>solo</code> worker 和发件箱分发器。后端修正 <code>c5c89f5</code> 通过了 GitHub Actions 运行 <code>30694324845</code> 并在 Render 上线；前端修正 <code>ce54452</code> 通过了运行 <code>30694892524</code> 并部署在 Vercel Production 上。8 月 1 日的已认证 Chrome 流程完成了普通对话、刷新恢复、文本层 PDF 上传和索引、带页码引用的接地回答、Web 搜索、七题 Quiz 生成和刷新恢复，以及清理。热启动观测时间为普通对话 6.7 秒、接地回答 16.3 秒、Web 搜索 14.6 秒、Quiz 53.3 秒。NVIDIA 排序可用性、提供商切换、直接 RLS、扫描版 PDF OCR 和性能分布仍是明确的验证边界。</p>
+      <div class="meta"><span class="status local">已实现 · 45 个 REST 操作</span><span class="status local">主要托管流程已通过</span><span class="status local">低内存 PDF 解析器已上线</span><span class="status partial">性能、重排序、遥测和 OCR 调优进行中</span></div>
+    </div>
+    <div class="layout"><div class="content">
+      <section id="current-architecture">
+        <p class="eyebrow">当前架构</p><h2>当前仓库运行时</h2>
+        <div class="visual-panel">
+          <div class="visual-head"><div><h3>仓库请求和证据边界</h3><p>实心节点有仓库或确定性测试证据。默认内存仓库在重启时丢失状态；已应用隔离的 Supabase 开发 schema 且直接 psycopg 查询现在成功，但 FastAPI 尚未完成已认证的托管请求。</p></div><div class="legend"><span><i class="is-local"></i>已实现</span><span><i class="is-partial"></i>集成未验证</span></div></div>
+          <div class="architecture-map">
+            <div class="arch-column"><span>体验层</span><button type="button" aria-pressed="true" class="arch-node" data-arch-node data-title="Next.js 体验" data-detail="公开根是一个认证入口。已认证路由共享可折叠的对话和项目栏。普通对话支持范围化附件；专业项目共享来源、对话记忆和内联 Quiz 抽屉。评估和可靠性位于普通导航之外。"><b>Next.js web</b><small>个人对话 · 专业项目 · 一个 Web 选项</small></button></div>
+            <div class="arch-column"><span>应用层</span><button type="button" aria-pressed="false" class="arch-node" data-arch-node data-title="FastAPI 应用" data-detail="四十五个 /api/v1 REST 操作验证模型、解析身份、执行权限、暴露 OpenAPI，并将存活检查与依赖就绪检查分离。"><b>FastAPI /api/v1</b><small>45 个 REST 操作 · 存活/就绪 · 认证</small></button></div>
+            <div class="arch-column"><span>证据域</span><button type="button" aria-pressed="false" class="arch-node" data-arch-node data-title="证据服务" data-detail="来源策略选择本地、有界 Tavily Web 或混合行为；本地和 Qdrant 检索保持按所有者/项目过滤；已验证的构建器发出带引用的 Ask、Quiz、Claim、关系和报告结构。"><b>策略 + 检索器 + 构建器</b><small>有界接地行为</small></button></div>
+            <div class="arch-column"><span>状态/工作</span><button type="button" aria-pressed="false" class="arch-node" data-arch-node data-title="显式运行时选择" data-detail="本地/测试默认使用内存同步回退。预览/生产环境在缺少 Postgres、Supabase JWT、S3 兼容对象存储、NVIDIA、Tavily、Qdrant、worker 和所需可观测性配置时关闭。"><b>内存或 Postgres 适配器</b><small>本地回退 · 持久化目标路径</small></button></div>
+          </div>
+          <div class="arch-inspector"><h4 data-arch-title>Next.js 体验</h4><p data-arch-body>根页面展示 Supabase 登录/注册。已认证的外壳通过真实 API 数据恢复项目、最近对话、来源管理和项目 Quiz 创建。评估/可靠性仍然是角色受限的工程路由。服务端所有权和 RLS 仍是授权边界。</p></div>
+        </div>
+        <div class="notice warning"><strong>当前运行时边界：</strong>已认证应用为已部署的 FastAPI、Postgres/JWT、S3 兼容对象存储、NVIDIA、Qdrant、Tavily、Celery、发件箱、LangGraph、评估和可观测性路径而设计。确定性浏览器端适配器现在是显式可选的固定装置（<code>NEXT_PUBLIC_DEMO_MODE=true</code>），用于隔离预览工作；它不是生产默认选项，不执行 API、上传、worker、提供商或持久会话行为。PDF OCR/布局资产仍在本地下载失败，因此这些模块检查仍分配给 CI 和授权云环境。</div>
+      </section>
+
+      <section id="target-architecture">
+        <p class="eyebrow">冻结的免费层部署边界</p><h2>两个应用部署：Vercel web 加一个合并的 Render 运行时</h2>
+        <div class="notice"><strong>架构决策 · 2026 年 7 月 25 日：</strong>这是选定的公开演示拓扑。仅当指定提供商取消其免费计划、合并的 Render 进程无法在其内存限制内通过测量的启动和就绪检查，或作品集必须接受真实用户数据或生产 SLA 时，才重新考虑。冷启动、单实例中断、低并发、免费资源暂停和有界 PDF 支持是已接受的约束。</div>
+        <div class="visual-panel">
+          <div class="visual-head"><div><h3>选定的应用运行时</h3><p>Web 和合并的 Python 运行时是仅有的两个应用部署。托管数据资源和按量计费的提供商 API 是依赖项。现有免费开发资源构成一个合成数据的公开演示环境，不代表生产环境。</p></div><div class="legend"><span><i class="is-local"></i>已上线</span><span><i class="is-partial"></i>已配置 · 运行时未验证</span><span><i class="is-planned"></i>未配置</span></div></div>
+          <div class="architecture-map">
+            <div class="arch-column"><span>部署 1 · 已上线</span><div class="arch-node"><b>Vercel Hobby · Next.js</b><small>公开 Web · 确定性回退 · 无服务端密钥</small></div></div>
+            <div class="arch-column"><span>部署 2 · 已配置</span><div class="arch-node"><b>Render Free · 一个容器</b><small>FastAPI · Celery solo · 分发器 · 健康检查未验证</small></div></div>
+            <div class="arch-column"><span>持久执行</span><div class="arch-node"><b>LangGraph + Celery</b><small>检查点 · 扇出 · 人机回环 · 重试 · 恢复</small></div></div>
+            <div class="arch-column"><span>现有免费状态</span><div class="arch-node"><b>Supabase + Upstash + Qdrant</b><small>事实/认证/对象 · 消息代理 · 可重建向量</small></div></div>
+            <div class="arch-column"><span>按需验证</span><div class="arch-node"><b>NVIDIA + Tavily + Langfuse OTLP</b><small>有界模型/搜索调用 · 一个遥测目标</small></div></div>
+          </div>
+          <div class="proof-chain">
+            <div class="proof-step"><b>持久化意图</b><small>Postgres 在一个事务中提交工作流、任务和发件箱事件。</small></div>
+            <div class="proof-step"><b>幂等执行</b><small>Celery 解析、检索、提取、评估和协调至少一次交付。</small></div>
+            <div class="proof-step"><b>安全暂停</b><small>LangGraph 对低置信度或不可信证据创建检查点，以供持久决策。</small></div>
+            <div class="proof-step"><b>度量结果</b><small>评估和遥测将质量、延迟、成本、故障和恢复关联到流水线版本。</small></div>
+          </div>
+        </div>
+        <p class="source">决策证据：<code>render.yaml</code> · <code>workers/ai-worker/src/researchmate_worker/render_combined.py</code> · <code>workers/ai-worker/Dockerfile</code> · <code>infra/supabase/migrations/**</code> · <code>infra/qdrant/**</code> · <code>apps/api/**</code> · <code>.env.example</code> · <code>skill/deployment-lessons.md</code>。合约台账：<a href="../contracts/data/index.zh.html#planned-schema">增量数据 schema</a> 和 <a href="../contracts/api/index.zh.html#planned-operations">证据审查操作</a>。</p>
+      </section>
+
+      <section id="flows">
+        <p class="eyebrow">运行时和恢复流程</p><h2>运行时流程和故障归属</h2>
+        <details open id="flow-ingestion"><summary>1 · 异步文档摄取和删除 <span class="status partial">代码已实现 · 集成未验证</span></summary><div class="proof-chain"><div class="proof-step"><b>预留 + 上传</b><small>FastAPI 验证所有权、类型、大小和配额；S3 兼容适配器签发短期、绑定内容类型的签名 URL 并验证 HEAD 元数据。</small></div><div class="proof-step"><b>提交 + 分发</b><small>Postgres 原子性地写入文档、任务和发件箱意图；SKIP LOCKED 分发器发布确定性 Celery 任务 ID，带退避和过期声明恢复。</small></div><div class="proof-step"><b>解析 + 索引</b><small>受租约保护的任务检查字节/校验和，保留 Docling 来源，替换确定性页面/块行，并 upsert 命名的稠密+稀疏 Qdrant 向量。</small></div><div class="proof-step"><b>删除 + 收敛</b><small>删除消费者使用确定性标识符和重试，在数据库子记录之前移除 Qdrant/对象存储投影。托管服务崩溃、毒工作、过期向量和部分删除收敛测试仍待完成。</small></div></div><div class="notice warning"><strong>恢复边界：</strong>Postgres 拥有意图和租约状态；worker 拥有可重试的处理。DOCX/PPTX 冒烟测试已通过。PDF OCR/布局验证失败，因为其模型下载未完成。</div></details>
+        <details open id="flow-evidence"><summary>2 · 证据审查 Agent <span class="status partial">图代码 + 托管检查点 schema · 持久运行时未验证</span></summary><div class="proof-chain"><div class="proof-step"><b>规划</b><small>LangGraph 图和 SQL 领域代码分解目标并记录图/流水线版本。</small></div><div class="proof-step"><b>检索 + 提取</b><small>已实现发送扇出、选定文档的 Qdrant 过滤器、可选 Tavily 检索、服务端拥有的证据 ID 和 schema 验证的声明提取。</small></div><div class="proof-step"><b>预算 + 计量</b><small>每次模型调用原子性地预留保守上限，拒绝过大的提示，并记录提供商 token、延迟和配置价格估算。</small></div><div class="proof-step"><b>协调 + 审查</b><small>关系协调和中断/恢复决策代码暴露支持、矛盾、重复、缺口以及批准/编辑/拒绝。</small></div><div class="proof-step"><b>恢复 + 刷新</b><small>过期的工作流租约拒绝重复交付；持久化检查点恢复时不重放初始输入。变更文档刷新复制未受影响的段落并事务性地发布新版本。</small></div></div><div class="notice warning"><strong>未验证边界：</strong>四个托管检查点表已存在，已安装的 LangGraph 图完成了有界的假域扇出冒烟测试。中断/恢复持久化、重启、Qdrant/提供商执行和托管增量刷新尚未通过。</div></details>
+        <details open id="flow-evaluation"><summary>3 · 评估和可靠性 <span class="status partial">RAGAS 导入 + 预算/故障代码 · 外部执行未验证</span></summary><div class="proof-chain"><div class="proof-step"><b>预留</b><small>在每个用例之前，运行器原子性地针对运行上限预留保守估算；这是调度器防护，不是提供商计费。</small></div><div class="proof-step"><b>执行 + 评分</b><small>受租约保护的有界执行写入确定性指标，并在可用时写入 RAGAS 忠实度分数。</small></div><div class="proof-step"><b>演练故障</b><small>仅管理员的测试/预览命令在部署环境中创建持久、过期、非破坏性的故障模拟，带状态轮询。</small></div><div class="proof-step"><b>安全观测</b><small>可选的 OTLP FastAPI span、有界 JSON 事件和 Langfuse 提供商观测省略提示/来源/密钥内容。</small></div></div><div class="notice warning"><strong>未验证边界：</strong>RAGAS 现在在固定的兼容性范围下导入，但没有代理支持的故障运行、提供商评分、OTLP 导出、Langfuse 追踪、已接受的基线或成本协调通过。</div></details>
+      </section>
+
+      <section id="local-development">
+        <p class="eyebrow">本地验证边界</p><h2>仅封闭检查；集成在部署后运行</h2>
+        <div class="notice warning"><strong>执行策略：</strong>本地机器仅可运行最小的相关单元、领域、schema、合约、导入、静态和构建检查，且不要求本地托管的应用或基础设施服务。不要在本地启动 Next.js、FastAPI、Celery、发件箱分发器、PostgreSQL、Redis、Qdrant、对象存储、提供商模拟器或 Docker。每个模块化或跨服务集成测试都在授权的部署/服务器环境中运行，使用受保护的配置和合成数据。</div>
+        <div class="grid two">
+          <article class="fact"><b>工具链，而非本地运行时拓扑</b><p>Node.js 22.14.0、npm 11.6.0、Python 3.13.2、uv、Celery、Docling 2.111.0/core 2.86.0 和 Git 安装在 Windows 项目环境下。它们的存在允许封闭检查；但不授权本地托管的应用服务。</p></article>
+          <article class="fact"><b>历史有界证明</b><p>LangGraph 1.2.9、Postgres 检查点包、RAGAS 0.4.3、MCP 1.28.1、OpenTelemetry 和 Langfuse 已在本地安装。现有历史证据覆盖假域 LangGraph 扇出、RAGAS 导入、严格序列化器导入和 MCP 初始化。它不证明任何数据库、队列、提供商、遥测或部署集成，也不是启动本地服务的先例。</p></article>
+          <article class="fact"><b>禁止的本地依赖</b><p>通过本地关卡不得要求本地 PostgreSQL、Redis、Qdrant、对象存储、提供商端点、Vercel/Render 运行时、Docker 守护进程或应用监听器。静默打开监听器或访问托管服务的测试应属于部署集成套件。</p></article>
+          <article class="fact"><b>应用进程远程运行</b><p>Next.js 在 Vercel 上运行。FastAPI、Celery worker 和发件箱分发器在合并的 Render 服务中运行。它们与 Supabase、Upstash、Qdrant、存储、身份和提供商的真实交互仅从部署/服务器边界验证。</p></article>
+          <article class="fact"><b>托管开发服务</b><p>Supabase Free 项目健康，已禁用自动公开表暴露并启用自动 RLS。Render 连接到托管数据库和 S3 兼容私有存储桶；Upstash、Qdrant、NVIDIA、Tavily、Langfuse 和 OTLP 配置已加载。公开就绪检查验证 PostgreSQL、Redis、worker/分发器心跳、发件箱、检查点和 Qdrant 集合，不产生提供商费用。2026 年 7 月 27 日，一个真实的 Supabase 会话完成了从 Vercel 经 Render 到 PostgreSQL 的所有者范围项目创建/列表/读取往返。跨用户拒绝和已部署的对象/队列/向量/提供商/遥测工作流仍待验证。</p></article>
+        </div>
+        <div class="grid two runbook-grid">
+          <article class="fact"><b>允许的本地关卡</b><p>使用现有项目环境并选择能证明变更合约的最窄命令。这些检查必须保持确定性、不依赖网络，且不含应用或基础设施进程。</p><pre class="command-block"><code>python -m pytest &lt;smallest-relevant-test&gt; -q
+npm run check:docs
+npm run check:openapi
+npm run check:migrations</code></pre></article>
+          <article class="fact"><b>不允许的本地关卡</b><p>不要运行任何开发服务器、worker、分发器、数据库、消息代理、向量存储、存储模拟器、提供商沙箱或容器。假适配器只能在封闭测试中进程内运行；它不得创建替代的本地集成环境。</p></article>
+          <article class="fact"><b>必需的部署集成关卡</b><p>部署后，验证公开存活/就绪、已认证 API 行为、RLS 隔离、对象生命周期、队列交付、worker/分发器心跳、Qdrant 过滤、有界提供商调用、遥测脱敏、重启恢复和已接受的浏览器流程。每个结果都记录已部署的提交和环境。</p></article>
+          <article class="fact"><b>仓库导览</b><dl class="repo-map"><dt><code>apps/api/</code></dt><dd>FastAPI 合约和提供商适配器</dd><dt><code>apps/web/</code></dt><dd>Next.js 作品集和证据审查 UI</dd><dt><code>workers/ai-worker/</code></dt><dd>摄取、发件箱、工作流、评估和故障 worker</dd><dt><code>infra/</code></dt><dd>OpenAPI、Supabase 迁移和 Qdrant 合约</dd><dt><code>packages/shared/</code></dt><dd>共享前端合约</dd><dt><code>docs/</code></dt><dd>权威的可浏览器打开的项目文档</dd><dt><code>scripts/</code></dt><dd>合约、迁移和文档工具</dd><dt><code>tests/</code></dt><dd>单元、合约、安全和发布关卡</dd></dl></article>
+        </div>
+        <div class="notice"><strong>隔离规则：</strong>单元和合约测试使用进程内假对象和隔离仓库，不访问网络。所有提供商、数据库、存储、队列、向量、认证、模块化和跨服务集成测试仅在授权的部署/服务器环境中运行，使用合成数据、受保护的密钥、有界配额和明确的证据记录。</div>
+      </section>
+
+      <section id="stack">
+        <p class="eyebrow">技术决策</p><h2>组件职责和移除触发条件</h2>
+        <div class="stack-ledger"><table><thead><tr><th>技术</th><th>当前状态</th><th>解决的问题</th><th>场景为何需要</th><th>所需验证</th><th>移除或重新审视条件</th></tr></thead><tbody>
+          <tr><td>Next.js + TypeScript</td><td><span class="status local">已实现</span></td><td>工作区、异步状态、报告审查、追踪图和实验 UI。</td><td>多个长期运行的资源和交互式证据关系共享一个类型化客户端。</td><td>类型检查、浏览器流程、可访问性、流式/重连测试。</td><td>静态或服务端渲染 UI 能以更少状态表达所有已接受的交互。</td></tr>
+          <tr><td>FastAPI + Pydantic + OpenAPI</td><td><span class="status local">已实现 45 个 REST 操作</span></td><td>类型化 REST/SSE 边界、个人对话引导、对话范围文件、项目记忆、所有者范围对话 CRUD、运行时重排序配置、验证、身份、存活、就绪和显式失败合约。</td><td>Web、MCP、worker、部署检查和评估消费者需要稳定的领域操作。</td><td>合约、权限、OpenAPI 漂移、托管就绪、超时、SSE 重连和错误测试。</td><td>单个 Next.js 运行时能安全地承担 Python/AI 工作负载和合约。</td></tr>
+          <tr><td>Postgres + SQLAlchemy + Supabase migrations + RLS</td><td><span class="status partial">两个 JWT 主体独立写入/读取；API 隐藏通过</span></td><td>持久关系事实、事务、schema 演进、多用户隔离和审计。</td><td>声明、引用、关系、报告、运行、决策和评估需要完整性和连接。</td><td>证明直接 RLS 拒绝，然后测试事务、并发、备份和恢复。</td><td>关系模型或运营成本不再适合测量的访问模式。</td></tr>
+          <tr><td>GitHub OAuth App through Supabase Auth</td><td><span class="status partial">已验证实时回调和双用户项目隔离</span></td><td>无需部署另一个身份服务的免费第三方登录。</td><td>Supabase 仍是 JWT 签发者，不可变的 <code>sub</code> UUID 仍是租户键；GitHub 仅提供认证。</td><td>证明会话过期/撤销、同邮箱账户关联、直接 RLS 和对象/向量租户隔离。</td><td>GitHub 取消免费 OAuth 访问或 Supabase 提供商行为无法保持所需的身份/隔离合约。</td></tr>
+          <tr><td>NVIDIA NIM + OpenAI-compatible SDK</td><td><span class="status partial">适配器已实现；提供商未验证</span></td><td>模型驱动的接地合成和流式传输，无需将领域代码耦合到供应商响应对象。</td><td>证据审查需要在有界证据上进行结构化声明和合成；确定性模板仅保留为单元测试/本地回退。</td><td>开发提供商冒烟测试、超时/错误映射、结构化输出有效性、忠实度、token/成本和模型版本评估。</td><td>更小的模型或另一个 OpenAI 兼容端点满足已接受的质量/延迟/成本边界。</td></tr>
+          <tr><td>Tavily server-side search</td><td><span class="status partial">适配器已实现；提供商未验证</span></td><td>当单个 Web 选项启用时添加有界的当前 Web 证据，不向浏览器暴露凭据。</td><td>相同的排序和上下文打包边界必须比较当前外部证据与已就绪的本地文档。</td><td>后端凭据冒烟测试、503/错误映射、来源、速率/成本控制、超时/断路行为、注入审查和结果质量测试。</td><td>Web 证据从已接受场景中移除，或另一个提供商更简单地满足相同有界合约。</td></tr>
+          <tr><td>Supabase Storage + resource-aware parsing</td><td><span class="status partial">文本层 PDF 生命周期已通过；OCR 仍不可用</span></td><td>私有源字节、低内存 PDF 文本提取和结构化 Office 页面/幻灯片/表格提取。</td><td>Render Free 提供 512 MB；视觉优先的 Docling PDF 解析超出了该边界。生产环境现在默认使用 <code>pypdf</code>，保留页面锚点，并对扫描版 PDF 报告 <code>PARSER_TEXT_LAYER_NOT_FOUND</code>，而非静默调用重型解析器。</td><td>度量 PDF 延迟和内存，从 pypdf-only 镜像中移除未使用的 Docling 模型下载，验证 DOCX/PPTX 生产路径，并将 OCR 设计为独立的有界 worker 或外部服务。</td><td>免费 OCR 服务或更大的隔离 worker 满足相同的隐私、引用、延迟和成本合约。</td></tr>
+          <tr><td>Hybrid retrieval + dual rerank</td><td><span class="status partial">免费 Qdrant 投影已上线；填充语料库验证待完成</span></td><td>混合语言 BM25/精确匹配加 Qdrant 稠密检索、RRF 候选融合，以及 Qdrant 多向量 MaxSim 或 NVIDIA Ranking API 重排序。</td><td>小语料库受益于完整上下文；大语料库需要语义改写召回和精确的中文、标识符、标题和短语匹配。</td><td>集群将 <code>answerdotai/answerai-colbert-small-v1</code>（96 维，300 token 上下文）列为唯一的免费多向量模型。独立投影通过了当前零块语料库的启动计数检查，在不选择付费模型的情况下启用。填充语料库黄金集、租户隔离、运行时切换和故障转移仍是所需证据。</td><td>确认的免费模型不适合集合资源或质量，或更简单的索引满足已接受的质量和规模。</td></tr>
+          <tr><td>Celery + Upstash Redis</td><td><span class="status partial">摄取/工作流/评估/故障任务代码；消息代理未验证</span></td><td>并行解析、提取、刷新、评估、有界故障模拟、重试、速率限制和进度。</td><td>任务比 HTTP 请求存活更久，需要有界扇出和独立重试。</td><td>将受保护的 Redis 配置转移到 Render；证明真实的至少一次交付、队列深度扩展、毒工作、重启、配额、预算和故障过期行为。</td><td>托管工作流服务满足相同的重试和可观测性合约，且不损失学习价值。</td></tr>
+          <tr><td>Transactional Outbox</td><td><span class="status partial">托管 schema + 受监督分发器 + 租约已实现</span></td><td>弥合数据库提交与队列发布之间的失败差距。</td><td>文档和工作流状态不得声称已排队但从未交付的工作。</td><td>合并的 Render 命令在一个服务中监督 API、worker 和分发器。就绪检查在分发器/worker 心跳过期、过期发件箱工作或发布尝试耗尽时失败。连接受保护的运行时资源；然后证明崩溃、重复、排序、过期租约和协调行为。</td><td>数据库和队列提供已接受的原子集成，或异步边界消失。</td></tr>
+          <tr><td>LangGraph</td><td><span class="status partial">托管检查点 schema 就绪；本地图冒烟测试通过</span></td><td>有界状态图、检查点、扇出协调、人机回环、恢复和重放。</td><td>证据工作流分支、暂停以供决策、失败后恢复并选择性刷新。</td><td>连接 worker；对托管 Postgres 运行转换、中断、重启、幂等和图版本测试。</td><td>已接受的工作流变为无分支或持久中断的短无状态流水线。</td></tr>
+          <tr><td>RAGAS + deterministic evaluators</td><td><span class="status partial">已安装/导入测试；提供商运行待完成</span></td><td>度量检索、忠实度、相关性、引用、schema 和工具行为，不允许未分发的用例超过保守预留上限。</td><td>流水线变更在质量与延迟和成本之间权衡；直觉无法批准它们。</td><td>执行 RAGAS；将保守预留与提供商账单协调；创建黄金集，证明可重复性/评判校准，接受基线并发出 CI 产物。</td><td>指标不能预测已审查的输出质量或无法复现。</td></tr>
+          <tr><td>OpenTelemetry + Langfuse</td><td><span class="status partial">依赖和隐私安全代码已存在；云导出未验证</span></td><td>OTLP 服务关联加 LLM 特定提供商观测，不导出提示、源文本、token 值或密钥。</td><td>故障跨越 Web、API、队列、worker、存储和提供商；质量和成本共享一个运行标识。</td><td>创建选定的免费 Langfuse 项目，将受保护配置转移到 Render，然后证明追踪传播、脱敏、保留、成本协调、故障关联和仪表板可见性。</td><td>一个工具以同等可移植性和更低开销覆盖通用和 LLM 遥测。</td></tr>
+          <tr><td>MCP</td><td><span class="status partial">已安装；本地 bearer 初始化通过</span></td><td>向 IDE 和 agent 暴露有权限的研究和检查能力。</td><td>相同的领域服务需要第二个真实消费者而不重复逻辑。</td><td>验证 MCP Inspector、范围对等、错误、审计、租户和真实客户端。</td><td>没有可信的外部客户端使用它，或它强制第二个领域模型。</td></tr>
+          <tr><td>GitHub Actions</td><td><span class="status local">运行 <code>30514995551</code> 通过 <code>66c31a8</code></span></td><td>可重复的质量关卡、产物标识、公开演示提升、冒烟和回滚证据。</td><td>前端、Python、合约、评估和公开演示边界必须按提交 SHA 一起推进。</td><td>保持 Actions、Vercel 和选定的 Render 服务在同一发布引用上；添加性能分布、已认证重排序切换、直接 RLS 和恢复证据。</td><td>平台原生流水线提供等效的关卡、可追溯性和控制。</td></tr>
+        </tbody></table></div>
+        <div class="notice"><strong>无已验证触发条件而拒绝：</strong>Kafka、Neo4j、第二个向量数据库、多个 agent 框架和 Kubernetes 会重复已接受的职责或创建浅层运营工作。</div>
+      </section>
+
+      <section id="deployment">
+        <p class="eyebrow">选定的免费层部署</p><h2>部署拓扑和验证状态</h2>
+        <div class="notice warning"><strong>记录的部署状态 · 2026 年 8 月 1 日：</strong>后端修正 <code>c5c89f5</code> 通过了 GitHub Actions 运行 <code>30694324845</code> 并在 Render 上线；前端修正 <code>ce54452</code> 部署在 Vercel Production 上。<a href="https://researchmate-backend-dev-jkza.onrender.com/api/v1/healthz">公开存活检查</a>和<a href="https://researchmate-backend-dev-jkza.onrender.com/api/v1/readyz">合并就绪检查</a>返回 HTTP 200，数据库、Redis、worker、分发器、发件箱、检查点和 Qdrant 均就绪。已认证 Chrome 流程通过了对话、PDF、接地引用、Web、Quiz 生成/恢复和删除路径，修复后 Render 日志未显示新的 HTTP 500 或应用 ERROR。</div>
+        <div class="notice"><strong>免费资源结论：</strong>Render Free 对此服务固定为 0.1 CPU 和 512 MB，不活动后休眠，不提供水平扩展；在保持该计划的同时没有正常的应用路径来请求更多容量。因此当前优化优先减少健康检查关键路径上的导入、小语料库的完整上下文短路、有界候选、确定性回退和一次质量合格的生成调用。<a href="https://docs.oracle.com/en-us/iaas/Content/FreeTier/freetier.htm">Oracle Always Free Ampere</a> 提供实质上更多的零成本计算，但增加了 VM 补丁、安全、容量和迁移工作。<a href="https://learn.microsoft.com/en-us/azure/signups/startup-help">Microsoft for Startups</a>、<a href="https://cloud.google.com/startup/ai">Google for Startups AI</a> 和 <a href="https://github.com/education/students">GitHub Education</a> 是基于资格的额度路径，而非保证的计划升级。Koyeb 的免费实例和 Google Cloud 的 e2-micro 未能明显改善此合并 Python 工作负载到足以在没有基准测试的情况下证明迁移合理。</div>
+        <div class="notice"><strong>冻结的身份扩展 · 无新应用部署：</strong>使用一个免费的 <a href="https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/creating-an-oauth-app">GitHub OAuth App</a> 连接到 <a href="https://supabase.com/docs/guides/auth/social-login/auth-github">Supabase Auth</a>。GitHub 负责认证；Supabase 签发 JWT；后端仅按 JWT <code>sub</code> 授权。回调地址为 <code>https://tjdkdganvszqawxspveg.supabase.co/auth/v1/callback</code>。Google 可以后通过相同边界添加，但首次发布不需要。</div>
+        <div class="notice warning"><strong>隐私和加密边界：</strong>TLS 保护传输；私有 Supabase 存储桶和托管服务保护存储数据。应用还通过 API 所有者谓词加 RLS 限定 PostgreSQL，通过用户/项目/文档命名空间和短期签名 URL 限定对象键，并通过强制的用户/项目过滤器限定 Qdrant 变更/搜索。Redis 携带标识符而非文档字节，遥测排除原始内容和密钥。这被刻意不称为端到端加密：Render worker 必须临时处理明文以进行解析和 RAG。每对象信封加密被推迟到更严格的安全模型证明密钥生命周期复杂性的合理性。</div>
+        <div class="proof-chain" aria-label="冻结的免费层发布路径">
+          <div class="proof-step"><b>1 · 保持 Vercel 稳定</b><small>现有 Git 集成仍是当前唯一的前端发布路径。</small></div>
+          <div class="proof-step"><b>2 · 验证一个 Render 服务</b><small><code>render.yaml</code> 构建一个仅 CPU 的容器，并在一个监督进程下启动 FastAPI、一个 Celery <code>solo</code> worker 和发件箱分发器。</small></div>
+          <div class="proof-step"><b>3 · 附加选定的免费资源</b><small>复用现有的合成数据 Supabase、Upstash 和 Qdrant 资源；仅通过受保护的平台配置添加一个 Langfuse Hobby 项目和有界的 NVIDIA/Tavily 密钥。</small></div>
+          <div class="proof-step"><b>4 · 验证真实边界</b><small>要求公开存活/就绪、Auth/RLS 隔离、对象生命周期、消息代理交付、向量过滤、有界提供商调用、脱敏遥测、重启恢复和一个完整的用户流程。</small></div>
+        </div>
+        <div class="scroll"><table><thead><tr><th>阶段</th><th>冻结操作</th><th>当前证据</th><th>退出关卡</th></tr></thead><tbody>
+          <tr><td>0 · 拓扑</td><td>使用恰好两个应用部署，不使用付费计划。</td><td><span class="status local">已决定</span>，见本页 2026 年 7 月 25 日。</td><td>此行仅在记录的重新开启触发条件后才变更。</td></tr>
+          <tr><td>1 · 现有资源</td><td>复用单个公开演示 Supabase、Upstash 和 Qdrant 资源，仅使用合成数据。</td><td><span class="status partial">运行时凭据已加载；数据库、Redis 和 Qdrant 通过就绪检查；直接 S3 CRUD、GitHub OAuth、双用户项目 CRUD 和跨用户 API 隐藏通过</span>。</td><td>完成直接 RLS、租户过滤查询和已部署的对象生命周期冒烟测试。</td></tr>
+          <tr><td>2 · 合并镜像</td><td>让 Render 从仓库构建仅 CPU 的容器；不发布或运行第二个 worker 镜像。</td><td><span class="status local">云构建和全部三个受监督角色在运行时基线 <code>66c31a8</code> 上验证，并保留在已部署的 <code>main</code> 血统中；API 优先启动行为首次在 <code>96cbcf0</code> 上计时</span>。</td><td>从 pypdf-only 镜像中移除未使用的 Docling 下载，并在变更拓扑前度量共享内存边界。</td></tr>
+          <tr><td>3 · 公开后端</td><td>使用仓库蓝图中的一个 Render Free Web Service。</td><td><span class="status local">已上线</span>；<code>/healthz</code>、<code>/readyz</code> 和已认证的项目创建/列表/读取通过。</td><td>完成跨用户拒绝和一个有界的托管工作流。</td></tr>
+          <tr><td>4 · 托管流程</td><td>执行一个所有者范围的上传 → 摄取 → 检索 → 引用回答 → Quiz → 删除工作流，带 有界提供商调用。</td><td><span class="status local">文本层 PDF 流程已通过</span>；普通对话、Web、刷新、对话删除和项目删除也已通过。</td><td>完成已认证重排序切换、大语料库质量、直接 RLS、追踪导出、重启恢复、OCR 和延迟基线。</td></tr>
+        </tbody></table></div>
+        <div class="scroll"><table><thead><tr><th>服务/组件</th><th>功能</th><th>托管于</th><th>当前状态</th><th>下一步验证或配置</th></tr></thead><tbody>
+          <tr><td>Next.js 公开应用</td><td>认证优先的根页面加可折叠的已认证项目、对话、来源、Quiz、审查和角色感知的工程工作区。</td><td><a href="https://vercel.com/docs">Vercel Hobby</a></td><td><span class="status local">主要已认证生产流程已通过</span>，地址为 <a href="https://research-mate-web.vercel.app/app">research-mate-web.vercel.app/app</a>。</td><td>度量冷/热加载，添加即时进度反馈，并验证过期/撤销、可访问性和窄视口。</td></tr>
+          <tr><td>FastAPI API</td><td>JWT 认证、项目/文档/研究 REST 合约、存活和就绪。</td><td><a href="https://render.com/docs/free">Render Free 合并 Web 服务</a></td><td><span class="status local">已在部署的 <code>main</code> 血统中上线</span>；<code>66c31a8</code> 的运行时行为保留，文档/材料部署 <code>c20aff6</code> 作为 <code>dep-d9le54vlk1mc73c22p60</code> 上线，公开就绪检查和严格的 39 路径 / 45 操作合约与仓库匹配。主要托管流程仍是前一次性能发布的证据。</td><td>构建 P50/P95 端点/提供商分布，并在将每个检索路径视为生产验证之前完成已认证重排序切换。</td></tr>
+          <tr><td>Celery Worker</td><td>解析、分块、索引、agent 工作流和评估任务。</td><td>同一 Render Free 服务</td><td><span class="status partial">真实 Upstash 摄取和删除交付通过</span>；过期摄取租约在删除前回收。</td><td>度量队列延迟、重复/重启行为、解析器内存，并移除仍下载未使用 Docling PDF 模型的 pypdf-only 镜像工作。</td></tr>
+          <tr><td>Outbox Dispatcher</td><td>可靠地将已提交的 Postgres 意图移动到 Redis。</td><td>同一 Render Free 服务</td><td><span class="status partial">托管心跳和空/积压就绪检查就绪</span>；发布仍未测试。</td><td>证明发布、过期声明恢复和过期发件箱就绪失败。</td></tr>
+          <tr><td>PostgreSQL</td><td>权威用户、项目、文档、声明、报告、任务和评估。</td><td><a href="https://supabase.com/pricing">Supabase Free development project</a></td><td><span class="status partial">Render 连接、schema、双用户写入/读取和 API 隐藏就绪</span>；合并探针成功执行 SQL 并验证所有必需的检查点表。</td><td>验证直接跨用户 RLS 以及重启安全的写入、并发和恢复。</td></tr>
+          <tr><td>Supabase Auth + RLS</td><td>密码/魔法链接/GitHub 登录、JWT 签发和行级租户隔离。</td><td>Supabase Free + 一个免费 GitHub OAuth App</td><td><span class="status partial">密码和实时 GitHub OAuth JWT 项目往返通过；跨用户 API 隐藏通过</span>。8 月 4 日仪表板检查确认当前 Outlook 地址有一个用户行、一个已确认的仅 GitHub 身份、无自定义 SMTP，以及内置邮件程序的锁定每小时两邮件配额。客户端现在提供支持的注册确认重发端点、提供商对齐的 60 秒冷却、非枚举注册反馈和 HTTPS/同工作区重定向强制。客户端和 Supabase 服务器均对新密码强制八字符最小长度。</td><td>配置并验证带受控收件箱的自定义 SMTP；然后证明真实的注册 → 交付 → 确认 → 密码登录 → 重复注册序列、直接 RLS、刷新过期/撤销、显式同邮箱身份关联和对象/向量租户隔离。</td></tr>
+          <tr><td>Supabase Storage</td><td>通过 S3 兼容性的私有 PDF/DOCX/PPTX 原始文件和解析器产物。</td><td>Supabase Free</td><td><span class="status partial">直接对象 CRUD 已验证</span>；私有开发存储桶执行 25 MB PDF/DOCX/PPTX 允许列表，存储在 Windows Credential Manager 中的凭据完成了 PDF PUT、HEAD 和 DELETE。</td><td>通过已部署运行时证明预留 → 签名 PUT → HEAD → 提交 → 解析 → 删除和补偿删除。</td></tr>
+          <tr><td>Redis</td><td>Celery 消息代理和短期任务协调；非业务事实。</td><td><a href="https://upstash.com/pricing/redis">Upstash Redis Free</a></td><td><span class="status partial">Render 就绪 PING 成功</span>；尚未发送任务消息。</td><td>证明消息代理交付、重复处理和 worker 重启。</td></tr>
+          <tr><td>Qdrant</td><td>稠密 + 稀疏混合检索和预重排序候选。</td><td><a href="https://qdrant.tech/documentation/cloud/create-cluster/">Qdrant Cloud Free</a></td><td><span class="status partial">Render 就绪检查验证 <code>researchmate_chunks</code></span>；租户过滤查询和变更未验证。</td><td>证明强制的租户/项目/来源过滤器以及更新/删除行为。</td></tr>
+          <tr><td>NVIDIA NIM</td><td>OpenAI 兼容的 LLM 生成、嵌入和可选排序。</td><td>NVIDIA API</td><td><span class="status partial">对话和嵌入生产路径通过；排序报告不可用并回退</span>。</td><td>分离提供商计时，验证排序端点/模型权限，限定超时，并与 Qdrant 和确定性排序比较质量/延迟。</td></tr>
+          <tr><td>Tavily</td><td>有界 Web 搜索和外部证据。</td><td>Tavily</td><td><span class="status partial">实时搜索和引用合成在最新有界冒烟测试中约 13.4 秒完成</span>；NVIDIA Ranking 仍不可用，确定性排序可见。</td><td>积累搜索/提供商/生成分布；调优查询构造、来源策略、缓存、配额和注入处理。</td></tr>
+          <tr><td>LangGraph</td><td>带检查点的 Agent 工作流、人工审批和恢复。</td><td>合并 worker 运行时</td><td><span class="status partial">本地假扇出通过，托管检查点 schema 版本 9 存在</span>；持久执行未验证。</td><td>对托管 Postgres 证明中断、重启、决策和恢复。</td></tr>
+          <tr><td>Langfuse + OpenTelemetry</td><td>LLM 追踪、成本、延迟、错误和评估观测。</td><td><a href="https://langfuse.com/pricing">Langfuse Cloud Hobby</a> 原生 OTLP 端点</td><td><span class="status partial">免费项目和 Render 凭据已配置</span>；尚未观察到导出的追踪。</td><td>证明脱敏追踪传播和预算指标。</td></tr>
+          <tr><td>GitHub Actions</td><td>Vercel 和 Render 部署的同一提交的仓库质量关卡。</td><td><a href="https://docs.github.com/en/actions/concepts/billing-and-usage">GitHub</a></td><td><span class="status local">运行时运行 <code>30514995551</code> 和文档/材料运行 <code>30516885025</code> 通过</span>；Vercel 和选定的 Render 服务部署了生成的 <code>main</code> 血统。</td><td>添加提供商切换、直接 RLS、恢复和性能分布证据，不让默认单元测试消耗云配额。</td></tr>
+        </tbody></table></div>
+        <div class="access-rails">
+          <article class="access-rail"><h3>开发目标</h3><p>原生 Windows 仅运行封闭单元、合约、schema、导入、静态和构建检查。它不启动任何应用或基础设施服务，也不通过托管资源连接模块。</p></article>
+          <article class="access-rail derived"><h3>预览目标</h3><p>Vercel 预览在创建非生产部署时由连接的 Git 仓库提供；没有预览是托管后端的证据。</p></article>
+          <article class="access-rail"><h3>公开演示目标</h3><p>Vercel Hobby 仍是 Web 主机；一个选定的 Render Free 服务是唯一的后端计算目标。此免费环境无生产 SLA，且不得保存真实用户数据。</p></article>
+          <article class="access-rail"><h3>就绪边界</h3><p><code>/api/v1/readyz</code> 检查 Postgres、Redis、Qdrant、worker 和分发器心跳新鲜度、发件箱积压和 LangGraph 检查点表；对象存储/LLM/Tavily 保持仅配置以避免计费探测调用。托管端点在部署 <code>dep-d9le54vlk1mc73c22p60</code> 后返回 HTTP 200，无失败组件，保留了 <code>66c31a8</code> 上建立的运行时基线。</p></article>
+        </div>
+        <div class="notice"><strong>历史替代方案：</strong>Cloudflare 部署已于 2026 年 7 月 26 日从活跃工作流、应用配置、npm 命令和依赖项中完全移除。其惰性源码快照和理由保留在<a href="../archive/cloudflare/index.zh.html">已归档的部署方案</a>中。</div>
+      </section>
+
+      <section id="cicd">
+        <p class="eyebrow">CI/CD 和发布组件</p><h2>跨 Vercel 和 Render 的发布身份</h2>
+        <div class="proof-chain">
+          <div class="proof-step"><b>并行仓库关卡</b><small>GitHub Actions 运行独立的 Python、Web、浏览器 E2E 和容器作业，带依赖缓存和过期运行取消。稳定的 <code>ci-success</code> 作业为发布消费者聚合全部四个结果。</small></div>
+          <div class="proof-step"><b>锁定的 Python 图</b><small>一个根 <code>uv.lock</code> 解析 API、worker、仅 CPU 的 PyTorch 源和开发工具。本地脚本、CI 和两个生产 Dockerfile 使用 <code>--frozen</code> 安装相同的图。</small></div>
+          <div class="proof-step"><b>自动化浏览器验收</b><small>Playwright 运行确定性的无凭据 Chromium 流程，覆盖个人对话、引用、对话路由、项目创建和 Quiz 生成，同时拒绝云请求和浏览器运行时错误。</small></div>
+          <div class="proof-step"><b>容器关卡</b><small>Hadolint 验证两个 Dockerfile；BuildKit 构建 API 镜像和 worker 依赖目标；Trivy 在 <code>ci-success</code> 之前阻止未修补的高或严重镜像发现。</small></div>
+          <div class="proof-step"><b>Vercel Production</b><small>Vercel 可以并行构建 <code>main</code> 提交，但其生产别名在提升之前等待 GitHub <code>ci-success</code> 部署检查。以前的部署仍可用于托管回滚。</small></div>
+          <div class="proof-step"><b>合并后端发布</b><small>Render 使用 <code>checksPass</code>，仅在后端、迁移、锁文件或容器输入变更时构建，然后启动全部三个 Python 角色并要求托管就绪。仅文档变更不再重建或重启后端。</small></div>
+        </div>
+        <div class="notice warning"><strong>8 月 4 日本地关卡证据：</strong>207 个 Python 测试通过，覆盖率 67%；48 个 Vitest 测试通过，扩展应用范围报告 51.6% 行覆盖率；Next.js 生产构建、零漏洞 npm 生产审计、Playwright Chromium 流程、Ruff、OpenAPI、迁移验证、Actionlint 和 Hadolint 通过。认证模块套件包括注册 → 待确认 → 60 秒冷却 → 重发、HTTPS/回调限制、提供商错误传播和提交密码不被应用持久化的证明。Linux 镜像构建和 Trivy 扫描仍是 GitHub 运行证据。自定义 SMTP 交付、Supabase 密码哈希的直接数据库检查和带凭据密码登录验收仍是外部/部署关卡。</div>
+      </section>
+
+      <section id="decisions">
+        <p class="eyebrow">架构决策</p><h2>决策和重新开启触发条件</h2>
+        <div class="scroll"><table><thead><tr><th>决策</th><th>原因</th><th>后果</th><th>重新开启触发条件</th></tr></thead><tbody>
+          <tr><td>技术选择遵循作品集场景</td><td>每个依赖项必须解决具体的工作流或故障模式，并产生直接的实现、测试、指标或恢复证据。</td><td>所选场景比消费者 MVP 需要更多基础设施。没有已实现职责的组件不被接受。</td><td>组件无法产生直接的实现、测试、指标或恢复证据。</td></tr>
+          <tr><td>冻结拓扑：Vercel web + 一个 Render 合并后端</td><td>这是保留已实现的 Next.js、FastAPI、Celery 和发件箱边界的最小变更。现有 Supabase、Upstash 和 Qdrant 资源避免重复状态服务。</td><td>恰好两个应用部署和零必需月费，冷启动、单一故障域、低并发、临时本地磁盘、免费资源暂停和有界解析器容量被明确接受。</td><td>选定的免费计划消失；测量的合并进程内存阻止就绪；或真实用户、真实数据或 SLA 需要付费隔离。</td></tr>
+          <tr><td>Postgres 是业务事实</td><td>工作流、证据、报告、决策和评估状态需要事务和完整性。</td><td>S3 兼容对象存储和 Qdrant 是可重建投影；Redis 不能拥有不可替代的状态。</td><td>测量的访问和规模使关系模型失效。</td></tr>
+          <tr><td>有界 LangGraph 加 Celery</td><td>LangGraph 拥有持久决策和状态转换；Celery 拥有并行、可重试执行。</td><td>节点和任务幂等性加共享运行/事件合约是强制性的。</td><td>一个运行时能以更少复杂性和同等证据满足编排和工作执行。</td></tr>
+          <tr><td>无重复应用部署</td><td>直接仓库构建、直接 OTLP 导出和合并演示容器以更少活动部件覆盖当前发布边界。</td><td>当前计划保留一个 Web 部署和一个合并后端服务。</td><td>满足冻结拓扑的重新开启触发条件，且替代方案在实现前在此记录。</td></tr>
+          <tr><td>GitHub OAuth 复用 Supabase Auth</td><td>一个免费的 GitHub OAuth App 添加第三方登录，同时保留现有签发者、JWT 验证和租户身份。</td><td>不部署新服务器。授权仍仅以 JWT <code>sub</code> 为键；Google 可以后添加，但必须复用相同边界。</td><td>Supabase 或 GitHub 不再满足免费层、账户关联或隔离验收测试。</td></tr>
+          <tr><td>无生产 SLA 声明</td><td>免费层可能冷启动、暂停、限流或过期。</td><td>演示发布配额、就绪检查和只读降级模式。</td><td>付费资源和运营证据支持可度量的 SLO。</td></tr>
+        </tbody></table></div>
+      </section>
+    </div>
+    <aside class="toc"><b>本页导航</b><a href="#current-architecture">当前运行时</a><a href="#target-architecture">目标架构</a><a href="#flows">运行时流程</a><a href="#local-development">验证环境</a><a href="#stack">技术栈依据</a><a href="#deployment">部署</a><a href="#cicd">CI/CD</a><a href="#decisions">决策</a></aside></div>
+  </main>
+  <footer class="shell footer">ResearchMate 架构、运行时和部署证据 · 审查于 2026 年 8 月 4 日</footer>
+  <script src="../assets/site.js"></script>
+</body>
+</html>

@@ -1,10 +1,27 @@
-# Market and MVP Scope
+﻿# 市场与 MVP 范围
 
-## Read the relevant workflow
+将模糊的产品想法转化为单人开发者或极小团队可直接实施的规格说明。通过聚焦的质询轮次区分事实与假设，将范围裁剪至仅测试最高风险假设的程度，并产出一份 Node02 无需重新提问即可消费的文档。
 
-| Need | Read |
-|---|---|
-| recover decisions, calibrate ambition, cut scope, write acceptance, control a changed requirement | `product-discovery-scope-and-acceptance.md` |
-| validate demand, alternatives, pricing, distribution, positioning, trust, or public visual meaning | `market-validation-positioning-and-trust.md` |
+## 阅读相关工作流
 
-Read only the workflow or workflows that materially affect the result. Use `references/agent-context-html/instructions.md` when product truth must become durable project documentation.
+| 需求 | 阅读 |
+| --- | --- |
+| 将模糊想法转化为清晰的问题定义、受众和替代方案 | `discovery-and-grilling.md` |
+| 裁剪 MVP 边界并编写可直接实施的规格说明 | `scope-cut-and-spec.md` |
+| 挑战假设并决定 BUILD、VALIDATE 或 STOP | `challenge-and-validate.md` |
+
+Node01 是一个线性流程：发现，然后范围裁剪，然后挑战。并非每个阶段都必须运行。一个清晰的小功能可以跳过发现阶段直接进入范围裁剪。已有的 PRD 可能只需要将挑战作为审计来运行。
+
+## 输出契约
+
+最终输出是一份规格说明文档，包含：
+
+- 问题陈述：谁、什么痛点、目前如何应对。
+- 目标受众：基于行为特征，而非人口统计。
+- 核心用户旅程：触发、进入、行动、结果、下一步。
+- 范围：在范围内、在范围外、非目标。
+- 验收标准：可测试、通过或失败，不含"正常工作"。
+- 风险假设：每条附带"如果错误会怎样"和"最廉价的测试"。
+- 一个决策：GO（前往 Node02）、VALIDATE（先运行最廉价测试）或 NO_GO（停止）。
+
+Node02 应当能够消费此规格说明而无需重新询问产品问题。

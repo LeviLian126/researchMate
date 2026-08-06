@@ -3,9 +3,15 @@
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
+import { Search, Trash2, Upload } from "lucide-react";
 import { ProjectNav } from "../../../../components/project-nav";
 import { StateNotice } from "../../../../components/state-notice";
 import { apiFetch, DocumentRecord, fileTypeFromName, mimeForFileType } from "../../../../lib/api";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 interface UploadUrlResponse {
   document_id: string;
@@ -179,65 +185,119 @@ export default function LibraryPage() {
     }
   }
 
+  const typeBadgeClass = (fileType: string) => {
+    switch (fileType.toLowerCase()) {
+      case "pdf": return "border-red-200 bg-red-50 text-red-600";
+      case "docx": return "border-blue-200 bg-blue-50 text-blue-600";
+      case "pptx": return "border-orange-200 bg-orange-50 text-orange-600";
+      default: return "border-border bg-secondary text-muted-foreground";
+    }
+  };
+
+  const statusVariant = (documentStatus: string): "success" | "warning" | "destructive" | "secondary" => {
+    if (documentStatus === "ready") return "success";
+    if (["uploaded", "parsing", "parsed", "indexing"].includes(documentStatus)) return "warning";
+    if (documentStatus === "failed") return "destructive";
+    return "secondary";
+  };
+
   return (
-    <main className="app-shell workspace-shell">
+    <main className="min-h-[100dvh] bg-gradient-to-br from-accent via-background to-background">
       <ProjectNav projectId={projectId} current="library" />
-      <header className="source-toolbar">
-        <strong>Sources</strong>
-        <label className="search-control"><span className="sr-only">Search materials</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search materials…" /></label>
-      </header>
+      <div className="mx-auto max-w-6xl px-6 py-8">
+        <header className="mb-6 flex items-center justify-between gap-4">
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">Sources</h1>
+          <div className="relative w-full max-w-xs">
+            <Search strokeWidth={1.5} className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <span className="sr-only">Search materials</span>
+            <Input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search materials…"
+              aria-label="Search materials"
+              className="rounded-lg border-border/60 bg-white/50 pl-9 backdrop-blur-sm"
+            />
+          </div>
+        </header>
 
-      <section className="library-layout" aria-label="Source library">
-        <form className="upload-panel" onSubmit={upload}>
-          <div
-            className="upload-dropzone"
-            onDragOver={(event) => event.preventDefault()}
-            onDrop={(event) => { event.preventDefault(); selectFile(event.dataTransfer.files[0] ?? null); }}
-          >
-            <span className="upload-dropzone__icon" aria-hidden="true">⇧</span>
-            <h2>Upload materials</h2>
-            <p>Drop a PDF, DOCX, or PPTX here, or choose a file from your device.</p>
-            <input ref={fileInput} className="sr-only" id="source-file" type="file" accept=".pdf,.docx,.pptx" onChange={(event) => selectFile(event.target.files?.[0] ?? null)} />
-            <label className="secondary-button" htmlFor="source-file">Choose file</label>
-            {selectedFile && <strong className="selected-file">{selectedFile.name}</strong>}
-          </div>
-          <details className="local-fallback">
-            <summary>Local parsed-text fallback</summary>
-            <label htmlFor="manual-text">Text used only by the local in-memory upload path</label>
-            <textarea id="manual-text" rows={5} value={manualText} onChange={(event) => setManualText(event.target.value)} />
-          </details>
-          <button className="primary-button" type="submit" disabled={!selectedFile || uploading}>{uploading ? "Uploading…" : "Upload and index"}</button>
-          <div aria-live="polite">
-            {status && <StateNotice state={{ title: "Ingestion status", detail: status, kind: "success" }} />}
-            {error && <StateNotice state={{ title: "Library needs attention", detail: error, kind: "error" }} action={<button type="button" onClick={() => void loadDocuments()}>Retry</button>} />}
-          </div>
-        </form>
+        <section className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]" aria-label="Source library">
+          <form className="space-y-4 rounded-2xl border border-white/30 bg-white/70 p-6 shadow-lg shadow-primary/5 backdrop-blur-xl" onSubmit={upload}>
+            <div
+              className="rounded-2xl border-2 border-dashed border-border bg-secondary/30 px-6 py-10 text-center transition-all hover:border-primary/40 hover:bg-accent/30"
+              onDragOver={(event) => event.preventDefault()}
+              onDrop={(event) => { event.preventDefault(); selectFile(event.dataTransfer.files[0] ?? null); }}
+            >
+              <Upload strokeWidth={1.5} className="mx-auto size-8 text-primary" />
+              <h2 className="mt-3 text-base font-semibold text-foreground">Upload materials</h2>
+              <p className="mt-1 text-sm text-muted-foreground">Drop a PDF, DOCX, or PPTX here, or choose a file from your device.</p>
+              <input ref={fileInput} className="sr-only" id="source-file" type="file" accept=".pdf,.docx,.pptx" onChange={(event) => selectFile(event.target.files?.[0] ?? null)} />
+              <Button asChild variant="secondary" className="mt-4">
+                <label htmlFor="source-file" className="cursor-pointer">Choose file</label>
+              </Button>
+              {selectedFile && <p className="mt-3 text-sm font-medium text-foreground">{selectedFile.name}</p>}
+            </div>
 
-        <section className="document-panel" aria-labelledby="source-status-heading">
-          <div className="section-heading"><div><p className="eyebrow">Indexed evidence</p><h2 id="source-status-heading">Materials</h2></div><span>{filteredDocuments.length} source{filteredDocuments.length === 1 ? "" : "s"}</span></div>
-          {loading && <div className="empty-state" role="status">Loading source status…</div>}
-          {!loading && filteredDocuments.length === 0 && <div className="empty-state">{query ? "No materials match this search." : "No sources yet. Upload one to make research and quizzes meaningful."}</div>}
-          <div className="document-list">
-            {filteredDocuments.map((document) => (
-              <article className={`document-row document-row--${document.status}`} key={document.id}>
-                <span className="document-row__type" aria-hidden="true">{document.file_type.toUpperCase()}</span>
-                <div><strong>{document.filename}</strong><small>{formatBytes(document.size_bytes)} · {document.error_message || "Stored in this project"}</small></div>
-                <div className="document-row__actions">
-                  <span className={`status-badge status-badge--${document.status}`}>{document.status}</span>
-                  {deleteConfirmationId === document.id ? (
-                    <span className="document-delete-confirm">
-                      <button type="button" onClick={() => void deleteDocument(document.id)}>Confirm remove</button>
-                      <button type="button" onClick={() => setDeleteConfirmationId(null)}>Cancel</button>
-                    </span>
-                  ) : (
-                    <button type="button" onClick={() => setDeleteConfirmationId(document.id)}>Remove</button>
-                  )}
-                </div>
-              </article>
-            ))}
-          </div>
+            <details className="group">
+              <summary className="cursor-pointer text-sm font-medium text-muted-foreground hover:text-foreground">Local parsed-text fallback</summary>
+              <div className="mt-3 space-y-2">
+                <label htmlFor="manual-text" className="text-xs text-muted-foreground">Text used only by the local in-memory upload path</label>
+                <Textarea id="manual-text" rows={5} value={manualText} onChange={(event) => setManualText(event.target.value)} />
+              </div>
+            </details>
+
+            <Button type="submit" disabled={!selectedFile || uploading} className="w-full">
+              {uploading ? "Uploading…" : "Upload and index"}
+            </Button>
+
+            <div aria-live="polite">
+              {status && <StateNotice state={{ title: "Ingestion status", detail: status, kind: "success" }} />}
+              {error && <StateNotice state={{ title: "Library needs attention", detail: error, kind: "error" }} action={<Button type="button" variant="outline" size="sm" onClick={() => void loadDocuments()}>Retry</Button>} />}
+            </div>
+          </form>
+
+          <section aria-labelledby="source-status-heading" className="rounded-2xl border border-white/30 bg-white/70 p-6 shadow-lg shadow-primary/5 backdrop-blur-xl">
+            <div className="mb-4 flex items-center justify-between gap-4">
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Indexed evidence</p>
+                <h2 id="source-status-heading" className="text-lg font-semibold text-foreground">Materials</h2>
+              </div>
+              <Badge variant="secondary">{filteredDocuments.length} source{filteredDocuments.length === 1 ? "" : "s"}</Badge>
+            </div>
+            {loading && <div className="py-8 text-center text-sm text-muted-foreground" role="status">Loading source status…</div>}
+            {!loading && filteredDocuments.length === 0 && <div className="py-8 text-center text-sm text-muted-foreground">{query ? "No materials match this search." : "No sources yet. Upload one to make research and quizzes meaningful."}</div>}
+            <div className="space-y-2">
+              {filteredDocuments.map((document) => (
+                <article
+                  key={document.id}
+                  className="flex items-center gap-3 rounded-xl border border-border/50 bg-white/50 px-4 py-3 backdrop-blur-sm transition-all hover:-translate-y-0.5 hover:border-primary/20 hover:bg-white/70 hover:shadow-md hover:shadow-primary/5"
+                >
+                  <span className={cn("inline-flex shrink-0 items-center rounded-md border px-2 py-0.5 font-mono text-[10px] font-semibold", typeBadgeClass(document.file_type))}>
+                    {document.file_type.toUpperCase()}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-foreground">{document.filename}</p>
+                    <p className="truncate text-xs text-muted-foreground">{formatBytes(document.size_bytes)} · {document.error_message || "Stored in this project"}</p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <Badge variant={statusVariant(document.status)}>{document.status}</Badge>
+                    {deleteConfirmationId === document.id ? (
+                      <span className="flex items-center gap-1">
+                        <Button type="button" size="sm" variant="destructive" onClick={() => void deleteDocument(document.id)}>Confirm</Button>
+                        <Button type="button" size="sm" variant="outline" onClick={() => setDeleteConfirmationId(null)}>Cancel</Button>
+                      </span>
+                    ) : (
+                      <Button type="button" size="sm" variant="ghost" onClick={() => setDeleteConfirmationId(document.id)}>
+                        <Trash2 strokeWidth={1.5} className="size-4" />
+                        Remove
+                      </Button>
+                    )}
+                  </div>
+                </article>
+              ))}
+            </div>
+          </section>
         </section>
-      </section>
+      </div>
     </main>
   );
 }

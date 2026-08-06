@@ -1,0 +1,4 @@
+interface:
+  display_name: "Indie Product Delivery"
+  short_description: "Deliver bounded product outcomes with direct evidence"
+  default_prompt: "Use $indie-product-delivery to deliver this product outcome within its boundaries and verify the result."

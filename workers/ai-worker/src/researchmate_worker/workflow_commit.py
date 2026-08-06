@@ -37,8 +37,8 @@ class WorkflowCommitMixin(WorkflowEvidenceLoaderMixin):
             )
             if locked is None:
                 raise WorkflowRuntimeError("WORKFLOW_OWNERSHIP_MISMATCH")
-            if locked["status"] == "succeeded":
-                return
+            if locked["status"] in ("succeeded", "failed", "cancelled"):
+               return
             # Serialize project commits so claim versions and report revisions stay unique.
             connection.execute(
                 text("select pg_advisory_xact_lock(hashtextextended(:key,1))"),
@@ -137,6 +137,8 @@ class WorkflowCommitMixin(WorkflowEvidenceLoaderMixin):
                 claim_id = uuid5(NAMESPACE_URL, f"researchmate:{run_id}:claim:{index}")
                 claim_ids.append(claim_id)
                 question_index = int(claim.get("question_index", 0))
+                if question_index < 0 or question_index >= len(question_ids):
+                    raise WorkflowRuntimeError("CLAIM_INDEX_OUT_OF_RANGE")
                 normalized_key = sha256(claim["text"].strip().lower().encode()).hexdigest()
                 connection.execute(
                     text(
@@ -187,6 +189,10 @@ class WorkflowCommitMixin(WorkflowEvidenceLoaderMixin):
                         },
                     )
             for relation in state.get("relations", []):
+                source_idx = relation["source_claim_id"] - 1
+                target_idx = relation["target_claim_id"] - 1
+                if not 0 <= source_idx < len(claim_ids) or not 0 <= target_idx < len(claim_ids):
+                    raise WorkflowRuntimeError("RELATION_INDEX_OUT_OF_RANGE")
                 connection.execute(
                     text(
                         """
@@ -198,9 +204,9 @@ class WorkflowCommitMixin(WorkflowEvidenceLoaderMixin):
                         """
                     ),
                     {
-                        "source_id": claim_ids[relation["source_claim_id"] - 1],
-                        "target_id": claim_ids[relation["target_claim_id"] - 1],
-                        "relation": relation["relation"],
+                       "source_id": claim_ids[source_idx],
+                       "target_id": claim_ids[target_idx],
+                       "relation": relation["relation"],
                         "confidence": relation["confidence"],
                         "rationale": relation["rationale_summary"],
                     },

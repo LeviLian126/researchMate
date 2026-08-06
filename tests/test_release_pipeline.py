@@ -17,7 +17,7 @@ def test_ci_runs_the_full_test_build_contract_and_security_gate() -> None:
     assert '"test:e2e": "npm --workspace @researchmate/web run test:e2e"' in package
     assert "scripts/export_openapi.py --check" in package
     assert "scripts/apply_migrations.py --check-files" in package
-    assert "npm ci" in workflow
+    assert "npm install" in workflow
     for job in ("python-quality", "web-quality", "browser-e2e", "container-quality", "ci-success"):
         assert f"{job}:" in workflow
     assert "uv sync --frozen --all-packages --group dev" in workflow

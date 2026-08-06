@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from threading import RLock
 from typing import Protocol
@@ -195,7 +195,9 @@ class InMemoryEvidenceRepository(FaultScenarioStoreMixin):
                 return None
             if owned[1].status != "waiting_human":
                 raise EvidenceStoreError("RUN_NOT_WAITING")
-            key = (run_id, payload.interrupt_key)
+            # The caller-supplied idempotency_key is the dedup contract; interrupt_key
+            # identifies the review node but must not replace header-based deduplication.
+            key = (run_id, idempotency_key)
             fingerprint = evidence_fingerprint(payload)
             existing = self.decisions.get(key)
             if existing:
@@ -293,8 +295,12 @@ class InMemoryEvidenceRepository(FaultScenarioStoreMixin):
 
     def reliability(self, user: CurrentUser, window_hours: int) -> ReliabilityResponse:
         """Aggregate local workflow outcomes for the requested owner."""
+        cutoff = datetime.now(UTC) - timedelta(hours=window_hours)
         with self.lock:
-            records = [record for owner, record in self.runs.values() if owner == user.id]
+            records = [
+                record for owner, record in self.runs.values()
+                if owner == user.id and record.created_at >= cutoff
+            ]
         terminal = [record for record in records if record.status in {"succeeded", "failed"}]
         succeeded = sum(record.status == "succeeded" for record in terminal)
         failed = sum(record.status == "failed" for record in terminal)

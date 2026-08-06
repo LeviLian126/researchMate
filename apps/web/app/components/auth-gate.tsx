@@ -3,6 +3,7 @@
 
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
+import { GitBranch, Loader2 } from "lucide-react";
 import {
   type BrowserAuthSession,
   getSupabaseSession,
@@ -16,8 +17,18 @@ import { isPublicDemo } from "../lib/demo";
 import { StateNotice } from "./state-notice";
 import { BrandLogo } from "./brand-logo";
 import { warmApi } from "../lib/api";
+import { Button } from "@/components/ui/button";
 
 type AuthState = "loading" | "signed_out" | "signed_in" | "misconfigured" | "error";
+
+/** Shared glass auth surface sitting on the cobalt gradient background. */
+function AuthShell({ children }: { children: ReactNode }) {
+  return (
+    <main className="auth-shell grid min-h-[100dvh] place-items-center bg-gradient-to-br from-accent via-background to-background p-6">
+      {children}
+    </main>
+  );
+}
 
 /** Resolves local, demo, and Supabase session states before rendering protected children. */
 export function AuthGate({ children }: { children: ReactNode }) {
@@ -39,11 +50,13 @@ export function AuthGate({ children }: { children: ReactNode }) {
       setSession(nextSession);
       setState(nextSession ? "signed_in" : "signed_out");
     });
-    void getSupabaseSession().then((nextSession) => {
-      if (!active) return;
-      setSession(nextSession);
-      setState(nextSession ? "signed_in" : "signed_out");
-    }).catch(() => setState("error"));
+    void getSupabaseSession()
+      .then((nextSession) => {
+        if (!active) return;
+        setSession(nextSession);
+        setState(nextSession ? "signed_in" : "signed_out");
+      })
+      .catch(() => setState("error"));
     return () => {
       active = false;
       unsubscribe();
@@ -51,28 +64,112 @@ export function AuthGate({ children }: { children: ReactNode }) {
   }, [local, publicDemo]);
 
   if (local) return <>{children}</>;
+
   if (publicDemo) {
-    return <>
-      <div className="demo-mode-banner" role="status"><strong>Interactive static demo</strong><span>Sample evidence is stored only in this browser session. No login, provider call, upload, or managed workflow is running.</span></div>
-      {children}
-    </>;
+    return (
+      <>
+        <div
+          className="demo-mode-banner flex flex-col gap-1 rounded-xl border border-white/30 bg-white/70 p-4 text-sm shadow-sm backdrop-blur-sm"
+          role="status"
+        >
+          <strong className="font-semibold text-foreground">Interactive static demo</strong>
+          <span className="text-muted-foreground">
+            Sample evidence is stored only in this browser session. No login, provider call, upload, or managed workflow is running.
+          </span>
+        </div>
+        {children}
+      </>
+    );
   }
+
   if (state === "loading") {
-    return <main className="auth-shell"><div className="glass-panel auth-panel" role="status"><p className="eyebrow">Secure workspace</p><h1>Restoring your session…</h1><p>Supabase is refreshing the browser session before any protected API request is sent.</p></div></main>;
+    return (
+      <AuthShell>
+        <div
+          className="w-full max-w-md rounded-2xl border border-white/30 bg-white/70 p-8 shadow-xl shadow-primary/5 backdrop-blur-xl"
+          role="status"
+        >
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            Secure workspace
+          </p>
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-foreground">
+            Restoring your session…
+          </h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Supabase is refreshing the browser session before any protected API request is sent.
+          </p>
+        </div>
+      </AuthShell>
+    );
   }
+
   if (state === "misconfigured") {
-    return <main className="auth-shell"><StateNotice state={{ title: "Authentication is not configured", detail: "Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY for this deployment. The app will not fall back to a development identity.", kind: "provider" }} /></main>;
+    return (
+      <AuthShell>
+        <div className="w-full max-w-md">
+          <StateNotice
+            state={{
+              title: "Authentication is not configured",
+              detail:
+                "Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY for this deployment. The app will not fall back to a development identity.",
+              kind: "provider",
+            }}
+          />
+        </div>
+      </AuthShell>
+    );
   }
+
   if (state === "error") {
-    return <main className="auth-shell"><StateNotice state={{ title: "Session recovery failed", detail: "Supabase Auth could not restore this browser session. Reload the page or sign in again after the provider recovers.", kind: "provider" }} action={<button type="button" onClick={() => window.location.reload()}>Reload</button>} /></main>;
+    return (
+      <AuthShell>
+        <div className="w-full max-w-md">
+          <StateNotice
+            state={{
+              title: "Session recovery failed",
+              detail:
+                "Supabase Auth could not restore this browser session. Reload the page or sign in again after the provider recovers.",
+              kind: "provider",
+            }}
+            action={
+              <Button
+                type="button"
+                variant="outline"
+                className="rounded-lg"
+                onClick={() => window.location.reload()}
+              >
+                Reload
+              </Button>
+            }
+          />
+        </div>
+      </AuthShell>
+    );
   }
+
   if (state === "signed_out") return <SignInPanel />;
 
   return (
     <>
-      <div className="session-bar" role="status">
-        <span>Signed in as <strong>{session?.user?.email ?? "verified Supabase user"}</strong></span>
-        <button type="button" onClick={() => void signOut().catch(() => undefined)}>Sign out</button>
+      <div
+        className="session-bar flex items-center justify-between gap-3 rounded-xl border border-white/30 bg-white/70 px-4 py-2.5 text-sm shadow-sm backdrop-blur-sm"
+        role="status"
+      >
+        <span className="min-w-0 truncate text-muted-foreground">
+          Signed in as{" "}
+          <strong className="font-medium text-foreground">
+            {session?.user?.email ?? "verified Supabase user"}
+          </strong>
+        </span>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="shrink-0 rounded-lg"
+          onClick={() => void signOut().catch(() => undefined)}
+        >
+          Sign out
+        </Button>
       </div>
       {children}
     </>
@@ -91,24 +188,55 @@ function SignInPanel() {
     try {
       signInWithGitHub(`${window.location.origin}/app`);
     } catch {
-      setMessage({ title: "GitHub sign-in is unavailable", detail: "Retry after checking the GitHub provider and production redirect configuration in Supabase.", kind: "provider" });
+      setMessage({
+        title: "GitHub sign-in is unavailable",
+        detail:
+          "Retry after checking the GitHub provider and production redirect configuration in Supabase.",
+        kind: "provider",
+      });
       setBusy(false);
     }
   }
 
   return (
-    <main className="auth-shell">
-      <section className="glass-panel auth-panel stack">
-        <div className="auth-brand"><BrandLogo withName /></div>
-        <div>
-          <p className="eyebrow">Your research workspace</p>
-          <h1>Welcome back</h1>
-          <p>Continue your projects, conversations, sources, and quizzes with your GitHub account.</p>
-        </div>
-        {message && <StateNotice state={message} />}
-        <button className="github-auth-button" type="button" onClick={submitGitHub} disabled={busy}>{busy ? "Opening GitHub…" : "Continue with GitHub"}</button>
-      </section>
-      <a className="auth-source-link" href="https://github.com/LeviLian126/researchMate">GitHub ↗</a>
-    </main>
+    <AuthShell>
+      <div className="flex w-full max-w-md flex-col items-center gap-6">
+        <section className="flex w-full flex-col gap-6 rounded-2xl border border-white/30 bg-white/70 p-8 shadow-xl shadow-primary/5 backdrop-blur-xl">
+          <div className="auth-brand">
+            <BrandLogo withName />
+          </div>
+          <div className="flex flex-col gap-2">
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              Your research workspace
+            </p>
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground">Welcome back</h1>
+            <p className="text-sm text-muted-foreground">
+              Continue your projects, conversations, sources, and quizzes with your GitHub account.
+            </p>
+          </div>
+          {message && <StateNotice state={message} />}
+          <Button
+            type="button"
+            size="lg"
+            className="w-full rounded-lg"
+            onClick={submitGitHub}
+            disabled={busy}
+          >
+            {busy ? (
+              <Loader2 strokeWidth={1.5} className="animate-spin" />
+            ) : (
+              <GitBranch strokeWidth={1.5} />
+            )}
+            {busy ? "Opening GitHub…" : "Continue with GitHub"}
+          </Button>
+        </section>
+        <a
+          className="auth-source-link text-sm text-muted-foreground transition-colors hover:text-foreground"
+          href="https://github.com/LeviLian126/researchMate"
+        >
+          GitHub ↗
+        </a>
+      </div>
+    </AuthShell>
   );
 }

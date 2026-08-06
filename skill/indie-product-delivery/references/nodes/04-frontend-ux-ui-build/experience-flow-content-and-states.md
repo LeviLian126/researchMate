@@ -1,206 +1,166 @@
-# Experience Flow, Content, and States
+﻿# 体验流、内容与状态
 
-Use this guide to recover the actual frontend surface, define its user job and experience spine, then design information architecture, content, and complete visible states around user decisions rather than generic layout patterns.
+> **目标：** 恢复前端界面，定义其用户任务和体验主轴，然后围绕用户决策设计信息架构、
+> 内容和完整的可见状态。
+>
+> **负责：** 体验发现、体验主轴、流程层级、内容质量、状态归属、可见状态覆盖
+>
+> **不负责：** 视觉方向（`visual-direction-and-design-system.md`）、组件架构（`component-responsive-accessible-build.md`）、内容反模式（`anti-default-directives.md`）
 
-## Sections
+## 恢复已批准的体验事实
 
-- [Frontend Discovery and Experience Frame](#frontend-discovery-and-experience-frame)
-- [Flow, Information Architecture, Content, and State](#flow-information-architecture-content-and-state)
+仅阅读定义已变更界面或契约的上游交接。识别目标用户、上下文、任务、主要操作、成功结果、
+非目标、验收标准、路由/页面、API/认证/错误行为，以及后端就绪状态或已批准的 mock 契约。
 
-## Frontend Discovery and Experience Frame
+在构建之前，对照明确的产品、系统或后端事实验证每一个关键事实。这些必须来自已批准的来源，
+而非推断：
 
-#### 1. Recover approved experience truth
+- 产品承诺和主要用户
+- 权限行为和私有数据暴露
+- 计费 / 权益含义
+- 破坏性操作后果
+- API 错误语义
+- 视觉重新定位
 
-Read the Node01/02/03 handoff and identify target user, context, job, primary action,
-success outcome, non-goals, acceptance, route/page, API/auth/error behavior, and
-backend readiness or approved mock contract.
+命名、局部组件位置、次要布局细节和测试数据仅在不可观察到时才可使用可逆默认值。
 
-| Fact state | Meaning | Build treatment |
-| --- | --- | --- |
-| confirmed | explicit product/system/backend truth | implement it |
-| defaulted | reversible local detail within an existing convention | record briefly |
-| inferred | likely from nearby UI or code but not contract truth | verify or constrain |
-| unknown | missing, conflicting, or unsupported fact | stop or route upstream |
+## 审计相关前端路径
 
-Never default product promise, primary user, permission behavior, private-data exposure,
-billing/entitlement meaning, destructive action consequence, API error semantics, or
-visual repositioning. Naming, local component placement, minor layout details, and
-fixture data may be defaulted only when they are reversible and non-observable.
+检查受影响的路由/页面及其周边系统。不要因为附近样式看起来过时就加载无关页面或重新设计
+现有系统。目标是获取足够的证据使一个界面正确且连贯。
 
-#### 2. Audit the relevant frontend path
+| 领域 | 恢复 | 需保留的证据 |
+|---|---|---|
+| 路由 | 入口、导航上下文、深链接行为、当前页面所有者 | 源路径和可用的相邻页面 |
+| UI 系统 | token、基础组件、图标、字体、布局规则、响应式约定 | 需保留的本地系统 |
+| 数据 | loader/query/client 缓存、契约 mock、加载/错误策略 | API/后端或已批准的 mock |
+| 访问 | 认证/会话渲染、角色/租户可见性、隐私安全的缺失 | 预期的服务端支持行为 |
+| 交互 | 表单、对话框、破坏性操作、乐观更新/重试约定 | 最接近的可用流程 |
+| 验证 | 浏览器、截图、测试、lint/type/build 命令 | 最强的可用路径 |
+| 文档 | 模块/前端页面或 HTML 当前状态界面 | 受影响的持久事实 |
 
-Inspect the affected route/page, shell/navigation, nearest components, style/token
-source, data loading/cache pattern, form handling, auth rendering, error mapper,
-existing tests/stories, dev-server/browser path, docs, and active changes.
+## 构建体验主轴
 
-| Area | Recover | Evidence to retain |
-| --- | --- | --- |
-| route | entry, navigation context, deep-link behavior, current page owner | source path and working neighbor |
-| UI system | tokens, primitives, icons, fonts, layout rules, responsive convention | local system to preserve |
-| data | loader/query/client cache, contract mock, loading/error policy | API/backend or approved mock |
-| access | auth/session rendering, role/tenant visibility, privacy-safe absence | server-backed behavior expected |
-| interaction | form, dialog, destructive action, optimistic/retry convention | nearest working flow |
-| verification | browser, screenshot, test, lint/type/build commands | strongest available path |
-| docs | module/frontend page or HTML current-state surface | durable truth affected |
+从用户的情境追踪到下一个有用结果：
 
-Do not load unrelated pages or redesign the existing system because a nearby style
-looks dated. The goal is enough evidence to make one surface correct and coherent.
+> 用户和上下文 -> 入口 -> 理解 -> 主要操作 -> 可见状态/结果
+> -> 恢复或信任信号 -> 下一步操作
 
-#### 3. Build the experience spine
+对于主轴上的每一点，具体说明：
 
-Trace the slice from a user's situation to the next useful outcome:
+- **用户/上下文：** 角色、紧迫性、知识、权限、设备、进入条件
+- **理解：** 他们必须首先识别什么，什么可以保持次要
+- **主要操作：** 推进当前任务的一个操作
+- **状态/结果：** 加载、成功、待处理、错误、空、拒绝、过期或部分行为
+- **恢复：** 重试、编辑、筛选、登录、升级、请求访问、联系或安全退出
+- **信任/下一步操作：** 完成后可见的证明、后果、状态或下一个任务
+- **证明：** 展示该路径的最小浏览器/组件证据
 
-    user and context -> entry -> comprehension -> primary action -> visible state/result
-    -> recovery or trust signal -> next action
+如果两个用户任务争夺首要注意力，返回 Node01 而不是使两者同等突出。如果 UI 无法声明恢复
+因为后端行为未知，返回 Node02/03。
 
-| Spine point | Required statement |
-| --- | --- |
-| user/context | role, urgency, knowledge, permission, device, entry condition |
-| comprehension | what they must recognize first and what may remain secondary |
-| primary action | one action that advances the current job |
-| state/result | loading, success, pending, error, empty, denied, stale, or partial behavior |
-| recovery | retry, edit, filter, sign in, upgrade, request access, contact, or safe exit |
-| trust/next action | proof, consequence, status, or next task visible after completion |
-| proof | smallest browser/component evidence that demonstrates the path |
+## 流程与层级
 
-If two user jobs compete for first attention, return to Node01 rather than making both
-equally prominent. If the UI cannot state a recovery because backend behavior is
-unknown, return to Node02/03.
+映射入口、定向、操作、进度、结果、恢复和下一步操作。为扫描而设计：第一个合理的操作应该
+可见，相关信息分组，次要材料在重要之前保持安静。
 
-#### 4. Classify the surface before choosing style
+### 定向问题
 
-| Surface | Primary design responsibility | Default visual stance |
-| --- | --- | --- |
-| public/brand | promise, trust, comprehension, conversion | distinctive but product-grounded direction |
-| onboarding | first success and confidence | guided, low-friction, progressively disclosed |
-| dashboard/operations | decision, scan, repeated action | quiet utility, truthful density, explicit hierarchy |
-| form/transaction | intentional input and consequence | unambiguous action, preserved input, safe recovery |
-| docs/current-state | finding current truth | structured navigation, evidence, restrained presentation |
-| existing redesign | preserve working value while improving clarity | audit first, style second |
+- 这是什么页面/界面，用户在哪里，什么发生了变化？
+- 第一次扫描时必须识别什么？
+- 哪个操作推进当前任务？
+- 哪些操作支持、推迟或安全地逆转主路径？
+- 接下来是什么结果、代价、状态或下一步？
+- 用户在无效输入、拒绝、延迟或失败后能做什么？
+- 他们如何知道当前位置、可用选项和安全退出？
 
-Public and brand surfaces may earn a strong signature move, real visual assets, or
-conditional visual variants. Operational surfaces earn clarity, affordance, density,
-and error recovery before spectacle. Do not apply landing-page art direction to a
-high-frequency admin workflow.
+除非有理由的改进明显更清晰，否则使用惯例。链接、按钮、行、标签页或卡片必须在不悬停时
+看起来可操作。不要将关键信息埋藏在引导教程、强制说明或装饰性构图中。
 
-#### 5. Map existing leverage and scope
+### 按界面类型的层级
 
-For each sub-problem, mark reuse, extend, replace, or new. Prefer existing route,
-primitive, token, pattern, data hook, state component, accessibility helper, or test
-over parallel structure.
+| 界面 | 层级规则 |
+|---|---|
+| 落地页 / 公开页 | 一个论点、一个主导 CTA、装饰性功能清单之前有真实证明 |
+| 引导 | 下一个有用步骤、进度/上下文、有限认知负荷、可见的退出/重试 |
+| 仪表板 | 决策/操作优先；指标仅在能改变决策时显示 |
+| 列表 / 表格 | 有意义的列、筛选器、状态、空状态、可操作的行、有界密度 |
+| 表单 | 意图、相关字段、输入附近的验证、已提交/待处理/成功状态 |
+| 交易 | 后果、金额/范围、确认、不可逆边界、恢复 |
+| 设置 / 管理 | 清晰的所有权、当前配置、安全默认值、明确的保存/应用反馈 |
 
-| Field | Required statement |
-| --- | --- |
-| outcome | observable user behavior being changed |
-| existing leverage | component/system/path to reuse or extend |
-| keep | brand, route, analytics, form, accessibility, or interaction facts protected |
-| non-goals | related work deliberately excluded |
-| proof | browser/component/command evidence needed |
-| side-effect limit | auth, data, provider, analytics, external link, or deploy boundary |
-| escalation | fact that requires Node01, Node02, Node03, or Node05 |
+不要用等宽卡片代替层级。不要使用虚假指标、编造的精度、虚假产品截图或不编码真实信息的
+装饰性标签。
 
-A screenshot, Figma frame, export, or prototype is a candidate input, never an
-authority above product scope, system contracts, existing accessibility, or repo truth.
+## 内容即导航
 
-## Flow, Information Architecture, Content, and State
+可见文字帮助人们行动。使用用户认可的名词和具体动词；在整个流程中对同一操作保持一个术语。
+标签用于标记，示例用于演示，按钮声明按下的结果。
 
-#### 1. Define the user flow and hierarchy
+### 内容时刻质量
 
-Map entry, orientation, action, progress, result, recovery, and next action. Design for
-scanning: the first reasonable action should be visible, related information grouped,
-and secondary material quiet until it matters.
+| 时刻 | 要求的质量 |
+|---|---|
+| 主要操作 | 动词和后果明确 |
+| 加载 / 待处理 | 仅在等待有意义时解释正在发生什么 |
+| 空状态 | 命名缺失并给出相关的下一步操作 |
+| 验证错误 | 识别需更正的内容，不指责或含糊道歉 |
+| 权限 / 认证 | 解释可用的恢复方式，不暴露策略内部 |
+| 成功 | 使用相同的词汇确认已完成的操作 |
+| 破坏性操作 | 在确认前声明范围和后果 |
+| 长文本 / 生成文本 | 在缺失或格式错误时保持可读、有界且可恢复 |
 
-| Question | Required answer |
-| --- | --- |
-| orientation | what page/surface is this, where is the user, and what changed? |
-| first understanding | what must be recognized in the first scan? |
-| primary action | which action advances the active job now? |
-| secondary action | which actions support, defer, or safely reverse the main path? |
-| consequence | what result, cost, status, or next step follows? |
-| recovery | what can the user do after invalid input, denial, delay, or failure? |
-| wayfinding | how do they know current location, available options, and a safe exit? |
+当界面包含长篇帮助、说明或文档时，还需应用默认的 `humanizer` 技能。保持简短的界面文案
+聚焦于操作和状态，而不是强制通过长篇散文风格。
 
-Use conventions unless a justified improvement is demonstrably clearer. A link, button,
-row, tab, or card must look actionable without hover. Do not bury essential information
-behind tours, forced instructions, or decorative composition.
+### 内容自查
 
-#### 2. Compose information architecture by mental model
+在完成之前，阅读所有可见字符串以检查：含糊的声明、AI 风格的填充、虚假信心、
+不一致的操作名称、不清晰的指代、勉强的比喻和未验证的数字。改写为平实、功能性的语言。
 
-Organize content around what users recognize and control, not database tables, API
-fields, component boundaries, or prototype rectangles. Landing/public pages prioritize
-segment, painful situation, promise, proof, CTA, objections, and trust. Operational
-surfaces prioritize current state, decision context, action, exception, and follow-up.
+关于具体的内容反模式（通用名称、AI 套话、虚假数字、被动语态），参见
+`anti-default-directives.md` 内容部分。不要在此重复这些检查。
 
-| Surface | Hierarchy rule |
-| --- | --- |
-| landing/public | one thesis, one dominant CTA, real proof before decorative feature inventory |
-| onboarding | next useful step, progress/context, limited cognitive load, visible escape/retry |
-| dashboard | decision/action first; metrics only when they change a decision |
-| list/table | meaningful columns, filters, status, empty state, actionable rows, bounded density |
-| form | intent, relevant fields, validation near input, submitted/pending/success state |
-| transaction | consequence, amount/scope, confirmation, irreversible boundary, recovery |
-| settings/admin | clear ownership, current configuration, safe defaults, explicit save/apply feedback |
+## 状态归属与可见覆盖
 
-Do not use equal cards as a substitute for hierarchy. Do not use fake metrics, invented
-precision, dummy product screenshots, or decorative labels that do not encode true
-information.
+在实现组件之前命名状态归属。UI 可以呈现状态但不能复制后端授权、定价、权益、提供商或
+冲突策略。
 
-#### 3. Write content as navigation
+### 状态归属
 
-Visible text helps people act. Use user-recognized nouns and concrete verbs; retain one
-term for the same action throughout the flow. A label labels, an example demonstrates,
-and a button states the result of pressing it.
+| 状态类型 | 归属者 / 默认 |
+|---|---|
+| 局部视觉状态 | 组件或现有基础组件 |
+| 表单草稿和验证 | 表单所有者；在可恢复的失败时保留用户输入 |
+| 远程数据 | 现有 query/loader/cache 所有者 |
+| URL / 筛选 / 分页状态 | 路由/搜索参数所有者 |
+| 认证 / 会话 | 服务端支持的会话/身份渲染 |
+| 权限 / 权益 | 契约支持的结果，不从隐藏的 UI 推断 |
+| 乐观状态 | 带有回滚/刷新行为的明确变更所有者 |
+| 派生状态 | 从规范的本地/远程状态计算，不复制 |
+| 跨屏幕状态 | 仅在需要时使用现有的 store/URL/服务端来源 |
 
-| Content moment | Required quality |
-| --- | --- |
-| primary action | verb and consequence are explicit |
-| loading/pending | explains what is happening only when waiting is meaningful |
-| empty state | names the absence and gives a relevant next action |
-| validation error | identifies what to correct without blame or vague apology |
-| permission/auth | explains available recovery without exposing policy internals |
-| success | confirms the completed action using the same vocabulary |
-| destructive action | states scope and consequence before confirmation |
-| long/generated text | remains readable, bounded, and recoverable when missing or malformed |
+### 可见状态覆盖
 
-When the surface contains long-form help, explanation, or documentation, also apply
-`references/human-readable-document-writing.md`. Keep short interface copy focused on
-the action and state instead of forcing it through a long-form prose style.
+将每个相关契约映射到可见状态。如果某个状态无法渲染，将缺失的语义路由到 Node02/03。
 
-Before completion, read all visible strings for vague claims, AI-style filler, fake
-confidence, inconsistent action names, unclear referents, forced metaphors, and
-unverified numbers. Rewrite toward plain, functional language.
+| 默认 | 加载 | 空 | 验证 | 权限 | 认证 | 冲突 | 提供商 | 成功 | 部分/过期 |
+|---|---|---|---|---|---|---|---|---|---|
+| 正常任务状态 | 进度/骨架屏/禁用 | 缺失加下一步 | 保留输入和更正 | 隐私安全的恢复 | 登录/返回路径 | 刷新/重试/解释 | 待处理/重试/参考 | 确认的下一步操作 | 诚实的新鲜度和修复路径 |
 
-#### 4. Assign state ownership and visible coverage
+## 实现边界
 
-Name state ownership before implementing components.
+将流程转化为与仓库匹配的页面、功能、基础组件、hook、路由、数据和内容职责。一个组件应
+拥有一个可见任务及其状态；一个页面协调界面；数据/认证代码遵循现有边界。
 
-| State kind | Owner/default |
-| --- | --- |
-| local visual state | component or existing primitive |
-| form draft and validation | form owner; preserve user input on recoverable failure |
-| remote data | existing query/loader/cache owner |
-| URL/filter/page state | route/search parameter owner |
-| auth/session | server-backed session/identity rendering |
-| permission/entitlement | contract-backed result, never inferred from hidden UI |
-| optimistic state | explicit mutation owner with rollback/refresh behavior |
-| derived state | computed from canonical local/remote state, not duplicated |
-| cross-screen state | existing store/URL/server source only when needed |
+对于复杂流程，识别哪些可以用契约 mock 构建，哪些等待 Node03。在检查点中使 mock 状态可见，
+绝不静默地将其变为生产假设。
 
-Map every relevant contract to a visible state.
+关于组件层职责、拆分规则和跨页面视觉块定义，参见
+`component-responsive-accessible-build.md`。
 
-| Default | Loading | Empty | Validation | Permission | Auth | Conflict | Provider | Success | Partial/stale |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| normal task state | progress/skeleton/disabled behavior | absence plus next step | preserved input and correction | privacy-safe recovery | sign-in/return path | refresh/retry/explain | pending/retry/reference | confirmed next action | honest freshness and repair path |
+---
 
-The UI may present a state but must not reproduce backend authorization, pricing,
-entitlement, provider, or conflict policy. Route missing semantics to Node02/03.
-
-#### 5. Prepare implementation boundaries
-
-Translate the flow into page, feature, primitive, hook, route, data, and content
-responsibilities that match the repository. A component should own one visible job and
-its states; a page coordinates the surface; data/auth code follows existing boundaries.
-
-For a complex flow, identify what can be built with a contract mock and what waits for
-Node03. Make mock status visible in the checkpoint, never silently turn it into a
-production assumption.
+**验收标准：** 阅读本文件后，你能够从用户上下文追踪到下一步操作的体验主轴，为每个契约分配
+状态归属，将每个状态映射到可见状态覆盖条目，区分 mock 依赖与 Node03 依赖，并审计可见内容
+的清晰度和一致性。

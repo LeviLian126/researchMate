@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+ <meta charset="utf-8"/>
+ <meta content="width=device-width,initial-scale=1" name="viewport"/>
+ <title>ResearchMate · API 合约</title>
+ <link href="../../assets/site.css" rel="stylesheet"/>
+</head>
+<body>
+ <header class="mast">
+  <div class="shell mast-row">
+  <a class="brand" href="../../index.zh.html">ResearchMate 文档</a>
+   <div class="mast-right">
+    <span class="stamp">API 合约 · OpenAPI 3.1 / v0.1.0 · 运行时证据 2026 年 7 月 27 日</span>
+    <a class="lang-toggle" href="index.html" hreflang="en" lang="en">English</a>
+   </div>
+  </div>
+ </header>
+ <nav aria-label="文档" class="global">
+  <div class="shell">
+   <a href="../../index.zh.html">概览</a>
+   <a href="../../product/index.zh.html">产品与路线图</a>
+   <a href="../../architecture/index.zh.html">架构与技术栈</a>
+   <a href="../data/index.zh.html">数据库</a>
+   <a aria-current="page" href="index.zh.html">API</a>
+  </div>
+ </nav>
+ <main class="shell">
+  <div class="hero">
+    <p class="eyebrow">FastAPI / JSON over HTTP</p>
+    <h1>API 合约</h1>
+    <p class="lede">本页记录了 45 个维护中的 FastAPI REST 操作，涵盖个人聊天、项目对话、来源、测验、就绪检查、证据审查、评估、可靠性和管理。路由和 OpenAPI 记录仅证明合约本身，不证明受管后台进程或云集成。</p>
+  <div class="meta">
+    <span class="status local">45 个已实现的 REST 操作</span>
+    <span class="status partial">Current-ref CI 证据待定</span>
+    <span class="status partial">Bearer · 本地开发身份</span>
+    <span class="status partial">运行时/OpenAPI 错误偏差</span>
+    <span class="status partial">16 个高级合约 · 集成未验证</span>
+    <span class="status partial">MCP 运行时 · 本地 bearer 初始化通过</span>
+  </div>
+  </div>
+  <div class="layout">
+   <div class="content">
+    <section id="conventions">
+     <p class="eyebrow">请求约定</p>
+     <h2>认证、拥有权和错误</h2>
+    <div class="grid">
+      <div class="fact"><b>认证</b><p><code>GET /api/v1/healthz</code> 和 <code>GET /api/v1/readyz</code> 对平台探针公开。其余所有 REST 操作均声明 HTTP bearer 认证。本地/测试模式仅接受具名或显式 <code>dev:</code> 身份；未知令牌直接拒绝。预览/生产环境需要 Supabase JWT 模式。2026 年 7 月 27 日，密码和 GitHub OAuth 身份从 Vercel 向 Live Render API 认证，各自在浏览器刷新后完成了拥有者范围内的项目创建/列表/读取，GitHub 用户对密码用户的 Library 收到了隐藏的未找到响应。会话过期/撤销和直接数据库 RLS 拒绝查询仍未经提供商验证。</p></div>
+      <div class="fact"><b>拥有权</b><p>处理器解析 <code>CurrentUser</code>；Store 查找将资源限定在该用户范围内。缺失的资源和属于其他用户的资源均返回 404，以避免泄露标识符。</p></div>
+      <div class="fact"><b>错误信封</b><p>运行时失败使用 <code>{"error":{"code","message","request_id"}}</code>。请求验证统一归为 <code>VALIDATION_FAILED</code>；验证/生成的请求 ID 通过 <code>X-Request-ID</code> 返回。</p></div>
+    </div>
+    <div class="notice"><strong>联邦身份规则。</strong>通过 Supabase Auth 添加 GitHub 不改变授权语义：已验证的 JWT <code>sub</code> UUID 是唯一的租户身份。电子邮件地址、GitHub 登录名、显示名称和提供商元数据绝不可用作拥有权判定依据。</div>
+    <div class="notice warning"><strong>已知 OpenAPI/运行时差异。</strong>OpenAPI 仍为部分 422 响应声明生成的 <code>HTTPValidationError</code> 体，而运行时处理器将验证统一归入项目错误信封。Ask 和 Quiz 还可能返回其 OpenAPI 响应映射中未包含的运行时 409 和 429 响应。</div>
+    </section>
+
+    <section id="operation-index">
+     <p class="eyebrow">操作索引</p>
+    <h2>REST 操作索引</h2>
+    <p class="sub">筛选操作，然后打开下方对应的合约。</p>
+    <div class="visual-panel">
+     <div class="explorer-tools">
+      <label class="sr-only" for="endpoint-search">搜索端点</label>
+      <input aria-label="搜索 API 操作" data-endpoint-search="" id="endpoint-search" placeholder="搜索路径或方法" type="search"/>
+      <button type="button" aria-pressed="true" class="filter-btn" data-api-filter="all">全部</button>
+      <button type="button" aria-pressed="false" class="filter-btn" data-api-filter="identity">身份</button>
+      <button type="button" aria-pressed="false" class="filter-btn" data-api-filter="projects">项目</button>
+      <button type="button" aria-pressed="false" class="filter-btn" data-api-filter="documents">文档</button>
+      <button type="button" aria-pressed="false" class="filter-btn" data-api-filter="ask">Ask / Trace</button>
+      <button type="button" aria-pressed="false" class="filter-btn" data-api-filter="quiz">Quiz</button>
+      <button type="button" aria-pressed="false" class="filter-btn" data-api-filter="research">研究</button>
+      <button type="button" aria-pressed="false" class="filter-btn" data-api-filter="evaluation">评估 / 可靠性</button>
+      </div>
+      <div class="endpoint-map">
+       <div class="endpoint-group"><h3>身份</h3>
+       <a class="endpoint-pill" data-api="identity" data-method="GET" href="#op-health"><span class="method">GET</span>/api/v1/healthz</a>
+        <a class="endpoint-pill" data-api="identity" data-method="GET" href="#op-ready"><span class="method">GET</span>/api/v1/readyz</a>
+       <a class="endpoint-pill" data-api="identity" data-method="GET" href="#op-me"><span class="method">GET</span>/api/v1/me</a>
+       </div>
+       <div class="endpoint-group"><h3>项目</h3>
+        <a class="endpoint-pill" data-api="projects" data-method="POST" href="#op-chat-bootstrap"><span class="method">POST</span>/api/v1/chat/bootstrap</a>
+        <a class="endpoint-pill" data-api="projects" data-method="GET" href="#op-project-list"><span class="method">GET</span>/api/v1/projects</a>
+        <a class="endpoint-pill" data-api="projects" data-method="POST" href="#op-project-create"><span class="method">POST</span>/api/v1/projects</a>
+        <a class="endpoint-pill" data-api="projects" data-method="GET" href="#op-project-get"><span class="method">GET</span>/api/v1/projects/{project_id}</a>
+        <a class="endpoint-pill" data-api="projects" data-method="DELETE" href="#op-project-delete"><span class="method">DELETE</span>/api/v1/projects/{project_id}</a>
+       </div>
+       <div class="endpoint-group"><h3>文档和任务</h3>
+        <a class="endpoint-pill" data-api="documents" data-method="POST" href="#op-upload-url"><span class="method">POST</span>/api/v1/documents/upload-url</a>
+        <a class="endpoint-pill" data-api="documents" data-method="POST" href="#op-document-create"><span class="method">POST</span>/api/v1/documents</a>
+        <a class="endpoint-pill" data-api="documents" data-method="GET" href="#op-document-list"><span class="method">GET</span>/api/v1/projects/{project_id}/documents</a>
+        <a class="endpoint-pill" data-api="documents" data-method="GET" href="#op-conversation-documents"><span class="method">GET</span>/api/v1/conversations/{conversation_id}/documents</a>
+        <a class="endpoint-pill" data-api="documents" data-method="GET" href="#op-document-get"><span class="method">GET</span>/api/v1/documents/{document_id}</a>
+        <a class="endpoint-pill" data-api="documents" data-method="POST" href="#op-document-complete"><span class="method">POST</span>/api/v1/documents/{document_id}/complete</a>
+        <a class="endpoint-pill" data-api="documents" data-method="DELETE" href="#op-document-delete"><span class="method">DELETE</span>/api/v1/documents/{document_id}</a>
+        <a class="endpoint-pill" data-api="documents" data-method="GET" href="#op-job-get"><span class="method">GET</span>/api/v1/jobs/{job_id}</a>
+       </div>
+       <div class="endpoint-group"><h3>Ask、来源和 trace</h3>
+        <a class="endpoint-pill" data-api="ask" data-method="GET" href="#op-conversation-all"><span class="method">GET</span>/api/v1/conversations</a>
+        <a class="endpoint-pill" data-api="ask" data-method="POST" href="#op-conversation-create"><span class="method">POST</span>/api/v1/projects/{project_id}/conversations</a>
+        <a class="endpoint-pill" data-api="ask" data-method="POST" href="#op-ask"><span class="method">POST</span>/api/v1/ask</a>
+        <a class="endpoint-pill" data-api="ask" data-method="GET" href="#op-sources"><span class="method">GET</span>/api/v1/runs/{run_id}/sources</a>
+        <a class="endpoint-pill" data-api="ask" data-method="GET" href="#op-trace"><span class="method">GET</span>/api/v1/dev/traces/{trace_id}</a>
+       </div>
+       <div class="endpoint-group"><h3>Quiz</h3>
+        <a class="endpoint-pill" data-api="quiz" data-method="POST" href="#op-quiz-create"><span class="method">POST</span>/api/v1/quiz</a>
+        <a class="endpoint-pill" data-api="quiz" data-method="GET" href="#op-quiz-history"><span class="method">GET</span>/api/v1/projects/{project_id}/quiz</a>
+       </div>
+       <div class="endpoint-group"><h3>研究运行和证据</h3>
+        <a class="endpoint-pill" data-api="research" data-method="POST" href="#planned-research-run"><span class="method">POST</span>/api/v1/research-runs</a>
+        <a class="endpoint-pill" data-api="research" data-method="GET" href="#planned-run-get"><span class="method">GET</span>/api/v1/runs/{run_id}</a>
+        <a class="endpoint-pill" data-api="research" data-method="GET" href="#planned-run-events"><span class="method">GET</span>/api/v1/runs/{run_id}/events</a>
+        <a class="endpoint-pill" data-api="research" data-method="POST" href="#planned-run-decision"><span class="method">POST</span>/api/v1/runs/{run_id}/decisions</a>
+        <a class="endpoint-pill" data-api="research" data-method="GET" href="#planned-claims"><span class="method">GET</span>/api/v1/projects/{project_id}/claims</a>
+        <a class="endpoint-pill" data-api="research" data-method="GET" href="#planned-claim-relations"><span class="method">GET</span>/api/v1/projects/{project_id}/claim-relations</a>
+        <a class="endpoint-pill" data-api="research" data-method="GET" href="#planned-reports"><span class="method">GET</span>/api/v1/projects/{project_id}/reports</a>
+        <a class="endpoint-pill" data-api="research" data-method="GET" href="#op-report-detail"><span class="method">GET</span>/api/v1/reports/{report_id}</a>
+        <a class="endpoint-pill" data-api="research" data-method="GET" href="#op-pipeline-versions"><span class="method">GET</span>/api/v1/pipeline-versions</a>
+        <a class="endpoint-pill" data-api="research" data-method="POST" href="#planned-report-refresh"><span class="method">POST</span>/api/v1/reports/{report_id}/refresh</a>
+       </div>
+       <div class="endpoint-group"><h3>评估和可靠性</h3>
+        <a class="endpoint-pill" data-api="evaluation" data-method="GET" href="#op-evaluation-datasets"><span class="method">GET</span>/api/v1/evaluation-datasets</a>
+        <a class="endpoint-pill" data-api="evaluation" data-method="POST" href="#planned-evaluation-create"><span class="method">POST</span>/api/v1/evaluation-runs</a>
+        <a class="endpoint-pill" data-api="evaluation" data-method="GET" href="#planned-evaluation-get"><span class="method">GET</span>/api/v1/evaluation-runs/{evaluation_run_id}</a>
+        <a class="endpoint-pill" data-api="evaluation" data-method="GET" href="#planned-reliability"><span class="method">GET</span>/api/v1/dev/reliability</a>
+        <a class="endpoint-pill" data-api="evaluation" data-method="POST" href="#planned-fault"><span class="method">POST</span>/api/v1/dev/fault-scenarios</a>
+        <a class="endpoint-pill" data-api="evaluation" data-method="GET" href="#planned-fault-get"><span class="method">GET</span>/api/v1/dev/fault-scenarios/{exercise_id}</a>
+       </div>
+      </div>
+     </div>
+    </section>
+
+    <section id="operations">
+     <p class="eyebrow">操作合约</p>
+    <h2>请求、访问、响应和故障</h2>
+     <p class="sub">可复用对象结构在 <a href="#schemas">schema 台账</a> 中统一定义。下文中的"Auth"指凭据缺失/无效时返回 401，用户被禁用时返回 403，除非声明了更严格的角色要求。</p>
+
+     <h3 id="identity-operations">身份</h3>
+    <details id="op-health" data-api-card data-api="identity" data-method="GET" data-access="public" open><summary><code>GET /api/v1/healthz</code> — 检查进程健康</summary><dl class="kv">
+      <dt>调用方 / 访问</dt><dd>负载均衡器、本地操作员或开发者。公开；无需 bearer 令牌。</dd>
+      <dt>输入</dt><dd>无路径、查询或请求体字段。</dd>
+      <dt>成功</dt><dd>200；一个字符串值的 JSON 对象，报告服务健康状态。</dd>
+      <dt>故障 / 语义</dt><dd>未声明应用错误响应。同步、安全且幂等；它是存活检查，而非依赖就绪合约。</dd>
+      <dt>证据</dt><dd><span class="source">routers/health.py · infra/openapi/openapi.yaml</span></dd>
+     </dl></details>
+    <details id="op-ready" data-api-card data-api="identity" data-method="GET" data-access="public"><summary><code>GET /api/v1/readyz</code> — 检查非计费依赖就绪</summary><dl class="kv">
+      <dt>调用方 / 访问</dt><dd>部署平台、就绪冒烟测试或操作员。公开；无需 bearer 令牌，无私有负载。</dd>
+      <dt>输入</dt><dd>无路径、查询或请求体字段。</dd>
+      <dt>成功</dt><dd><code>200</code>，包含 <code>status:"ready"</code>、环境、组件状态和空的失败组件列表。本地/内存依赖可能为 <code>not_required</code>。</dd>
+      <dt>故障 / 语义</dt><dd><code>503</code>，包含 <code>status:"not_ready"</code> 和安全的失败组件名称。它对 Postgres 执行 <code>select 1</code>，验证四个 SDK 拥有的检查点表，检查最新的 worker/dispatcher 心跳，拒绝过期或耗尽的 outbox 工作，ping Redis，并读取 Qdrant 集合元数据。S3 兼容对象存储、LLM 和 Web 搜索仍仅进行配置检查，因此不会消耗 NVIDIA 或 Tavily 配额。</dd>
+      <dt>当前边界</dt><dd>2026 年 8 月 1 日，后端修正 <code>c5c89f5</code> 上线 Live，公开存活检查和合并就绪检查均返回 HTTP 200；Postgres、Redis、Qdrant 集合访问、worker/dispatcher 心跳、outbox 状态和检查点表均已就绪。认证生产验收通过了普通聊天、文本层 PDF 上传/索引、有依据的回答和页面引用、Web 搜索、项目 Quiz 生成和通过前端修正 <code>ce54452</code> 的刷新恢复、对话删除和项目删除。</dd>
+      <dt>证据</dt><dd><span class="source">routers/health.py · tests/test_runtime_foundation.py · infra/openapi/openapi.yaml</span></dd>
+     </dl></details>
+    <details id="op-me" data-api-card data-api="identity" data-method="GET" data-access="bearer"><summary><code>GET /api/v1/me</code> — 解析当前身份</summary><dl class="kv">
+      <dt>调用方 / 访问</dt><dd>已认证的 Web 客户端。需要 bearer 令牌。</dd>
+      <dt>输入</dt><dd>无路径、查询或请求体字段。</dd>
+      <dt>成功</dt><dd>200 <a href="#schema-identity"><code>CurrentUser</code></a>。</dd>
+      <dt>故障 / 语义</dt><dd>认证失败；OpenAPI 还声明了 404。同步、安全且幂等。本地令牌到用户的映射仅用于开发。</dd>
+      <dt>证据</dt><dd><span class="source">routers/me.py · dependencies.py · schemas/user.py</span></dd>
+     </dl></details>
+
+     <h3 id="project-operations">项目</h3>
+     <details id="op-chat-bootstrap" data-api-card data-api="projects" data-method="POST" data-access="owner"><summary><code>POST /api/v1/chat/bootstrap</code> — 获取或创建个人聊天容器</summary><dl class="kv">
+      <dt>调用方 / 访问</dt><dd>已认证的 Web 客户端。返回的个人项目按拥有者限定，并从常规项目列表中隐藏。</dd>
+      <dt>输入</dt><dd>无请求体。</dd>
+      <dt>成功</dt><dd>200 <a href="#schema-project"><code>ProjectRecord</code></a>，包含 <code>kind:"personal"</code>。重复和并发调用解析为每个用户的同一活动行。</dd>
+      <dt>故障 / 语义</dt><dd>认证失败。使用 POST 是因为首次访问可能初始化持久状态；部分唯一拥有者索引使结果幂等。</dd>
+      <dt>证据</dt><dd><span class="source">routers/projects.py · persistence/postgres.py · migration 009 · personal-chat isolation tests</span></dd>
+     </dl></details>
+     <details id="op-project-list" data-api-card data-api="projects" data-method="GET" data-access="owner"><summary><code>GET /api/v1/projects</code> — 列出拥有的项目</summary><dl class="kv">
+      <dt>调用方 / 访问</dt><dd>已认证的 Web 客户端；结果限定为当前用户的未删除项目。</dd>
+      <dt>输入</dt><dd>无查询或请求体字段。分页和过滤未定义。</dd>
+      <dt>成功</dt><dd>200 <a href="#schema-project"><code>ProjectRecord</code></a> 数组。</dd>
+      <dt>故障 / 语义</dt><dd>认证失败；OpenAPI 声明了 404。同步、安全且幂等。</dd>
+      <dt>证据</dt><dd><span class="source">routers/projects.py · services/store.py · project workflow tests</span></dd>
+     </dl></details>
+     <details id="op-project-create" data-api-card data-api="projects" data-method="POST" data-access="bearer"><summary><code>POST /api/v1/projects</code> — 创建工作空间</summary><dl class="kv">
+      <dt>调用方 / 访问</dt><dd>已认证的 Web 客户端；新项目归当前用户拥有。</dd>
+      <dt>输入</dt><dd>JSON <a href="#schema-project"><code>ProjectCreate</code></a>：<code>name</code>，1–120 个字符。</dd>
+      <dt>成功</dt><dd>201 <a href="#schema-project"><code>ProjectRecord</code></a>。</dd>
+      <dt>故障 / 语义</dt><dd>422 验证失败加认证失败；OpenAPI 声明了 404。同步且非幂等；不接受幂等键。</dd>
+      <dt>证据</dt><dd><span class="source">routers/projects.py · schemas/project.py · services/store.py</span></dd>
+     </dl></details>
+     <details id="op-project-get" data-api-card data-api="projects" data-method="GET" data-access="owner"><summary><code>GET /api/v1/projects/{project_id}</code> — 读取单个项目</summary><dl class="kv">
+      <dt>调用方 / 访问</dt><dd>项目拥有者。外部 ID 被隐藏为未找到。</dd>
+      <dt>输入</dt><dd><code>project_id</code>：UUID 路径参数。</dd>
+      <dt>成功</dt><dd>200 <a href="#schema-project"><code>ProjectRecord</code></a>。</dd>
+      <dt>故障 / 语义</dt><dd>404 <code>PROJECT_NOT_FOUND</code>；422 无效 UUID；认证失败。同步、安全且幂等。</dd>
+      <dt>证据</dt><dd><span class="source">routers/projects.py · services/store.py · ownership isolation tests</span></dd>
+     </dl></details>
+     <details id="op-project-delete" data-api-card data-api="projects" data-method="DELETE" data-access="owner"><summary><code>DELETE /api/v1/projects/{project_id}</code> — 请求项目删除</summary><dl class="kv">
+      <dt>调用方 / 访问</dt><dd>项目拥有者。</dd>
+      <dt>输入</dt><dd><code>project_id</code>：UUID 路径参数；无请求体。</dd>
+      <dt>成功</dt><dd>202，包含 <code>job_id</code> 的对象。</dd>
+      <dt>故障 / 语义</dt><dd>404 <code>PROJECT_NOT_FOUND</code>；422 无效 UUID；认证失败。Postgres 路径为异步，重复请求返回现有的待处理/运行中删除任务。活跃的摄入租约以有界重试延迟删除；过期或缺失的租约被标记为失败并清除，因此 worker 崩溃不会永久阻塞删除。内存 Store 同步完成其任务。</dd>
+      <dt>证据</dt><dd><span class="source">routers/projects.py · services/store.py · deletion workflow tests</span></dd>
+     </dl></details>
+
+     <h3 id="document-operations">文档和任务</h3>
+     <details id="op-upload-url" data-api-card data-api="documents" data-method="POST" data-access="owner"><summary><code>POST /api/v1/documents/upload-url</code> — 预留上传</summary><dl class="kv">
+      <dt>调用方 / 访问</dt><dd>项目拥有者。</dd>
+      <dt>输入</dt><dd>JSON <a href="#schema-upload"><code>UploadUrlRequest</code></a>：项目、文件名、支持的文件类型和 MIME 类型，以及字节大小。</dd>
+      <dt>成功</dt><dd>200 <a href="#schema-upload"><code>UploadUrlResponse</code></a>，包含文档 ID、上传 URL、对象键和过期时间。</dd>
+      <dt>故障 / 语义</dt><dd>404 项目；422 无效类型、MIME 或大小；认证失败。内存仓库返回本地占位符。Postgres 仓库使用 S3 兼容适配器返回绑定到预留内容类型的短期 PUT URL。认证生产环境的预留和上传流程通过合成 PDF 测试。不接受幂等键。</dd>
+      <dt>证据</dt><dd><span class="source">routers/documents.py · schemas/document.py · persistence/postgres.py · services/object_storage.py</span></dd>
+     </dl></details>
+     <details id="op-document-create" data-api-card data-api="documents" data-method="POST" data-access="owner"><summary><code>POST /api/v1/documents</code> — 创建文档元数据</summary><dl class="kv">
+      <dt>调用方 / 访问</dt><dd>项目拥有者。</dd>
+      <dt>输入</dt><dd>JSON <a href="#schema-upload"><code>UploadUrlRequest</code></a>。</dd>
+      <dt>成功</dt><dd>201 <a href="#schema-document"><code>DocumentRecord</code></a>。</dd>
+      <dt>故障 / 语义</dt><dd>404 项目；422 验证失败；认证失败。同步元数据创建；无正式幂等键。当前 Store 行为可能复用 upload-URL 流程创建的预留。</dd>
+      <dt>证据</dt><dd><span class="source">routers/documents.py · schemas/document.py · services/store.py</span></dd>
+     </dl></details>
+     <details id="op-document-list" data-api-card data-api="documents" data-method="GET" data-access="owner"><summary><code>GET /api/v1/projects/{project_id}/documents</code> — 列出项目文档</summary><dl class="kv">
+      <dt>调用方 / 访问</dt><dd>项目拥有者。</dd>
+      <dt>输入</dt><dd><code>project_id</code>：UUID 路径参数。无分页或状态过滤。</dd>
+      <dt>成功</dt><dd>200 未删除的 <a href="#schema-document"><code>DocumentRecord</code></a> 对象数组。</dd>
+      <dt>故障 / 语义</dt><dd>404 项目；422 无效 UUID；认证失败。同步、安全且幂等。</dd>
+      <dt>证据</dt><dd><span class="source">routers/documents.py · services/store.py · document workflow tests</span></dd>
+     </dl></details>
+     <details id="op-conversation-documents" data-api-card data-api="documents" data-method="GET" data-access="owner"><summary><code>GET /api/v1/conversations/{conversation_id}/documents</code> — 列出普通聊天附件</summary><dl class="kv">
+      <dt>调用方 / 访问</dt><dd>对话拥有者。外部或已删除的对话被隐藏为未找到。</dd>
+      <dt>输入</dt><dd><code>conversation_id</code>：UUID 路径参数。</dd>
+      <dt>成功</dt><dd>200 绑定到该对话的未删除 <a href="#schema-document"><code>DocumentRecord</code></a> 对象数组。</dd>
+      <dt>故障 / 语义</dt><dd>404 <code>CONVERSATION_NOT_FOUND</code>；认证或 UUID 验证失败。安全且幂等。</dd>
+      <dt>证据</dt><dd><span class="source">routers/documents.py · services/store.py · persistence/postgres.py · migration 009</span></dd>
+     </dl></details>
+     <details id="op-document-get" data-api-card data-api="documents" data-method="GET" data-access="owner"><summary><code>GET /api/v1/documents/{document_id}</code> — 读取单个文档</summary><dl class="kv">
+      <dt>调用方 / 访问</dt><dd>文档拥有者；外部 ID 被隐藏为未找到。</dd>
+      <dt>输入</dt><dd><code>document_id</code>：UUID 路径参数。</dd>
+      <dt>成功</dt><dd>200 <a href="#schema-document"><code>DocumentRecord</code></a>。</dd>
+      <dt>故障 / 语义</dt><dd>404 <code>DOCUMENT_NOT_FOUND</code>；422 无效 UUID；认证失败。同步、安全且幂等。</dd>
+      <dt>证据</dt><dd><span class="source">routers/documents.py · services/store.py · ownership isolation tests</span></dd>
+     </dl></details>
+     <details id="op-document-complete" data-api-card data-api="documents" data-method="POST" data-access="owner"><summary><code>POST /api/v1/documents/{document_id}/complete</code> — 验证上传并请求摄入</summary><dl class="kv">
+      <dt>调用方 / 访问</dt><dd>文档拥有者。</dd>
+      <dt>输入</dt><dd><code>document_id</code>：UUID。请求体可省略或为 null；当存在时，<a href="#schema-upload"><code>UploadCompleteRequest</code></a> 接受可选的校验和和提取文本。</dd>
+      <dt>成功</dt><dd>202，包含 <code>job_id</code> 的对象。</dd>
+      <dt>故障 / 语义</dt><dd>404 <code>DOCUMENT_NOT_FOUND</code>；409 <code>UPLOAD_SIZE_MISMATCH</code> 或 <code>UPLOAD_TYPE_MISMATCH</code>；503 对象存储验证失败；422 验证失败；认证失败。内存仓库刻意保留同步提取文本回退。Postgres 仓库验证 S3 兼容元数据，然后原子性地写入解析状态、待处理任务和唯一 outbox 事件；重复完成请求返回现有任务。worker 在解析前验证可选的 SHA-256 校验和。</dd>
+      <dt>异步 / 恢复</dt><dd>outbox 分发器发布确定性任务 ID。Celery 消费者使用过期的 Postgres 租约、确定性的页面/分块 ID、有界重试和显式的 ready/failed 终态。生产文本层 PDF 路径达到 <code>ready</code> 并返回了页面引用。PDF 解析默认使用低内存的 <code>pypdf</code>；无文本层的扫描 PDF 以 <code>PARSER_TEXT_LAYER_NOT_FOUND</code> 终止，不会自动调用 Docling。</dd>
+      <dt>证据</dt><dd><span class="source">routers/documents.py · persistence/postgres.py · researchmate_worker/outbox.py · researchmate_worker/ingestion.py · tests/test_document_ingestion.py</span></dd>
+     </dl></details>
+     <details id="op-document-delete" data-api-card data-api="documents" data-method="DELETE" data-access="owner"><summary><code>DELETE /api/v1/documents/{document_id}</code> — 请求文档删除</summary><dl class="kv">
+      <dt>调用方 / 访问</dt><dd>文档拥有者。</dd>
+      <dt>输入</dt><dd><code>document_id</code>：UUID 路径参数；无请求体。</dd>
+      <dt>成功</dt><dd>202，包含 <code>job_id</code> 的对象。</dd>
+      <dt>故障 / 语义</dt><dd>404 <code>DOCUMENT_NOT_FOUND</code>；422 无效 UUID；认证失败。本地 Store 立即完成软删除任务。Postgres worker 仅等待具有未过期租约的摄入任务，回收过期的摄入状态，然后在完成数据库删除前移除拥有的对象和向量投影。恢复删除不是当前合约。</dd>
+      <dt>证据</dt><dd><span class="source">routers/documents.py · services/store.py · deletion isolation tests</span></dd>
+     </dl></details>
+     <details id="op-job-get" data-api-card data-api="documents" data-method="GET" data-access="owner"><summary><code>GET /api/v1/jobs/{job_id}</code> — 读取任务状态</summary><dl class="kv">
+      <dt>调用方 / 访问</dt><dd>任务拥有者。</dd>
+      <dt>输入</dt><dd><code>job_id</code>：UUID 路径参数。</dd>
+      <dt>成功</dt><dd>200 <a href="#schema-document"><code>JobRecord</code></a>。</dd>
+      <dt>故障 / 语义</dt><dd>404 <code>JOB_NOT_FOUND</code>；422 无效 UUID；认证失败。安全且幂等。轮询间隔、过期、取消、重试和事件流未定义。</dd>
+      <dt>证据</dt><dd><span class="source">routers/jobs.py · schemas/job.py · ingestion workflow tests</span></dd>
+     </dl></details>
+
+    <h3 id="ask-operations">统一聊天、对话、来源和开发者 trace</h3>
+     <details id="op-ask" data-api-card data-api="ask" data-method="POST" data-access="owner"><summary><code>POST /api/v1/ask</code> — 继续统一对话</summary><dl class="kv">
+      <dt>调用方 / 访问</dt><dd>项目拥有者。当前本地配额为每用户每天 200 次 Ask 请求。</dd>
+      <dt>输入</dt><dd>严格 JSON <a href="#schema-ask"><code>AskRequest</code></a>：项目 UUID、可选对话 UUID、消息和 <code>web_enabled</code>。未知或已弃用字段验证失败。</dd>
+      <dt>成功</dt><dd>200 <a href="#schema-ask"><code>AskResponse</code></a>：对话和运行 UUID、回答、来源摘要、引用、trace UUID 和验证状态。</dd>
+      <dt>故障 / 语义</dt><dd>当无就绪文档且 Web 关闭时，这是普通持久聊天，跳过 embedding、Qdrant、rerank 和引用验证。就绪的本地文档激活 Hybrid RAG；约 12,000 token 以下的小语料使用完整上下文，更大的语料使用 BM25 加密集检索、RRF、rerank 和约 8,000 token 的证据预算。Web 添加最多五个有界 Tavily 结果。仍在处理的已上传文档返回 409 <code>DOCUMENT_PROCESSING</code>。提供商失败被显式记录或作为降级的确定性 reranking 记录。</dd>
+      <dt>证据</dt><dd><span class="source">routers/ask.py · schemas/ask.py · services/grounded_query.py · services/retrieval.py · services/rerank.py · services/web_search.py · services/answering.py · Ask tests</span></dd>
+     </dl></details>
+     <details id="op-conversation-all" data-api-card data-api="ask" data-method="GET" data-access="owner"><summary><code>GET /api/v1/conversations</code> — 列出个人聊天和项目的最近对话</summary><dl class="kv"><dt>调用方 / 访问</dt><dd>已认证的拥有者。</dd><dt>成功</dt><dd>活跃个人和工作空间项目中最近的 100 条拥有的对话摘要。</dd><dt>故障 / 语义</dt><dd>认证失败。安全且幂等；此聚合移除了侧边栏原有的"项目再对话"请求瀑布。</dd><dt>证据</dt><dd><span class="source">routers/conversations.py · persistence/postgres.py · app-sidebar.tsx</span></dd></dl></details>
+     <details id="op-conversation-create" data-api-card data-api="ask" data-method="POST" data-access="owner"><summary><code>POST /api/v1/projects/{project_id}/conversations</code> — 创建空对话</summary><dl class="kv"><dt>调用方 / 访问</dt><dd>项目拥有者。</dd><dt>输入</dt><dd>严格 <code>ConversationCreate</code>，带规范化的 1–120 字符标题。</dd><dt>成功</dt><dd>201 对话摘要。这允许在第一条消息之前附加文件。</dd><dt>故障 / 语义</dt><dd>404 隐藏不存在和外部项目；422 拒绝空白或多余字段。</dd><dt>证据</dt><dd><span class="source">routers/conversations.py · schemas/conversation.py · services/store.py</span></dd></dl></details>
+     <details id="op-conversation-list" data-api-card data-api="ask" data-method="GET" data-access="owner"><summary><code>GET /api/v1/projects/{project_id}/conversations</code> — 列出项目对话</summary><dl class="kv"><dt>调用方 / 访问</dt><dd>项目拥有者。</dd><dt>成功</dt><dd>最近的 100 条拥有的对话摘要。</dd><dt>故障 / 语义</dt><dd>404 隐藏不存在和外部项目。</dd></dl></details>
+     <details id="op-conversation-messages" data-api-card data-api="ask" data-method="GET" data-access="owner"><summary><code>GET /api/v1/conversations/{conversation_id}/messages</code> — 恢复对话</summary><dl class="kv"><dt>调用方 / 访问</dt><dd>对话拥有者。</dd><dt>成功</dt><dd>最多 200 条带引用的用户/助手消息。</dd><dt>故障 / 语义</dt><dd>404 隐藏不存在和外部对话。</dd></dl></details>
+     <details id="op-conversation-rename" data-api-card data-api="ask" data-method="PATCH" data-access="owner"><summary><code>PATCH /api/v1/conversations/{conversation_id}</code> — 重命名对话</summary><dl class="kv"><dt>调用方 / 访问</dt><dd>对话拥有者。</dd><dt>输入</dt><dd>严格 <code>ConversationUpdate</code>，带 1–120 字符标题。</dd><dt>成功</dt><dd>更新后的对话摘要和时间戳。</dd><dt>故障 / 语义</dt><dd>404 隐藏不存在和外部对话。</dd></dl></details>
+     <details id="op-conversation-delete" data-api-card data-api="ask" data-method="DELETE" data-access="owner"><summary><code>DELETE /api/v1/conversations/{conversation_id}</code> — 从工作空间移除对话</summary><dl class="kv"><dt>调用方 / 访问</dt><dd>对话拥有者。</dd><dt>成功</dt><dd>204 软删除后；消息/运行记录保留为审计数据，不再可通过对话路由读取。</dd><dt>故障 / 语义</dt><dd>404 隐藏不存在和外部对话。</dd></dl></details>
+     <details id="op-rerank-config-get" data-api-card data-api="ask" data-method="GET" data-access="developer"><summary><code>GET /api/v1/admin/runtime-config/rerank</code> — 检查 rerank 配置</summary><dl class="kv"><dt>调用方 / 访问</dt><dd>开发者或管理员。</dd><dt>成功</dt><dd>活跃提供商、乐观版本、时间戳和操作者。</dd></dl></details>
+     <details id="op-rerank-config-put" data-api-card data-api="ask" data-method="PUT" data-access="developer"><summary><code>PUT /api/v1/admin/runtime-config/rerank</code> — 无需重启切换 rerank</summary><dl class="kv"><dt>调用方 / 访问</dt><dd>开发者或管理员。</dd><dt>输入</dt><dd><code>provider: auto|qdrant|nvidia|deterministic</code> 以及预期的配置版本。</dd><dt>成功</dt><dd>乐观版本更新对新请求可见，无需重启。</dd><dt>故障 / 语义</dt><dd>409 表示并发更新或 Qdrant 缺少完全索引且显式验证的免费 late-interaction 模型。环境值为启动默认值；Postgres 是运行时切换开关。</dd></dl></details>
+     <details id="op-sources" data-api-card data-api="ask" data-method="GET" data-access="owner"><summary><code>GET /api/v1/runs/{run_id}/sources</code> — 检查运行来源</summary><dl class="kv">
+      <dt>调用方 / 访问</dt><dd>运行拥有者，通过存储的响应和 trace 拥有权解析。</dd>
+      <dt>输入</dt><dd><code>run_id</code>：UUID 路径参数。</dd>
+      <dt>成功</dt><dd>200 对象，包含 <code>run_id</code>、<a href="#schema-evidence"><code>SourceSummary</code></a> 和最多 120 条引用。</dd>
+      <dt>故障 / 语义</dt><dd>404 <code>RUN_NOT_FOUND</code>；422 无效 UUID；认证失败。安全且幂等。内存进程重置时记录消失；分页和保留未定义。</dd>
+      <dt>证据</dt><dd><span class="source">routers/runs.py · schemas/sources.py · services/store.py · Ask workflow tests</span></dd>
+     </dl></details>
+     <details id="op-trace" data-api-card data-api="ask" data-method="GET" data-access="developer"><summary><code>GET /api/v1/dev/traces/{trace_id}</code> — 检查执行证据</summary><dl class="kv">
+      <dt>调用方 / 访问</dt><dd>仅开发者或管理员角色。已认证的普通用户收到 403 <code>ADMIN_REQUIRED</code>。</dd>
+      <dt>输入</dt><dd><code>trace_id</code>：UUID 路径参数。</dd>
+      <dt>成功</dt><dd>200 <a href="#schema-trace"><code>DeveloperTrace</code></a>，包含计划、路由原因、检索、工具调用、验证、延迟和错误。</dd>
+      <dt>故障 / 语义</dt><dd>404 <code>TRACE_NOT_FOUND</code>；403 角色限制；422 无效 UUID；401 认证失败。安全且幂等。生产环境脱敏、审计和保留策略尚未确定。</dd>
+      <dt>证据</dt><dd><span class="source">routers/dev_traces.py · schemas/trace.py · trace authorization tests</span></dd>
+     </dl></details>
+
+     <h3 id="quiz-operations">Quiz</h3>
+     <details id="op-quiz-create" data-api-card data-api="quiz" data-method="POST" data-access="owner"><summary><code>POST /api/v1/quiz</code> — 生成带引用的测验</summary><dl class="kv">
+      <dt>调用方 / 访问</dt><dd>项目拥有者。当前本地配额为每用户每天 100 次 Quiz 请求。</dd>
+      <dt>输入</dt><dd>严格 JSON <a href="#schema-quiz"><code>QuizRequest</code></a>：工作空间项目、自然语言指令，以及请求的单选、填空和主观题数量。Quiz 使用就绪的项目资源，对隐藏的个人聊天项目被拒绝。</dd>
+      <dt>成功</dt><dd>200 <a href="#schema-quiz"><code>QuizResponse</code></a>，包含测验集、运行和 trace ID 以及验证状态。</dd>
+      <dt>故障 / 语义</dt><dd>404 项目；422 验证或任务不匹配；运行时仅 409 表示无已索引文档，429 表示配额失败；认证失败。同步且非幂等。</dd>
+      <dt>证据</dt><dd><span class="source">routers/quiz.py · schemas/quiz.py · Quiz workflow tests</span></dd>
+     </dl></details>
+     <details id="op-quiz-history" data-api-card data-api="quiz" data-method="GET" data-access="owner"><summary><code>GET /api/v1/projects/{project_id}/quiz</code> — 列出测验历史</summary><dl class="kv">
+      <dt>调用方 / 访问</dt><dd>项目拥有者。</dd>
+      <dt>输入</dt><dd><code>project_id</code>：UUID 路径参数。无游标、过滤或查询字段。</dd>
+      <dt>成功</dt><dd>200 <a href="#schema-quiz"><code>QuizHistoryResponse</code></a>，最多 100 个测验集，按最新本地 Store 插入顺序排列。</dd>
+      <dt>故障 / 语义</dt><dd>404 项目；422 无效 UUID；认证失败。安全且幂等；无分页合约。</dd>
+      <dt>证据</dt><dd><span class="source">routers/quiz.py · schemas/quiz.py · Quiz history tests</span></dd>
+     </dl></details>
+    </section>
+
+    <section id="schemas">
+     <p class="eyebrow">可复用 schema 台账</p>
+     <h2>共享请求和响应模型</h2>
+     <p class="sub">这些结构定义一次后从操作合约中链接。必选/可选标记和限制反映当前 Pydantic/OpenAPI 合约。</p>
+     <details id="schema-identity" open><summary><code>CurrentUser</code> 与 <code>ErrorResponse</code></summary><dl class="kv">
+      <dt>CurrentUser</dt><dd><code>id: UUID</code>；<code>email</code>；<code>role: user|developer|admin</code>；身份 schema 暴露的活跃状态。</dd>
+      <dt>ErrorResponse</dt><dd><code>{ error: { code: string 2..80, message: string 1..300, request_id: string 4..120 } }</code>.</dd>
+      <dt>偏差</dt><dd>OpenAPI 生成的 422 体当前引用 <code>HTTPValidationError</code>，而非运行时错误信封。</dd>
+     </dl></details>
+     <details id="schema-project"><summary><code>ProjectCreate</code> 与 <code>ProjectRecord</code></summary><dl class="kv">
+      <dt>ProjectCreate</dt><dd><code>name: string 1..120</code>.</dd>
+      <dt>ProjectRecord</dt><dd><code>id: UUID</code>；<code>user_id: UUID</code>；名称；<code>kind: personal|workspace</code>；状态；可选 <code>expires_at</code>；创建/更新时间戳；可选 <code>deleted_at</code>。</dd>
+     </dl></details>
+     <details id="schema-upload"><summary><code>UploadUrlRequest</code>、<code>UploadUrlResponse</code> 和 <code>UploadCompleteRequest</code></summary><dl class="kv">
+      <dt>UploadUrlRequest</dt><dd><code>project_id: UUID</code>；个人聊天附件的可选 <code>conversation_id: UUID</code>；<code>filename: string 1..240</code>；<code>file_type: pdf|docx|pptx</code>；匹配的 <code>mime_type: string 3..120</code>；<code>size_bytes: 1..26,214,400</code>。</dd>
+      <dt>UploadUrlResponse</dt><dd><code>document_id: UUID</code>; <code>upload_url: string 1..4096</code>; <code>r2_object_key: string 16..512</code>; <code>expires_in_seconds: 60..900</code>.</dd>
+      <dt>UploadCompleteRequest</dt><dd>整个请求体可选/为 null。存在时：<code>checksum_sha256?: 恰好 64 字符</code>；<code>extracted_text?: string ≤200,000</code>。</dd>
+     </dl></details>
+     <details id="schema-document"><summary><code>DocumentRecord</code> 与 <code>JobRecord</code></summary><dl class="kv">
+      <dt>DocumentRecord</dt><dd>文档、拥有者和项目 UUID；个人附件的可选对话 UUID；文件名、文件类型、MIME 类型、字节大小；<code>status: uploaded|parsing|parsed|indexing|ready|failed|expired|deleted</code>；可选的错误、过期和删除字段；创建/更新时间戳。</dd>
+      <dt>JobRecord</dt><dd>任务和拥有者 UUID；可选的项目/文档 UUID；<code>type: string 2..80</code>；<code>status: pending|running|succeeded|failed|cancelled</code>；进度 0–100；可选错误；创建/更新时间戳。</dd>
+     </dl></details>
+     <details id="schema-evidence"><summary><code>SourceSummary</code> 与 <code>Citation</code></summary><dl class="kv">
+      <dt>SourceSummary</dt><dd><code>local_chunks: integer 0..50 = 0</code>; <code>web_pages: integer 0..20 = 0</code>.</dd>
+      <dt>Citation</dt><dd>ID 和 <code>source_type: local_doc|web_page</code>；可选的文档/分块 UUID、页码、幻灯片、URL 和声明 ID；必选的 1–1200 字符引用文本。</dd>
+     </dl></details>
+     <details id="schema-ask"><summary><code>AskRequest</code> 与 <code>AskResponse</code></summary><dl class="kv">
+      <dt>AskRequest</dt><dd><code>project_id: UUID</code>；可选 <code>conversation_id: UUID</code>；<code>message: string 1..8000</code>；<code>web_enabled: boolean = false</code>。禁止多余字段。</dd>
+      <dt>AskResponse</dt><dd>运行和对话 UUID；1–16,000 字符的回答；<a href="#schema-evidence"><code>SourceSummary</code></a>；最多 80 条引用；trace UUID；验证状态；<code>rerank_degraded</code> 和可选的安全回退原因。</dd>
+     </dl></details>
+     <details id="schema-quiz"><summary><code>QuizRequest</code>、<code>QuizResponse</code>、<code>QuizSet</code> 和 <code>QuizQuestion</code></summary><dl class="kv">
+      <dt>QuizRequest</dt><dd>项目 UUID；1–4000 字符的自然语言提示；单选、填空和主观题数量各 0–20，合计 1–40。默认值为 3、2 和 2。禁止多余字段。</dd>
+      <dt>QuizResponse</dt><dd>测验集；运行和 trace UUID；验证状态。</dd>
+      <dt>QuizSet / 问题</dt><dd>测验 ID、来源摘要和 1–40 个问题。一个问题包含类型、文本、答案、解释、难度、最多 12 条引用和最多四个选项；单选题要求恰好四个选项。</dd>
+      <dt>QuizHistoryResponse</dt><dd><code>project_id: UUID</code>; <code>quiz_sets: QuizSet[] ≤100</code>.</dd>
+     </dl></details>
+     <details id="schema-trace"><summary><code>ExecutionPlan</code>、<code>ToolCallTrace</code> 和 <code>DeveloperTrace</code></summary><dl class="kv">
+      <dt>ExecutionPlan</dt><dd>任务类型；1–12 个允许的工具；本地/Web 需求；上下文策略；输出 schema。</dd>
+      <dt>ToolCallTrace</dt><dd>ID、工具名称、输入摘要、可选的输出摘要、状态、可选的延迟和错误。</dd>
+      <dt>DeveloperTrace</dt><dd>Trace/用户/项目/运行 UUID；计划；路由原因；最多 80 个检索分块和 40 个工具调用；验证；可选的延迟/token；最多 20 个错误；创建时间戳。</dd>
+     </dl></details>
+    </section>
+
+    <section id="planned-operations">
+     <p class="eyebrow">扩展合约</p>
+     <h2>证据审查、评估、可靠性和 MCP 操作</h2>
+     <p class="sub">生成的 OpenAPI 现包含 45 个 REST 操作，包括个人聊天引导、跨工作空间对话导航、对话范围附件、拥有者范围对话 CRUD 和两个运行时 rerank 操作。其路由、schema、拥有权/角色、幂等性和确定性仓库行为有代码证据；受管提供商、队列交付、检查点恢复、遥测导出和本次发布部署仍为集成未验证。MCP 是独立的协议边界，不计入 REST。</p>
+     <div class="notice"><strong>共享约定：</strong> bearer 认证；API 中的拥有者/项目权限检查；命令上的 <code>Idempotency-Key</code>；带请求 ID 的当前错误信封；Postgres 中的权威操作状态；持久化 SSE 重放；以及 Redis 作为交付而非不可替代状态。Supabase JWT 支持的项目创建/列表/读取已针对密码和 GitHub 身份验证，跨用户 API 隐藏通过。直接 RLS 查询和分布式交付尚未验证。</div>
+     <div class="notice warning"><strong>如何阅读各行：</strong> 请求和成功结构描述已实现的路由 schema。本地 LangGraph、RAGAS、严格检查点序列化器和 MCP 初始化测试现已通过。故障/恢复和验收行仍指明分布式系统门槛；它们不是受管检查点、提供商、队列或云运行时通过的证据。</div>
+
+     <details id="planned-research-run" data-api-card data-api="research" data-method="POST" open><summary><code>POST /api/v1/research-runs</code> — 启动证据审查 <span class="status partial">已实现合约 · 运行时未验证</span></summary><dl class="kv">
+      <dt>调用方 / 访问</dt><dd>已认证的项目拥有者。路由验证项目、已接受的 pipeline 和每个显式选择的就绪文档。每日和并发运行配额仍待验证；worker 在每次模型调用前执行每运行成本上限。</dd>
+      <dt>请求</dt><dd><code>{ project_id: UUID, research_goal: string 20..12000, source_scope: {document_ids?: UUID[], allow_web: boolean}, pipeline_version_id: UUID, review_policy: "strict"|"balanced", max_cost_usd?: decimal }</code>；必选 <code>Idempotency-Key</code>。</dd>
+      <dt>成功 / 异步</dt><dd><code>202</code> <code>{ run_id, status:"pending", status_url, events_url, created_at }</code>。Postgres 在队列发布前提交运行和 outbox 意图。</dd>
+      <dt>故障 / 恢复</dt><dd><code>404 PROJECT_NOT_FOUND</code>；<code>409 PIPELINE_NOT_ACCEPTED</code>、<code>SOURCE_DOCUMENT_NOT_READY</code>、<code>SOURCE_SCOPE_EMPTY</code> 或不匹配正文的重复键；请求验证拒绝重复文档 ID。执行期间 <code>WORKFLOW_BUDGET_EXCEEDED</code>、无效 pipeline 配置或提供商失败产生持久失败运行。匹配的命令重复返回原始操作。</dd>
+      <dt>验收</dt><dd>重复交付创建一个逻辑运行；拥有者隔离成立；重复任务交付最多获取一个过期工作流租约；现有检查点恢复时不重放初始输入；outbox 恢复在 API 崩溃后重新分发。</dd>
+     </dl></details>
+
+     <details id="planned-run-get" data-api-card data-api="research" data-method="GET"><summary><code>GET /api/v1/runs/{run_id}</code> — 读取持久工作流状态 <span class="status partial">已实现合约 · 运行时未验证</span></summary><dl class="kv">
+      <dt>调用方 / 访问</dt><dd>运行拥有者；开发者/管理员仅接收显式授权的脱敏检查字段。</dd>
+      <dt>请求</dt><dd>仅运行 UUID；无查询或请求体。安全且幂等。</dd>
+      <dt>成功</dt><dd><code>200</code>，包含类型、状态、pipeline 版本、进度、当前节点、审查需求、输出/报告引用、时间戳和安全错误摘要。</dd>
+      <dt>故障 / 恢复</dt><dd><code>404 RUN_NOT_FOUND</code>；<code>410 RUN_EXPIRED</code> 表示保留摘要存在但详情已被清除。客户端轮询或重新连接到事件流。</dd>
+      <dt>用法 / 验收</dt><dd>读取速率按用户限制；状态在进程重启后保留并与最后持久化的事件/检查点匹配。</dd>
+     </dl></details>
+
+     <details id="planned-run-events" data-api-card data-api="research" data-method="GET"><summary><code>GET /api/v1/runs/{run_id}/events</code> — 重放和流式传输进度 <span class="status partial">已实现合约 · 重连未验证</span></summary><dl class="kv">
+      <dt>调用方 / 访问</dt><dd>运行拥有者；仅安全摘要。开发者/管理员详情保持为独立的特权 trace 界面。</dd>
+      <dt>请求</dt><dd>运行 UUID；可选整数 <code>Last-Event-ID</code> 和 <code>after_sequence &gt;= -1</code>。响应媒体类型为 <code>text/event-stream</code>。</dd>
+      <dt>成功 / 异步</dt><dd><code>200 text/event-stream</code>。事件包括 <code>run.status</code>、<code>node.started</code>、<code>node.completed</code>、<code>review.required</code>、<code>run.completed</code>、心跳和终端关闭。</dd>
+      <dt>故障 / 恢复</dt><dd>路由当前返回 <code>404 RUN_NOT_FOUND</code> 和 <code>422 INVALID_EVENT_CURSOR</code>。它轮询持久化事件、发出心跳，并在终端工作流事件或 15 个空闲周期后关闭。游标超前、过期和流配额代码未实现。</dd>
+      <dt>验收</dt><dd>确定性仓库重放已存在；重连、进程重启、排序、背压和受管 Postgres 行为仍待验证。</dd>
+     </dl></details>
+
+     <details id="planned-run-decision" data-api-card data-api="research" data-method="POST"><summary><code>POST /api/v1/runs/{run_id}/decisions</code> — 批准、编辑或拒绝中断 <span class="status partial">已实现合约 · 恢复未验证</span></summary><dl class="kv">
+      <dt>调用方 / 访问</dt><dd>运行拥有者或显式特权审查者；运行必须处于 <code>waiting_human</code> 状态。</dd>
+      <dt>请求</dt><dd><code>{ interrupt_key: string, decision: "approve"|"edit"|"reject", edited_payload?: object, reason?: string }</code>；必选 <code>Idempotency-Key</code>。</dd>
+      <dt>成功 / 异步</dt><dd><code>202</code> <code>{ decision_id, run_id, status:"accepted", resume_status_url }</code>；决策在恢复分发前已持久化。</dd>
+      <dt>故障 / 恢复</dt><dd><code>404 RUN_NOT_FOUND</code>；<code>409 RUN_NOT_WAITING</code>、<code>INTERRUPT_ALREADY_RESOLVED</code> 或不匹配的重复；<code>422 EDIT_SCHEMA_INVALID</code>。已接受的决策为只增且可审计。</dd>
+      <dt>用法 / 验收</dt><dd>决策限制跟随中断计数；被拒绝的证据不会出现在已接受的声明或报告中；重启时从同一决策恢复一次。</dd>
+     </dl></details>
+
+     <details id="planned-claims" data-api-card data-api="research" data-method="GET"><summary><code>GET /api/v1/projects/{project_id}/claims</code> — 检查提取的结论 <span class="status partial">已实现合约 · 数据库未验证</span></summary><dl class="kv">
+      <dt>调用方 / 访问</dt><dd>项目拥有者。</dd>
+      <dt>请求</dt><dd>仅项目 UUID。游标和声明过滤未实现。</dd>
+      <dt>成功</dt><dd><code>200</code> <code>{ items:[{claim_id,text,stance,confidence,review_status,evidence_summary,relation_counts,source_version}], next_cursor }</code>.</dd>
+      <dt>故障 / 恢复</dt><dd><code>404 PROJECT_NOT_FOUND</code> 加认证/UUID 验证错误。安全且幂等；读取限流和过滤错误未实现。</dd>
+      <dt>验收</dt><dd>每个已接受的声明至少有一个可解析的证据边；外部声明不能通过 ID、过滤或计数推断。</dd>
+     </dl></details>
+
+     <details id="planned-claim-relations" data-api-card data-api="research" data-method="GET"><summary><code>GET /api/v1/projects/{project_id}/claim-relations</code> — 检查支持和冲突 <span class="status partial">已实现合约 · 数据库未验证</span></summary><dl class="kv">
+      <dt>调用方 / 访问</dt><dd>项目拥有者。</dd>
+      <dt>请求</dt><dd>仅项目 UUID。游标、声明和关系过滤未实现。</dd>
+      <dt>成功</dt><dd><code>200</code>，包含关系边、两个安全的声明摘要、置信度、理由摘要、有效性和下一个游标。</dd>
+      <dt>故障 / 恢复</dt><dd><code>404 PROJECT_NOT_FOUND</code> 加认证/UUID 验证错误。安全且幂等；历史/过滤模式未实现。</dd>
+      <dt>验收</dt><dd>两个声明属于同一拥有者/项目；矛盾和重复视图复现存储的边，无需 LLM 调用。</dd>
+     </dl></details>
+
+     <details id="planned-reports" data-api-card data-api="research" data-method="GET"><summary><code>GET /api/v1/projects/{project_id}/reports</code> — 列出报告修订 <span class="status partial">已实现合约 · 数据库未验证</span></summary><dl class="kv">
+      <dt>调用方 / 访问</dt><dd>项目拥有者。</dd>
+      <dt>请求</dt><dd>仅项目 UUID。游标、状态和修订过滤未实现。</dd>
+      <dt>成功</dt><dd><code>200</code> 报告摘要，包含修订、状态、验证、来源运行、受影响章节计数、生成时间和下一个游标。</dd>
+      <dt>故障 / 恢复</dt><dd><code>404 PROJECT_NOT_FOUND</code> 加认证/UUID 验证错误。安全且幂等；游标错误不属于当前路由。</dd>
+      <dt>验收</dt><dd>修订顺序稳定；每个报告链接到其生成运行和证据快照。</dd>
+     </dl></details>
+
+     <details id="op-report-detail" data-api-card data-api="research" data-method="GET"><summary><code>GET /api/v1/reports/{report_id}</code> — 读取完整报告修订 <span class="status partial">已实现合约 · 数据库未验证</span></summary><dl class="kv">
+      <dt>调用方 / 访问</dt><dd>报告拥有者；拥有者判定在任何章节返回前应用。</dd>
+      <dt>请求</dt><dd>仅报告 UUID。安全且幂等。</dd>
+      <dt>成功</dt><dd><code>200</code>，包含报告元数据和有序章节，章节包含键、标题、Markdown 正文、验证状态和不可变证据快照。</dd>
+      <dt>故障 / 恢复</dt><dd><code>404 REPORT_NOT_FOUND</code> 隐藏不存在和外部报告。工作空间将 Markdown 渲染为文本，而非注入提供商 HTML。</dd>
+      <dt>验收</dt><dd>生成的报告可在无直接数据库访问的情况下读取，每个章节保留其存储的证据快照。</dd>
+     </dl></details>
+
+     <details id="op-pipeline-versions" data-api-card data-api="research" data-method="GET"><summary><code>GET /api/v1/pipeline-versions</code> — 列出已接受的可执行配置 <span class="status partial">已实现目录 · 受管数据库未验证</span></summary><dl class="kv">
+      <dt>调用方 / 访问</dt><dd>任何已认证的演示用户。仅不可变的已接受版本可见；草稿/候选版本仍限创建者/管理员。</dd>
+      <dt>请求</dt><dd>无请求体或查询。安全且幂等。</dd>
+      <dt>成功</dt><dd><code>200</code> 项暴露 ID、名称、版本、非密配置、代码 SHA 和接受时间。</dd>
+      <dt>故障 / 恢复</dt><dd>空列表有效，并使 UI 显示供应门控。受保护的 <code>bootstrap_demo_catalog.py</code> 命令在文档摄入后创建幂等的第一个版本。</dd>
+      <dt>验收</dt><dd>浏览器选择已接受的服务器记录，而非接受任意模型或复制的 UUID。</dd>
+     </dl></details>
+
+     <details id="planned-report-refresh" data-api-card data-api="research" data-method="POST"><summary><code>POST /api/v1/reports/{report_id}/refresh</code> — 重新计算受影响章节 <span class="status partial">增量代码 · LangGraph 未验证</span></summary><dl class="kv">
+      <dt>调用方 / 访问</dt><dd>报告拥有者，具有刷新和并发运行配额。</dd>
+      <dt>请求</dt><dd><code>{ changed_document_ids?: UUID[], force_sections?: string[], pipeline_version_id: UUID }</code>；必选 <code>Idempotency-Key</code>。</dd>
+      <dt>成功 / 异步</dt><dd><code>202</code>，包含刷新运行 ID、基础修订、计划修订、受影响章节键和事件 URL。</dd>
+      <dt>当前实现</dt><dd>仓库验证已更改文档为已拥有/就绪，从存储的引用边推导直接受影响的章节键，对于无先前边的新添加文档回退到所有现有章节。Worker 代码将 Qdrant 检索限制为已更改文档 ID，要求精确生成的受影响键，未受影响章节原样复制，并在同一最终事务中使先前修订失效。</dd>
+      <dt>故障 / 恢复</dt><dd><code>404 REPORT_NOT_FOUND</code>；<code>409 REPORT_ALREADY_REFRESHING</code> 或 pipeline 不匹配；无效文档/章节返回领域错误。失败的刷新设计为保持已发布修订不变，但此行为和重启行为仍为运行时未验证。</dd>
+      <dt>验收</dt><dd>影响/过滤/保留代码已存在；仍需真实的 LangGraph/Postgres/Qdrant 执行证明仅受影响的工作发生更改且之前的报告在任何失败中存活。</dd>
+     </dl></details>
+
+     <details id="planned-evaluation-create" data-api-card data-api="evaluation" data-method="POST"><summary><code>POST /api/v1/evaluation-runs</code> — 启动版本化实验 <span class="status partial">已实现合约 · RAGAS 导入已测试</span></summary><dl class="kv">
+      <dt>调用方 / 访问</dt><dd>当前路由中仅开发者/管理员。数据集拥有者执行和独立的评估成本配额未实现。</dd>
+      <dt>请求</dt><dd><code>{ dataset_id: UUID, pipeline_version_id: UUID, metrics: string[], max_parallelism: 1..20, max_cost_usd?: decimal, labels?: string[] }</code>；必选 <code>Idempotency-Key</code>。</dd>
+      <dt>成功 / 异步</dt><dd><code>202</code>，包含评估运行 ID、用例计数、状态 URL 和保守的调度预算边界。</dd>
+      <dt>故障 / 恢复</dt><dd><code>404 DATASET_NOT_FOUND</code>；<code>409 DATASET_NOT_FROZEN</code> 或 pipeline 未接受；<code>422 METRIC_UNSUPPORTED</code>；<code>429 EVALUATION_LIMITED</code>。用例任务独立重试，终态结果不可变。</dd>
+      <dt>预算语义</dt><dd>worker 在分发前原子性地预留保守的每用例估算。<code>budget_reserved_usd</code> 防止新用例超过 <code>budget_limit_usd</code>；它不是提供商账单、实际支出或 token 对账记录。</dd>
+      <dt>验收</dt><dd>预留/预算停止代码已存在。运行器加入已接受的 pipeline 版本，验证其配置，并应用其检索限制和配置的模型/提示兼容性门控；受管并发、RAGAS 执行和与提供商计费的对账仍待验证。</dd>
+     </dl></details>
+
+     <details id="op-evaluation-datasets" data-api-card data-api="evaluation" data-method="GET"><summary><code>GET /api/v1/evaluation-datasets</code> — 列出冻结的基准数据集 <span class="status partial">已实现目录 · 受管数据库未验证</span></summary><dl class="kv">
+      <dt>调用方 / 访问</dt><dd>开发者/管理员。结果保持拥有者范围。</dd>
+      <dt>请求</dt><dd>可选 <code>project_id: UUID</code> 过滤。安全且幂等。</dd>
+      <dt>成功</dt><dd><code>200</code> 项暴露数据集 ID、项目、名称、版本、描述和存储的用例计数。</dd>
+      <dt>故障 / 恢复</dt><dd><code>403 ADMIN_REQUIRED</code>；无效项目 UUID 返回规范化验证。空目录被显式显示。</dd>
+      <dt>验收</dt><dd>评估可从冻结的、拥有者范围的目录启动，无需手动输入内部 ID。</dd>
+     </dl></details>
+
+     <details id="planned-evaluation-get" data-api-card data-api="evaluation" data-method="GET"><summary><code>GET /api/v1/evaluation-runs/{evaluation_run_id}</code> — 检查实验结果 <span class="status partial">已实现合约 · 运行器未验证</span></summary><dl class="kv">
+      <dt>调用方 / 访问</dt><dd>评估运行拥有者或开发者/管理员。</dd>
+      <dt>请求</dt><dd>仅评估运行 UUID。指标/用例过滤和分页未实现。</dd>
+      <dt>成功</dt><dd><code>200</code>，包含不可变版本引用、进度、聚合指标、延迟/token/成本摘要、回归决策、用例结果和游标。</dd>
+      <dt>故障 / 恢复</dt><dd><code>404 EVALUATION_RUN_NOT_FOUND</code>；<code>422 INVALID_METRIC_FILTER</code>。安全/幂等；部分结果声明完整性。</dd>
+      <dt>验收</dt><dd>聚合同存储的用例分数对账，CI 读取同一已接受的结果合约。</dd>
+     </dl></details>
+
+     <details id="planned-reliability" data-api-card data-api="evaluation" data-method="GET"><summary><code>GET /api/v1/dev/reliability</code> — 聚合运行时健康 <span class="status partial">已实现聚合 · 遥测不完整</span></summary><dl class="kv">
+      <dt>调用方 / 访问</dt><dd>仅开发者/管理员；所有用户/来源字段已脱敏或聚合。</dd>
+      <dt>请求</dt><dd><code>window_hours</code>，默认 24，限制为 1–168。Pipeline、节点、状态和环境过滤未实现。</dd>
+      <dt>成功</dt><dd><code>200</code>，包含窗口、运行计数、成功/错误率、重试计数、P50/P95 延迟、输入/输出 token、成本和采样 trace ID。</dd>
+      <dt>故障 / 恢复</dt><dd><code>403 ADMIN_REQUIRED</code> 加验证错误。遥测不可用回退区分未实现；仓库聚合持久运行事件。</dd>
+      <dt>用法 / 验收</dt><dd>研究模型调用现在将延迟、提供商报告的输入/输出 token 和配置价格估算持久化到此聚合消费的事件账本中。速率限制、提供商发票对账、跨服务关联和真实 trace 量行为仍待验证。</dd>
+     </dl></details>
+
+     <details id="planned-fault" data-api-card data-api="evaluation" data-method="POST"><summary><code>POST /api/v1/dev/fault-scenarios</code> — 执行有界故障演练 <span class="status partial">已实现 · worker/云未验证</span></summary><dl class="kv">
+      <dt>调用方 / 访问</dt><dd>仅本地、测试或隔离预览中的开发者/管理员；生产环境返回 404，除非存在受保护的维护标志和显式授权。</dd>
+      <dt>请求</dt><dd><code>{ scenario: "llm_timeout"|"qdrant_unavailable"|"worker_interrupt"|"r2_failure", target_run_id?: UUID, duration_seconds: 1..60 }</code>；必选幂等键。</dd>
+      <dt>成功 / 异步</dt><dd><code>202</code>，包含演练 ID、目标、预期恢复状态、状态 URL 和自动过期。</dd>
+      <dt>故障 / 恢复</dt><dd><code>403 ENVIRONMENT_FORBIDDEN</code>；<code>409 EXERCISE_ACTIVE</code>；<code>422 SCENARIO_INVALID</code>。故障有时间限制，即使调用方断开也必须自动清除。</dd>
+      <dt>当前实现</dt><dd>API 持久化幂等的、过期的 <code>fault_exercises</code> 行和 outbox 意图。租约保护的 Celery 任务记录有界的、非破坏性的安全结果；它不会禁用真实基础设施。</dd>
+      <dt>验收</dt><dd>确定性路由/仓库/worker 代码已存在；真实 broker 分发、租约恢复、过期和相关遥测仍待验证。</dd>
+     </dl></details>
+
+     <details id="planned-fault-get" data-api-card data-api="evaluation" data-method="GET"><summary><code>GET /api/v1/dev/fault-scenarios/{exercise_id}</code> — 检查故障演练 <span class="status partial">已实现 · 受管持久化未验证</span></summary><dl class="kv">
+      <dt>调用方 / 访问</dt><dd>仅开发者/管理员。仓库查找也限定为 <code>requested_by</code>，隐藏其他用户的演练。</dd>
+      <dt>请求</dt><dd><code>exercise_id</code>：UUID 路径参数；无查询或请求体。安全且幂等。</dd>
+      <dt>成功</dt><dd><code>200</code>，包含演练 ID、场景、可选目标运行、<code>pending|running|succeeded|failed</code> 状态、尝试次数、过期时间、安全结果、安全错误代码和时间戳。</dd>
+      <dt>故障 / 恢复</dt><dd><code>403 ADMIN_REQUIRED</code>；<code>404 FAULT_EXERCISE_NOT_FOUND</code>；UUID 验证错误。客户端轮询此持久记录而非依赖 broker 结果后端。</dd>
+      <dt>验收</dt><dd>路由和拥有者范围仓库代码已存在；Supabase RLS、Celery 状态转换、重启恢复和过期行为仍待验证。</dd>
+     </dl></details>
+
+     <details id="planned-mcp"><summary><code>POST /mcp/</code> — Streamable HTTP MCP 网关 <span class="status partial">SDK 已安装 · 本地 bearer 初始化通过</span></summary><dl class="kv">
+      <dt>调用方 / 访问</dt><dd>已认证的 MCP 客户端，带 JWT 作用域；工具调用执行与 REST 相同的拥有者和开发者/管理员规则。</dd>
+      <dt>协议 / 能力</dt><dd>无状态 JSON Streamable HTTP FastMCP 服务器代码定义了 <code>list_projects</code>、<code>search_project</code>、<code>ask_grounded</code>、<code>get_run_trace</code> 和 <code>run_evaluation</code> 工具，以及拥有的项目文档和运行摘要资源。</dd>
+      <dt>成功 / 异步</dt><dd>协议响应使用 MCP 结果/错误信封；长时间工作返回操作标识和状态资源，而非持有无界请求。</dd>
+      <dt>当前验证 / 边界</dt><dd>固定版本的 SDK 已安装。本地 <code>POST /mcp/</code> Streamable HTTP <code>initialize</code> 交换仅在通过 REST 使用的同一 bearer 认证边界后成功。工具/资源调用、Inspector 行为、外部主机配置、作用域对等性、配额和租户仍待验证。</dd>
+      <dt>故障 / 恢复</dt><dd>当运行时可用时，认证、权限、验证、配额、提供商和操作状态错误必须从共享领域错误映射；不存在 MCP 专属绕过或重复检索逻辑。</dd>
+      <dt>用法 / 验收</dt><dd>通过权限对等性测试证明每客户端/每用户限制和 MCP Inspector 搜索、有依据的 Ask、trace 和评估流程。</dd>
+     </dl></details>
+
+     <div class="notice warning"><strong>剩余验证门槛：</strong>16 个 REST 合约已在 FastAPI/OpenAPI 中，但需要受管身份/数据库/队列/提供商集成、SSE 重连、检查点恢复、评估执行、故障租约/过期、遥测导出和消费者测试。MCP 需要传输、Inspector 和权限对等性证明后才能称为外部验证。</div>
+    </section>
+
+    <section id="absent-contracts">
+     <p class="eyebrow">范围之外</p>
+     <h2>本次发布不接受的 API 能力</h2>
+     <div class="notice warning">计费、订阅、支付、CRM、营销自动化、增长实验、商业分析、不受限制的任务取消和通用自主工具执行没有已接受的 API 合约。它们是推迟或拒绝的组合范围，而非 35 个当前 REST 操作的缺失实现。</div>
+    </section>
+
+    <section id="evidence">
+     <p class="eyebrow">证据</p>
+     <h2>合约来源</h2>
+     <div class="evidence"><strong>机器可读：</strong> <span class="source">infra/openapi/openapi.yaml</span><br/><strong>实现：</strong> <span class="source">apps/api/src/researchmate_api/routers/** · schemas/** · dependencies.py · services/**</span><br/><strong>消费者和测试：</strong> <span class="source">apps/web/app/lib/api.ts · tests/test_api_workflow.py · tests/test_frontend_contracts.py</span></div>
+    </section>
+   </div>
+   <aside class="toc">
+    <b>本页导航</b>
+    <a href="#conventions">约定</a>
+    <a href="#operation-index">操作索引</a>
+    <a href="#operations">操作合约</a>
+    <a href="#schemas">Schema 台账</a>
+    <a href="#planned-operations">证据审查操作</a>
+    <a href="#absent-contracts">不存在的合约</a>
+    <a href="#evidence">证据</a>
+   </aside>
+  </div>
+ </main>
+ <footer class="shell footer">ResearchMate API 合约 · 45 个 OpenAPI REST 操作 · 受管就绪已验证，本次发布待云验证</footer>
+ <script src="../../assets/site.js"></script>
+</body>
+</html>
