@@ -328,7 +328,7 @@ def test_local_verification_policy_keeps_integration_on_deployed_environment() -
     proof_guide = (
         ROOT
         / "skill/personal-dev-skills-v9-baseline-plus-en/indie-product-delivery/references/nodes/03-backend-api-data-build"
-        / "backend-proof-debug-and-observability.md"
+        / "proof-debug-observability.md"
     ).read_text(encoding="utf-8")
 
     local_section = architecture.split('<section id="local-development">', 1)[1].split(
@@ -341,4 +341,4 @@ def test_local_verification_policy_keeps_integration_on_deployed_environment() -
     assert "Modular and cross-service integration" in product
     assert "Every modular and cross-service integration test runs only" in overview
     assert "the remaining proof to the cloud/deployed environment" in delivery_skill
-    assert "Split hermetic and deployed proof before testing" in proof_guide
+    assert "Split Hermetic and Deployed Proof" in proof_guide
