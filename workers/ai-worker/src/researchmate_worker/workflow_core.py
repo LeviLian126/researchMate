@@ -162,7 +162,7 @@ class SqlEvidenceWorkflowDomain(WorkflowExecutionMixin, WorkflowCommitMixin, Wor
                       lease_expires_at=now() + make_interval(secs => :lease_seconds),
                       delivery_attempts=delivery_attempts + 1
                     where id=:run_id
-                      and status in ('pending','running')
+                      and status in ('pending','running','waiting_human')
                       and (lease_expires_at is null or lease_expires_at < now()
                            or lease_owner=:worker_id)
                     returning id

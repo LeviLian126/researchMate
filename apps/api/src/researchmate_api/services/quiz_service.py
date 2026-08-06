@@ -62,9 +62,6 @@ class QuizService:
                 409,
             )
         _, citations, _ = build_grounded_answer(payload.prompt, retrieved)
-        # Quiz uses the same accepted-attempt quota semantics as Ask.
-        if not self.repository.increment_usage(user, "quiz", limit=100):
-            self._error("RATE_LIMITED", "Daily quiz quota exceeded.", 429)
         generation_started = monotonic()
         try:
             if self.chat_provider is not None:
@@ -91,6 +88,9 @@ class QuizService:
                 "The quiz provider could not produce a validated source-backed quiz.",
                 503,
             ) from exc
+        # Quota counts successful generation only; provider failures do not consume quota.
+        if not self.repository.increment_usage(user, "quiz", limit=100):
+            self._error("RATE_LIMITED", "Daily quiz quota exceeded.", 429)
         generation_latency = round((monotonic() - generation_started) * 1000)
         validation_result = {
             "passed": bool(quiz_set.questions),

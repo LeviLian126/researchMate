@@ -51,7 +51,7 @@ class MemoryPersistenceMixin:
 
     def get_runtime_rerank_config(self) -> RuntimeRerankConfig:
         """Return the active runtime rerank configuration."""
-        with self.engine.begin() as connection:
+        with self._transaction() as connection:
             row = connection.execute(
                 text(
                     """

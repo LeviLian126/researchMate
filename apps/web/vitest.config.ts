@@ -1,7 +1,13 @@
 // Configures browser-like unit tests and enforces the repository coverage baseline.
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
 
+const appDir = fileURLToPath(new URL("./app", import.meta.url)).replace(/\\/g, "/");
+
 export default defineConfig({
+  resolve: {
+    alias: [{ find: "@/", replacement: `${appDir}/` }],
+  },
   test: {
     environment: "jsdom",
     coverage: {

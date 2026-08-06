@@ -1,10 +1,14 @@
-# Ops, Learning, and Iteration
+# 运营、学习与迭代
 
-## Read the relevant workflow
+## 阅读相关 workflow
 
-| Need | Read |
+| 需求 | 阅读 |
 |---|---|
-| recover what shipped, validate signals, assess health, and distinguish incidents from learning | `production-health-and-signal-integrity.md` |
-| synthesize customer value, choose an experiment or next slice, and preserve the decision | `customer-evidence-experiments-and-next-slice.md` |
+| 恢复已发布的内容、验证信号、评估健康状况，并区分事件与学习 | `production-health-and-signal-integrity.md` |
+| 综合客户价值、选择实验或下一个切片，并保留决策 | `customer-evidence-experiments-and-next-slice.md` |
 
-Every applicable requirement in the selected workflow is a minimum delivery standard. Skip only genuinely irrelevant checks. Add analysis, investigation, or authorized action when it helps answer the current operating question without exceeding the task's authorization.
+所选 workflow 中每条适用的要求都是最低交付标准，因为它将运营决策与真实信号绑定在一起。仅跳过确实不相关的检查。当分析、调查或行动有助于回答当前运营问题时，添加它们；当所需的密钥、API 凭证或环境不可用时，停止。
+
+## 输出契约
+
+返回观察到的产品/生产状态、证据和置信度、客户或运营信号、事件或学习解读、下一个决策或切片、其负责人，以及应导致重新进入的触发条件或证据。不要暗示超出实际收集证据的后台监控。

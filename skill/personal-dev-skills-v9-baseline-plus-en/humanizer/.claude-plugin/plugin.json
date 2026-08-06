@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "humanizer",
+  "description": "Improve naturalness, author consistency, factual fidelity, and readability without changing meaning. Preserve facts, identifiers, caveats, repository conventions, and the user's voice.",
+  "version": "2.9.2",
+  "author": {
+    "name": "blader",
+    "url": "https://github.com/blader"
+  },
+  "homepage": "https://github.com/blader/humanizer",
+  "repository": "https://github.com/blader/humanizer",
+  "license": "MIT",
+  "keywords": ["writing", "editing", "ai-detection", "humanize", "prose", "style"]
+}

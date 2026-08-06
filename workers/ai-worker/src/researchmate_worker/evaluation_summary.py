@@ -17,16 +17,15 @@ def _safe_evaluation_error(exc: Exception) -> tuple[str, bool]:
     if isinstance(exc, EvaluationRuntimeError):
         return exc.code, exc.retryable
     code = getattr(exc, "code", None)
-    class_name = type(exc).__name__.lower()
-    inferred_retryable = any(
-        marker in class_name for marker in ("timeout", "connection", "ratelimit", "temporar")
-    )
+    # Use explicit retryable attribute; default to non-retryable rather than
+    # string-matching exception class names which silently misclassifies errors.
+    retryable = bool(getattr(exc, "retryable", False))
     safe_code = (
         code
         if isinstance(code, str) and code
-        else ("EVALUATION_PROVIDER_TEMPORARY" if inferred_retryable else "EVALUATION_CASE_FAILED")
+        else ("EVALUATION_PROVIDER_TEMPORARY" if retryable else "EVALUATION_CASE_FAILED")
     )
-    return safe_code[:120], bool(getattr(exc, "retryable", inferred_retryable))
+    return safe_code[:120], retryable
 
 
 def _metric_aggregates(connection: Any, run_id: UUID) -> dict[str, dict[str, float | int]]:

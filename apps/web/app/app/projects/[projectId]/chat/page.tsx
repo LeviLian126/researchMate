@@ -9,11 +9,18 @@ import { apiFetch, ProjectRecord } from "../../../../lib/api";
 /** Provides a suspense boundary for client-side project route resolution. */
 export default function ProjectChatPage() {
   return (
-    <Suspense fallback={<main className="conversation-shell"><div className="message-skeleton">Loading project</div></main>}>
+    <Suspense
+      fallback={
+        <main className="flex min-h-[100dvh] items-center justify-center text-muted-foreground">
+          Loading project…
+        </main>
+      }
+    >
       <ProjectChat />
     </Suspense>
   );
 }
+
 /** Loads the project label and binds the shared workspace to the route project. */
 function ProjectChat() {
   const { projectId } = useParams<{ projectId: string }>();

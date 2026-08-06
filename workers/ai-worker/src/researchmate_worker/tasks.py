@@ -107,8 +107,46 @@ def _mark_job_bootstrap_failed(settings: WorkerSettings | None, job_id: UUID, co
                     where id=:job_id and status in ('pending','running')
                     """
                 ),
-                {"job_id": job_id, "code": code[:120]},
-            )
+               {"job_id": job_id, "code": code[:120]},
+           )
+
+
+def _mark_fault_exercise_failed(settings: WorkerSettings | None, exercise_id: UUID, code: str) -> None:
+    """Make a fault-simulation failure terminal so an explicit retry can recover it."""
+    database_url = settings.database_url if settings is not None else os.getenv("DATABASE_URL")
+    if not database_url:
+        return
+    engine = create_engine(psycopg_database_url(database_url), pool_pre_ping=True)
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                """
+                update fault_exercises set status='failed', last_error_code=:code,
+                  completed_at=now(), lease_owner=null, lease_expires_at=null
+                where id=:exercise_id and status in ('pending','running')
+                """
+            ),
+            {"exercise_id": exercise_id, "code": code[:120]},
+        )
+
+
+def _mark_evaluation_run_failed(settings: WorkerSettings | None, run_id: UUID, code: str) -> None:
+    """Make an evaluation-run failure terminal so an explicit retry can recover it."""
+    database_url = settings.database_url if settings is not None else os.getenv("DATABASE_URL")
+    if not database_url:
+        return
+    engine = create_engine(psycopg_database_url(database_url), pool_pre_ping=True)
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                """
+                update evaluation_runs set status='failed', error_code=:code,
+                  completed_at=now(), lease_owner=null, lease_expires_at=null
+                where id=:run_id and status in ('pending','running')
+                """
+            ),
+            {"run_id": run_id, "code": code[:120]},
+        )
 
 
 @celery_app.task(bind=True, name="researchmate.ingest_document", max_retries=5)
@@ -132,6 +170,9 @@ def ingest_document(self, event: dict[str, str]) -> str:
         if exc.retryable:
             countdown = min(300, 2 ** min(int(self.request.retries) + 1, 8))
             raise self.retry(exc=IngestionFailure(exc.code, retryable=True), countdown=countdown)
+        raise
+    except Exception:
+        _mark_job_bootstrap_failed(settings, payload.job_id, "INGESTION_INTERNAL_ERROR")
         raise
 
 
@@ -157,6 +198,9 @@ def delete_document(self, event: dict[str, str]) -> str:
             countdown = min(300, 2 ** min(int(self.request.retries) + 1, 8))
             raise self.retry(exc=IngestionFailure(exc.code, retryable=True), countdown=countdown)
         raise
+    except Exception:
+        _mark_job_bootstrap_failed(settings, payload.job_id, "DELETION_INTERNAL_ERROR")
+        raise
 
 
 @celery_app.task(bind=True, name="researchmate.delete_project", max_retries=8)
@@ -180,6 +224,9 @@ def delete_project(self, event: dict[str, str]) -> str:
         if exc.retryable:
             countdown = min(300, 2 ** min(int(self.request.retries) + 1, 8))
             raise self.retry(exc=IngestionFailure(exc.code, retryable=True), countdown=countdown)
+        raise
+    except Exception:
+        _mark_job_bootstrap_failed(settings, payload.job_id, "PROJECT_DELETION_INTERNAL_ERROR")
         raise
 
 
@@ -271,14 +318,26 @@ def run_evaluation(self, event: dict[str, str]) -> str:
                 countdown=countdown,
             )
         raise
+    except Exception:
+        _mark_evaluation_run_failed(None, payload.evaluation_run_id, "EVALUATION_INTERNAL_ERROR")
+        raise
 
 
 @celery_app.task(bind=True, name="researchmate.run_fault_simulation", max_retries=3)
 def run_fault_simulation(self, event: dict[str, str]) -> str:
     """Execute one claimed reliability exercise for operator evidence."""
     payload = FaultSimulationTaskEvent.model_validate(event)
+    try:
+        settings = WorkerSettings()
+    except Exception:
+        _mark_fault_exercise_failed(None, payload.exercise_id, "WORKER_CONFIG_INVALID")
+        raise
     worker_id = str(getattr(self.request, "hostname", None) or self.request.id or "worker")
-    return build_fault_simulation_service(WorkerSettings()).run(
-        payload.exercise_id,
-        worker_id=worker_id,
-    )
+    try:
+        return build_fault_simulation_service(settings).run(
+            payload.exercise_id,
+            worker_id=worker_id,
+        )
+    except Exception:
+        _mark_fault_exercise_failed(settings, payload.exercise_id, "FAULT_SIMULATION_INTERNAL_ERROR")
+        raise

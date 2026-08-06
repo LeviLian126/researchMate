@@ -221,6 +221,7 @@ class PostgresEvidenceRunMixin:
     ) -> HumanDecisionAccepted | None:
         """Resolve one human-review interrupt and enqueue resume in one transaction."""
         with self._transaction(user) as connection:
+            self._lock_idempotency(connection, user.id, idempotency_key)
             run = connection.execute(
                 text(
                     """
@@ -314,7 +315,7 @@ class PostgresEvidenceRunMixin:
                     "user_id": str(user.id),
                     "decision_id": str(decision_id),
                 },
-                idempotency_key=f"workflow:{run_id}:decision:{payload.interrupt_key}",
+                idempotency_key=f"workflow:{run_id}:decision:{idempotency_key}",
             )
             return self._accepted_decision(decision_id, run_id)
 

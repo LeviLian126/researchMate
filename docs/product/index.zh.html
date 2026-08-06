@@ -1,0 +1,161 @@
+<!-- 定义持久的产品范围、能力、验证和前端状态记录。 -->
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width,initial-scale=1" name="viewport"/>
+  <meta content="ResearchMate 作品集受众、证据审查场景、当前能力、已承诺的工程路线图、验收和非目标。" name="description"/>
+  <title>ResearchMate · 产品场景与路线图</title>
+  <link href="../assets/site.css" rel="stylesheet"/>
+ <style>
+    /* 在窄视口内保持长证据状态和文档索引不变，不更改共享文档样式。 */
+   @media (max-width: 680px) {
+      .global .shell { flex-wrap: wrap; }
+      .status { max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
+    }
+  </style>
+</head>
+<body>
+  <header class="mast"><div class="shell mast-row"><a class="brand" href="../index.zh.html">ResearchMate 文档</a><div class="mast-right"><span class="stamp">产品真相 · 2026 年 7 月 27 日</span><a class="lang-toggle" href="index.html" hreflang="en" lang="en">English</a></div></div></header>
+ <nav aria-label="文档" class="global"><div class="shell">
+    <a href="../index.zh.html">概览</a><a aria-current="page" href="index.zh.html">产品与路线图</a><a href="../architecture/index.zh.html">架构与技术栈</a><a href="../contracts/data/index.zh.html">数据库</a><a href="../contracts/api/index.zh.html">API</a>
+  </div></nav>
+  <main class="shell">
+    <div class="hero">
+      <p class="eyebrow">作品集产品边界 / 能力台账</p>
+      <h1>产品范围与证据审查工作流</h1>
+      <p class="lede">本页面定义产品范围并记录其交付证据。它描述了主要工作流、当前仓库行为、仍待验证的已实现集成，以及公开 demo 可以声称可靠性之前所需的已部署证据。</p>
+      <div class="meta"><span class="status local">已完成 · 仓库证据</span><span class="status partial">部分完成 · 可用回退</span><span class="status unknown">已搭建 · 仅合约</span><span class="status planned">已规划 · 无实现证据</span><span class="status local">主要生产流程通过 · 性能和提供商质量观察中</span></div>
+    </div>
+    <div class="layout">
+      <div class="content">
+        <section id="product-boundary">
+          <p class="eyebrow">产品边界</p><h2>受众与成功标准</h2>
+          <div class="grid two">
+            <article class="fact"><b>主要受众</b><p>招聘者、面试官和评估 AI 全栈设计、后端深度、数据合约、可靠性和交付纪律的工程师。</p></article>
+            <article class="fact"><b>Demo 用户</b><p>需要审查大量有界来源集合并保留每个结论背后证据的研究者、学习者或分析师。</p></article>
+            <article class="fact"><b>作品集承诺</b><p>关于系统的每个重要声明都应可通过代码、合约、自动化测试、评估结果、运行时 trace 或部署证据检查。</p></article>
+            <article class="fact"><b>首次有意义的成功</b><p>读者能够快速理解架构、运行接地工作流、检查其证据和 trace，并讨论至少一个已测量的工程权衡。</p></article>
+          </div>
+          <div class="notice"><strong>商业状态：</strong>这故意不是商业 SaaS。没有目标买家、价格、订阅、付费流程、销售漏斗或收入目标。Demo 使用验证工程行为而非市场转化。</div>
+        </section>
+
+        <section id="scenario">
+          <p class="eyebrow">主要场景</p><h2>多源证据审查流水线</h2>
+          <p class="sub">该工作流需要长时间运行的工作、并行证据提取、持久化决策、增量重计算和质量测量。</p>
+          <div class="dependency-road">
+            <div class="road-stop"><b>1 · 定义</b><small>创建一个 owner 范围的项目，包含研究目标、约束和数十到数百个文档或 Web 来源。</small></div>
+            <div class="road-stop"><b>2 · 摄取</b><small>通过可重试的后台任务验证、上传、校验和、解析、去重、版本化、分块、嵌入和索引来源。</small></div>
+            <div class="road-stop"><b>3 · 规划</b><small>将研究目标分解为有界子问题，并持久化暂停、恢复或重放所需的 LangGraph 状态。</small></div>
+            <div class="road-stop"><b>4 · 提取</b><small>并行检索证据，提取结构化声明，保留精确引文和位置，并测量覆盖率。</small></div>
+            <div class="road-stop"><b>5 · 对账</b><small>将声明关系分类为支持、矛盾、重复或仅提及；显示未解决的缺口。</small></div>
+            <div class="road-stop"><b>6 · 审查</b><small>暂停低置信度结论、不可信 Web 证据和 prompt-injection 信号，等待批准、编辑或拒绝决策。</small></div>
+            <div class="road-stop"><b>7 · 综合</b><small>生成证据支撑的报告，然后在来源变更时仅刷新受影响的声明和章节。</small></div>
+            <div class="road-stop"><b>8 · 验证</b><small>运行版本化评估实验并检查 trace、延迟、token 使用、成本、错误、重试和恢复。</small></div>
+          </div>
+          <div class="notice warning"><strong>故障与恢复合约：</strong>提供商超时在策略内重试；中毒的摄取项变为可见的失败任务；不确定的结论暂停等待审查；进程重启从持久化 checkpoint 恢复；跨存储删除持续对账直至每个目标达到终态。</div>
+        </section>
+
+        <section id="capabilities">
+          <p class="eyebrow">产品能力图</p><h2>能力拥有权和交付状态</h2>
+          <p class="sub">能力按拥有它们的产品层而非状态分组。每个条目记录结果、仓库证据、未完成的边界、依赖和完成门。链接的合约页面对数据库字段和 HTTP 载荷保持权威。</p>
+          <div class="notice" id="implemented-capabilities"><strong>状态规则：</strong><span class="status local">已完成</span>具有可执行的仓库证据；<span class="status partial">部分完成</span>具有确定性合约或回退路径但缺乏已部署的集成证据；<span class="status unknown">已搭建</span>是没有运行集成的合约、迁移、包或接缝；<span class="status planned">已规划</span>没有实现证据；<span class="status unknown">需要外部设置</span>在代码达到发布就绪后需要凭据或云配置。</div>
+          <div class="scroll">
+            <table>
+              <thead><tr><th>产品层</th><th>当前可用</th><th>下一步实现</th><th>主要证据</th></tr></thead>
+             <tbody>
+                <tr><td><a href="#layer-experience">1 · 体验</a></td><td>认证优先入口、ChatGPT 风格对话线程、可折叠的普通聊天/项目栏、范围化附件、项目 Sources 和紧凑的项目专属 Quiz。</td><td>验证响应式生产流程和已填充的来源/会话状态。</td><td>Next.js 页面 + 前端合约测试。</td></tr>
+                <tr><td><a href="#layer-application">2 · 应用与工作流</a></td><td>45 个 REST 操作、个人聊天引导、对话范围文档、项目记忆、对话 CRUD、运行时 rerank 控制、就绪、owner 检查、持久化仓库、SSE、决策和刷新合约。</td><td>验证迁移 009、已认证的附件隔离、checkpoint 恢复和 MCP 权限对等性（对照托管服务）。</td><td>FastAPI/OpenAPI、封闭 LangGraph/MCP 测试和确定性路由测试；本版本的托管集成未验证。</td></tr>
+                <tr><td><a href="#layer-evidence">3 · AI 与证据</a></td><td>来源策略、回退和混合检索适配器、schema 验证的声明/关系/报告生成。</td><td>托管提供商质量、reranking 基准和端到端已批准证据证明。</td><td>服务模块 + 确定性引用/schema 测试。</td></tr>
+                <tr><td><a href="#layer-data">4 · 数据与异步执行</a></td><td>内存回退加 Postgres、S3 兼容存储、Docling、Celery/outbox、Qdrant、摄取、删除、工作流和评估代码。</td><td>连接已应用的开发 schema 并验证托管服务、崩溃恢复和投影收敛。</td><td>托管 Postgres schema 已存在；fake-boundary 测试和 DOCX/PPTX smoke 通过；应用集成未验证。</td></tr>
+          <tr><td><a href="#layer-quality">5 · 质量、可靠性与交付</a></td><td>Pytest、Ruff、静态合约、确定性指标、保守的评估预算预留、故障模拟、隐私安全遥测代码、已记录发布的 GitHub CI、一个 Live Render 合并服务和为托管 Auth/API 配置的 Vercel Production。</td><td>构建 P50/P95 延迟分布；验证 rerank 切换、直接 RLS、遥测、扫描 PDF OCR 和资源压力下的恢复。</td><td>后端修正 <code>c5c89f5</code> 通过 Actions 运行 <code>30694324845</code> 并在 Render 上 Live；前端 Quiz 恢复修正 <code>ce54452</code> 部署在 Vercel。8 月 1 日已认证 Chrome 流程通过了普通聊天、PDF 上传/索引、接地回答和页面引用、Web 搜索、项目 Quiz 生成和刷新恢复、对话删除和项目删除。观测到的热延迟为普通聊天 6.7 秒、接地 PDF 回答 16.3 秒、Web 14.6 秒、Quiz 生成 53.3 秒。</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3 id="layer-experience">第 1 层 · 产品体验</h3>
+          <p class="sub">该层包含 demo 用户或面试官可用的浏览器工作流。</p>
+          <details id="cap-projects" open data-capability="partial"><summary>项目工作区 <span class="status partial">双用户 CRUD + 隐藏已验证</span></summary><dl class="kv"><dt>结果</dt><dd>创建、列出、打开和请求删除拥有的研究项目。</dd><dt>当前证据</dt><dd>2026 年 7 月 27 日，一个密码身份创建并刷新了 <code>managed-auth-smoke-20260727</code>。一个不同的 GitHub OAuth 身份最初未列出任何项目，创建并刷新了 <code>github-auth-isolation-smoke-20260727</code>，加载了自己的 Library，并在直接打开密码用户的 Library UUID 时收到 <code>Project was not found</code>。</dd><dt>剩余工作</dt><dd>验证会话过期/撤销和删除，然后执行直接的跨租户数据库 RLS 查询和完整的响应式交互 smoke。</dd><dt>依赖 / 门</dt><dd>身份和持久化层；重启、过期会话、刷新失败和直接 RLS 测试必须通过。</dd><dt>证据</dt><dd><span class="source">apps/web/app/globals.css · apps/web/app/page.tsx · apps/web/app/app/page.tsx · apps/web/app/app/projects · apps/web/app/lib/supabase.ts · apps/web/app/components/auth-gate.tsx · apps/web/app/components/project-nav.tsx · routers/projects.py · tests · two-identity Vercel → Supabase Auth → Render → PostgreSQL browser smoke (27 July 2026)</span></dd></dl></details>
+          <details id="cap-federated-auth" open data-capability="partial"><summary>GitHub 联邦登录和租户隐私 <span class="status partial">OAuth 已上线 + 项目隔离已验证</span></summary><dl class="kv"><dt>结果</dt><dd>让用户通过 GitHub 进入，同时每个项目、上传对象、向量、队列消息和 trace 仍限定在拥有它的 Supabase 用户范围内。</dd><dt>当前证据</dt><dd>免费的 GitHub OAuth App 已通过 Supabase Auth 上线。Vercel Production 以只读 email scope 重定向到 GitHub，Supabase 完成回调，浏览器从地址栏移除返回的 token，Render 接受生成的 JWT。GitHub 身份创建/刷新了自己的项目，未列出密码用户的项目，并对其他用户的 Library 收到隐藏的 not-found。十个封闭 auth 测试、21 个前端/文档合约测试、GitHub Actions 运行 <code>30237992253</code> 和已部署的回调均通过。</dd><dt>选定的免费方案</dt><dd>一个免费的 GitHub OAuth App 连接到现有的 Supabase Auth 项目。未添加应用部署：GitHub 认证，Supabase 签发 JWT，Vercel 托管 Web 客户端，Render 仍是唯一的后端部署。Google 仍为可选，将复用相同的边界。</dd><dt>凭据处理</dt><dd>活跃的 Client Secret 仅存在于 GitHub 和 Supabase Authentication → Providers → GitHub 中。一个曾出现在自动化输出中的初始密钥被立即轮换并撤销；替换密钥在浏览器内存中传递后清除。没有 GitHub 凭据存储在 Vercel、Render、源码、终端或应用浏览器存储中。</dd><dt>隔离合约</dt><dd>授权仅使用已验证的 JWT <code>sub</code> UUID，从不使用 email 或 GitHub 用户名。PostgreSQL 将显式 API owner 断言与 RLS 结合。对象键保留在私有存储桶中的 <code>users/{user_id}/projects/{project_id}/documents/{document_id}/…</code> 下，签名 URL 仅在所有权检查后以短过期时间签发。每个 Qdrant upsert/query/delete 都需要 <code>user_id</code> 和 <code>project_id</code> 过滤器。Redis 携带标识符而非源字节；日志和 Langfuse 省略 prompt、文档文本、token 和密钥。</dd><dt>加密边界</dt><dd>TLS 保护传输，托管提供商保护存储的媒体；这不是端到端加密，因为解析、检索和生成需要服务器处理明文。应用级信封加密是后续威胁模型选项，不是当前声明，因为它增加了密钥轮换和 worker 解密复杂性。</dd><dt>剩余验收</dt><dd>上传一个合成文档并证明跨用户 reserve/commit/delete 拒绝、过期签名 URL 失败和零结果跨租户 Qdrant 搜索。还应在已部署环境中测试提供商撤销、会话过期/刷新、直接数据库 RLS 和同邮箱账户关联行为。</dd><dt>参考</dt><dd><a href="https://supabase.com/docs/guides/auth/social-login/auth-github">Supabase GitHub 登录</a> · <a href="https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/creating-an-oauth-app">GitHub OAuth App 创建</a> · <a href="https://supabase.com/docs/guides/database/postgres/row-level-security">Supabase RLS</a> · <a href="https://supabase.com/docs/guides/storage/security/access-control">存储访问控制</a></dd></dl></details>
+          <details id="cap-documents" open data-capability="partial"><summary>文档 Library 和上传生命周期 <span class="status partial">代码完成 · 集成未验证</span></summary><dl class="kv"><dt>结果</dt><dd>预留、完成、列出、检查和删除项目文档，同时观察任务记录。</dd><dt>当前证据</dt><dd>内存路径保留确定性回退但不是本地集成环境。Postgres 路径签发 S3 兼容 PUT，验证 HEAD 大小/类型，原子性地提交 document + job + outbox intent，并返回 202。受租约保护的摄取和删除任务验证内容、保留出处、维护确定性行/向量、移除外部投影并推进终态。DOCX 和 PPTX smoke 测试通过。所选私有 Supabase Storage 存储桶已启用 S3 协议，一次凭据 smoke 完成了 PDF PUT、HEAD 和 DELETE。</dd><dt>已知故障</dt><dd>历史上的本地 PDF OCR/layout smoke 因所需模型下载未完成而失败。PDF 行为未验证且未声称。</dd><dt>剩余工作</dt><dd>将受保护的 S3 凭据转移到托管运行时，验证浏览器上传进度/重试，完成托管 Postgres/Storage/Redis/Qdrant 集成，提供离线 PDF 制品，并证明恶意软件控制和崩溃/重启/收敛行为。</dd><dt>依赖 / 门</dt><dd>托管开发凭据和离线解析器制品；真实夹具必须经受重复交付和 worker 重启。</dd><dt>证据</dt><dd><span class="source">config.py · services/object_storage.py · persistence/postgres.py · researchmate_worker/ingestion.py · researchmate_worker/tasks.py · tests/test_object_storage.py · tests/test_document_ingestion.py</span></dd></dl></details>
+          <details id="cap-grounded-ask" open data-capability="partial"><summary>统一持久化聊天 <span class="status partial">生产流程通过 · 度量调优中</span></summary><dl class="kv"><dt>结果</dt><dd>使用一个 ChatGPT 风格的对话界面：带对话范围文件的普通多轮聊天、带共享来源和记忆的专业项目聊天，外加一个可选的 Web 开关。</dd><dt>当前证据</dt><dd>严格的 Ask API 创建或恢复拥有的对话并原子性地存储用户回合、助手回合、run、引用和检索快照。8 月 1 日生产流程通过了普通和项目对话刷新恢复、文本层 PDF 上传和就绪状态、带精确 <code>RM-20260730</code> 事实和第一页引用的接地回答、引用的 Web 回答和清理。后端修正 <code>c5c89f5</code> 修复了在该流程中发现的活动项目锁辅助绑定回归。</dd><dt>检索</dt><dd>小型就绪语料库进入完整上下文并跳过不必要的外部 rerank 往返。较大的语料库将混合语言 BM25 与密集 Qdrant 检索结合，按 chunk 去重，用 RRF 融合，rerank 并打包有界证据。</dd><dt>度量实验</dt><dd>当前单用户 Chrome 观测为热普通回合约 6.7 秒、对话刷新恢复 4.3 秒、接地 PDF 回答 16.3 秒、引用 Web 回答 14.6 秒。它们是有界观测而非负载测试百分位。</dd><dt>已知边界</dt><dd>NVIDIA Ranking 仍返回不可用，因此 Web 结果显示确定性排序回退。已认证的 Qdrant/NVIDIA 热切换、大语料库质量和延迟分布仍待验证。</dd><dt>依赖 / 门</dt><dd>性能实验必须在提升任何算法变更之前比较首次反馈时间、端到端延迟、回答质量、引用覆盖率、提供商调用和内存。</dd><dt>证据</dt><dd><span class="source">production Chrome acceptance on c5c89f5/ce54452 · apps/web/app/components/use-chat-workspace.ts · routers/ask.py · routers/conversations.py · grounded_query.py · retrieval.py · rerank.py · migration 009</span></dd></dl></details>
+          <details id="cap-quiz" data-capability="partial"><summary>证据支撑的 Quiz <span class="status partial">生成和刷新恢复通过</span></summary><dl class="kv"><dt>结果</dt><dd>从所有就绪项目资源和可选用户指令创建带引用的混合复习集，而不添加独立的 Quiz 工作区。</dd><dt>当前证据</dt><dd>8 月 1 日生产夹具在约 53.3 秒内生成了三个选择题、两个填空题和两个主观题。API 持久化了该集合；前端修正 <code>ce54452</code> 现在在抽屉打开时调用项目 Quiz 历史端点，相同的七个问题在完整浏览器刷新后重新出现。</dd><dt>剩余工作</dt><dd>降低生成延迟，添加难度控制，并在更大的多文档语料库上评估质量；学习者分析仍在范围之外。</dd><dt>依赖 / 门</dt><dd>提供商输出必须在更大语料库下继续满足 schema、引用和可回答性检查。</dd><dt>证据</dt><dd><span class="source">production Chrome acceptance on ce54452 · use-chat-workspace.ts · schemas/quiz.py · services/quiz_generation.py · routers/quiz.py · migration 009</span></dd></dl></details>
+          <details id="cap-research-workspace" open data-capability="partial"><summary>证据审查工作区 <span class="status partial">UI + 合约已实现 · 运行时未验证</span></summary><dl class="kv"><dt>结果</dt><dd>将子问题、声明、证据链接、冲突、缺口、决策和引用报告章节作为一个审查工作区操作。</dd><dt>当前证据</dt><dd>项目工作区创建并轮询研究 run，重连到 SSE 进度，渲染声明/关系/报告修订，提交批准/编辑/拒绝决策，请求增量刷新，并暴露明确的加载、空、提供商、权限和恢复状态。匹配的合约和 schema 验证的领域服务具有确定性测试和生产构建。</dd><dt>剩余工作</dt><dd>使用运行中的 LangGraph worker 和托管持久化验证完整的浏览器流程；仅在观察到的审查工作流需要时添加更丰富的声明图/引用导航。</dd><dt>依赖 / 门</dt><dd>运行时验证的工作流和托管持久化；带可见故障恢复的完整键盘驱动端到端审查。</dd></dl></details>
+          <details id="cap-evaluation-lab" open data-capability="partial"><summary>工程评估 <span class="status partial">开发者/管理员次要界面</span></summary><dl class="kv"><dt>结果</dt><dd>在可重复数据集上比较检索、prompt、模型和流水线版本，而不将工程控制呈现为正常项目功能。</dd><dt>当前证据</dt><dd>前 Labs 页面仍是角色受限的工程路由。它启动预算评估，重新加载持久化的 run 标识符，并渲染状态、分数、回归和故障。普通项目栏从不将其暴露给用户角色。</dd><dt>已知边界</dt><dd>没有忠实度分数调用过托管模型，也没有评估 worker 使用过已填充的生产数据集。</dd><dt>剩余工作</dt><dd>验证成本/重试边界，填充版本化数据集，运行提供商比较，接受基线，并强制执行 CI 提升阈值。</dd><dt>依赖 / 门</dt><dd>版本化流水线和托管服务；需要可复现的基线和基于阈值的提升决策。</dd></dl></details>
+          <details id="cap-reliability-lab" open data-capability="partial"><summary>工程可靠性 <span class="status partial">开发者/管理员次要界面</span></summary><dl class="kv"><dt>结果</dt><dd>检查节点延迟、token/成本使用、错误、重试、上下文健康、恢复和估计的工作流成功率，而不在正常项目导航中暴露故障控制。</dd><dt>当前证据</dt><dd>角色受限的工程页面渲染可靠性聚合，并可创建和轮询有界的故障演练。持久化的 <code>fault_exercises</code> 台账、受租约保护的非破坏性模拟 worker、OTLP FastAPI 检测、结构化安全事件和 Langfuse 提供商观测存在于代码中。</dd><dt>已知边界</dt><dd>没有在 Langfuse 中观察到导出的 trace 或故障演练，且未声称跨服务关联。</dd><dt>剩余工作</dt><dd>云遥测 smoke、关联的故障恢复证据、成本对账和基于观测分布的 SLA 模拟。</dd><dt>依赖 / 门</dt><dd>关联的检测；一个 trace 必须连接浏览器、API、队列、worker、提供商和终端结果，而不记录 prompt、源文本、token 或密钥。</dd></dl></details>
+
+          <h3 id="layer-application">第 2 层 · 应用与工作流</h3>
+          <p class="sub">该层拥有有权限的使用场景、长时间运行的协调和每个客户端使用的接口。</p>
+          <details open data-capability="partial"><summary>当前 REST 应用服务 <span class="status partial">45 个操作 · 本地合约通过</span></summary><dl class="kv"><dt>结果</dt><dd>通过类型化 API 暴露个人和项目对话、范围化文档、liveness/readiness、研究 run、报告、评估、可靠性和有界故障工作流。</dd><dt>当前证据</dt><dd>四十五个 OpenAPI 操作连接到 FastAPI 路由，具有 bearer 声明、所有权/角色检查、显式领域错误和合约测试。新操作初始化个人聊天容器，创建空对话，聚合侧边栏历史，并列出对话附件。</dd><dt>剩余工作</dt><dd>验证迁移 009、已认证的生产管理流程、提供商切换、直接 RLS、SSE 重连、checkpoint 恢复、评估/故障执行、配额和审计。</dd><dt>依赖 / 门</dt><dd>仓库、身份和 worker 集成；所有合约测试和生成的 OpenAPI 漂移检查必须保持通过。</dd><dt>合约</dt><dd><a href="../contracts/api/index.zh.html#operations">当前 API 操作和精确载荷</a></dd></dl></details>
+          <details id="cap-evidence-agent" open data-capability="partial"><summary>可恢复的证据审查工作流 <span class="status partial">托管 checkpoint schema 就绪 · 持久化运行时未验证</span></summary><dl class="kv"><dt>结果</dt><dd>执行规划、检索、提取、对账、审查、综合和验证阶段，具有有界并行性和人工控制。</dd><dt>当前证据</dt><dd>有界图、Send 扇出、中断/恢复路径、SQL 领域服务、研究 run/SSE/决策 API、checkpoint 配置、worker 任务和事务性输出持久化存在于代码中。已安装的 LangGraph 运行时在本地执行有界的 fake-domain 扇出路径，四个 SDK 拥有的 checkpoint 表存在于托管开发 Postgres 的 schema 版本 9 中。</dd><dt>已知边界</dt><dd>没有持久化中断/恢复、worker 重启、托管提供商或应用驱动的托管 Postgres 执行运行过。</dd><dt>剩余工作</dt><dd>连接 API 和 worker，然后验证幂等扇出/扇入、恢复、取消、拒绝排除、故障恢复和增量刷新。</dd><dt>为何必需</dt><dd>场景分支、暂停、重试、持久化决策，且必须在进程故障后恢复；同步请求不能安全地拥有它。</dd><dt>依赖 / 门</dt><dd>持久化数据、异步执行和检索；重启、重复投递、拒绝排除和部分刷新测试必须通过。</dd></dl></details>
+          <details id="cap-mcp" data-capability="partial"><summary>对已接受域服务的 MCP 访问 <span class="status partial">本地 bearer 初始化通过</span></summary><dl class="kv"><dt>结果</dt><dd>让 IDE 或外部 agent 列出项目、搜索证据、运行接地 Ask、检查 trace 和启动评估。</dd><dt>当前证据</dt><dd>无状态 Streamable HTTP FastMCP 服务器复用共享的身份、仓库、搜索、Ask、trace 和评估服务。使用已安装的 SDK，实际的 Streamable HTTP 端点完成已认证的本地 <code>initialize</code> 交换，并保留与 REST 相同的 bearer 边界。</dd><dt>已知边界</dt><dd>MCP Inspector 行为、工具/资源权限对等性、配额、审计、租户隔离和真实外部客户端尚未运行。</dd><dt>剩余工作</dt><dd>验证 Streamable HTTP 生命周期、协议错误映射、Inspector 流程、配额、审计和租户隔离。</dd><dt>依赖 / 门</dt><dd>已接受的域服务；MCP Inspector 和权限对等性测试必须通过。</dd></dl></details>
+
+          <h3 id="layer-evidence">第 3 层 · AI 与证据</h3>
+          <p class="sub">该层将不可信的来源材料转化为可检索、可归因和可审查的结论。</p>
+          <details id="cap-unified-evidence" open data-capability="partial"><summary>一个 Web 选项和统一证据排序 <span class="status partial">已实现 · 适配器已部署</span></summary><dl class="kv"><dt>结果</dt><dd>组合器仅暴露一个 Web 开关。文档使用自动跟随就绪状态，从不作为路由选择呈现。</dd><dt>当前证据</dt><dd>Web 在单一排序和上下文打包阶段之前向本地候选添加最多五个有界的 Tavily 结果。文档和网页文本是不可信数据；只有服务器签发的证据 ID 可被引用。</dd><dt>故障行为</dt><dd>解析返回显式处理状态。缺失或失败的 Web 配置是显式的。rerank 提供商故障穿过配置的链并记录降级，而非假装确定性排序是模型排序。</dd><dt>依赖 / 门</dt><dd>已认证的提供商 smoke、注入审查、出处、提供商超时、成本和 golden-set 门仍需完成。</dd><dt>证据</dt><dd><span class="source">services/web_search.py · services/grounded_query.py · services/rerank.py · schemas/ask.py</span></dd></dl></details>
+          <details data-capability="partial"><summary>检索、引用和接地生成 <span class="status partial">部分完成 · 本地和混合适配器</span></summary><dl class="kv"><dt>结果</dt><dd>返回可归因的回答和问题，在所选证据不足时拒绝。</dd><dt>当前证据</dt><dd>Owner 过滤的正向 token 重叠回退、NVIDIA chat/embedding 适配器和 Qdrant Dense + Sparse RRF 适配器可执行。每个 Qdrant 预取和最终查询重复 user/project/source 过滤器。接地 Ask 仅接受服务器签发的证据 ID，验证结构化输出，并拒绝无关证据。没有实时提供商或集群请求被验证过。</dd><dt>剩余工作</dt><dd>托管提供商 smoke、reranking、删除/过期点对账、声明级蕴含和基准调优。</dd><dt>依赖 / 门</dt><dd>版本化评估；租户泄漏必须为零且接受的 Recall@K/MRR/引用/忠实度阈值必须通过。</dd></dl></details>
+          <details data-capability="partial"><summary>双 rerank 和运行时切换 <span class="status partial">已部署 · 已填充语料库评估待定</span></summary><dl class="kv"><dt>结果</dt><dd>选择 Qdrant 原生后期交互、NVIDIA Ranking API 或确定性回退，而无需重启应用实例。</dd><dt>当前证据</dt><dd>Qdrant 使用单独的多向量投影和 MaxSim；NVIDIA 使用 <code>/v1/ranking</code>。Postgres 存储活跃提供商和乐观配置版本，而环境变量提供启动默认值。Expand 和 Contract 迁移已上线，启动时针对当前零 chunk 语料库验证了单独的投影。</dd><dt>免费模型检查</dt><dd>2026 年 7 月 28 日，所选的免费层集群列出了一个免费多向量模型：<code>answerdotai/answerai-colbert-small-v1</code>，维度 96，上下文窗口 300。已验证的免费投影已启用；未自动选择付费模型。</dd><dt>依赖 / 门</dt><dd>使用 MRR、Recall@5、引用覆盖率、P95 延迟和集合内存为可用 Qdrant 模型和 NVIDIA 运行 golden set；在已填充语料库上验证已认证的热切换、故障转移、并发和隔离。</dd></dl></details>
+          <details data-capability="partial"><summary>声明、关系、缺口和报告综合 <span class="status partial">领域/增量代码 · 运行时未验证</span></summary><dl class="kv"><dt>结果</dt><dd>提取结构化声明，绑定证据，分类支持/冲突/重复关系，显示缺口，综合引用章节，并仅刷新受影响的报告内容。</dd><dt>当前证据</dt><dd>严格 schema、服务器拥有的证据允许列表、关系对账、报告综合和 SQL 持久化与确定性测试一起存在。变更文档刷新验证拥有的就绪文档，从引用边发现直接受影响的章节，将 Qdrant 检索过滤为变更文档 ID，重新生成精确的受影响章节键，原样复制未受影响的章节，并仅在新修订提交时使先前报告修订失效。</dd><dt>剩余工作</dt><dd>针对托管 Postgres/Qdrant/model 服务运行刷新图，校准置信度/注入审查，并验证重启、失败刷新保留和影响准确性。</dd><dt>依赖 / 门</dt><dd>LangGraph 现在有有界的本地 smoke 证据，但每个已接受的声明仍需要已批准的证据，且来源变更可能仅更新受影响的输出。托管执行必须验证持久化图边界。</dd></dl></details>
+
+          <h3 id="layer-data">第 4 层 · 数据与异步执行</h3>
+          <p class="sub">该层在单个 HTTP 进程的生命周期之外保留工作和跨系统一致性。</p>
+          <details id="cap-durable-foundation" open data-capability="partial"><summary>业务状态和身份 <span class="status partial">两个 JWT 主体通过 API 隔离</span></summary><dl class="kv"><dt>结果</dt><dd>在重启后存活并隔离公开 demo 用户，同时保留一个事务性真相源。</dd><dt>当前证据</dt><dd>SQLAlchemy/psycopg 仓库以 owner 断言、事务、RLS 主体上下文、持久化事件、决策、声明、报告、成本、评估预算和故障覆盖 REST 合约。密码和 GitHub JWT 主体完成了独立的 PostgreSQL 项目写入/读取；第二个主体无法列出或加载第一个主体的 Library。</dd><dt>已知边界</dt><dd>已部署的 API 隐藏边界通过，但直接数据库 RLS 查询、会话过期/撤销、并发写入和重启行为尚未验证。</dd><dt>剩余工作</dt><dd>在不改变 JWT <code>sub</code> 所有权模型的前提下验证直接 RLS、刷新过期/撤销、并发、重启和删除收敛。</dd><dt>边界</dt><dd>PostgreSQL 拥有业务真相；S3 兼容对象存储和 Qdrant 是可重建的投影；Redis 不得持有不可恢复的状态。</dd><dt>合约</dt><dd><a href="../contracts/data/index.zh.html#tables">初始 15 表数据库合约</a> 加 <a href="../contracts/data/index.zh.html#planned-schema">16 个附加领域表和一个运维就绪表</a></dd></dl></details>
+          <details data-capability="partial"><summary>对象存储和文档解析 <span class="status partial">托管 S3 对象 CRUD 已验证 · application/PDF 解析待定</span></summary><dl class="kv"><dt>结果</dt><dd>接受真实 PDF、DOCX、PPTX 和支持的 Web 材料，同时保留原始字节和版本化解析制品。</dd><dt>当前证据</dt><dd>S3 兼容的 presign/HEAD/download/delete 边界支持通用端点，同时防止混合凭据集。Docling 2.111.0/core 2.86.0 保留出处锚点、表格、结构、解析器版本和确定性哈希；DOCX 和 PPTX 本地 smoke 通过。私有 Supabase <code>researchmate-dev</code> 存储桶强制 25 MB PDF/DOCX/PPTX 允许列表。一个仅存储在 Windows Credential Manager 中的运行时密钥通过 S3 端点完成了真实的 14 字节 <code>application/pdf</code> PUT、HEAD 和 DELETE。</dd><dt>已知故障</dt><dd>FastAPI reserve/commit 路径和 Docling PDF OCR/layout 模型尚未针对托管存储完成。</dd><dt>剩余工作</dt><dd>将存储的凭据连接到已部署运行时，提供离线 PDF 制品，运行真实 PDF 夹具，并证明恶意软件/类型、保留和补偿性删除控制。</dd><dt>依赖 / 门</dt><dd>托管 Supabase Storage 加本地解析器制品；多格式夹具必须保留位置元数据且删除必须收敛。</dd></dl></details>
+          <details data-capability="partial"><summary>后台 worker 和队列执行 <span class="status partial">托管心跳就绪 · 投递未验证</span></summary><dl class="kv"><dt>结果</dt><dd>在请求延迟之外运行摄取、删除、证据扇出、刷新和评估，具有可见的进度、重试和恢复。</dd><dt>当前证据</dt><dd>Celery 路由和任务代码覆盖摄取、删除、工作流启动/恢复和评估。Live 合并服务连接到 Upstash，就绪观察到新鲜的 Worker 心跳和成功的 Redis PING。JSON 路由、延迟确认、worker 丢失拒绝、prefetch 1、可见性超时、限制、租约、有界重试和显式失败状态保持已实现。</dd><dt>剩余工作</dt><dd>发送真实任务并验证终态、取消、中毒工作、队列指标、重复处理和崩溃/重启行为。</dd><dt>依赖 / 门</dt><dd>持久化托管数据库和 Upstash 凭据；重复、崩溃和中毒项测试必须达到显式终态。</dd></dl></details>
+          <details data-capability="partial"><summary>事务性 outbox 和投影对账 <span class="status partial">托管 schema 已部署 · 服务未验证</span></summary><dl class="kv"><dt>结果</dt><dd>协调 Postgres 变更与队列、对象存储和 Qdrant，不假装分布式写入是原子性的。</dd><dt>当前证据</dt><dd>文档摄取/删除、工作流启动/恢复和评估 intent 与业务状态一起写入。合并的 Render 命令在一个服务中监管显式的 API、worker 和 dispatcher 角色。SQL dispatcher 使用 SKIP LOCKED、尝试/退避、过期声明恢复、确定性 Celery 任务 ID 和就绪心跳。Worker 任务使用过期租约和确定性外部标识符；工作流重投递恢复现有 checkpoint 而非重放初始输入。所需的 outbox、租约、就绪、工作流和 checkpoint 表存在于托管开发 Postgres 中。</dd><dt>剩余工作</dt><dd>将服务连接到受保护资源并运行提交/发布之间崩溃、重复/乱序投递、过期向量、部分删除、中毒消息和重放集成测试。</dd><dt>依赖 / 门</dt><dd>托管 Postgres/Redis/S3 兼容存储/Qdrant；当 dispatcher/worker 过期或 outbox 工作超过可接受的时限/尝试边界时，就绪失败。</dd><dt>合约</dt><dd><a href="../contracts/data/index.zh.html#planned-schema">Schema 扩展</a></dd></dl></details>
+
+          <h3 id="layer-quality">第 5 层 · 质量、可靠性和交付</h3>
+          <p class="sub">该层记录实现、验证、可靠性和发布证据。</p>
+          <details open data-capability="partial"><summary>仓库质量门 <span class="status partial">当前生产验收通过</span></summary><dl class="kv"><dt>结果</dt><dd>在发布候选被提升之前检测合约漂移和回归。</dd><dt>当前证据</dt><dd>后端修正 <code>c5c89f5</code> 通过 GitHub Actions 运行 <code>30694324845</code> 并在 Render 上 Live。前端修正 <code>ce54452</code> 通过运行 <code>30694892524</code> 并部署到 Vercel。已认证的 Chrome 流程随后重新验证了普通聊天、文档聊天、Web、Quiz 生成和刷新恢复、对话删除和项目删除；修复后 Render 日志中未包含新的 HTTP 500 或应用 ERROR。同步的本地门通过了 206 个 Python 测试覆盖率 67%、38 个 Vitest 测试、TypeScript、Ruff、OpenAPI、迁移、Next.js 生产构建和零漏洞审计。</dd><dt>当前限制</dt><dd>单用户生产流程不能证明直接 RLS、已认证的 rerank 热切换、大语料库质量、扫描 PDF OCR、遥测导出或负载行为。延迟数据是单次有界观测，不是 P50/P95 负载结果。</dd><dt>剩余工作</dt><dd>运行提供商切换/故障转移、直接 RLS、可访问性、遥测、恢复和大语料库 smoke；累积延迟分布而不使默认单元测试消耗云配额。</dd><dt>依赖 / 门</dt><dd>每个必需的 CI 作业、所选 Render 云构建、公共健康探测和托管集成检查必须在同一发布提交上通过。</dd></dl></details>
+          <details data-capability="partial"><summary>版本化评估和提升门 <span class="status partial">预算 runner · 外部执行待定</span></summary><dl class="kv"><dt>结果</dt><dd>跨流水线版本度量检索、引用有效性、忠实度、schema 质量、延迟和成本。</dd><dt>当前证据</dt><dd>版本化的 dataset/case/run/score 合约、owner 范围目录 API、受保护的目录引导、评估租约、确定性指标、有界并行执行和 RAGAS 适配器已存在。runner 现在加载并验证所选的已接受流水线配置，并应用其检索限制/模型/prompt 兼容性门，而非将版本视为标签。</dd><dt>预算含义</dt><dd>评估 <code>budget_reserved_usd</code> 是一个故障关闭的调度额度，不是提供商发票。研究工作流单独预留保守的每次调用上限，拒绝过大的 prompt，并将提供商报告的 token 加配置价格成本估算持久化到 run 事件中；与提供商发票的比较仍待验证。</dd><dt>已知故障</dt><dd>没有 golden 基线、真实提供商实验或 CI 提升阈值运行过。</dd><dt>剩余工作</dt><dd>用托管提供商运行 RAGAS，将估算与提供商账单对账，添加 Recall@K/MRR 和对比 UI，创建已接受制品，并强制执行提升阈值。</dd><dt>依赖 / 门</dt><dd>版本化检索和生成；每个提升的流水线必须链接到可复现的评估证据。</dd></dl></details>
+          <details id="cap-sources" data-capability="partial"><summary>Sources、Trace、遥测和恢复证据 <span class="status partial">云凭据已加载 · trace 未验证</span></summary><dl class="kv"><dt>结果</dt><dd>解释为何产生输出，并诊断全路径上的延迟、故障、重试和恢复。</dd><dt>当前证据</dt><dd>Sources 和角色受限的开发者 Trace 暴露检索到的证据和安全执行字段。OTLP HTTP 检测、Langfuse SDK 凭据、端点和已认证的 v4 摄取 header 已加载到 Render 中；有界 JSON 事件禁止 prompt/文档文本/token。</dd><dt>已知边界</dt><dd>没有在 Langfuse 中观察到跨服务 trace，因此导出、传播和脱敏尚未在外部验证。</dd><dt>剩余工作</dt><dd>导出一个脱敏的 trace，添加 worker 传播、保留、成本对账、关联的故障/恢复报告和浏览器 trace 可视化。</dd><dt>依赖 / 门</dt><dd>一个 correlation ID 必须连接每个边界而不导出私有来源或密钥内容。</dd><dt>证据</dt><dd><span class="source">observability.py · routers/runs.py · dev_traces.py · services/providers.py · Render/Langfuse configuration · tests</span></dd></dl></details>
+          <details id="committed-capabilities" data-capability="partial"><summary>公开 demo 交付 <span class="status partial">当前核心流程已上线</span></summary><dl class="kv"><dt>结果</dt><dd>将已测试的提交提升为有界的、可公开访问的工程 demo，具有可见的免费层边界和 smoke 证据。</dd><dt>当前证据</dt><dd><a href="https://research-mate-web.vercel.app/app">Vercel Production</a> 提供前端修正 <code>ce54452</code>；Render 在 8 月 1 日验收期间提供后端修正 <code>c5c89f5</code>。完整的已认证浏览器流程通过了普通聊天、刷新恢复、项目创建、文档上传/索引、接地回答带页面引用、Web、Quiz 生成和刷新恢复、对话删除和项目删除。公共 liveness/readiness 返回 HTTP 200。</dd><dt>发布组件</dt><dd>GitHub 存储源码和质量工作流；Vercel Hobby 仍是唯一的 Web 主机。免费 Python 后端恰好是一个休眠的 Render Web Service，监管 API、Worker 和 Dispatcher，在受限 CPU 上以 API 优先启动。</dd><dt>已知问题</dt><dd>Render 冷启动和一个共享的 512 MB 进程边界仍然限制并发。Quiz 生成是最慢的热操作，耗时 53.3 秒；NVIDIA rerank 回退，扫描 PDF 显式失败而非调用内存密集的解析器，当前测量不能确立生产百分位。</dd><dt>剩余工作</dt><dd>验证两个 rerank 提供商、热切换、会话过期/撤销、直接 RLS、遥测、恢复和测量的延迟分布。</dd><dt>架构</dt><dd><a href="../architecture/index.zh.html#deployment">发布路径、组件角色、进度和重新开启条件</a></dd></dl></details>
+        </section>
+
+        <section id="roadmap">
+          <p class="eyebrow">依赖排序的路线图</p><h2>实现顺序和验收证据</h2>
+          <div class="dependency-road">
+            <div class="road-stop"><b>1 · 合约</b><small>批准工作流、事件、声明、报告、评估、权限和故障语义。</small></div>
+            <div class="road-stop"><b>2 · 持久化 + auth</b><small>Supabase JWT、SQLAlchemy 仓库、Alembic、已应用的 RLS 和隔离测试。</small></div>
+            <div class="road-stop"><b>3 · 异步摄取</b><small>S3 兼容存储、Docling、Celery/Redis、outbox、幂等性、进度、重试和对账。</small></div>
+            <div class="road-stop"><b>4 · 混合检索</b><small>Dense+sparse Qdrant 检索、必需过滤器、reranking、引用和基线评估。</small></div>
+            <div class="road-stop"><b>5 · Agent 工作流</b><small>LangGraph 规划、声明提取、矛盾分析、checkpoint、HITL 和增量报告。</small></div>
+            <div class="road-stop"><b>6 · 评估</b><small>Golden 数据集、确定性检查、RAGAS 实验、对比 UI 和回归门。</small></div>
+           <div class="road-stop"><b>7 · 可观测性</b><small>OpenTelemetry、Langfuse、trace 图、成本、上下文健康、故障、恢复和 SLA 模拟。</small></div>
+            <div class="road-stop"><b>8 · MCP</b><small>在已接受的域服务上的权限等价工具和资源。</small></div>
+            <div class="road-stop"><b>9 · CI/CD 发布</b><small>预览、受保护的生产部署、smoke、预算限制、回滚和当前发布证据。</small></div>
+          </div>
+          <div class="notice"><strong>调度策略：</strong>每个阶段仅在其验收证据存在时提前。顺序是权威的；未指定实现日期。</div>
+        </section>
+
+        <section id="scope">
+          <p class="eyebrow">范围控制</p><h2>延迟和拒绝的工作</h2>
+          <div class="grid two">
+            <article class="fact"><b>延迟的商业系统</b><p>计费、订阅、CRM、营销自动化、增长实验和商业分析不服务于作品集目标。</p></article>
+            <article class="fact"><b>拒绝的技术重复</b><p>无测量需求时不引入 Kafka、Neo4j、第二个向量数据库、并行 agent 框架或 Kubernetes 层。</p></article>
+            <article class="fact"><b>拒绝无限自主</b><p>Agent 仍受工具、checkpoint、质量门、预算、权限和人工决策约束。</p></article>
+            <article class="fact"><b>未声称生产 SLA</b><p>计划的公开 demo 使用免费和学生层，可能冷启动、暂停或执行配额。</p></article>
+          </div>
+        </section>
+
+        <section id="validation">
+          <p class="eyebrow">验证边界</p><h2>当前验证证据</h2>
+          <div class="notice warning"><strong>绑定环境规则：</strong>本地验证限于最小的封闭单元、领域、合约、schema、导入、静态和构建检查，且不得启动任何应用或基础设施服务。模块化和跨服务集成——包括浏览器到 API、API 到数据服务、队列/worker、向量、提供商、遥测和恢复行为——仅在授权的已部署/服务器环境中使用合成数据和受保护配置运行。以下的历史本地浏览器和导入 smoke 仍是证据快照，不是未来工作的集成路径。</div>
+          <div class="access-rails">
+            <article class="access-rail"><h3>仓库和合约</h3><p>同步的 OpenAPI 合约暴露 45 个 REST 操作，包括个人聊天引导、对话范围附件、跨工作区历史和对话 CRUD。封闭仓库测试覆盖必需的面、文档链接、迁移安全令牌、共享词汇表和已启用的 AI 运行时 smoke 路径；精确的 current-ref 计数和完整模块结果由 CI 报告。</p></article>
+            <article class="access-rail"><h3>确定性 API/领域路径</h3><p>原始本地工作流加上证据路由身份/幂等性、声明 schema、关系/报告生成和确定性评估指标具有测试证据。</p></article>
+            <article class="access-rail"><h3>前端合约和构建</h3><p>TypeScript 和 Next.js 16.2.11 生产构建在 ResearchMate 工作区界面上通过。历史本地 Chrome 证据覆盖正式路由和响应式宽度，但当前的侧边栏、个人附件、项目记忆和内联 Quiz 重新设计仍需要已部署的交互证据；本地视觉检查不能替代托管会话证据。</p></article>
+            <article class="access-rail unknown"><h3>本地失败或不可用</h3><p>PDF OCR/layout 模型下载失败。生产依赖审计随后到达咨询 service 并发现零漏洞。已安装的 AI 运行时尚未验证托管 checkpoint、队列、提供商评估或遥测导出。</p></article>
+            <article class="access-rail unknown"><h3>仍待验证</h3><p>托管提供商、真实 Supabase 会话流程、完整的键盘和辅助技术覆盖、混合质量、并发、checkpoint 恢复、生产安全、成本、部署和正常运行时间。</p></article>
+          </div>
+          <p class="source">当前来源：后端修正 <code>c5c89f5</code> 和成功的 Actions 运行 <code>30694324845</code> · 前端修正 <code>ce54452</code>、成功运行 <code>30694892524</code> 和 Vercel Production 部署 · Render Live 部署和公共健康/就绪 HTTP 200 · 2026 年 8 月 1 日已认证 Chrome 生产验收，涵盖普通聊天、文本层 PDF 上传/索引、接地回答和页面引用、Web 搜索、项目 Quiz 生成和刷新恢复、对话删除和项目删除 · 度量的热观测：普通 6.7 秒、接地 16.3 秒、Web 14.6 秒、Quiz 53.3 秒 · Python 套件 206 通过覆盖率 67% · TypeScript、38 个 Vitest 测试、Next.js 生产构建、Ruff、OpenAPI 漂移、迁移验证和零漏洞依赖审计。已认证的 rerank 切换、直接 RLS、扫描 PDF OCR、性能分布和遥测导出仍明确未声称。</p>
+          <p class="source">历史托管详情保留在 <a href="../archive/cloudflare/index.zh.html">已归档部署计划</a> 中。仅当早期理由相关时查阅。</p>
+        </section>
+      </div>
+      <aside class="toc"><b>本页导航</b><a href="#product-boundary">作品集边界</a><a href="#scenario">主要场景</a><a href="#capabilities">能力</a><a href="#roadmap">路线图</a><a href="#scope">延迟工作</a><a href="#validation">验证</a></aside>
+    </div>
+  </main>
+  <footer class="shell footer">ResearchMate 产品范围、路线图和交付状态</footer>
+  <script src="../assets/site.js"></script>
+</body>
+</html>

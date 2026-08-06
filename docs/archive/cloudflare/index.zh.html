@@ -1,0 +1,68 @@
+<!-- 保留已废弃的 Cloudflare 部署替代方案，置于当前文档阅读路径之外。 -->
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width,initial-scale=1" name="viewport"/>
+  <meta content="已归档的 ResearchMate Cloudflare 部署替代方案、历史证据、遗留仓库机制及明确的重新开启条件。" name="description"/>
+  <title>ResearchMate · 已归档的 Cloudflare 部署方案</title>
+  <link href="../../assets/site.css" rel="stylesheet"/>
+</head>
+<body>
+  <header class="mast"><div class="shell mast-row"><a class="brand" href="../../index.zh.html">ResearchMate 文档</a><div class="mast-right"><span class="stamp">已归档方案 · 2026 年 7 月 25 日废弃</span><a class="lang-toggle" href="index.html" hreflang="en" lang="en">English</a></div></div></header>
+  <nav aria-label="文档" class="global"><div class="shell"><a href="../../index.zh.html">概览</a><a href="../../product/index.zh.html">产品与路线图</a><a href="../../architecture/index.zh.html">架构与技术栈</a><a href="../../contracts/data/index.zh.html">数据库</a><a href="../../contracts/api/index.zh.html">API</a></div></nav>
+  <main class="shell">
+    <div class="hero">
+      <p class="eyebrow">归档 / 历史替代方案 / 非当前指导</p>
+      <h1>已归档的 Cloudflare 部署替代方案</h1>
+      <p class="lede">本页面记录一个已废弃的托管方案，属于历史背景而非可执行建议。当前拓扑为 <a href="../../architecture/index.zh.html#target-architecture">Vercel Hobby 加一个合并的 Render Free 服务</a>。</p>
+      <div class="meta"><span class="status unknown">已归档 · 非当前拓扑</span><span class="status unknown">无公开部署证据</span><span class="status local">可执行路径已移除 · 源码保留</span></div>
+    </div>
+
+    <section id="boundary">
+      <p class="eyebrow">历史边界</p><h2>历史范围</h2>
+      <div class="grid two">
+        <article class="fact"><b>拟议职责</b><p>曾考虑将 Cloudflare Workers 上的 OpenNext bundle 作为确定性浏览器端 Next.js demo 的第二主机。</p></article>
+        <article class="fact"><b>不作为后端主机</b><p>该方案从未运行 Python FastAPI、Celery、dispatcher、Docling 或持久化工作流进程。这些职责需要后来选定的合并容器运行时。</p></article>
+      </div>
+      <div class="notice warning"><strong>历史证据：</strong>Worker bundle 通过了仓库端构建检查，但发布运行 #4 停止在提供商授权阶段。未验证任何 <code>workers.dev</code> 端点或公开 Cloudflare 部署。</div>
+    </section>
+
+    <section id="components">
+      <p class="eyebrow">归档组件台账</p><h2>已废弃组件</h2>
+      <div class="scroll"><table><thead><tr><th>组件</th><th>历史角色</th><th>证据</th><th>当前处置</th></tr></thead><tbody>
+        <tr><td>Cloudflare Workers + OpenNext</td><td>浏览器端 Next.js demo 的重复主机。</td><td>发布 #4 在提供商部署前失败。已废弃的 <a href="release-workflow.yml">发布工作流</a>、<a href="open-next.config.ts">OpenNext 配置</a>、<a href="wrangler.jsonc">Wrangler 配置</a>和 <a href="web-package-fragment.json">npm 片段</a>作为惰性源码记录保留在此。</td><td>已被已上线的 Vercel 部署取代。无活跃的 Cloudflare 工作流、应用配置、npm 命令或部署依赖项。</td></tr>
+        <tr><td>Cloudflare R2</td><td>早期的 S3 兼容对象存储候选方案。</td><td>提供商兼容的配置名称和迁移期字面量因向后兼容性保留；未验证已激活的 R2 运行时。</td><td>已选择 Supabase Storage 并有直接 PUT/HEAD/DELETE 证据。提供商中立的 S3 代码保留。</td></tr>
+        <tr><td>GHCR</td><td>曾考虑用于 Python worker 镜像的中间注册表。</td><td>冻结方案不需要已发布的镜像。</td><td>Render 直接从仓库构建 Dockerfile。</td></tr>
+      </tbody></table></div>
+    </section>
+
+    <section id="retirement">
+      <p class="eyebrow">决策依据</p><h2>废弃决策</h2>
+      <div class="proof-chain">
+        <div class="proof-step"><b>重复面</b><small>Vercel 已在提供有界的公开 Web demo，因此第二前端主机增加部署数量而无后端证据。</small></div>
+        <div class="proof-step"><b>运行时不匹配</b><small>Python API、worker、dispatcher 和解析器工作负载需要容器主机。</small></div>
+        <div class="proof-step"><b>额外授权和成本边界</b><small>尝试的发布引入了另一个提供商权限路径，而对象存储已通过 Supabase 可用。</small></div>
+        <div class="proof-step"><b>更小的冻结拓扑</b><small>Render 直接仓库构建消除了对重复前端部署和中间镜像注册表的需求。</small></div>
+      </div>
+    </section>
+
+    <section id="residual-code">
+      <p class="eyebrow">仓库状态</p><h2>归档源码和遗留兼容性</h2>
+      <div class="notice"><strong>2026 年 7 月 26 日废弃：</strong>可执行的 GitHub 工作流、应用级 OpenNext/Wrangler 配置、Cloudflare npm 命令和部署依赖项已从其活跃位置移除。精确的源码快照仅保留在此归档中，不能被 GitHub Actions 或 npm workspace 命令触发。</div>
+      <p>遗留环境变量别名和合约字面量（如 <code>r2_object_key</code> 或 <code>r2_failure</code>）因迁移和 API/数据兼容性保留。它们在当前拓扑中不选择 Cloudflare。任何后续清理必须审慎更新对应的迁移、schema、客户端和测试。</p>
+    </section>
+
+    <section id="reopen">
+      <p class="eyebrow">受控的重新考虑</p><h2>重新开启条件</h2>
+      <div class="grid two">
+        <article class="fact"><b>允许的触发条件</b><p>Vercel 的可用免费计划消失，或项目明确要求第二个独立托管的前端。</p></article>
+        <article class="fact"><b>必需的审查</b><p>在更改冻结架构之前，重新验证当前提供商计划、授权范围、计费暴露、支持的框架版本、构建输出和公开冒烟证据。</p></article>
+      </div>
+      <div class="actions"><a class="button primary" href="../../architecture/index.zh.html#deployment">打开当前部署计划</a><a class="button" href="../../index.zh.html#snapshot">返回当前状态</a></div>
+    </section>
+  </main>
+  <footer class="shell footer">ResearchMate 归档 · 已废弃的 Cloudflare 部署上下文</footer>
+  <script src="../../assets/site.js"></script>
+</body>
+</html>

@@ -166,6 +166,10 @@ def build_mcp_server() -> tuple[Any, Any]:
             if "coordinator" in locals():
                 coordinator.abandon()
             raise ValueError(getattr(exc, "code", "INVALID_REQUEST")) from exc
+        except Exception:
+            if "coordinator" in locals():
+                coordinator.abandon()
+            raise
         return response.model_dump(mode="json")
 
     @server.tool()

@@ -131,11 +131,16 @@ class ChunkPersistenceMixin:
             rows = connection.execute(
                 text(
                     """
-                    select id, user_id, project_id, document_id, source_type, source_title,
-                           text, page_no, slide_no, url, created_at
-                    from chunks
-                    where user_id = :user_id and project_id = :project_id
-                      and id = any(:chunk_ids) and source_type = 'local_doc'
+                   select id, user_id, project_id, document_id, source_type, source_title,
+                          text, page_no, slide_no, url, created_at
+                   from chunks
+                   where user_id = :user_id and project_id = :project_id
+                     and id = any(:chunk_ids) and source_type = 'local_doc'
+                      and exists (
+                        select 1 from documents d
+                        where d.id = chunks.document_id and d.user_id = chunks.user_id
+                          and d.status = 'ready' and d.deleted_at is null
+                      )
                     """
                 ),
                 {"user_id": user.id, "project_id": project_id, "chunk_ids": chunk_ids},

@@ -189,7 +189,7 @@ class WorkflowExecutionMixin:
             ).one_or_none()
             if existing is None:
                 connection.execute(
-                    text("update workflow_runs set status='waiting_human' where id=:id"),
+                text("update workflow_runs set status='waiting_human' where id=:id and status='running'"),
                     {"id": run_id},
                 )
                 self._event(

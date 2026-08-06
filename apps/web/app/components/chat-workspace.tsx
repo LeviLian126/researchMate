@@ -5,6 +5,8 @@ import { ChatComposer } from "./chat-composer";
 import { ConversationThread } from "./conversation-thread";
 import { ProjectQuizDrawer } from "./project-quiz-drawer";
 import { useChatWorkspace } from "./use-chat-workspace";
+import { Button } from "@/components/ui/button";
+import { Plus, ListChecks, Library } from "lucide-react";
 
 interface ChatWorkspaceProps {
   projectId?: string;
@@ -21,16 +23,31 @@ export function ChatWorkspace({
   const workspace = useChatWorkspace({ suppliedProjectId, projectMode });
 
   return (
-    <main className="conversation-shell">
+    <main className="flex h-full min-h-0 flex-col overflow-hidden">
       {projectMode && (
-        <header className="conversation-topbar">
-          <strong>{projectName ?? "Project"}</strong>
-          <nav aria-label="Project tools">
-            <button type="button" onClick={workspace.startNewProjectChat}>New chat</button>
-            <button type="button" onClick={() => workspace.setQuizOpen((current) => !current)}>
+        <header className="sticky top-0 z-12 flex items-center justify-between border-b border-white/30 bg-white/50 px-6 py-3 backdrop-blur-md">
+          <strong className="text-sm font-semibold text-foreground">
+            {projectName ?? "Project"}
+          </strong>
+          <nav className="flex items-center gap-1" aria-label="Project tools">
+            <Button variant="ghost" size="sm" onClick={workspace.startNewProjectChat}>
+              <Plus strokeWidth={1.5} />
+              New chat
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => workspace.setQuizOpen((current) => !current)}
+            >
+              <ListChecks strokeWidth={1.5} />
               Quiz
-            </button>
-            <a href={`/app/projects/${workspace.projectId}/library`}>Sources</a>
+            </Button>
+            <Button variant="ghost" size="sm" asChild>
+              <a href={`/app/projects/${workspace.projectId}/library`}>
+                <Library strokeWidth={1.5} />
+                Sources
+              </a>
+            </Button>
           </nav>
         </header>
       )}

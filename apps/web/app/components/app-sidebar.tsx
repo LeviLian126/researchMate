@@ -12,18 +12,66 @@ import {
 } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
+  ChevronLeft,
+  ChevronRight,
+  Folder,
+  FolderPlus,
+  GitBranch,
+  Menu,
+  MessageSquare,
+  MoreHorizontal,
+  Pencil,
+  Plus,
+  Trash2,
+} from "lucide-react";
+import {
   apiFetch,
   ConversationSummary,
   describeApiError,
   ProjectRecord,
 } from "../lib/api";
 import { BrandLogo } from "./brand-logo";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 
 const PROJECT_PATTERN = /\/app\/projects\/([^/]+)/;
 
 interface DeletionJob {
   status: "pending" | "running" | "succeeded" | "failed" | "cancelled";
   error_message?: string | null;
+}
+
+/** Renders a shared nav action row used by the primary navigation. */
+function navItemClass(active: boolean, compact: boolean) {
+  return cn(
+    "flex items-center gap-2.5 rounded-lg px-2 py-1.5 text-sm transition-all duration-300 ease-out",
+    compact && "justify-center px-0",
+    active
+      ? "bg-accent font-medium text-accent-foreground"
+      : "text-foreground hover:bg-accent/50 hover:text-foreground",
+  );
 }
 
 /** Owns project, conversation, and source navigation for the authenticated workspace. */
@@ -34,6 +82,7 @@ export function AppSidebar() {
   const activeProjectId = pathname.match(PROJECT_PATTERN)?.[1] ?? null;
   const activeConversationId = searchParams.get("conversation");
   const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const [projects, setProjects] = useState<ProjectRecord[]>([]);
   const [personalProjectId, setPersonalProjectId] = useState<string | null>(null);
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
@@ -107,6 +156,7 @@ export function AppSidebar() {
       });
       setProjectName("");
       setCreatingProject(false);
+      setMobileOpen(false);
       await loadNavigation();
       router.push(`/app/projects/${project.id}/chat?new=1`);
     } catch (requestError) {
@@ -186,175 +236,391 @@ export function AppSidebar() {
     setConfirmConversationDelete(false);
   }
 
-  return (
-    <aside
-      className={`app-sidebar ${collapsed ? "app-sidebar--collapsed" : ""}`}
-      aria-label="Workspace navigation"
-    >
-      <div className="app-sidebar__top">
-        <Link className="app-sidebar__brand" href="/app" aria-label="ResearchMate">
-          <BrandLogo withName={!collapsed} />
-        </Link>
-        <button
-          className="app-sidebar__collapse"
-          type="button"
-          onClick={toggleSidebar}
-          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+  /** Renders the shared sidebar body for both desktop and mobile surfaces. */
+  const renderSidebarBody = (compact: boolean, showToggle: boolean) => (
+    <>
+      <div
+        className={cn(
+          "flex items-center gap-2 px-3 py-4",
+          compact ? "flex-col gap-3" : "justify-between",
+        )}
+      >
+        <Link
+          href="/app"
+          aria-label="ResearchMate"
+          onClick={() => setMobileOpen(false)}
+          className="transition-opacity hover:opacity-80"
         >
-          {collapsed ? "›" : "‹"}
-        </button>
+          <BrandLogo withName={!compact} />
+        </Link>
+        {showToggle && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 shrink-0 text-muted-foreground hover:text-foreground"
+            onClick={toggleSidebar}
+            aria-label={compact ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            {compact ? (
+              <ChevronRight strokeWidth={1.5} />
+            ) : (
+              <ChevronLeft strokeWidth={1.5} />
+            )}
+          </Button>
+        )}
       </div>
 
-      <nav className="app-sidebar__primary">
-        <Link href="/app?new=1" aria-current={!activeProjectId && !activeConversationId ? "page" : undefined}>
-          <span aria-hidden="true">＋</span><b>New chat</b>
+      <nav className={cn("flex flex-col gap-1 px-3", compact && "items-center")}>
+        <Link
+          href="/app?new=1"
+          onClick={() => setMobileOpen(false)}
+          aria-current={!activeProjectId && !activeConversationId ? "page" : undefined}
+          className={navItemClass(!activeProjectId && !activeConversationId, compact)}
+        >
+          <Plus strokeWidth={1.5} className="size-4 shrink-0" />
+          {!compact && <span>New chat</span>}
         </Link>
         <button
           type="button"
           onClick={() => {
-            if (collapsed) toggleSidebar();
+            if (compact) toggleSidebar();
             setCreatingProject((current) => !current);
           }}
+          className={navItemClass(false, compact)}
         >
-          <span aria-hidden="true">□</span><b>New project</b>
+          <FolderPlus strokeWidth={1.5} className="size-4 shrink-0" />
+          {!compact && <span>New project</span>}
         </button>
       </nav>
 
-      {creatingProject && !collapsed && (
-        <form className="app-sidebar__create" onSubmit={createProject}>
-          <input
+      {creatingProject && !compact && (
+        <form
+          onSubmit={createProject}
+          className="mx-3 mb-1 flex flex-col gap-2 rounded-xl border border-white/30 bg-white/60 p-3 shadow-sm"
+        >
+          <Input
             aria-label="Project name"
             autoFocus
             maxLength={120}
             value={projectName}
             onChange={(event) => setProjectName(event.target.value)}
             placeholder="Project name"
+            className="rounded-lg"
           />
-          <div><button type="submit">Create</button><button type="button" onClick={() => setCreatingProject(false)}>Cancel</button></div>
+          <div className="flex gap-2">
+            <Button type="submit" size="sm" className="rounded-lg">
+              Create
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="rounded-lg"
+              onClick={() => setCreatingProject(false)}
+            >
+              Cancel
+            </Button>
+          </div>
         </form>
       )}
 
-      <div className="app-sidebar__scroll">
-        {!!projects.length && (
-          <section>
-            <div className="app-sidebar__section-title">Projects</div>
-            {projects.map((project) => (
-              <div className="app-sidebar__project-row" key={project.id}>
-                <Link
-                  className="app-sidebar__item"
-                  aria-current={project.id === activeProjectId ? "page" : undefined}
-                  href={`/app/projects/${project.id}/chat`}
-                >
-                  <span aria-hidden="true">□</span><b>{project.name}</b>
-                </Link>
-                {!collapsed && (
-                  <details className="sidebar-menu">
-                    <summary aria-label={`Manage ${project.name}`}>•••</summary>
-                    <Link href={`/app/projects/${project.id}/library`}>Sources</Link>
-                    <button type="button" onClick={() => setDeletingProject(project)}>Delete project</button>
-                  </details>
-                )}
-                {!collapsed && project.id === activeProjectId && activeProjectConversations.map((conversation) => (
-                  <ConversationLink
-                    key={conversation.id}
-                    conversation={conversation}
-                    href={`/app/projects/${project.id}/chat?conversation=${conversation.id}`}
-                    active={conversation.id === activeConversationId}
-                    onManage={startRename}
-                  />
-                ))}
+      <ScrollArea className="min-h-0 flex-1">
+        <div className="flex flex-col gap-3 px-3 pb-3">
+          {!!projects.length && (
+            <section className="flex flex-col gap-0.5">
+              {!compact && (
+                <div className="px-2 py-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Projects
+                </div>
+              )}
+              {projects.map((project) => (
+                <div key={project.id} className="flex flex-col">
+                  <div className="group/project flex items-center">
+                    <Link
+                      href={`/app/projects/${project.id}/chat`}
+                      onClick={() => setMobileOpen(false)}
+                      aria-current={project.id === activeProjectId ? "page" : undefined}
+                      className={navItemClass(project.id === activeProjectId, compact)}
+                    >
+                      <Folder strokeWidth={1.5} className="size-4 shrink-0" />
+                      {!compact && <span className="truncate">{project.name}</span>}
+                    </Link>
+                    {!compact && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 shrink-0 text-muted-foreground hover:text-foreground"
+                            aria-label={`Manage ${project.name}`}
+                          >
+                            <MoreHorizontal strokeWidth={1.5} />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent
+                          align="end"
+                          className="rounded-xl border-white/30 bg-white/80 backdrop-blur-xl"
+                        >
+                          <DropdownMenuItem asChild>
+                            <Link
+                              href={`/app/projects/${project.id}/library`}
+                              onClick={() => setMobileOpen(false)}
+                            >
+                              Sources
+                            </Link>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            className="text-destructive focus:text-destructive"
+                            onClick={() => setDeletingProject(project)}
+                          >
+                            <Trash2 strokeWidth={1.5} className="mr-2 size-4" />
+                            Delete project
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
+                  </div>
+                  {!compact &&
+                    project.id === activeProjectId &&
+                    activeProjectConversations.map((conversation) => (
+                      <ConversationLink
+                        key={conversation.id}
+                        conversation={conversation}
+                        href={`/app/projects/${project.id}/chat?conversation=${conversation.id}`}
+                        active={conversation.id === activeConversationId}
+                        onManage={startRename}
+                        onNavigate={() => setMobileOpen(false)}
+                      />
+                    ))}
+                </div>
+              ))}
+            </section>
+          )}
+
+          {!compact && !!personalConversations.length && (
+            <section className="flex flex-col gap-0.5">
+              <div className="px-2 py-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Recents
               </div>
-            ))}
-          </section>
-        )}
+              {personalConversations.map((conversation) => (
+                <ConversationLink
+                  key={conversation.id}
+                  conversation={conversation}
+                  href={`/app?conversation=${conversation.id}`}
+                  active={!activeProjectId && conversation.id === activeConversationId}
+                  onManage={startRename}
+                  onNavigate={() => setMobileOpen(false)}
+                />
+              ))}
+            </section>
+          )}
+        </div>
+      </ScrollArea>
 
-        {!!personalConversations.length && (
-          <section>
-            <div className="app-sidebar__section-title">Recents</div>
-            {personalConversations.map((conversation) => (
-              <ConversationLink
-                key={conversation.id}
-                conversation={conversation}
-                href={`/app?conversation=${conversation.id}`}
-                active={!activeProjectId && conversation.id === activeConversationId}
-                onManage={startRename}
-              />
-            ))}
-          </section>
-        )}
-      </div>
-
-      <div className="app-sidebar__footer">
-        <a href="https://github.com/LeviLian126/researchMate">
-          <span aria-hidden="true">↗</span><b>GitHub</b>
+      <div className="mt-auto border-t border-white/30 px-3 py-3">
+        <a
+          href="https://github.com/LeviLian126/researchMate"
+          className={cn(
+            "flex items-center gap-2.5 rounded-lg px-2 py-1.5 text-sm text-muted-foreground transition-all duration-300 ease-out hover:bg-accent/50 hover:text-foreground",
+            compact && "justify-center px-0",
+          )}
+        >
+          <GitBranch strokeWidth={1.5} className="size-4 shrink-0" />
+          {!compact && <span>GitHub</span>}
         </a>
-        {error && !collapsed && <small role="status">{error}</small>}
+        {error && !compact && (
+          <p role="status" className="mt-2 px-2 text-xs text-destructive">
+            {error}
+          </p>
+        )}
       </div>
+    </>
+  );
 
-      {editingConversation && (
-        <div className="sidebar-dialog" role="dialog" aria-modal="true" aria-label="Manage conversation">
-          <form onSubmit={renameConversation}>
-            <strong>Manage chat</strong>
-            <input
+  return (
+    <>
+      {/* Mobile navigation overlay */}
+      <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+        <SheetTrigger asChild>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            className="fixed left-4 top-4 z-40 rounded-lg border-white/40 bg-white/70 shadow-lg shadow-primary/5 backdrop-blur-xl md:hidden"
+            aria-label="Open workspace navigation"
+          >
+            <Menu strokeWidth={1.5} />
+          </Button>
+        </SheetTrigger>
+        <SheetContent
+          side="left"
+          className="flex w-[280px] flex-col gap-0 border-white/30 bg-white/80 p-0 backdrop-blur-xl"
+        >
+          <SheetHeader className="px-5 pt-5">
+            <SheetTitle className="sr-only">Workspace navigation</SheetTitle>
+          </SheetHeader>
+          {renderSidebarBody(false, false)}
+        </SheetContent>
+      </Sheet>
+
+      {/* Desktop sidebar */}
+      <aside
+        className={cn(
+          "app-sidebar hidden h-full shrink-0 flex-col overflow-hidden border-r border-white/30 bg-white/70 backdrop-blur-xl transition-[width] duration-300 ease-out md:flex",
+          collapsed ? "w-[72px]" : "w-[260px]",
+        )}
+        aria-label="Workspace navigation"
+      >
+        {renderSidebarBody(collapsed, true)}
+      </aside>
+
+      {/* Conversation management dialog */}
+      <Dialog
+        open={!!editingConversation}
+        onOpenChange={(open) => {
+          if (!open) {
+            setEditingConversation(null);
+            setConfirmConversationDelete(false);
+          }
+        }}
+      >
+        <DialogContent className="rounded-2xl border-white/30 bg-white/80 shadow-xl shadow-primary/5 backdrop-blur-xl">
+          <DialogHeader>
+            <DialogTitle>Manage chat</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={renameConversation} className="flex flex-col gap-4">
+            <Input
               aria-label="Conversation title"
               value={editingTitle}
               onChange={(event) => setEditingTitle(event.target.value)}
               maxLength={120}
+              className="rounded-lg"
             />
-            <div>
-              <button type="submit">Rename</button>
+            <div className="flex flex-row justify-end gap-2">
+              <Button type="submit" className="rounded-lg" disabled={!editingTitle.trim()}>
+                <Pencil strokeWidth={1.5} />
+                Rename
+              </Button>
               {!confirmConversationDelete ? (
-                <button type="button" onClick={() => setConfirmConversationDelete(true)}>Delete</button>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  className="rounded-lg"
+                  onClick={() => setConfirmConversationDelete(true)}
+                >
+                  <Trash2 strokeWidth={1.5} />
+                  Delete
+                </Button>
               ) : (
-                <button type="button" onClick={() => void deleteConversation(editingConversation)}>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  className="rounded-lg"
+                  onClick={() => {
+                    if (editingConversation) void deleteConversation(editingConversation);
+                  }}
+                >
+                  <Trash2 strokeWidth={1.5} />
                   Confirm delete
-                </button>
+                </Button>
               )}
-              <button type="button" onClick={() => setEditingConversation(null)}>Cancel</button>
+              <Button
+                type="button"
+                variant="ghost"
+                className="rounded-lg"
+                onClick={() => setEditingConversation(null)}
+              >
+                Cancel
+              </Button>
             </div>
           </form>
-        </div>
-      )}
-      {deletingProject && (
-        <div className="sidebar-dialog" role="dialog" aria-modal="true" aria-label="Delete project">
-          <form onSubmit={(event) => {
-            event.preventDefault();
-            void deleteProject(deletingProject.id);
-          }}>
-            <strong>Delete {deletingProject.name}?</strong>
-            <p>This schedules removal of its chats, sources, and indexed data.</p>
-            <div>
-              <button type="submit">Delete project</button>
-              <button type="button" onClick={() => setDeletingProject(null)}>Cancel</button>
+        </DialogContent>
+      </Dialog>
+
+      {/* Project deletion dialog */}
+      <Dialog
+        open={!!deletingProject}
+        onOpenChange={(open) => {
+          if (!open) setDeletingProject(null);
+        }}
+      >
+        <DialogContent className="rounded-2xl border-white/30 bg-white/80 shadow-xl shadow-primary/5 backdrop-blur-xl">
+          <DialogHeader>
+            <DialogTitle>Delete {deletingProject?.name}?</DialogTitle>
+            <DialogDescription>
+              This schedules removal of its chats, sources, and indexed data.
+            </DialogDescription>
+          </DialogHeader>
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (deletingProject) void deleteProject(deletingProject.id);
+            }}
+            className="flex flex-col gap-4"
+          >
+            <div className="flex flex-row justify-end gap-2">
+              <Button type="submit" variant="destructive" className="rounded-lg">
+                <Trash2 strokeWidth={1.5} />
+                Delete project
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                className="rounded-lg"
+                onClick={() => setDeletingProject(null)}
+              >
+                Cancel
+              </Button>
             </div>
           </form>
-        </div>
-      )}
-    </aside>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
+
 /** Renders a selectable conversation and its rename/delete actions. */
 function ConversationLink({
   conversation,
   href,
   active,
   onManage,
+  onNavigate,
 }: {
   conversation: ConversationSummary;
   href: string;
   active: boolean;
   onManage: (conversation: ConversationSummary) => void;
+  onNavigate?: () => void;
 }) {
   return (
-    <div className="app-sidebar__conversation-row">
-      <Link aria-current={active ? "page" : undefined} href={href}>{conversation.title}</Link>
-      <button
+    <div className="group/convo flex items-center gap-1 pl-7">
+      <Link
+        aria-current={active ? "page" : undefined}
+        href={href}
+        onClick={onNavigate}
+        className={cn(
+          "flex min-w-0 flex-1 items-center gap-2 rounded-lg px-2 py-1.5 text-sm transition-all duration-300 ease-out",
+          active
+            ? "bg-accent font-medium text-accent-foreground"
+            : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
+        )}
+      >
+        <MessageSquare strokeWidth={1.5} className="size-4 shrink-0" />
+        <span className="truncate">{conversation.title}</span>
+      </Link>
+      <Button
         type="button"
+        variant="ghost"
+        size="icon"
+        className="h-7 w-7 shrink-0 text-muted-foreground hover:text-foreground"
         aria-label={`Manage ${conversation.title}`}
         onClick={() => onManage(conversation)}
       >
-        •••
-      </button>
+        <MoreHorizontal strokeWidth={1.5} />
+      </Button>
     </div>
   );
 }

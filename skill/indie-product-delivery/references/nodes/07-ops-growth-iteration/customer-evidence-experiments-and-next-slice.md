@@ -1,180 +1,122 @@
-# Customer Evidence, Experiments, and Next Slice
+# 客户证据、实验与下一个切片
 
-Use this guide once health is stable to synthesize customer value evidence, choose a bounded experiment or next slice, and preserve the resulting operating decision without creating a history dump.
+当健康状况稳定后，使用本指南来综合客户价值证据、选择一个有界实验或下一个切片，并保留由此产生的运营决策，而不创建历史堆积。
 
-## Sections
+## 章节
 
-- [Customer Value, Funnel, and Evidence Synthesis](#customer-value-funnel-and-evidence-synthesis)
-- [Experiments, Next Slice, and Founder Decision](#experiments-next-slice-and-founder-decision)
-- [Ops Learning State and Review Handoff](#ops-learning-state-and-review-handoff)
+- [客户价值、漏斗与证据综合](#客户价值漏斗与证据综合)
+- [实验、下一个切片与创始人决策](#实验下一个切片与创始人决策)
+- [运营学习状态与评审交接](#运营学习状态与评审交接)
 
-## Customer Value, Funnel, and Evidence Synthesis
+## 客户价值、漏斗与证据综合
 
-#### 1. Define the question and cohort
+#### 1. 定义问题与队列
 
-1. Restate target segment, user job/pain, product promise, activation definition,
-   time-to-value, retention or conversion expectation, and relevant trust guardrail.
-2. Ask one decision question and select a cohort by launch, source, plan, segment,
-   onboarding path, feature exposure, account age, or a clearly stated manual sample.
-3. State the comparison and limitation: baseline, prior cohort, working path, or no
-   comparison available. Do not combine unlike cohorts to create a convenient narrative.
+1. 重述目标细分、用户任务/痛点、产品承诺、激活定义、价值实现时间、留存或转化预期，以及相关信任护栏。
+2. 提出一个决策问题，并按发布、来源、套餐、细分、入门路径、功能曝光、账户年龄或明确说明的手动样本来选择队列。
+3. 说明比较与局限：基线、先前队列、工作路径或无可用比较。不要合并不同队列来创造一个看似方便的叙事。
 
-#### 2. Follow the smallest useful value path
+#### 2. 沿最小有用价值路径前进
 
-1. Inspect only the path needed for the question: acquisition -> intent -> signup ->
-   activation/time-to-value -> repeat/retention -> conversion -> expansion/referral ->
-   churn/refund/support.
-2. Use trust, provider cost, support burden, or workflow replacement as value signals
-   when they matter to this product. Do not require a full funnel for every decision.
-3. Separate acquisition mismatch, comprehension/trust friction, UX friction, missing
-   value, pricing hesitation, reliability defect, and provider-cost problem before routing.
+1. 仅检查问题所需的路径：获客 -> 意向 -> 注册 -> 激活/价值实现时间 -> 重复使用/留存 -> 转化 -> 扩展/推荐 -> 流失/退款/支持。
+2. 当信任、提供商成本、支持负担或工作流替代对此产品有影响时，将它们用作价值信号。不要对每个决策都要求完整的漏斗。
+3. 在路由之前，区分获客错配、理解/信任摩擦、UX 摩擦、价值缺失、定价犹豫、可靠性缺陷和提供商成本问题。
 
-| Symptom | Likely first owner |
+| 症状 | 可能的首要负责人 |
 | --- | --- |
-| traffic but low trust action | Node01 or Node04 |
-| signup but no activation | Node04 or Node03 |
-| activation but no repeat use | Node01 or Node07 experiment |
-| retention but no purchase | Node01 pricing/promise review, then Node04 |
-| checkout/payment failure | Node03, Node05, and Node06 |
-| high use with provider cost spike | Node02, Node03, and Node07 watch |
-| users doubt safety or legitimacy | Node01, Node04, and Node05 |
+| 有流量但信任行动低 | Node01 或 Node04 |
+| 有注册但无激活 | Node04 或 Node03 |
+| 有激活但无重复使用 | Node01 或 Node07 实验 |
+| 有留存但无购买 | Node01 定价/承诺评审，然后 Node04 |
+| 结账/支付失败 | Node03、Node05 和 Node06 |
+| 使用量高但提供商成本激增 | Node02、Node03 和 Node07 观察 |
+| 用户怀疑安全性或合法性 | Node01、Node04 和 Node05 |
 
-#### 3. Pair numbers with concrete evidence
+#### 3. 将数字与具体证据配对
 
-1. Collect only safe, relevant sources: dated analytics, logs, support, opt-in interviews,
-   sales notes, reviews, community discussion, churn/refund reasons, usage records, and
-   carefully scoped public market evidence when current conditions matter.
-2. Pair rates/counts with concrete sessions, accounts, workarounds, or user language. A
-   number can identify where to look; it rarely explains why by itself.
-3. Record evidence source, date, segment, sample limitation, privacy handling, and whether
-   it is observed, estimated, or self-reported.
-4. Never store raw PII, private conversations, payment details, confidential prompts, or
-   customer content in durable project state.
+1. 仅收集安全、相关的来源：带日期的分析数据、日志、支持记录、可选式访谈、销售笔记、评论、社区讨论、流失/退款原因、使用记录，以及在当前条件重要时谨慎范围限定的公开市场证据。
+2. 将比率/计数与具体的会话、账户、变通方法或用户语言配对。一个数字可以指出在哪里看；但它本身很少解释为什么。
+3. 记录证据来源、日期、细分、样本局限、隐私处理方式，以及是观察到的、估计的还是自述的。
+4. 永远不要在持久项目状态中存储原始 PII、私人对话、支付详情、机密 prompt 或客户内容。
 
-#### 4. Synthesize by job and contradiction
+#### 4. 按任务和矛盾进行综合
 
-1. Group evidence by job/pain, failed outcome, workaround, trigger, willingness to pay,
-   and affected segment rather than by the requested feature label.
-2. Evaluate behavior, money, frequency, urgency, cost, segment fit, and contradiction.
-   Paid/renewed/migrated/invited behavior is stronger than a single request or praise.
-3. Name plausible alternatives: wrong traffic, seasonality, onboarding novelty, recent
-   release regression, support intervention, sample bias, or a different user job.
-4. Classify the result: bug, UX confusion, docs/onboarding, trust, missing value, pricing,
-   opportunity, research gap, park, or reject. A conclusion without discriminating evidence
-   becomes a hypothesis, not a roadmap item.
+1. 按任务/痛点、失败结果、变通方法、触发条件、付费意愿和受影响细分来分组证据，而不是按请求的功能标签。
+2. 评估行为、金钱、频率、紧迫性、成本、细分匹配和矛盾。已付费/已续订/已迁移/已邀请的行为比单一请求或赞扬更有说服力。
+3. 指出可能的替代解释：错误流量、季节性、入门新鲜感、近期发布回归、支持干预、样本偏差或不同的用户任务。
+4. 对结果进行分类：bug、UX 困惑、文档/入门、信任、价值缺失、定价、机会、研究空白、搁置或拒绝。没有区分性证据的结论只是一个假设，而不是路线图项。
 
-## Experiments, Next Slice, and Founder Decision
+## 实验、下一个切片与创始人决策
 
-#### 1. Choose the right decision path
+#### 1. 选择正确的决策路径
 
-1. Confirm health is stable, the segment and question are defined, and available evidence
-   can distinguish an experiment from a known defect or missing product decision.
-2. Use an experiment for uncertainty about message, channel, onboarding comprehension,
-   manual delivery, support/docs, willingness to engage, or a bounded behavior change.
-3. Route directly instead when the work is a confirmed bug, security concern, payment/data
-   risk, architecture issue, release concern, or product-scope decision.
-4. A pricing, positioning, target user, product promise, or material business-model change
-   always re-enters Node01 before an experiment proceeds.
+1. 确认健康状况稳定、细分和问题已定义，且可用证据能区分实验与已知缺陷或缺失的产品决策。
+2. 当存在关于信息、渠道、入门理解、手动交付、支持/文档、参与意愿或有界行为改变的不确定性时，使用实验。
+3. 当工作是确认的 bug、安全问题、支付/数据风险、架构问题、发布关注或产品范围决策时，直接路由。
+4. 定价、定位、目标用户、产品承诺或重大商业模式变更始终在实验进行之前重新进入 Node01。
 
-#### 2. Design one experiment
+#### 2. 设计一个实验
 
-1. Write: `If we change X for segment Y, signal Z should move because R.`
-2. Define the current baseline or absence of baseline, allowed change, success metric,
-   guardrail, cohort, duration or sample caveat, stop/kill condition, readout time, and owner.
-3. Select only one primary change: onboarding wording, documentation, opt-in research,
-   manual concierge, support macro, a limited channel message, or a pre-approved product
-   surface routed to its implementation owner.
-4. Guardrails may include error/support burden, refund/churn, cost, latency, trust,
-   accessibility, consent, and target-user harm. An experiment must have a stop path.
-5. Do not bundle variables. If a multi-step change is unavoidable, label it exploratory and
-   do not infer a single causal conclusion.
+1. 写下：`如果我们为细分 Y 改变 X，信号 Z 应该因为 R 而移动。`
+2. 定义当前基线或无基线、允许的变更、成功 metric、护栏、队列、持续时间或样本说明、停止/终止条件、读数时间和负责人。
+3. 仅选择一个主要变更：入门措辞、文档、可选式研究、手动引导、支持宏、有限的渠道消息，或路由到其实现负责人的预批准产品界面。
+4. 护栏可能包括错误/支持负担、退款/流失、成本、延迟、信任、可访问性、同意和目标用户伤害。实验必须有停止路径。
+5. 不要捆绑变量。如果多步骤变更不可避免，将其标记为探索性的，并且不要推断单一因果结论。
 
-#### 3. Execute a safe direct action only when authorized
+#### 3. 执行最小实验行动
 
-Node07 may execute only an explicitly authorized action that is all of the following:
+Node07 可以在以下条件满足时执行测试当前假设所需的最小行动：
 
-- reversible, low-volume, non-code, and non-destructive;
-- free of PII, payment, pricing, contract, production configuration, and provider side effects;
-- truthful, opt-in where user contact is involved, and consistent with the existing promise;
-- bounded by named audience, channel, duration, owner, stop condition, and readout.
+- 可逆、低量、非代码且非破坏性的；
+- 不涉及 PII、支付、定价、合同、生产配置和提供商副作用；
+- 真实、在涉及用户联系时为可选式，且与现有承诺一致；
+- 由命名的受众、渠道、持续时间、负责人、停止条件和读数界定。
 
-Examples: a support macro trial, a documentation experiment, a manual concierge offer,
-an opt-in interview invitation, or a limited channel message. Route website/page changes
-to Node04, product behavior to Node03/04, instrumentation to Node02/03/04, and release
-or provider actions to Node06.
+示例：支持宏试用、文档实验、手动引导提议、可选式访谈邀请或有限的渠道消息。将网站/页面变更路由到 Node04，产品行为路由到 Node03/04，埋点路由到 Node02/03/04，发布或提供商操作路由到 Node06。
 
-Never send spam, scrape private data, impersonate people, make unapproved claims, use
-dark patterns, charge users, alter price/entitlement, or convert a manual trial into an
-unreviewed automation.
+永远不要发送垃圾邮件、抓取私人数据、冒充他人、做出无依据的声明、使用暗黑模式、向用户收费、更改价格/权益，或将手动试用转化为自动化。
 
-#### 4. Read the result honestly
+#### 4. 诚实地读取结果
 
-1. Compare observed result and guardrails with the original hypothesis, cohort, baseline,
-   and known confounds. Collect a short qualitative sample when it explains the behavior.
-2. Choose one result: continue, expand, revise, narrow, pause, kill, revert, or route.
-3. Do not call an inconclusive sample a win or loss. State whether the experiment reduced
-   uncertainty, what remains unknown, and the smallest next evidence needed.
+1. 将观察到的结果和护栏与原始假设、队列、基线和已知混淆因素进行比较。当定性样本能解释行为时，收集一个简短的定性样本。
+2. 选择一个结果：继续、扩展、修订、缩小、暂停、终止、回滚或路由。
+3. 不要将不确定的样本称为成功或失败。说明实验是否减少了不确定性、还有什么未知，以及下一步需要的最小证据。
 
-#### 5. Turn evidence into one next slice
+#### 5. 将证据转化为一个下一个切片
 
-1. Rank active harm, security/privacy, activation/payment integrity, support/retention,
-   willingness to pay, provider cost/reliability, strategic wedge, then polish.
-2. Create a single handoff with source/evidence, desired outcome, owning node, size/risk,
-   non-goals, acceptance or success signal, and revisit trigger.
-3. Park only with a concrete trigger such as repeated demand, paid pilot, metric threshold,
-   interview proof, risk reduction, or time. Reject misaligned, competitor-only, or
-   disproportionate work openly.
+1. 按以下优先级排序：主动伤害、安全/隐私、激活/支付完整性、支持/留存、付费意愿、提供商成本/可靠性、战略楔子，然后是打磨。
+2. 创建一个单一交接，包含来源/证据、期望结果、负责节点、规模/风险、非目标、验收或成功信号和重新审视触发条件。
+3. 仅在有具体触发条件时搁置，例如重复需求、付费试点、metric 阈值、访谈证明、风险降低或时间。公开拒绝不匹配的、仅竞争对手驱动的或不成比例的工作。
 
-## Ops Learning State and Review Handoff
+## 运营学习状态与评审交接
 
-#### 1. Update durable state only when facts changed
+#### 1. 仅在事实发生变化时更新持久状态
 
-1. Use the existing HTML project command board and output ownership: keep operations, growth, and release
-   facts in their owning board regions; use a concise traceability note only when it is necessary.
-2. Update durable pages when health, incident posture, customer evidence, experiment result,
-   next decision, active concern, or owner materially changed. Do not rewrite stable product
-   or architecture pages merely because an operating review occurred.
-3. Preserve stable board facts and avoid a parallel roadmap page, gstack JSONL
-   memory, personal builder profile, or another parallel project notebook.
+1. 使用现有的 HTML 项目看板和输出所有权：将运营、增长和发布事实保留在其负责的看板区域中；仅在必要时使用简洁的可追溯性注释。
+2. 当健康状况、事件态势、客户证据、实验结果、下一个决策、活跃关注或负责人发生实质性变化时，更新持久页面。不要仅因为进行了运营评审就重写稳定的产品或架构页面。
+3. 保留稳定的看板事实，避免创建平行的路线图页面、gstack JSONL 记忆、个人构建者档案或另一个平行项目笔记本。
 
-#### 2. Write a current operating checkpoint
+#### 2. 编写当前运营检查点
 
-1. Record release/context, health status, affected users or segment, decision question,
-   evidence sources and quality, confidence, experiment state, decision, owner/route,
-   active concern, revisit trigger, and next review timing.
-2. Use the status vocabulary that fits the current fact: `HEALTHY`, `WATCH`, `INCIDENT`,
-   `MITIGATED`, `NEEDS_INSTRUMENTATION`, `NEEDS_USER_RESEARCH`, `LEARNING_FOUND`,
-   `EXPERIMENT_ACTIVE`, `NEXT_SLICE`, `PARKED`, `REJECTED`, or `BLOCKED`.
-3. Say `owner missing` or `signal unavailable` when true. Never imply automated monitoring
-   or a resolved decision without an actual owner and fresh evidence.
-4. Redact customer names, emails, IDs, payment information, private content, provider
-   payloads, prompts, and confidential support context.
+1. 记录发布/上下文、健康状态、受影响用户或细分、决策问题、证据来源和质量、置信度、实验状态、决策、负责人/路由、活跃关注、重新审视触发条件和下次评审时间。
+2. 使用适合当前事实的状态词汇：`HEALTHY`、`WATCH`、`INCIDENT`、`MITIGATED`、`NEEDS_INSTRUMENTATION`、`NEEDS_USER_RESEARCH`、`LEARNING_FOUND`、`EXPERIMENT_ACTIVE`、`NEXT_SLICE`、`PARKED`、`REJECTED` 或 `BLOCKED`。
+3. 当属实时说 `owner missing` 或 `signal unavailable`。永远不要在没有实际负责人和新鲜证据的情况下暗示自动化监控或已解决的决策。
+4. 隐去客户姓名、邮箱、ID、支付信息、私人内容、提供商载荷、prompt 和机密支持上下文。
 
-#### 3. Run a focused founder review
+#### 3. 进行聚焦的创始人评审
 
-1. Use a periodic review only when it produces a decision. Recover the previous checkpoint,
-   release context, health/incident changes, customer evidence, experiment readout, support
-   themes, cost/reliability concerns, and accepted/parked/rejected work.
-2. Identify meaningful trend or regression using comparable windows and source quality;
-   do not create a fixed health score or code-quality retrospective by default.
-3. End with one of: keep watching, instrument/research, run one experiment, route one next
-   slice, revise product premise, contain an incident, or explicitly defer with a trigger.
+1. 仅在评审能产生决策时使用定期评审。恢复上一个检查点、发布上下文、健康/事件变化、客户证据、实验读数、支持主题、成本/可靠性关注，以及已接受/已搁置/已拒绝的工作。
+2. 使用可比窗口和来源质量识别有意义的趋势或回归；不要默认创建固定的健康分数或代码质量回顾。
+3. 以以下之一结束：继续观察、埋点/研究、运行一个实验、路由一个下一个切片、修订产品前提、控制一个事件，或明确地以触发条件推迟。
 
-#### 4. Revalidate prior learning
+#### 4. 重新验证先前学习
 
-1. Before relying on an older insight, check whether its release, cohort, source, product
-   behavior, customer segment, or market condition is still applicable.
-2. Flag stale learning when its supporting source disappeared, the product changed, or a
-   newer result contradicts it. Retain the current confidence and reason rather than deleting
-   useful uncertainty.
-3. Resolve contradiction by collecting discriminating evidence, narrowing the claim to its
-   cohort/time window, or routing a research/instrumentation question. Do not average opposing claims.
+1. 在依赖较早的洞察之前，检查其发布、队列、来源、产品行为、客户细分或市场条件是否仍然适用。
+2. 当其支持来源消失、产品已变更或更新的结果与之矛盾时，标记过时的学习。保留当前置信度和原因，而不是删除有用的不确定性。
+3. 通过收集区分性证据、将声明缩小到其队列/时间窗口，或路由一个研究/埋点问题来解决矛盾。不要对对立的声明取平均值。
 
-#### 5. Handoff deliberately
+#### 5. 有意识地交接
 
-1. Pass the smallest sufficient context to the owning node: evidence, decision, outcome,
-   non-goals, risk, acceptance/success signal, constraints, and revisit trigger.
-2. Route continuous operational observation to a real owner or approved automation. Node07
-   does not promise background monitoring between sessions.
-3. Preserve Node06 authority for any new release action, Node05 authority for quality/ship
-   status, and Node01 authority for changed product truth.
+1. 向负责节点传递最小充分上下文：证据、决策、结果、非目标、风险、验收/成功信号、约束和重新审视触发条件。
+2. 将持续运营观察路由到实际负责人或批准的自动化。Node07 不承诺会话之间的后台监控。
+3. 将发布操作路由到 Node06，质量/发布状态路由到 Node05，已变更的产品事实路由到 Node01。

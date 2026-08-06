@@ -1,0 +1,1107 @@
+<!DOCTYPE html>
+<html lang="zh">
+ <head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width,initial-scale=1" name="viewport"/>
+  <title>
+   ResearchMate · 数据库合约
+  </title>
+  <link href="../../assets/site.css" rel="stylesheet"/>
+ </head>
+ <body>
+  <header class="mast">
+   <div class="shell mast-row">
+    <a class="brand" href="../../index.zh.html">
+    ResearchMate 文档
+    </a>
+    <div class="mast-right">
+     <span class="stamp">
+      数据库合约 · 运行时证据 2026 年 7 月 27 日
+     </span>
+     <a class="lang-toggle" href="index.html" hreflang="en" lang="en">English</a>
+    </div>
+   </div>
+  </header>
+  <nav aria-label="文档" class="global">
+   <div class="shell">
+    <a href="../../index.zh.html">
+     概览
+    </a>
+    <a href="../../product/index.zh.html">
+      产品与路线图
+    </a>
+    <a href="../../architecture/index.zh.html">
+      架构与技术栈
+    </a>
+    <a aria-current="page" href="index.zh.html">
+     数据库
+    </a>
+    <a href="../api/index.zh.html">
+     API
+    </a>
+   </div>
+  </nav>
+  <main class="shell">
+   <div class="hero">
+    <p class="eyebrow">
+     Postgres / Supabase 目标合约
+    </p>
+    <h1>
+     数据库实体、字段、完整性和访问
+    </h1>
+    <p class="lede">
+      本页记录了九个维护中的 SQL 迁移的字段级合约：15 个初始表、16 个增量领域表和一个仅后端的运维表。密封测试默认使用进程内内存；此回退不是本地集成环境。PostgreSQL 适配器和 worker 仓库已存在。Migration 009 添加了个人聊天拥有权、项目记忆元数据、对话附件和扩展的 quiz 枚举；云应用和认证 RLS 验证是发布门槛。
+    </p>
+    <div class="meta">
+     <span class="status partial">
+      15 个初始领域表
+     </span>
+     <span class="status partial">
+      16 个增量领域表
+     </span>
+     <span class="status partial">
+       31 个领域表 + 1 个运维表已声明
+     </span>
+     <span class="status unknown">
+       受管开发 schema · 已应用，集成未验证
+     </span>
+    </div>
+   </div>
+   <div class="layout">
+    <div class="content">
+     <section id="boundary">
+     <p class="eyebrow">
+       边界
+     </p>
+     <h2>
+       模式状态和约定
+     </h2>
+      <div class="grid">
+       <div class="fact">
+       <b>
+         主要租户键
+       </b>
+       <p>
+        <code>
+         user_id
+        </code>
+        和
+        <code>
+         project_id
+        </code>
+         划定项目、文档、分块、对话、运行、测验和作业的范围。
+       </p>
+       </div>
+       <div class="fact">
+        <b>
+         删除模型
+        </b>
+        <p>
+         依赖记录级联删除；部分运行引用使用
+         <code>
+          ON DELETE SET NULL
+         </code>
+         ；项目/文档/对话还支持软删除。
+        </p>
+       </div>
+       <div class="fact">
+        <b>
+         运行时差距
+        </b>
+        <p>
+         Schema 存在不证明已应用迁移、活跃 RLS、持久 API 写入或生产保留。
+        </p>
+       </div>
+      </div>
+      <h3>
+       枚举
+      </h3>
+      <div class="scroll">
+       <table class="dense">
+        <thead>
+         <tr>
+         <th>
+           类型
+         </th>
+         <th>
+           值
+         </th>
+         <th>
+           使用者
+         </th>
+         </tr>
+        </thead>
+        <tbody>
+         <tr>
+          <td>
+           <code>
+            project_status
+           </code>
+          </td>
+          <td>
+           active · deleting · deleted · expired
+          </td>
+          <td>
+           projects.status
+          </td>
+         </tr>
+         <tr>
+          <td>
+           <code>
+            document_status
+           </code>
+          </td>
+          <td>
+           uploaded · parsing · parsed · indexing · ready · failed · expired · deleted
+          </td>
+          <td>
+           documents.status
+          </td>
+         </tr>
+         <tr>
+          <td>
+           <code>
+            source_type
+           </code>
+          </td>
+          <td>
+           local_doc · web_page
+          </td>
+          <td>
+           chunks, citations
+          </td>
+         </tr>
+         <tr>
+          <td>
+           <code>
+            ask_status
+           </code>
+          </td>
+          <td>
+           pending · running · succeeded · failed
+          </td>
+          <td>
+           ask_runs.status
+          </td>
+         </tr>
+         <tr>
+          <td>
+           <code>
+            validation_status
+           </code>
+          </td>
+          <td>
+           pending · passed · failed · retrying
+          </td>
+          <td>
+           ask_runs.validation_status
+          </td>
+         </tr>
+         <tr>
+          <td>
+           <code>
+            job_status
+           </code>
+          </td>
+          <td>
+           pending · running · succeeded · failed · cancelled
+          </td>
+          <td>
+           jobs, deletion_jobs
+          </td>
+         </tr>
+         <tr>
+          <td>
+           <code>
+            quiz_question_type
+           </code>
+          </td>
+          <td>
+           single_choice · short_answer（历史）· fill_blank · subjective
+          </td>
+          <td>
+           quiz_questions.type
+          </td>
+         </tr>
+         <tr>
+          <td>
+           <code>
+            quiz_difficulty
+           </code>
+          </td>
+          <td>
+           easy · medium · hard
+          </td>
+          <td>
+           quiz_questions.difficulty
+          </td>
+         </tr>
+        </tbody>
+       </table>
+      </div>
+     </section>
+     <section id="relations">
+     <p class="eyebrow">
+       实体图
+     </p>
+     <h2>
+       拥有权和记录流
+     </h2>
+      <div class="visual-panel">
+       <div class="visual-head">
+        <div>
+        <h3>
+          按领域分组的 ER 图
+        </h3>
+         <p>
+          全部 15 个表链接到其字段台账。箭头描述主要的拥有权谱系；完整的外键行为详见下方详情。
+         </p>
+        </div>
+       </div>
+       <h3>所有外键边</h3>
+       <p class="sub">显示维护迁移中的每个内联外键。红色边级联；琥珀色边保留子记录并将引用置为 null。</p>
+       <div class="relation-ledger" aria-label="完整外键关系台账">
+        <div class="relation-edge cascade"><code>projects.user_id → profiles.id</code><small>many:1 · 必选 · CASCADE</small></div>
+        <div class="relation-edge cascade"><code>documents.user_id → profiles.id</code><small>many:1 · 必选 · CASCADE</small></div>
+        <div class="relation-edge cascade"><code>documents.project_id → projects.id</code><small>many:1 · 必选 · CASCADE</small></div>
+        <div class="relation-edge cascade"><code>documents.conversation_id → conversations.id</code><small>many:1 · 可选 · CASCADE</small></div>
+        <div class="relation-edge cascade"><code>document_pages.document_id → documents.id</code><small>many:1 · 必选 · CASCADE</small></div>
+        <div class="relation-edge cascade"><code>chunks.user_id → profiles.id</code><small>many:1 · 必选 · CASCADE</small></div>
+        <div class="relation-edge cascade"><code>chunks.project_id → projects.id</code><small>many:1 · 必选 · CASCADE</small></div>
+        <div class="relation-edge cascade"><code>chunks.document_id → documents.id</code><small>many:1 · 可选 · CASCADE</small></div>
+        <div class="relation-edge cascade"><code>conversations.user_id → profiles.id</code><small>many:1 · 必选 · CASCADE</small></div>
+        <div class="relation-edge cascade"><code>conversations.project_id → projects.id</code><small>many:1 · 必选 · CASCADE</small></div>
+        <div class="relation-edge cascade"><code>messages.user_id → profiles.id</code><small>many:1 · 必选 · CASCADE</small></div>
+        <div class="relation-edge cascade"><code>messages.project_id → projects.id</code><small>many:1 · 必选 · CASCADE</small></div>
+        <div class="relation-edge cascade"><code>messages.conversation_id → conversations.id</code><small>many:1 · 可选 · CASCADE</small></div>
+        <div class="relation-edge cascade"><code>ask_runs.user_id → profiles.id</code><small>many:1 · 必选 · CASCADE</small></div>
+        <div class="relation-edge cascade"><code>ask_runs.project_id → projects.id</code><small>many:1 · 必选 · CASCADE</small></div>
+        <div class="relation-edge set-null"><code>ask_runs.conversation_id → conversations.id</code><small>many:1 · 可选 · SET NULL</small></div>
+        <div class="relation-edge set-null"><code>ask_runs.message_id → messages.id</code><small>many:1 · 可选 · SET NULL</small></div>
+        <div class="relation-edge cascade"><code>tool_calls.ask_run_id → ask_runs.id</code><small>many:1 · 必选 · CASCADE</small></div>
+        <div class="relation-edge cascade"><code>citations.ask_run_id → ask_runs.id</code><small>many:1 · 必选 · CASCADE</small></div>
+        <div class="relation-edge set-null"><code>citations.chunk_id → chunks.id</code><small>many:1 · 可选 · SET NULL</small></div>
+        <div class="relation-edge set-null"><code>citations.document_id → documents.id</code><small>many:1 · 可选 · SET NULL</small></div>
+        <div class="relation-edge cascade"><code>quiz_sets.user_id → profiles.id</code><small>many:1 · 必选 · CASCADE</small></div>
+        <div class="relation-edge cascade"><code>quiz_sets.project_id → projects.id</code><small>many:1 · 必选 · CASCADE</small></div>
+        <div class="relation-edge set-null"><code>quiz_sets.ask_run_id → ask_runs.id</code><small>many:1 · 可选 · SET NULL</small></div>
+        <div class="relation-edge cascade"><code>quiz_questions.quiz_set_id → quiz_sets.id</code><small>many:1 · 必选 · CASCADE</small></div>
+        <div class="relation-edge cascade"><code>jobs.user_id → profiles.id</code><small>many:1 · 必选 · CASCADE</small></div>
+        <div class="relation-edge cascade"><code>jobs.project_id → projects.id</code><small>many:1 · 可选 · CASCADE</small></div>
+        <div class="relation-edge cascade"><code>jobs.document_id → documents.id</code><small>many:1 · 可选 · CASCADE</small></div>
+        <div class="relation-edge cascade"><code>deletion_jobs.user_id → profiles.id</code><small>many:1 · 必选 · CASCADE</small></div>
+        <div class="relation-edge cascade"><code>deletion_jobs.project_id → projects.id</code><small>many:1 · 可选 · CASCADE</small></div>
+        <div class="relation-edge cascade"><code>deletion_jobs.document_id → documents.id</code><small>many:1 · 可选 · CASCADE</small></div>
+        <div class="relation-edge cascade"><code>api_usage.user_id → profiles.id</code><small>many:1 · 必选 · CASCADE</small></div>
+       </div>
+       <h3>领域阅读视图</h3>
+       <div class="entity-map">
+       <div class="entity-group">
+        <h3>
+          身份 + 工作空间
+        </h3>
+         <a class="entity-card" href="#profiles">
+          <b>
+           profiles
+          </b>
+         <small>
+           租户身份 · 角色
+         </small>
+         </a>
+         <div class="relation-line">
+          1 → n
+         </div>
+         <a class="entity-card" href="#projects">
+          <b>
+           projects
+          </b>
+         <small>
+           工作空间根
+         </small>
+         </a>
+        </div>
+       <div class="entity-group">
+        <h3>
+          证据
+        </h3>
+         <a class="entity-card" href="#documents">
+          <b>
+           documents
+          </b>
+         <small>
+           对象 + 处理状态
+         </small>
+         </a>
+         <a class="entity-card" href="#document-pages">
+          <b>
+           document_pages
+          </b>
+         <small>
+           已解析的页面/幻灯片文本
+         </small>
+         </a>
+         <a class="entity-card" href="#chunks">
+          <b>
+           chunks
+          </b>
+         <small>
+           可检索证据
+         </small>
+         </a>
+        </div>
+       <div class="entity-group">
+        <h3>
+          对话 + 运行
+        </h3>
+         <a class="entity-card" href="#conversations">
+          <b>
+           conversations
+          </b>
+         <small>
+           运行时仅存在模式
+         </small>
+         </a>
+         <a class="entity-card" href="#messages">
+          <b>
+           messages
+          </b>
+         <small>
+           可选对话外键
+         </small>
+         </a>
+         <a class="entity-card" href="#ask-runs">
+          <b>
+           ask_runs
+          </b>
+         <small>
+           可选消息链接
+         </small>
+         </a>
+         <a class="entity-card" href="#tool-calls">
+          <b>
+           tool_calls
+          </b>
+         <small>
+           运行级联
+         </small>
+         </a>
+         <a class="entity-card" href="#citations">
+          <b>
+           citations
+          </b>
+         <small>
+           运行级联 · 来源 SET NULL
+         </small>
+         </a>
+        </div>
+       <div class="entity-group">
+        <h3>
+          学习产物
+        </h3>
+         <a class="entity-card" href="#quiz-sets">
+          <b>
+           quiz_sets
+          </b>
+         <small>
+           拥有者 + 项目
+         </small>
+         </a>
+         <a class="entity-card" href="#quiz-questions">
+          <b>
+           quiz_questions
+          </b>
+         <small>
+           集合级联
+         </small>
+         </a>
+        </div>
+       <div class="entity-group">
+        <h3>
+          作业 + 治理
+        </h3>
+         <a class="entity-card" href="#jobs">
+          <b>
+           jobs
+          </b>
+         <small>
+           异步进度
+         </small>
+         </a>
+         <a class="entity-card" href="#deletion-jobs">
+          <b>
+           deletion_jobs
+          </b>
+         <small>
+           跨存储目标
+         </small>
+         </a>
+         <a class="entity-card" href="#api-usage">
+          <b>
+           api_usage
+          </b>
+         <small>
+           每日配额台账
+         </small>
+         </a>
+        </div>
+       </div>
+      </div>
+      <div class="notice">
+       <strong>无虚假线性谱系。</strong>
+       文档和运行没有直接外键。它们通过项目范围和可选的引用链接交汇；测验集可引用运行，而对话和消息是可选的运行关联。
+      </div>
+      <div class="notice warning">
+       <strong>个人聊天边界。</strong>
+       Migration 009 为每个用户添加一个隐藏的个人项目和对话范围的文档。工作空间项目文档保持共享；个人聊天文件仅对其所属对话可见。
+      </div>
+     </section>
+     <section id="tables">
+      <p class="eyebrow">权威表合约</p>
+      <h2>初始表合约</h2>
+      <p class="sub">每条记录结合了用途、生命周期、完整性、访问、索引和每个迁移列。上方的跨表图解释关系，不重复定义字段。</p>
+      <details id="profiles"><summary><code>profiles</code> &middot; 6 个字段</summary>
+       <div class="grid">
+        <div class="fact"><b>用途</b><p>已认证的身份和授权根；一行映射到一个 auth UUID。</p></div>
+        <div class="fact"><b>完整性和索引</b><p>PK <code>id</code>；角色为 user、developer 或 admin。无二级索引。</p></div>
+        <div class="fact"><b>访问和生命周期</b><p>RLS：拥有者仅 SELECT；无写入策略。时间戳由应用管理。</p></div>
+       </div>
+       <div class="scroll"><table class="dense"><thead><tr><th>字段</th><th>精确声明</th><th>可空</th><th>键 / 约束</th><th>角色</th></tr></thead><tbody>
+<tr id="field-profiles-id"><td><code>id</code></td><td><code>uuid primary key</code></td><td>必选</td><td>PK</td><td>行标识。</td></tr>
+<tr id="field-profiles-email"><td><code>email</code></td><td><code>text</code></td><td>可空</td><td>未声明</td><td>可选的身份邮箱。</td></tr>
+<tr id="field-profiles-provider"><td><code>provider</code></td><td><code>text</code></td><td>可空</td><td>未声明</td><td>可选的身份提供商。</td></tr>
+<tr id="field-profiles-role"><td><code>role</code></td><td><code>text not null default &#x27;user&#x27; check (role in (&#x27;user&#x27;, &#x27;developer&#x27;, &#x27;admin&#x27;))</code></td><td>必选</td><td>CHECK &middot; default &#x27;user&#x27;</td><td>授权角色。</td></tr>
+<tr id="field-profiles-created_at"><td><code>created_at</code></td><td><code>timestamptz not null default now()</code></td><td>必选</td><td>default now()</td><td>创建时间戳。</td></tr>
+<tr id="field-profiles-updated_at"><td><code>updated_at</code></td><td><code>timestamptz not null default now()</code></td><td>必选</td><td>default now()</td><td>最后更新时间戳；应用管理。</td></tr>
+</tbody></table></div></details>
+      <details id="projects"><summary><code>projects</code> &middot; 12 个字段</summary>
+       <div class="grid">
+        <div class="fact"><b>用途</b><p>拥有者范围的研究工作空间和生命周期根。</p></div>
+        <div class="fact"><b>完整性和索引</b><p>拥有者外键级联；名称为 1–120 字符；kind 为 personal 或 workspace。索引包括 owner/status 和 owner/kind；部分唯一索引允许每用户一个活跃个人项目。</p></div>
+        <div class="fact"><b>访问和生命周期</b><p>RLS：拥有者 ALL。状态、过期、更新和软删除由应用/worker 管理。</p></div>
+       </div>
+       <div class="scroll"><table class="dense"><thead><tr><th>字段</th><th>精确声明</th><th>可空</th><th>键 / 约束</th><th>角色</th></tr></thead><tbody>
+<tr id="field-projects-id"><td><code>id</code></td><td><code>uuid primary key default gen_random_uuid()</code></td><td>必选</td><td>PK &middot; default gen_random_uuid()</td><td>行标识。</td></tr>
+<tr id="field-projects-user_id"><td><code>user_id</code></td><td><code>uuid not null references profiles(id) on delete cascade</code></td><td>必选</td><td>FK &middot; profiles.id &middot; CASCADE</td><td>租户拥有者引用。</td></tr>
+<tr id="field-projects-name"><td><code>name</code></td><td><code>text not null check (char_length(name) between 1 and 120)</code></td><td>必选</td><td>CHECK</td><td>显示名称。</td></tr>
+<tr id="field-projects-kind"><td><code>kind</code></td><td><code>text not null default 'workspace' check (kind in ('personal','workspace'))</code></td><td>必选</td><td>CHECK · personal 的部分唯一拥有者索引</td><td>区分隐藏的普通聊天容器和用户创建的专业项目。</td></tr>
+<tr id="field-projects-memory_summary_text"><td><code>memory_summary_text</code></td><td><code>text</code></td><td>可空</td><td>未声明</td><td>预留的持久项目记忆摘要；当前跨聊天记忆读取对话摘要和有界的最近消息。</td></tr>
+<tr id="field-projects-memory_summary_token_count"><td><code>memory_summary_token_count</code></td><td><code>integer not null default 0</code></td><td>必选</td><td>CHECK ≥ 0</td><td>估算的持久项目摘要 token。</td></tr>
+<tr id="field-projects-memory_updated_at"><td><code>memory_updated_at</code></td><td><code>timestamptz</code></td><td>可空</td><td>未声明</td><td>最后项目摘要刷新时间戳。</td></tr>
+<tr id="field-projects-status"><td><code>status</code></td><td><code>project_status not null default &#x27;active&#x27;</code></td><td>必选</td><td>default &#x27;active&#x27;</td><td>生命周期状态值。</td></tr>
+<tr id="field-projects-expires_at"><td><code>expires_at</code></td><td><code>timestamptz</code></td><td>可空</td><td>未声明</td><td>过期意图；清理由应用/worker 管理。</td></tr>
+<tr id="field-projects-created_at"><td><code>created_at</code></td><td><code>timestamptz not null default now()</code></td><td>必选</td><td>default now()</td><td>创建时间戳。</td></tr>
+<tr id="field-projects-updated_at"><td><code>updated_at</code></td><td><code>timestamptz not null default now()</code></td><td>必选</td><td>default now()</td><td>最后更新时间戳；应用管理。</td></tr>
+<tr id="field-projects-deleted_at"><td><code>deleted_at</code></td><td><code>timestamptz</code></td><td>可空</td><td>未声明</td><td>软删除时间戳。</td></tr>
+</tbody></table></div></details>
+      <details id="documents"><summary><code>documents</code> &middot; 16 个字段</summary>
+       <div class="grid">
+        <div class="fact"><b>用途</b><p>上传的对象元数据和解析/索引生命周期。</p></div>
+        <div class="fact"><b>完整性和索引</b><p>拥有者/项目外键级联；唯一对象存储键；PDF/DOCX/PPTX 和 25 MiB 检查。索引：<code>idx_documents_user_project_status</code>。</p></div>
+        <div class="fact"><b>访问和生命周期</b><p>RLS：拥有者 ALL。数据库、对象、页面和分块需要协调删除；无触发器执行此操作。</p></div>
+       </div>
+       <div class="scroll"><table class="dense"><thead><tr><th>字段</th><th>精确声明</th><th>可空</th><th>键 / 约束</th><th>角色</th></tr></thead><tbody>
+<tr id="field-documents-id"><td><code>id</code></td><td><code>uuid primary key default gen_random_uuid()</code></td><td>必选</td><td>PK &middot; default gen_random_uuid()</td><td>行标识。</td></tr>
+<tr id="field-documents-user_id"><td><code>user_id</code></td><td><code>uuid not null references profiles(id) on delete cascade</code></td><td>必选</td><td>FK &middot; profiles.id &middot; CASCADE</td><td>租户拥有者引用。</td></tr>
+<tr id="field-documents-project_id"><td><code>project_id</code></td><td><code>uuid not null references projects(id) on delete cascade</code></td><td>必选</td><td>FK &middot; projects.id &middot; CASCADE</td><td>项目/工作空间引用。</td></tr>
+<tr id="field-documents-conversation_id"><td><code>conversation_id</code></td><td><code>uuid references conversations(id) on delete cascade</code></td><td>可空</td><td>FK · conversations.id · CASCADE</td><td>个人聊天上传所需；工作空间项目共享来源为 null。</td></tr>
+<tr id="field-documents-filename"><td><code>filename</code></td><td><code>text not null</code></td><td>必选</td><td>未声明</td><td>原始文件名。</td></tr>
+<tr id="field-documents-file_type"><td><code>file_type</code></td><td><code>text not null check (file_type in (&#x27;pdf&#x27;, &#x27;docx&#x27;, &#x27;pptx&#x27;))</code></td><td>必选</td><td>CHECK</td><td>白名单文件类别。</td></tr>
+<tr id="field-documents-mime_type"><td><code>mime_type</code></td><td><code>text not null</code></td><td>必选</td><td>未声明</td><td>声明的媒体类型。</td></tr>
+<tr id="field-documents-size_bytes"><td><code>size_bytes</code></td><td><code>bigint not null check (size_bytes &gt; 0 and size_bytes &lt;= 26214400)</code></td><td>必选</td><td>CHECK</td><td>对象大小（字节）。</td></tr>
+<tr id="field-documents-r2_object_key"><td><code>r2_object_key</code></td><td><code>text not null unique</code></td><td>必选</td><td>UNIQUE</td><td>持久对象存储键。字面字段名因迁移兼容性保留；运行时为提供商中立。</td></tr>
+<tr id="field-documents-parser"><td><code>parser</code></td><td><code>text</code></td><td>可空</td><td>未声明</td><td>解析器标识符。</td></tr>
+<tr id="field-documents-status"><td><code>status</code></td><td><code>document_status not null default &#x27;uploaded&#x27;</code></td><td>必选</td><td>default &#x27;uploaded&#x27;</td><td>生命周期状态值。</td></tr>
+<tr id="field-documents-error_message"><td><code>error_message</code></td><td><code>text</code></td><td>可空</td><td>未声明</td><td>安全的失败摘要。</td></tr>
+<tr id="field-documents-expires_at"><td><code>expires_at</code></td><td><code>timestamptz</code></td><td>可空</td><td>未声明</td><td>过期意图；清理由应用/worker 管理。</td></tr>
+<tr id="field-documents-created_at"><td><code>created_at</code></td><td><code>timestamptz not null default now()</code></td><td>必选</td><td>default now()</td><td>创建时间戳。</td></tr>
+<tr id="field-documents-updated_at"><td><code>updated_at</code></td><td><code>timestamptz not null default now()</code></td><td>必选</td><td>default now()</td><td>最后更新时间戳；应用管理。</td></tr>
+<tr id="field-documents-deleted_at"><td><code>deleted_at</code></td><td><code>timestamptz</code></td><td>可空</td><td>未声明</td><td>软删除时间戳。</td></tr>
+</tbody></table></div></details>
+      <details id="document-pages"><summary><code>document_pages</code> &middot; 8 个字段</summary>
+       <div class="grid">
+
+
+
+        <div class="fact"><b>用途</b><p>一个文档的已解析页面、幻灯片或段落文本。</p></div>
+        <div class="fact"><b>完整性和索引</b><p>文档外键级联。索引：<code>idx_document_pages_document</code>。</p></div>
+        <div class="fact"><b>访问和生命周期</b><p>已启用 RLS 但无策略：普通角色被拒绝。父级派生的访问未实现。</p></div>
+       </div>
+       <div class="scroll"><table class="dense"><thead><tr><th>字段</th><th>精确声明</th><th>可空</th><th>键 / 约束</th><th>角色</th></tr></thead><tbody>
+<tr id="field-document_pages-id"><td><code>id</code></td><td><code>uuid primary key default gen_random_uuid()</code></td><td>必选</td><td>PK &middot; default gen_random_uuid()</td><td>行标识。</td></tr>
+<tr id="field-document_pages-document_id"><td><code>document_id</code></td><td><code>uuid not null references documents(id) on delete cascade</code></td><td>必选</td><td>FK &middot; documents.id &middot; CASCADE</td><td>文档引用。</td></tr>
+<tr id="field-document_pages-page_no"><td><code>page_no</code></td><td><code>integer</code></td><td>可空</td><td>未声明</td><td>来源页面位置。</td></tr>
+<tr id="field-document_pages-slide_no"><td><code>slide_no</code></td><td><code>integer</code></td><td>可空</td><td>未声明</td><td>来源幻灯片位置。</td></tr>
+<tr id="field-document_pages-section_title"><td><code>section_title</code></td><td><code>text</code></td><td>可空</td><td>未声明</td><td>已解析段落标签。</td></tr>
+<tr id="field-document_pages-text"><td><code>text</code></td><td><code>text not null</code></td><td>必选</td><td>未声明</td><td>存储的来源文本。</td></tr>
+<tr id="field-document_pages-metadata"><td><code>metadata</code></td><td><code>jsonb not null default &#x27;{}&#x27;::jsonb</code></td><td>必选</td><td>default &#x27;{}&#x27;::jsonb</td><td>可扩展 JSON 元数据。</td></tr>
+<tr id="field-document_pages-created_at"><td><code>created_at</code></td><td><code>timestamptz not null default now()</code></td><td>必选</td><td>default now()</td><td>创建时间戳。</td></tr>
+</tbody></table></div></details>
+      <details id="chunks"><summary><code>chunks</code> &middot; 15 个字段</summary>
+       <div class="grid">
+        <div class="fact"><b>用途</b><p>带向量存储关联的可检索本地或网页证据。</p></div>
+        <div class="fact"><b>完整性和索引</b><p>拥有者/项目/文档外键级联；Qdrant 点唯一。索引：租户/来源和文档。</p></div>
+        <div class="fact"><b>访问和生命周期</b><p>RLS：拥有者 ALL。过期和 Qdrant 对账由应用/worker 管理。</p></div>
+       </div>
+       <div class="scroll"><table class="dense"><thead><tr><th>字段</th><th>精确声明</th><th>可空</th><th>键 / 约束</th><th>角色</th></tr></thead><tbody>
+<tr id="field-chunks-id"><td><code>id</code></td><td><code>uuid primary key default gen_random_uuid()</code></td><td>必选</td><td>PK &middot; default gen_random_uuid()</td><td>行标识。</td></tr>
+<tr id="field-chunks-user_id"><td><code>user_id</code></td><td><code>uuid not null references profiles(id) on delete cascade</code></td><td>必选</td><td>FK &middot; profiles.id &middot; CASCADE</td><td>租户拥有者引用。</td></tr>
+<tr id="field-chunks-project_id"><td><code>project_id</code></td><td><code>uuid not null references projects(id) on delete cascade</code></td><td>必选</td><td>FK &middot; projects.id &middot; CASCADE</td><td>项目/工作空间引用。</td></tr>
+<tr id="field-chunks-document_id"><td><code>document_id</code></td><td><code>uuid references documents(id) on delete cascade</code></td><td>可空</td><td>FK &middot; documents.id &middot; CASCADE</td><td>文档引用。</td></tr>
+<tr id="field-chunks-source_type"><td><code>source_type</code></td><td><code>source_type not null</code></td><td>必选</td><td>未声明</td><td>本地文档或网页判别器。</td></tr>
+<tr id="field-chunks-source_title"><td><code>source_title</code></td><td><code>text not null</code></td><td>必选</td><td>未声明</td><td>可读来源标签。</td></tr>
+<tr id="field-chunks-page_no"><td><code>page_no</code></td><td><code>integer</code></td><td>可空</td><td>未声明</td><td>来源页面位置。</td></tr>
+<tr id="field-chunks-slide_no"><td><code>slide_no</code></td><td><code>integer</code></td><td>可空</td><td>未声明</td><td>来源幻灯片位置。</td></tr>
+<tr id="field-chunks-url"><td><code>url</code></td><td><code>text</code></td><td>可空</td><td>未声明</td><td>可选网页来源 URL。</td></tr>
+<tr id="field-chunks-text"><td><code>text</code></td><td><code>text not null</code></td><td>必选</td><td>未声明</td><td>存储的来源文本。</td></tr>
+<tr id="field-chunks-token_count"><td><code>token_count</code></td><td><code>integer not null default 0</code></td><td>必选</td><td>default 0</td><td>近似分块 token 数。</td></tr>
+<tr id="field-chunks-qdrant_point_id"><td><code>qdrant_point_id</code></td><td><code>text not null unique</code></td><td>必选</td><td>UNIQUE</td><td>向量存储关联标识符。</td></tr>
+<tr id="field-chunks-metadata"><td><code>metadata</code></td><td><code>jsonb not null default &#x27;{}&#x27;::jsonb</code></td><td>必选</td><td>default &#x27;{}&#x27;::jsonb</td><td>可扩展 JSON 元数据。</td></tr>
+<tr id="field-chunks-expires_at"><td><code>expires_at</code></td><td><code>timestamptz</code></td><td>可空</td><td>未声明</td><td>过期意图；清理由应用/worker 管理。</td></tr>
+<tr id="field-chunks-created_at"><td><code>created_at</code></td><td><code>timestamptz not null default now()</code></td><td>必选</td><td>default now()</td><td>创建时间戳。</td></tr>
+</tbody></table></div></details>
+      <details id="conversations"><summary><code>conversations</code> &middot; 11 个字段</summary>
+       <div class="grid">
+        <div class="fact"><b>用途</b><p>拥有者范围的持久化多轮容器，带持久的有界摘要状态。</p></div>
+        <div class="fact"><b>完整性和索引</b><p>拥有者/项目外键级联；消息读取使用 conversation/created 索引。</p></div>
+        <div class="fact"><b>访问和生命周期</b><p>RLS：拥有者 ALL。更新和软删除由应用管理。</p></div>
+       </div>
+       <div class="scroll"><table class="dense"><thead><tr><th>字段</th><th>精确声明</th><th>可空</th><th>键 / 约束</th><th>角色</th></tr></thead><tbody>
+<tr id="field-conversations-id"><td><code>id</code></td><td><code>uuid primary key default gen_random_uuid()</code></td><td>必选</td><td>PK &middot; default gen_random_uuid()</td><td>行标识。</td></tr>
+<tr id="field-conversations-user_id"><td><code>user_id</code></td><td><code>uuid not null references profiles(id) on delete cascade</code></td><td>必选</td><td>FK &middot; profiles.id &middot; CASCADE</td><td>租户拥有者引用。</td></tr>
+<tr id="field-conversations-project_id"><td><code>project_id</code></td><td><code>uuid not null references projects(id) on delete cascade</code></td><td>必选</td><td>FK &middot; projects.id &middot; CASCADE</td><td>项目/工作空间引用。</td></tr>
+<tr id="field-conversations-title"><td><code>title</code></td><td><code>text not null default &#x27;Untitled conversation&#x27;</code></td><td>必选</td><td>default &#x27;Untitled conversation&#x27;</td><td>显示标题。</td></tr>
+<tr id="field-conversations-created_at"><td><code>created_at</code></td><td><code>timestamptz not null default now()</code></td><td>必选</td><td>default now()</td><td>创建时间戳。</td></tr>
+<tr id="field-conversations-updated_at"><td><code>updated_at</code></td><td><code>timestamptz not null default now()</code></td><td>必选</td><td>default now()</td><td>最后更新时间戳；应用管理。</td></tr>
+<tr id="field-conversations-deleted_at"><td><code>deleted_at</code></td><td><code>timestamptz</code></td><td>可空</td><td>未声明</td><td>软删除时间戳。</td></tr>
+<tr id="field-conversations-summary_text"><td><code>summary_text</code></td><td><code>text</code></td><td>可空</td><td>未声明</td><td>持久压缩历史，由应用限定为约 1,500 token。</td></tr>
+<tr id="field-conversations-summary_token_count"><td><code>summary_token_count</code></td><td><code>integer not null default 0</code></td><td>必选</td><td>CHECK ≥ 0</td><td>估算摘要 token。</td></tr>
+<tr id="field-conversations-summary_message_count"><td><code>summary_message_count</code></td><td><code>integer not null default 0</code></td><td>必选</td><td>CHECK ≥ 0</td><td>压缩的消息数。</td></tr>
+<tr id="field-conversations-summary_updated_at"><td><code>summary_updated_at</code></td><td><code>timestamptz</code></td><td>可空</td><td>未声明</td><td>最后成功压缩时间。</td></tr>
+</tbody></table></div></details>
+      <details id="messages"><summary><code>messages</code> &middot; 8 个字段</summary>
+       <div class="grid">
+        <div class="fact"><b>用途</b><p>对话轮次，带显式拥有者/项目范围和可选对话。</p></div>
+        <div class="fact"><b>完整性和索引</b><p>拥有者/项目/对话外键级联；角色检查适用。无二级索引。</p></div>
+        <div class="fact"><b>访问和生命周期</b><p>RLS：拥有者 ALL。三个外键间的同租户一致性未受约束。</p></div>
+       </div>
+       <div class="scroll"><table class="dense"><thead><tr><th>字段</th><th>精确声明</th><th>可空</th><th>键 / 约束</th><th>角色</th></tr></thead><tbody>
+<tr id="field-messages-id"><td><code>id</code></td><td><code>uuid primary key default gen_random_uuid()</code></td><td>必选</td><td>PK &middot; default gen_random_uuid()</td><td>行标识。</td></tr>
+<tr id="field-messages-user_id"><td><code>user_id</code></td><td><code>uuid not null references profiles(id) on delete cascade</code></td><td>必选</td><td>FK &middot; profiles.id &middot; CASCADE</td><td>租户拥有者引用。</td></tr>
+<tr id="field-messages-project_id"><td><code>project_id</code></td><td><code>uuid not null references projects(id) on delete cascade</code></td><td>必选</td><td>FK &middot; projects.id &middot; CASCADE</td><td>项目/工作空间引用。</td></tr>
+<tr id="field-messages-conversation_id"><td><code>conversation_id</code></td><td><code>uuid references conversations(id) on delete cascade</code></td><td>可空</td><td>FK &middot; conversations.id &middot; CASCADE</td><td>对话引用。</td></tr>
+<tr id="field-messages-ask_run_id"><td><code>ask_run_id</code></td><td><code>uuid references ask_runs(id) on delete set null</code></td><td>可空</td><td>FK &middot; ask_runs.id &middot; SET NULL</td><td>助手轮次运行和引用关联。</td></tr>
+<tr id="field-messages-role"><td><code>role</code></td><td><code>text not null check (role in (&#x27;user&#x27;, &#x27;assistant&#x27;, &#x27;system&#x27;))</code></td><td>必选</td><td>CHECK</td><td>授权或消息角色。</td></tr>
+<tr id="field-messages-content"><td><code>content</code></td><td><code>text not null</code></td><td>必选</td><td>未声明</td><td>消息正文。</td></tr>
+<tr id="field-messages-created_at"><td><code>created_at</code></td><td><code>timestamptz not null default now()</code></td><td>必选</td><td>default now()</td><td>创建时间戳。</td></tr>
+</tbody></table></div></details>
+      <details id="ask-runs"><summary><code>ask_runs</code> &middot; 19 个字段</summary>
+       <div class="grid">
+        <div class="fact"><b>用途</b><p>Ask/测验 台账，用于路由、验证、延迟、用量和错误。</p></div>
+        <div class="fact"><b>完整性和索引</b><p>Owner/project FKs cascade; conversation/message use SET NULL. Index: <code>idx_ask_runs_user_project_created</code>.</p></div>
+        <div class="fact"><b>访问和生命周期</b><p>RLS：拥有者 ALL。当前运行时在内存中保持等效状态。</p></div>
+       </div>
+       <div class="scroll"><table class="dense"><thead><tr><th>字段</th><th>精确声明</th><th>可空</th><th>键 / 约束</th><th>角色</th></tr></thead><tbody>
+<tr id="field-ask_runs-id"><td><code>id</code></td><td><code>uuid primary key default gen_random_uuid()</code></td><td>必选</td><td>PK &middot; default gen_random_uuid()</td><td>行标识。</td></tr>
+<tr id="field-ask_runs-user_id"><td><code>user_id</code></td><td><code>uuid not null references profiles(id) on delete cascade</code></td><td>必选</td><td>FK &middot; profiles.id &middot; CASCADE</td><td>租户拥有者引用。</td></tr>
+<tr id="field-ask_runs-project_id"><td><code>project_id</code></td><td><code>uuid not null references projects(id) on delete cascade</code></td><td>必选</td><td>FK &middot; projects.id &middot; CASCADE</td><td>项目/工作空间引用。</td></tr>
+<tr id="field-ask_runs-conversation_id"><td><code>conversation_id</code></td><td><code>uuid references conversations(id) on delete set null</code></td><td>可空</td><td>FK &middot; conversations.id &middot; SET NULL</td><td>对话引用。</td></tr>
+<tr id="field-ask_runs-message_id"><td><code>message_id</code></td><td><code>uuid references messages(id) on delete set null</code></td><td>可空</td><td>FK &middot; messages.id &middot; SET NULL</td><td>消息引用。</td></tr>
+<tr id="field-ask_runs-message"><td><code>message</code></td><td><code>text not null</code></td><td>必选</td><td>未声明</td><td>原始请求文本。</td></tr>
+<tr id="field-ask_runs-task_type"><td><code>task_type</code></td><td><code>text not null check (task_type in (&#x27;answer&#x27;, &#x27;quiz&#x27;))</code></td><td>必选</td><td>CHECK</td><td>回答或测验任务。</td></tr>
+<tr id="field-ask_runs-web_enabled"><td><code>web_enabled</code></td><td><code>boolean not null default false</code></td><td>必选</td><td>default false</td><td>是否请求了当前 Web 证据。</td></tr>
+<tr id="field-ask_runs-context_strategy"><td><code>context_strategy</code></td><td><code>text not null default 'chat'</code></td><td>必选</td><td>CHECK</td><td>冻结的聊天、全上下文、检索、Web 或测验策略。</td></tr>
+<tr id="field-ask_runs-rerank_provider"><td><code>rerank_provider</code></td><td><code>text</code></td><td>可空</td><td>CHECK</td><td>实际的 Qdrant、NVIDIA 或确定性提供商。</td></tr>
+<tr id="field-ask_runs-rerank_config_version"><td><code>rerank_config_version</code></td><td><code>integer</code></td><td>可空</td><td>CHECK ≥ 1</td><td>运行时配置快照。</td></tr>
+<tr id="field-ask_runs-rerank_degraded"><td><code>rerank_degraded</code></td><td><code>boolean not null default false</code></td><td>必选</td><td>default false</td><td>提供商回退时为真。</td></tr>
+<tr id="field-ask_runs-fallback_reason"><td><code>fallback_reason</code></td><td><code>text</code></td><td>可空</td><td>未声明</td><td>安全的提供商回退原因。</td></tr>
+<tr id="field-ask_runs-status"><td><code>status</code></td><td><code>ask_status not null default &#x27;pending&#x27;</code></td><td>必选</td><td>default &#x27;pending&#x27;</td><td>生命周期状态值。</td></tr>
+<tr id="field-ask_runs-validation_status"><td><code>validation_status</code></td><td><code>validation_status not null default &#x27;pending&#x27;</code></td><td>必选</td><td>default &#x27;pending&#x27;</td><td>输出验证状态。</td></tr>
+<tr id="field-ask_runs-latency_ms"><td><code>latency_ms</code></td><td><code>integer</code></td><td>可空</td><td>未声明</td><td>观测持续时间（毫秒）。</td></tr>
+<tr id="field-ask_runs-token_usage"><td><code>token_usage</code></td><td><code>jsonb not null default &#x27;{}&#x27;::jsonb</code></td><td>必选</td><td>default &#x27;{}&#x27;::jsonb</td><td>提供商/模型用量元数据。</td></tr>
+<tr id="field-ask_runs-error_message"><td><code>error_message</code></td><td><code>text</code></td><td>可空</td><td>未声明</td><td>安全的失败摘要。</td></tr>
+<tr id="field-ask_runs-created_at"><td><code>created_at</code></td><td><code>timestamptz not null default now()</code></td><td>必选</td><td>default now()</td><td>创建时间戳。</td></tr>
+</tbody></table></div></details>
+      <details id="runtime-ai-config"><summary><code>runtime_ai_config</code> &middot; 5 个字段</summary>
+       <div class="grid">
+        <div class="fact"><b>用途</b><p>无需重启的运行时 rerank 提供商选择。</p></div>
+        <div class="fact"><b>Integrity</b><p>提供商限定为 auto、qdrant、nvidia 或 deterministic；乐观写入递增版本。</p></div>
+        <div class="fact"><b>Access</b><p>RLS 读/写策略需要 developer 或 admin 角色。Qdrant 激活还需要 free-model 和索引就绪探针。</p></div>
+       </div>
+       <div class="scroll"><table class="dense"><thead><tr><th>字段</th><th>精确声明</th><th>可空</th><th>键 / 约束</th><th>角色</th></tr></thead><tbody>
+<tr id="field-runtime_ai_config-config_key"><td><code>config_key</code></td><td><code>text primary key</code></td><td>必选</td><td>PK</td><td>配置标识；当前行为 rerank。</td></tr>
+<tr id="field-runtime_ai_config-provider"><td><code>provider</code></td><td><code>text not null</code></td><td>必选</td><td>CHECK</td><td>请求的提供商策略。</td></tr>
+<tr id="field-runtime_ai_config-version"><td><code>version</code></td><td><code>integer not null default 1</code></td><td>必选</td><td>CHECK ≥ 1</td><td>并发和运行快照版本。</td></tr>
+<tr id="field-runtime_ai_config-updated_at"><td><code>updated_at</code></td><td><code>timestamptz not null default now()</code></td><td>必选</td><td>default now()</td><td>最后切换时间。</td></tr>
+<tr id="field-runtime_ai_config-updated_by"><td><code>updated_by</code></td><td><code>uuid references profiles(id) on delete set null</code></td><td>可空</td><td>FK</td><td>管理员操作者。</td></tr>
+</tbody></table></div></details>
+      <details id="tool-calls"><summary><code>tool_calls</code> &middot; 9 个字段</summary>
+       <div class="grid">
+        <div class="fact"><b>用途</b><p>每次运行的工具摘要、状态、时序和失败数据。</p></div>
+        <div class="fact"><b>完整性和索引</b><p>运行外键级联；状态检查。索引：<code>idx_tool_calls_run</code>。</p></div>
+        <div class="fact"><b>访问和生命周期</b><p>已启用 RLS 但无策略；继承的运行拥有权未实现。</p></div>
+       </div>
+       <div class="scroll"><table class="dense"><thead><tr><th>字段</th><th>精确声明</th><th>可空</th><th>键 / 约束</th><th>角色</th></tr></thead><tbody>
+<tr id="field-tool_calls-id"><td><code>id</code></td><td><code>uuid primary key default gen_random_uuid()</code></td><td>必选</td><td>PK &middot; default gen_random_uuid()</td><td>行标识。</td></tr>
+<tr id="field-tool_calls-ask_run_id"><td><code>ask_run_id</code></td><td><code>uuid not null references ask_runs(id) on delete cascade</code></td><td>必选</td><td>FK &middot; ask_runs.id &middot; CASCADE</td><td>发起 Ask/测验 运行引用。</td></tr>
+<tr id="field-tool_calls-tool_name"><td><code>tool_name</code></td><td><code>text not null</code></td><td>必选</td><td>未声明</td><td>工具标识符。</td></tr>
+<tr id="field-tool_calls-input"><td><code>input</code></td><td><code>jsonb not null default &#x27;{}&#x27;::jsonb</code></td><td>必选</td><td>default &#x27;{}&#x27;::jsonb</td><td>工具输入摘要。</td></tr>
+<tr id="field-tool_calls-output_summary"><td><code>output_summary</code></td><td><code>jsonb</code></td><td>可空</td><td>未声明</td><td>可选工具输出摘要。</td></tr>
+<tr id="field-tool_calls-status"><td><code>status</code></td><td><code>text not null check (status in (&#x27;pending&#x27;, &#x27;running&#x27;, &#x27;succeeded&#x27;, &#x27;failed&#x27;, &#x27;skipped&#x27;))</code></td><td>必选</td><td>CHECK</td><td>生命周期状态值。</td></tr>
+<tr id="field-tool_calls-latency_ms"><td><code>latency_ms</code></td><td><code>integer</code></td><td>可空</td><td>未声明</td><td>观测持续时间（毫秒）。</td></tr>
+<tr id="field-tool_calls-error_message"><td><code>error_message</code></td><td><code>text</code></td><td>可空</td><td>未声明</td><td>安全的失败摘要。</td></tr>
+<tr id="field-tool_calls-created_at"><td><code>created_at</code></td><td><code>timestamptz not null default now()</code></td><td>必选</td><td>default now()</td><td>创建时间戳。</td></tr>
+</tbody></table></div></details>
+      <details id="citations"><summary><code>citations</code> &middot; 11 个字段</summary>
+       <div class="grid">
+        <div class="fact"><b>用途</b><p>与其发起运行一起保留的声明到来源证据。</p></div>
+        <div class="fact"><b>完整性和索引</b><p>运行级联；chunk/document 使用 SET NULL。索引：<code>idx_citations_run</code>。</p></div>
+        <div class="fact"><b>访问和生命周期</b><p>已启用 RLS 但无策略。引用元数据在来源删除后保留。</p></div>
+       </div>
+       <div class="scroll"><table class="dense"><thead><tr><th>字段</th><th>精确声明</th><th>可空</th><th>键 / 约束</th><th>角色</th></tr></thead><tbody>
+<tr id="field-citations-id"><td><code>id</code></td><td><code>uuid primary key default gen_random_uuid()</code></td><td>必选</td><td>PK &middot; default gen_random_uuid()</td><td>行标识。</td></tr>
+<tr id="field-citations-ask_run_id"><td><code>ask_run_id</code></td><td><code>uuid not null references ask_runs(id) on delete cascade</code></td><td>必选</td><td>FK &middot; ask_runs.id &middot; CASCADE</td><td>发起 Ask/测验 运行引用。</td></tr>
+<tr id="field-citations-chunk_id"><td><code>chunk_id</code></td><td><code>uuid references chunks(id) on delete set null</code></td><td>可空</td><td>FK &middot; chunks.id &middot; SET NULL</td><td>检索证据分块引用。</td></tr>
+<tr id="field-citations-document_id"><td><code>document_id</code></td><td><code>uuid references documents(id) on delete set null</code></td><td>可空</td><td>FK &middot; documents.id &middot; SET NULL</td><td>文档引用。</td></tr>
+<tr id="field-citations-source_type"><td><code>source_type</code></td><td><code>source_type not null</code></td><td>必选</td><td>未声明</td><td>本地文档或网页判别器。</td></tr>
+<tr id="field-citations-page_no"><td><code>page_no</code></td><td><code>integer</code></td><td>可空</td><td>未声明</td><td>来源页面位置。</td></tr>
+<tr id="field-citations-slide_no"><td><code>slide_no</code></td><td><code>integer</code></td><td>可空</td><td>未声明</td><td>来源幻灯片位置。</td></tr>
+<tr id="field-citations-url"><td><code>url</code></td><td><code>text</code></td><td>可空</td><td>未声明</td><td>可选网页来源 URL。</td></tr>
+<tr id="field-citations-quote"><td><code>quote</code></td><td><code>text not null</code></td><td>必选</td><td>未声明</td><td>证据摘录。</td></tr>
+<tr id="field-citations-claim_id"><td><code>claim_id</code></td><td><code>text</code></td><td>可空</td><td>未声明</td><td>可选回答-声明关联。</td></tr>
+<tr id="field-citations-created_at"><td><code>created_at</code></td><td><code>timestamptz not null default now()</code></td><td>必选</td><td>default now()</td><td>创建时间戳。</td></tr>
+</tbody></table></div></details>
+      <details id="quiz-sets"><summary><code>quiz_sets</code> &middot; 7 个字段</summary>
+       <div class="grid">
+        <div class="fact"><b>用途</b><p>拥有者范围的生成学习产物和来源摘要。</p></div>
+        <div class="fact"><b>完整性和索引</b><p>拥有者/项目级联；运行使用 SET NULL。索引：<code>idx_quiz_sets_user_project_created</code>。</p></div>
+        <div class="fact"><b>访问和生命周期</b><p>RLS：拥有者 ALL。子问题级联。</p></div>
+       </div>
+       <div class="scroll"><table class="dense"><thead><tr><th>字段</th><th>精确声明</th><th>可空</th><th>键 / 约束</th><th>角色</th></tr></thead><tbody>
+<tr id="field-quiz_sets-id"><td><code>id</code></td><td><code>uuid primary key default gen_random_uuid()</code></td><td>必选</td><td>PK &middot; default gen_random_uuid()</td><td>行标识。</td></tr>
+<tr id="field-quiz_sets-user_id"><td><code>user_id</code></td><td><code>uuid not null references profiles(id) on delete cascade</code></td><td>必选</td><td>FK &middot; profiles.id &middot; CASCADE</td><td>租户拥有者引用。</td></tr>
+<tr id="field-quiz_sets-project_id"><td><code>project_id</code></td><td><code>uuid not null references projects(id) on delete cascade</code></td><td>必选</td><td>FK &middot; projects.id &middot; CASCADE</td><td>项目/工作空间引用。</td></tr>
+<tr id="field-quiz_sets-ask_run_id"><td><code>ask_run_id</code></td><td><code>uuid references ask_runs(id) on delete set null</code></td><td>可空</td><td>FK &middot; ask_runs.id &middot; SET NULL</td><td>发起 Ask/测验 运行引用。</td></tr>
+<tr id="field-quiz_sets-title"><td><code>title</code></td><td><code>text not null</code></td><td>必选</td><td>未声明</td><td>显示标题。</td></tr>
+<tr id="field-quiz_sets-sources_summary"><td><code>sources_summary</code></td><td><code>jsonb not null default &#x27;{}&#x27;::jsonb</code></td><td>必选</td><td>default &#x27;{}&#x27;::jsonb</td><td>来源数量快照。</td></tr>
+<tr id="field-quiz_sets-created_at"><td><code>created_at</code></td><td><code>timestamptz not null default now()</code></td><td>必选</td><td>default now()</td><td>创建时间戳。</td></tr>
+</tbody></table></div></details>
+      <details id="quiz-questions"><summary><code>quiz_questions</code> &middot; 10 个字段</summary>
+       <div class="grid">
+        <div class="fact"><b>用途</b><p>问题、答案、解释、难度、选项和引用。</p></div>
+        <div class="fact"><b>完整性和索引</b><p>集合外键级联；<code>single_choice_has_four_options</code> 要求恰好四个 JSON 选项。无二级索引。</p></div>
+        <div class="fact"><b>访问和生命周期</b><p>已启用 RLS 但无策略；父集合拥有权未实现。</p></div>
+       </div>
+       <div class="scroll"><table class="dense"><thead><tr><th>字段</th><th>精确声明</th><th>可空</th><th>键 / 约束</th><th>角色</th></tr></thead><tbody>
+<tr id="field-quiz_questions-id"><td><code>id</code></td><td><code>uuid primary key default gen_random_uuid()</code></td><td>必选</td><td>PK &middot; default gen_random_uuid()</td><td>行标识。</td></tr>
+<tr id="field-quiz_questions-quiz_set_id"><td><code>quiz_set_id</code></td><td><code>uuid not null references quiz_sets(id) on delete cascade</code></td><td>必选</td><td>FK &middot; quiz_sets.id &middot; CASCADE</td><td>父测验集引用。</td></tr>
+<tr id="field-quiz_questions-type"><td><code>type</code></td><td><code>quiz_question_type not null</code></td><td>必选</td><td>枚举：single_choice、fill_blank、subjective</td><td>问题格式。测验仅存在于工作空间项目内。</td></tr>
+<tr id="field-quiz_questions-question"><td><code>question</code></td><td><code>text not null</code></td><td>必选</td><td>未声明</td><td>问题提示。</td></tr>
+<tr id="field-quiz_questions-options"><td><code>options</code></td><td><code>jsonb</code></td><td>可空</td><td>未声明</td><td>可选答案选项。</td></tr>
+<tr id="field-quiz_questions-answer"><td><code>answer</code></td><td><code>text not null</code></td><td>必选</td><td>未声明</td><td>预期答案。</td></tr>
+<tr id="field-quiz_questions-explanation"><td><code>explanation</code></td><td><code>text not null</code></td><td>必选</td><td>未声明</td><td>答案理由。</td></tr>
+<tr id="field-quiz_questions-difficulty"><td><code>difficulty</code></td><td><code>quiz_difficulty not null default &#x27;medium&#x27;</code></td><td>必选</td><td>default &#x27;medium&#x27;</td><td>问题难度。</td></tr>
+<tr id="field-quiz_questions-source_citations"><td><code>source_citations</code></td><td><code>jsonb not null default &#x27;[]&#x27;::jsonb</code></td><td>必选</td><td>default &#x27;[]&#x27;::jsonb</td><td>结构化引用列表。</td></tr>
+<tr id="field-quiz_questions-created_at"><td><code>created_at</code></td><td><code>timestamptz not null default now()</code></td><td>必选</td><td>default now()</td><td>创建时间戳。</td></tr>
+</tbody></table></div></details>
+      <details id="jobs"><summary><code>jobs</code> &middot; 16 个字段 after delivery-lease migration</summary>
+       <div class="grid">
+        <div class="fact"><b>用途</b><p>通用异步作业状态、进度、载荷和错误台账。</p></div>
+        <div class="fact"><b>完整性和索引</b><p>拥有者/项目/文档级联；进度 0–100；尝试次数非负。索引：<code>idx_jobs_user_status</code> 和 <code>idx_jobs_dispatch_lease</code>。</p></div>
+        <div class="fact"><b>访问和生命周期</b><p>RLS：拥有者 ALL。附加的 <code>202607150003_job_delivery_lease.sql</code> 支持过期的 Celery 认领、重启恢复和终端计时。文档和项目删除仅等待具有活跃租约的解析作业；过期或缺失的租约在清理进行前被清除并标记为失败。</p></div>
+       </div>
+       <div class="scroll"><table class="dense"><thead><tr><th>字段</th><th>精确声明</th><th>可空</th><th>键 / 约束</th><th>角色</th></tr></thead><tbody>
+<tr id="field-jobs-id"><td><code>id</code></td><td><code>uuid primary key default gen_random_uuid()</code></td><td>必选</td><td>PK &middot; default gen_random_uuid()</td><td>行标识。</td></tr>
+<tr id="field-jobs-user_id"><td><code>user_id</code></td><td><code>uuid not null references profiles(id) on delete cascade</code></td><td>必选</td><td>FK &middot; profiles.id &middot; CASCADE</td><td>租户拥有者引用。</td></tr>
+<tr id="field-jobs-project_id"><td><code>project_id</code></td><td><code>uuid references projects(id) on delete cascade</code></td><td>可空</td><td>FK &middot; projects.id &middot; CASCADE</td><td>项目/工作空间引用。</td></tr>
+<tr id="field-jobs-document_id"><td><code>document_id</code></td><td><code>uuid references documents(id) on delete cascade</code></td><td>可空</td><td>FK &middot; documents.id &middot; CASCADE</td><td>文档引用。</td></tr>
+<tr id="field-jobs-type"><td><code>type</code></td><td><code>text not null</code></td><td>必选</td><td>未声明</td><td>记录或问题类型。</td></tr>
+<tr id="field-jobs-status"><td><code>status</code></td><td><code>job_status not null default &#x27;pending&#x27;</code></td><td>必选</td><td>default &#x27;pending&#x27;</td><td>生命周期状态值。</td></tr>
+<tr id="field-jobs-progress"><td><code>progress</code></td><td><code>integer not null default 0 check (progress between 0 and 100)</code></td><td>必选</td><td>CHECK &middot; default 0</td><td>作业进度计数器。</td></tr>
+<tr id="field-jobs-payload"><td><code>payload</code></td><td><code>jsonb not null default &#x27;{}&#x27;::jsonb</code></td><td>必选</td><td>default &#x27;{}&#x27;::jsonb</td><td>作业输入载荷。</td></tr>
+<tr id="field-jobs-error_message"><td><code>error_message</code></td><td><code>text</code></td><td>可空</td><td>未声明</td><td>安全的失败摘要。</td></tr>
+<tr id="field-jobs-created_at"><td><code>created_at</code></td><td><code>timestamptz not null default now()</code></td><td>必选</td><td>default now()</td><td>创建时间戳。</td></tr>
+<tr id="field-jobs-updated_at"><td><code>updated_at</code></td><td><code>timestamptz not null default now()</code></td><td>必选</td><td>default now()</td><td>最后更新时间戳；应用管理。</td></tr>
+<tr id="field-jobs-attempts"><td><code>attempts</code></td><td><code>integer not null default 0 check (attempts &gt;= 0)</code></td><td>必选</td><td>CHECK &middot; default 0</td><td>获取的交付租约数。</td></tr>
+<tr id="field-jobs-lease_owner"><td><code>lease_owner</code></td><td><code>text</code></td><td>可空</td><td>未声明</td><td>持有当前租约的 worker 标识。</td></tr>
+<tr id="field-jobs-lease_expires_at"><td><code>lease_expires_at</code></td><td><code>timestamptz</code></td><td>可空</td><td>与 status 一起索引</td><td>丢失 worker 的恢复边界。</td></tr>
+<tr id="field-jobs-started_at"><td><code>started_at</code></td><td><code>timestamptz</code></td><td>可空</td><td>未声明</td><td>首次处理开始。</td></tr>
+<tr id="field-jobs-completed_at"><td><code>completed_at</code></td><td><code>timestamptz</code></td><td>可空</td><td>未声明</td><td>终端成功或失败时间。</td></tr>
+</tbody></table></div></details>
+      <details id="deletion-jobs"><summary><code>deletion_jobs</code> &middot; 9 个字段</summary>
+       <div class="grid">
+        <div class="fact"><b>用途</b><p>跨存储删除和对账意图。</p></div>
+        <div class="fact"><b>完整性和索引</b><p>拥有者/项目/文档级联。索引：<code>idx_deletion_jobs_status</code>。</p></div>
+        <div class="fact"><b>访问和生命周期</b><p>RLS：拥有者 ALL。完成/重试需要 worker。worker 在删除数据库根之前对账拥有的对象和向量投影；生产项目删除在回收过期的摄取租约后通过。</p></div>
+       </div>
+       <div class="scroll"><table class="dense"><thead><tr><th>字段</th><th>精确声明</th><th>可空</th><th>键 / 约束</th><th>角色</th></tr></thead><tbody>
+<tr id="field-deletion_jobs-id"><td><code>id</code></td><td><code>uuid primary key default gen_random_uuid()</code></td><td>必选</td><td>PK &middot; default gen_random_uuid()</td><td>行标识。</td></tr>
+<tr id="field-deletion_jobs-user_id"><td><code>user_id</code></td><td><code>uuid not null references profiles(id) on delete cascade</code></td><td>必选</td><td>FK &middot; profiles.id &middot; CASCADE</td><td>租户拥有者引用。</td></tr>
+<tr id="field-deletion_jobs-project_id"><td><code>project_id</code></td><td><code>uuid references projects(id) on delete cascade</code></td><td>可空</td><td>FK &middot; projects.id &middot; CASCADE</td><td>项目/工作空间引用。</td></tr>
+<tr id="field-deletion_jobs-document_id"><td><code>document_id</code></td><td><code>uuid references documents(id) on delete cascade</code></td><td>可空</td><td>FK &middot; documents.id &middot; CASCADE</td><td>文档引用。</td></tr>
+<tr id="field-deletion_jobs-status"><td><code>status</code></td><td><code>job_status not null default &#x27;pending&#x27;</code></td><td>必选</td><td>default &#x27;pending&#x27;</td><td>生命周期状态值。</td></tr>
+<tr id="field-deletion_jobs-target_types"><td><code>target_types</code></td><td><code>jsonb not null default &#x27;[&quot;db&quot;,&quot;r2&quot;,&quot;qdrant&quot;,&quot;redis&quot;]&#x27;::jsonb</code></td><td>必选</td><td>default &#x27;[&quot;db&quot;,&quot;r2&quot;,&quot;qdrant&quot;,&quot;redis&quot;]&#x27;::jsonb</td><td>跨存储删除目标。</td></tr>
+<tr id="field-deletion_jobs-error_message"><td><code>error_message</code></td><td><code>text</code></td><td>可空</td><td>未声明</td><td>安全的失败摘要。</td></tr>
+<tr id="field-deletion_jobs-created_at"><td><code>created_at</code></td><td><code>timestamptz not null default now()</code></td><td>必选</td><td>default now()</td><td>创建时间戳。</td></tr>
+<tr id="field-deletion_jobs-completed_at"><td><code>completed_at</code></td><td><code>timestamptz</code></td><td>可空</td><td>未声明</td><td>完成时间戳。</td></tr>
+</tbody></table></div></details>
+      <details id="api-usage"><summary><code>api_usage</code> &middot; 8 个字段</summary>
+       <div class="grid">
+        <div class="fact"><b>用途</b><p>按类别的每用户每日配额计数器。</p></div>
+        <div class="fact"><b>完整性和索引</b><p>拥有者级联；UNIQUE <code>(user_id, usage_date, kind)</code>。已声明匹配查找索引。</p></div>
+        <div class="fact"><b>访问和生命周期</b><p>RLS：拥有者 ALL。递增和日期滚动由应用管理。</p></div>
+       </div>
+       <div class="scroll"><table class="dense"><thead><tr><th>字段</th><th>精确声明</th><th>可空</th><th>键 / 约束</th><th>角色</th></tr></thead><tbody>
+<tr id="field-api_usage-id"><td><code>id</code></td><td><code>uuid primary key default gen_random_uuid()</code></td><td>必选</td><td>PK &middot; default gen_random_uuid()</td><td>行标识。</td></tr>
+<tr id="field-api_usage-user_id"><td><code>user_id</code></td><td><code>uuid not null references profiles(id) on delete cascade</code></td><td>必选</td><td>FK &middot; profiles.id &middot; CASCADE</td><td>租户拥有者引用。</td></tr>
+<tr id="field-api_usage-usage_date"><td><code>usage_date</code></td><td><code>date not null default current_date</code></td><td>必选</td><td>default current_date</td><td>配额核算日期。</td></tr>
+<tr id="field-api_usage-kind"><td><code>kind</code></td><td><code>text not null</code></td><td>必选</td><td>未声明</td><td>用量计数器类别。</td></tr>
+<tr id="field-api_usage-count"><td><code>count</code></td><td><code>integer not null default 0</code></td><td>必选</td><td>default 0</td><td>每日用量计数。</td></tr>
+<tr id="field-api_usage-metadata"><td><code>metadata</code></td><td><code>jsonb not null default &#x27;{}&#x27;::jsonb</code></td><td>必选</td><td>default &#x27;{}&#x27;::jsonb</td><td>可扩展 JSON 元数据。</td></tr>
+<tr id="field-api_usage-created_at"><td><code>created_at</code></td><td><code>timestamptz not null default now()</code></td><td>必选</td><td>default now()</td><td>创建时间戳。</td></tr>
+<tr id="field-api_usage-updated_at"><td><code>updated_at</code></td><td><code>timestamptz not null default now()</code></td><td>必选</td><td>default now()</td><td>最后更新时间戳；应用管理。</td></tr>
+</tbody></table></div></details>
+     </section>
+      <section id="planned-schema">
+       <p class="eyebrow">附加迁移和仓库合约</p>
+      <h2>附加工作流和评估表</h2>
+      <p class="sub">十五个附加合约来自 <code>202607150002_evidence_review_schema.sql</code>；<code>202607150005_evaluation_budget_and_fault_exercises.sql</code> 添加了 <code>fault_exercises</code>，使领域总数达到 31 个表（15 个初始 + 16 个附加）。Migration 006 添加了一个仅后端的运维 <code>runtime_heartbeats</code> 表和工作流租约/预算字段；它不计为领域表。Migration 007–009 演进了统一聊天、运行时重排、个人附件、项目记忆和测验类型，但未添加领域表。Migration 009 已应用；认证的直接 RLS 事务和提供商切换并发仍是发布证据门槛。</p>
+      <div class="notice"><strong>存储拥有权：</strong>PostgreSQL 是业务状态的真值源。S3 兼容对象存储存储私有来源字节和解析器产物；Qdrant 存储可重建的稠密/稀疏投影；Redis 仅存储代理和短时协调状态。任何不可替代的业务事实不得仅存在于对象存储、Qdrant 或 Redis 中。</div>
+      <div class="notice warning"><strong>检查点边界：</strong>LangGraph Postgres 检查点表是 SDK 管理的基础设施，不是领域表。受保护的发布命令在部署前运行一次 SDK 拥有的模式；worker 不执行 DDL。四个检查点表现在存在于隔离的 <code>researchmate-dev</code> Supabase 数据库中，模式版本为 9，但中断/恢复和重启行为尚未针对它们进行演练。这四个表不计入 31 个领域表的计数。</div>
+
+      <details id="planned-workflow-runs" data-contract="declared" open><summary><code>workflow_runs</code> · 持久编排根 <span class="status partial">已应用模式 · 仓库集成未验证</span></summary><dl class="kv">
+       <dt>字段</dt><dd><code>id uuid PK default gen_random_uuid()</code>; <code>user_id uuid not null FK profiles(id) cascade</code>; <code>project_id uuid not null FK projects(id) cascade</code>; <code>conversation_id uuid null FK conversations(id) set null</code>; <code>pipeline_version_id uuid not null FK pipeline_versions(id) restrict</code>; <code>kind text not null</code>; <code>status text not null default 'pending'</code>; <code>idempotency_key text not null</code>; <code>checkpoint_ref text null</code>; <code>input jsonb not null</code>; <code>output jsonb null</code>; <code>error_code text null</code>; 交付字段 <code>delivery_attempts integer not null default 0</code>, <code>lease_owner text null</code>, <code>lease_expires_at timestamptz null</code>; 预算字段 <code>budget_limit_usd numeric(12,6) not null default 1</code>, <code>budget_reserved_usd numeric(12,6) not null default 0</code>, <code>actual_cost_usd numeric(12,6) not null default 0</code>; <code>created_at</code>, <code>started_at</code>, <code>completed_at timestamptz</code>.</dd>
+       <dt>完整性 / 索引</dt><dd>CHECK kind in <code>ask|evidence_review|report_refresh</code>; CHECK status in <code>pending|running|waiting_human|succeeded|failed|cancelled</code>; unique <code>(user_id,idempotency_key)</code>；索引 <code>(project_id,created_at desc)</code> 和 <code>(status,created_at)</code>。</dd>
+       <dt>访问</dt><dd>直接拥有者 RLS 用于 SELECT/INSERT；拥有者仅可通过 API 不变量取消或提交决策；worker 服务角色推进执行状态。</dd>
+       <dt>生命周期 / 写入者 / 读取者</dt><dd>FastAPI 创建；LangGraph/worker 更新；Web、MCP、评估和审计读取者消费。终端行与其管道版本一起保留；删除遵循项目策略。</dd>
+      </dl></details>
+
+      <details id="planned-run-events" data-contract="declared"><summary><code>run_events</code> · 有序回放和遥测台账 <span class="status partial">已应用模式 · 仓库集成未验证</span></summary><dl class="kv">
+       <dt>字段</dt><dd><code>id bigint generated always as identity PK</code>; <code>run_id uuid not null FK workflow_runs(id) cascade</code>; <code>sequence integer not null</code>; <code>node_key text not null</code>; <code>event_type text not null</code>; <code>attempt integer not null default 1</code>; <code>status text not null</code>; <code>safe_payload jsonb not null default '{}'</code>; <code>latency_ms integer null</code>; <code>input_tokens integer null</code>; <code>output_tokens integer null</code>; <code>cost_usd numeric(12,6) null</code>; <code>created_at timestamptz not null default now()</code>.</dd>
+       <dt>完整性 / 索引</dt><dd>Unique <code>(run_id,sequence)</code>；非负的 attempt/latency/token/cost 检查；event/status 枚举由迁移约束；索引 <code>(run_id,node_key,attempt)</code> 和 <code>(created_at)</code>。</dd>
+       <dt>访问</dt><dd>RLS 通过拥有的运行派生；仅 worker/服务角色插入。载荷是经过脱敏的事件合约，绝非原始私有来源文本或提供商密钥。</dd>
+       <dt>生命周期 / 读取者</dt><dd>插入后仅追加；由 SSE 回放、追踪图、可靠性指标、事件分析和评估关联消费。</dd>
+      </dl></details>
+
+      <details id="planned-research-questions" data-contract="planned"><summary><code>research_questions</code> · 分解的研究计划 <span class="status partial">schema applied · writer integration unvalidated</span></summary><dl class="kv">
+       <dt>字段</dt><dd><code>id uuid PK</code>; <code>user_id uuid not null FK profiles cascade</code>; <code>project_id uuid not null FK projects cascade</code>; <code>parent_id uuid null FK research_questions set null</code>; <code>source_run_id uuid not null FK workflow_runs cascade</code>; <code>question text not null</code>; <code>status text not null default 'planned'</code>; <code>priority smallint not null default 0</code>; <code>plan_order integer not null</code>; <code>created_at</code>, <code>updated_at timestamptz</code>.</dd>
+       <dt>完整性 / 索引</dt><dd>CHECK 非空问题且状态在 <code>planned|active|answered|blocked|cancelled</code>; unique <code>(source_run_id,parent_id,plan_order)</code>；索引 <code>(project_id,status)</code> 和 <code>(parent_id)</code>。</dd>
+       <dt>访问 / 生命周期</dt><dd>直接拥有者 RLS；规划器写入，审查 UI 读取。行在报告修订后保留以供审计，并随项目删除。</dd>
+      </dl></details>
+
+      <details id="planned-claims" data-contract="planned"><summary><code>claims</code> · 规范化的证据结论 <span class="status partial">已应用模式 · 仓库集成未验证</span></summary><dl class="kv">
+       <dt>字段</dt><dd><code>id uuid PK</code>; <code>user_id uuid not null FK profiles cascade</code>; <code>project_id uuid not null FK projects cascade</code>; <code>question_id uuid null FK research_questions set null</code>; <code>source_run_id uuid not null FK workflow_runs cascade</code>; <code>text text not null</code>; <code>normalized_key text not null</code>; <code>stance text not null default 'neutral'</code>; <code>confidence numeric(5,4) not null</code>; <code>review_status text not null default 'pending'</code>; <code>source_version integer not null default 1</code>; <code>invalidated_at timestamptz null</code>; <code>created_at</code>, <code>updated_at timestamptz</code>.</dd>
+       <dt>完整性 / 索引</dt><dd>置信度在 0 和 1 之间；立场在 <code>supports|opposes|neutral</code>；审查状态在 <code>pending|accepted|edited|rejected|invalidated</code>; unique <code>(project_id,normalized_key,source_version)</code>；用于问题、审查状态和失效的索引。</dd>
+       <dt>访问 / 生命周期</dt><dd>直接拥有者 RLS。提取器创建；审查决策更改状态；报告综合仅读取已接受、未失效的声明。来源更改会失效而非静默覆盖。</dd>
+      </dl></details>
+
+      <details id="planned-claim-evidence" data-contract="planned"><summary><code>claim_evidence</code> · 声明到引用的支持边 <span class="status partial">schema applied · writer integration unvalidated</span></summary><dl class="kv">
+       <dt>字段</dt><dd><code>claim_id uuid not null FK claims cascade</code>; <code>citation_id uuid not null FK citations cascade</code>; <code>relation text not null</code>; <code>extraction_score numeric(5,4) not null</code>; <code>extractor_version text not null</code>; <code>created_at timestamptz not null default now()</code>; 复合 PK <code>(claim_id,citation_id,relation)</code>.</dd>
+       <dt>完整性 / 索引</dt><dd>关系在 <code>supports|contradicts|mentions</code>；分数在 0 和 1 之间；<code>citation_id</code> 的反向索引。</dd>
+       <dt>访问 / 生命周期</dt><dd>RLS 通过声明和引用拥有权派生；提取器写入，审查/报告/影响服务读取。删除任一父级会移除该边并触发影响评估。</dd>
+      </dl></details>
+
+      <details id="planned-claim-relations" data-contract="planned"><summary><code>claim_relations</code> · 跨来源推理边 <span class="status partial">已应用模式 · 仓库集成未验证</span></summary><dl class="kv">
+       <dt>字段</dt><dd><code>source_claim_id uuid not null FK claims cascade</code>; <code>target_claim_id uuid not null FK claims cascade</code>; <code>relation text not null</code>; <code>confidence numeric(5,4) not null</code>; <code>rationale_summary text null</code>; <code>created_at timestamptz not null default now()</code>; 复合 PK <code>(source_claim_id,target_claim_id,relation)</code>.</dd>
+       <dt>完整性 / 索引</dt><dd>声明必须不同；关系在 <code>supports|contradicts|duplicates</code>；置信度在 0 和 1 之间；目标声明的反向索引。应用强制相同项目/拥有者。</dd>
+       <dt>访问 / 生命周期</dt><dd>RLS 通过两个声明派生；对账 worker 写入，图/报告 UI 读取，失效服务在任一声明显更时重新评估。</dd>
+      </dl></details>
+
+      <details id="planned-reports" data-contract="planned"><summary><code>reports</code> · 版本化综合根 <span class="status partial">已应用模式 · 仓库集成未验证</span></summary><dl class="kv">
+       <dt>字段</dt><dd><code>id uuid PK</code>; <code>user_id uuid not null FK profiles cascade</code>; <code>project_id uuid not null FK projects cascade</code>; <code>source_run_id uuid not null FK workflow_runs restrict</code>; <code>title text not null</code>; <code>status text not null default 'draft'</code>; <code>revision integer not null</code>; <code>validation_status text not null default 'pending'</code>; <code>generated_at timestamptz null</code>; <code>created_at</code>, <code>updated_at timestamptz</code>.</dd>
+       <dt>完整性 / 索引</dt><dd>状态在 <code>draft|review|published|invalidated</code>; unique <code>(project_id,revision)</code>；索引 <code>(project_id,status)</code> 和 <code>(source_run_id)</code>。</dd>
+       <dt>访问 / 生命周期</dt><dd>直接拥有者 RLS；综合服务创建，拥有者发布，刷新创建新修订而非修改已发布的证据。</dd>
+      </dl></details>
+
+      <details id="planned-report-sections" data-contract="planned"><summary><code>report_sections</code> · 有序报告快照 <span class="status partial">schema applied · writer integration unvalidated</span></summary><dl class="kv">
+       <dt>字段</dt><dd><code>id uuid PK</code>; <code>report_id uuid not null FK reports cascade</code>; <code>parent_section_id uuid null FK report_sections set null</code>; <code>section_key text not null</code>; <code>position integer not null</code>; <code>heading text not null</code>; <code>body_markdown text not null</code>; <code>evidence_snapshot jsonb not null</code>; <code>validation_status text not null</code>; <code>created_at</code>, <code>updated_at timestamptz</code>.</dd>
+       <dt>完整性 / 索引</dt><dd>Unique <code>(report_id,section_key)</code> and <code>(report_id,position)</code>；非负位置；父级索引。证据快照包含已接受的声明/引用 ID 和哈希以供可复现性。</dd>
+       <dt>访问 / 生命周期</dt><dd>RLS 通过报告派生；综合写入，报告 UI 读取，影响服务标记受影响段落以供新修订。已发布的快照保持不可变。</dd>
+      </dl></details>
+
+      <details id="planned-human-decisions" data-contract="planned"><summary><code>human_decisions</code> · 持久的批准/编辑/拒绝输入 <span class="status partial">已应用模式 · 仓库集成未验证</span></summary><dl class="kv">
+       <dt>字段</dt><dd><code>id uuid PK</code>; <code>run_id uuid not null FK workflow_runs cascade</code>; <code>event_id bigint null FK run_events set null</code>; <code>user_id uuid not null FK profiles restrict</code>; <code>interrupt_key text not null</code>; <code>decision text not null</code>; <code>proposed_payload jsonb not null</code>; <code>final_payload jsonb null</code>; <code>reason text null</code>; <code>created_at timestamptz not null default now()</code>.</dd>
+       <dt>完整性 / 索引</dt><dd>决策在 <code>approve|edit|reject</code>; unique <code>(run_id,interrupt_key)</code>; index <code>(user_id,created_at desc)</code>.</dd>
+       <dt>访问 / 生命周期</dt><dd>运行拥有者或特权审查者可插入一次；worker 读取以恢复。仅追加审计记录随运行保留并从普通遥测中脱敏。</dd>
+      </dl></details>
+
+      <details id="planned-outbox-events" data-contract="partial"><summary><code>outbox_events</code> · 事务到队列桥 <span class="status partial">已应用模式 · 运行时集成未验证</span></summary><dl class="kv">
+       <dt>字段</dt><dd><code>id uuid PK</code>; <code>aggregate_type text not null</code>; <code>aggregate_id uuid not null</code>; <code>event_type text not null</code>; <code>payload jsonb not null</code>; <code>idempotency_key text not null unique</code>; <code>status text not null default 'pending'</code>; <code>attempts integer not null default 0</code>; <code>available_at timestamptz not null default now()</code>; <code>published_at timestamptz null</code>; <code>last_error text null</code>; <code>created_at timestamptz not null default now()</code>.</dd>
+       <dt>完整性 / 索引</dt><dd>状态在 <code>pending|publishing|published|failed</code>；尝试次数非负；dispatch index <code>(status,available_at)</code>.</dd>
+       <dt>访问 / 生命周期</dt><dd>仅服务角色。文档完成现在在同一事务中写入此行和作业意图；SKIP LOCKED 调度器实现发布、退避和过期认领恢复。Supabase 应用、Redis 交付、崩溃恢复和终端清理仍未验证。</dd>
+      </dl></details>
+
+      <details id="planned-pipeline-versions" data-contract="planned"><summary><code>pipeline_versions</code> · 不可变执行配置 <span class="status partial">已应用模式 · 仓库集成未验证</span></summary><dl class="kv">
+       <dt>字段</dt><dd><code>id uuid PK</code>; <code>name text not null</code>; <code>version integer not null</code>; <code>status text not null default 'draft'</code>; <code>configuration jsonb not null</code>; <code>prompt_hash text not null</code>; <code>code_sha text not null</code>; <code>created_by uuid not null FK profiles restrict</code>; <code>created_at timestamptz not null default now()</code>; <code>accepted_at timestamptz null</code>.</dd>
+       <dt>完整性 / 索引</dt><dd>Unique <code>(name,version)</code>; status in <code>draft|candidate|accepted|retired</code>；已接受的版本不可变。</dd>
+       <dt>访问 / 生命周期</dt><dd>Developer/admin 写入；认证用户可读取其运行引用的版本。评估提升一个版本；历史运行保留其原始引用。</dd>
+      </dl></details>
+
+      <details id="planned-evaluation-datasets" data-contract="planned"><summary><code>evaluation_datasets</code> · 版本化基准集合 <span class="status partial">已应用模式 · 仓库集成未验证</span></summary><dl class="kv">
+       <dt>字段</dt><dd><code>id uuid PK</code>; <code>user_id uuid not null FK profiles cascade</code>; <code>project_id uuid null FK projects set null</code>; <code>name text not null</code>; <code>version integer not null</code>; <code>status text not null default 'draft'</code>; <code>description text null</code>; <code>created_at timestamptz not null default now()</code>.</dd>
+       <dt>完整性 / 索引</dt><dd>Unique <code>(user_id,name,version)</code>; status in <code>draft|frozen|retired</code>；已冻结的数据集不可变。</dd>
+       <dt>访问 / 生命周期</dt><dd>直接拥有者 RLS；评估 UI 写入草稿并冻结版本；运行仅读取已冻结的数据集。</dd>
+      </dl></details>
+
+      <details id="planned-evaluation-cases" data-contract="planned"><summary><code>evaluation_cases</code> · 可复现的输入和预期 <span class="status partial">已应用模式 · 运行器集成未验证</span></summary><dl class="kv">
+       <dt>字段</dt><dd><code>id uuid PK</code>; <code>dataset_id uuid not null FK evaluation_datasets cascade</code>; <code>case_key text not null</code>; <code>input jsonb not null</code>; <code>expected_output jsonb null</code>; <code>expected_evidence jsonb not null</code>; <code>labels text[] not null default '{}'</code>; <code>created_at timestamptz not null default now()</code>.</dd>
+       <dt>完整性 / 索引</dt><dd>Unique <code>(dataset_id,case_key)</code>；当过滤被测量为有用时对 labels 的 GIN 索引。</dd>
+       <dt>访问 / 生命周期</dt><dd>RLS 通过数据集派生；仅在数据集为草稿时可编辑；为所有引用运行保留不变。</dd>
+      </dl></details>
+
+      <details id="planned-evaluation-runs" data-contract="planned"><summary><code>evaluation_runs</code> · 批量实验标识 <span class="status partial">已应用模式 · 运行器集成未验证</span></summary><dl class="kv">
+       <dt>字段</dt><dd><code>id uuid PK</code>; <code>user_id uuid not null FK profiles cascade</code>; <code>project_id uuid null FK projects set null</code>; <code>dataset_id uuid not null FK evaluation_datasets restrict</code>; <code>pipeline_version_id uuid not null FK pipeline_versions restrict</code>; <code>status text not null default 'pending'</code>; <code>idempotency_key text not null</code>; <code>summary jsonb null</code>; <code>started_at</code>, <code>completed_at</code>, <code>created_at timestamptz</code>; 交付字段 <code>attempts integer not null default 0</code>, <code>lease_owner text null</code>, <code>lease_expires_at timestamptz null</code>; 预算字段 <code>budget_limit_usd numeric(12,6) not null default 1.000000</code>, <code>budget_reserved_usd numeric(12,6) not null default 0</code>, <code>last_error_code text null</code>.</dd>
+       <dt>完整性 / 索引</dt><dd>Unique <code>(user_id,idempotency_key)</code>; status in <code>pending|running|succeeded|failed|cancelled</code>；尝试次数和预留非负；预算限制为正；<code>budget_reserved_usd &lt;= budget_limit_usd</code>；按数据集、管道、创建和 <code>idx_evaluation_runs_dispatch_lease(status,lease_expires_at,created_at)</code>.</dd>
+       <dt>访问 / 生命周期</dt><dd>直接拥有者 RLS；API 创建，Celery 认领并在分发前原子性地预留保守的每用例配额，评估实验室读取。预留是故障关闭的调度器上限——不是提供商账单。结果在终端完成后不可变，除了显式取消/错误状态。</dd>
+      </dl></details>
+
+      <details id="planned-evaluation-scores" data-contract="planned"><summary><code>evaluation_scores</code> · 用例级指标结果 <span class="status partial">已应用模式 · 运行器集成未验证</span></summary><dl class="kv">
+       <dt>字段</dt><dd><code>id uuid PK</code>; <code>evaluation_run_id uuid not null FK evaluation_runs cascade</code>; <code>case_id uuid not null FK evaluation_cases restrict</code>; <code>metric_name text not null</code>; <code>metric_version text not null</code>; <code>value numeric null</code>; <code>passed boolean null</code>; <code>details jsonb not null default '{}'</code>; <code>judge_model text null</code>; <code>created_at timestamptz not null default now()</code>.</dd>
+       <dt>完整性 / 索引</dt><dd>Unique <code>(evaluation_run_id,case_id,metric_name,metric_version)</code>；至少需要 value/passed 之一；按指标和用例的索引。</dd>
+       <dt>访问 / 生命周期</dt><dd>RLS 通过评估运行派生；评估器写入一次；仪表板和 CI 读取者聚合而不重写历史分数。</dd>
+      </dl></details>
+
+      <details id="planned-fault-exercises" data-contract="partial"><summary><code>fault_exercises</code> · 可审计的有界可靠性模拟 <span class="status partial">已应用模式 · REST/worker 集成未验证</span></summary><dl class="kv">
+       <dt>字段</dt><dd><code>id uuid PK</code>; <code>requested_by uuid not null FK profiles(id) cascade</code>; <code>target_run_id uuid null FK workflow_runs(id) set null</code>; <code>scenario text not null</code>; <code>duration_seconds integer not null</code>; <code>status text not null default 'pending'</code>; <code>request_hash text not null</code>; <code>idempotency_key text not null</code>; <code>attempts integer not null default 0</code>; <code>lease_owner text null</code>; <code>lease_expires_at timestamptz null</code>; <code>expires_at timestamptz not null</code>; <code>safe_result jsonb not null default '{}'</code>; <code>last_error_code text null</code>; <code>started_at</code>, <code>completed_at</code>, <code>created_at timestamptz not null default now()</code>.</dd>
+       <dt>完整性 / 索引</dt><dd>Scenario in <code>llm_timeout|qdrant_unavailable|worker_interrupt|r2_failure</code>；持续时间 1–60 秒；status in <code>pending|running|succeeded|failed</code>；尝试次数非负；unique <code>(requested_by,idempotency_key)</code>；调度索引 <code>(status,lease_expires_at,created_at)</code>；目标历史索引 <code>(target_run_id,created_at desc)</code>.</dd>
+       <dt>拥有权 / RLS</dt><dd>拥有者 SELECT 使用 <code>requested_by = auth.uid()</code>；拥有者 INSERT 使用相同检查。API 还要求 developer/admin 并隐藏本地、测试或隔离预览之外的创建。服务角色 worker 更新仅在租约执行时绕过拥有者 RLS。</dd>
+       <dt>生命周期 / 写入者 / 读取者</dt><dd>FastAPI 创建一个过期的幂等请求和发件箱意图；Celery 认领，记录安全的非破坏性模拟结果，并达到 succeeded/failed；拥有者/admin 状态路由读取它。目标运行删除将链接置为 null，用户删除级联，保留/清理策略仍未验证。</dd>
+       <dt>当前边界</dt><dd>迁移、仓库、POST/GET 路由、调度器映射和 worker 代码已存在。Supabase、Redis 交付、租约恢复、自动过期和相关遥测尚未运行。</dd>
+      </dl></details>
+
+      <details id="runtime-heartbeats" data-contract="partial"><summary><code>runtime_heartbeats</code> · 部署就绪信号 <span class="status partial">已应用模式 · 生产者/读取者集成未验证</span></summary><dl class="kv">
+       <dt>字段</dt><dd><code>component text PK</code> constrained to <code>worker|dispatcher</code>; <code>instance_id text not null</code>; <code>status text not null</code> constrained to <code>ready|degraded|stopping</code>; <code>safe_metadata jsonb not null default '{}'</code>; <code>updated_at timestamptz not null default now()</code>.</dd>
+       <dt>写入者 / 读取者</dt><dd>Celery worker 信号和调度器轮询循环 upsert 仅后端的行。公共 <code>/readyz</code> 在检查新鲜度后仅返回 ready/unavailable 状态；它从不暴露实例标识或元数据。</dd>
+       <dt>访问 / 完整性</dt><dd>已启用 RLS，所有浏览器角色被撤销，仅服务器数据库角色。这是可恢复的运维状态，不是业务真值；过期或缺失的心跳会导致部署就绪失败。</dd>
+       <dt>生命周期</dt><dd>每个组件一行被无限覆盖。它可被运行中的组件删除和重建。</dd>
+      </dl></details>
+
+      <div class="notice warning"><strong>剩余迁移门槛：</strong>迁移应用、直接数据库连接和已部署的 FastAPI/worker/dispatcher 就绪性已在 <code>b80150a</code> 上验证。两个真实身份证明了独立的项目写入和隐藏的跨用户 API 读取，但项目仍需要直接跨租户 RLS 查询、同租户关系测试、预算/故障租约和重启证明、显式保留值以及当前 <code>ask_runs</code> 的兼容性证明。</div>
+     </section>
+     <section id="access">
+      <p class="eyebrow">
+       访问和生命周期审计
+      </p>
+      <h2>
+       RLS 覆盖和未解决控制
+      </h2>
+      <div class="visual-panel">
+       <div class="visual-head">
+        <div>
+         <h3>
+          删除和保留拓扑
+         </h3>
+         <p>
+          声明的数据库行为在跨存储对账之前结束；该边界保持可见。
+         </p>
+        </div>
+       </div>
+       <div class="dependency-road">
+        <div class="road-stop">
+         <b>
+          拥有者请求
+         </b>
+         <small>
+          项目或文档删除命令
+         </small>
+        </div>
+        <div class="road-stop">
+         <b>
+          软删除字段
+         </b>
+         <small>
+          projects, documents, conversations
+         </small>
+        </div>
+        <div class="road-stop">
+         <b>
+          外键行为
+         </b>
+         <small>
+          级联依赖项；选定的运行/来源链接 SET NULL
+         </small>
+        </div>
+        <div class="road-stop">
+         <b>
+          删除作业
+         </b>
+         <small>
+          目标包括 DB、R2、Qdrant、Redis
+         </small>
+        </div>
+        <div class="road-stop">
+         <b>
+          对账
+         </b>
+         <small>
+          合约存在；已部署的完成和备份删除未知
+         </small>
+        </div>
+       </div>
+      </div>
+      <div class="access-rails" aria-label="全部十五个表的 RLS 覆盖">
+       <div class="access-rail">
+        <h3>11 个直接策略</h3>
+        <p><code>profiles</code> （仅 select）</p><p><code>projects</code> · <code>documents</code> · <code>chunks</code></p><p><code>conversations</code> · <code>messages</code> · <code>ask_runs</code></p><p><code>quiz_sets</code> · <code>jobs</code> · <code>deletion_jobs</code> · <code>api_usage</code></p>
+       </div>
+       <div class="access-rail derived">
+        <h3>4 个已启用 RLS，无策略</h3>
+        <p><code>document_pages</code> · <code>tool_calls</code> · <code>citations</code> · <code>quiz_questions</code></p>
+        <p>普通角色默认被拒绝。父级拥有权是设计意图，不是已实现的继承策略。</p>
+       </div>
+       <div class="access-rail unknown">
+        <h3>未关闭的安全边界</h3>
+        <p>服务角色暴露和 PostgREST 访问未验证。</p>
+        <p>重复的 <code>user_id</code>/<code>project_id</code>/资源外键未约束到同一租户。</p>
+        <p><code>owner_user_id(project_id)</code> 存在但当前无策略调用它。</p>
+       </div>
+      </div>
+      <div class="notice warning">
+       <strong>生命周期由应用驱动。</strong>
+       迁移定义了枚举值、时间戳、过期字段和默认值，但没有状态转换约束、过期 worker 或自动 <code>updated_at</code> 触发器。代码或 worker 必须推进这些字段；部署证明缺失。
+      </div>
+      <div class="notice">
+       <strong>联邦登录不重新定义租户。</strong>
+       密码、魔法链接、GitHub 和任何后续的 Google 提供商都解析为 Supabase 用户。数据库拥有权保持为不可变的 JWT <code>sub</code> UUID；邮箱和提供商用户名是档案属性，绝非授权键。现有的 API 拥有者谓词加 PostgreSQL RLS 是纵深防御边界。
+      </div>
+      <div class="scroll">
+       <table>
+        <thead>
+         <tr>
+          <th>
+           类别
+          </th>
+          <th>
+           直接拥有者 RLS
+          </th>
+          <th>
+           派生 / 缺失
+          </th>
+          <th>
+           必需验证
+          </th>
+         </tr>
+        </thead>
+        <tbody>
+         <tr>
+          <td>
+           身份/工作空间
+          </td>
+          <td>
+           profiles 仅 select；projects、documents 全部
+          </td>
+          <td>
+           —
+          </td>
+          <td>
+           认证 UID 映射和 CRUD 隔离。
+          </td>
+         </tr>
+         <tr>
+          <td>
+           证据
+          </td>
+          <td>
+           chunks 全部
+          </td>
+          <td>
+           document_pages 无直接策略
+          </td>
+          <td>
+           确认仅服务器访问或添加基于关系的策略。
+          </td>
+         </tr>
+         <tr>
+          <td>
+           对话/运行
+          </td>
+          <td>
+           conversations、messages、ask_runs 全部
+          </td>
+          <td>
+           tool_calls 和 citations 无直接策略
+          </td>
+          <td>
+           通过拥有的运行强制访问并测试 PostgREST 暴露。
+          </td>
+         </tr>
+         <tr>
+          <td>
+           测验
+          </td>
+          <td>
+           quiz_sets 全部
+          </td>
+          <td>
+           quiz_questions 无直接策略
+          </td>
+          <td>
+           通过集合拥有权强制。
+          </td>
+         </tr>
+         <tr>
+          <td>
+           作业/用量
+          </td>
+          <td>
+           jobs、deletion_jobs、api_usage 全部
+          </td>
+          <td>
+           Worker 服务角色边界未指定
+          </td>
+          <td>
+           定义最小权限 worker 和对账权限。
+          </td>
+         </tr>
+        </tbody>
+       </table>
+      </div>
+      <div class="notice riskbox">
+       <strong>
+        部分验证的认证边界。
+       </strong>
+       一个独立的 Supabase Free 开发项目运行正常，自动公开表暴露已禁用，自动 RLS 已启用。直接 psycopg 验证发现 6 个应用迁移记录、10 个检查点迁移行（模式版本 9）和 37 个公开表。2026 年 7 月 27 日，Live Render 服务成功使用连接池连接；就绪检查执行了 SQL，验证了检查点表，并观察到新的 worker/dispatcher 心跳。一个密码身份和一个不同的 GitHub OAuth 身份各自创建并刷新了拥有者范围的 PostgreSQL 项目。GitHub 身份最初列出了无项目，而对密码用户 Library 的直接请求返回了隐藏的未找到响应，同时其自身的 Library 正常加载。这证明了两个 JWT 主体的已部署 API/事务隔离；它不独立证明直接 PostgREST/RLS 行为、会话过期/撤销或重启/恢复。
+      </div>
+     </section>
+     <section id="evidence">
+      <p class="eyebrow">
+       证据
+      </p>
+      <h2>
+       Schema 和运行时来源
+      </h2>
+      <div class="evidence">
+       <strong>
+        维护的合约：
+       </strong>
+       <span class="source">
+        infra/supabase/migrations/202605260001_initial_schema.sql
+       </span>
+       <br/>
+       <strong>
+        运行时比较：
+       </strong>
+       <span class="source">
+        apps/api/src/researchmate_api/services/store.py · schemas/** · routers/**
+       </span>
+       <br/>
+      </div>
+     </section>
+    </div>
+    <aside class="toc">
+     <b>本页导航</b>
+     <a href="#boundary">边界和枚举</a>
+     <a href="#relations">实体图和 FK</a>
+     <a href="#tables">表合约</a>
+     <a href="#planned-schema">附加 schema</a>
+     <a href="#access">RLS 和生命周期</a>
+     <a href="#evidence">证据</a>
+    </aside>
+   </div>
+  </main>
+  <footer class="shell footer">
+   ResearchMate 数据库合约 · 31 个领域表和 1 个运维就绪表 · 受管模式和运行时就绪已验证，认证 RLS 待定
+  </footer>
+  <script src="../../assets/site.js">
+  </script>
+ </body>
+</html>

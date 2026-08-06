@@ -199,9 +199,6 @@ class GroundedQueryService:
             bool(chunks),
             rerank_used=rerank_result is not None,
         )
-        # Quota counts accepted execution attempts only after scope and evidence preconditions pass.
-        if not self.repository.increment_usage(user, "ask", limit=200):
-            raise_grounded_error("RATE_LIMITED", "Daily ask quota exceeded.", 429)
 
         try:
             generation = generate_answer(
@@ -215,6 +212,9 @@ class GroundedQueryService:
             )
         except AnswerGenerationError as exc:
             raise GroundedQueryError(exc.code, exc.message, exc.status_code) from exc
+        # Quota counts successful generation only; provider failures do not consume quota.
+        if not self.repository.increment_usage(user, "ask", limit=200):
+            raise_grounded_error("RATE_LIMITED", "Daily ask quota exceeded.", 429)
         answer = generation.answer
         citations = generation.citations
         summary = generation.summary
