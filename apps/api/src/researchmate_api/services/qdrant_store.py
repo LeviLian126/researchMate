@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
+import logging
 from collections import Counter
 from hashlib import sha256
 from math import log1p
 from typing import Any
-
-import logging
 
 from qdrant_client import QdrantClient, models
 
@@ -16,7 +15,6 @@ from researchmate_api.schemas.common import SourceType
 from researchmate_api.services.embedding import NvidiaEmbeddingProvider
 from researchmate_api.services.retrieval import tokenize
 from researchmate_api.services.store import ChunkEntry
-
 
 LOGGER = logging.getLogger(__name__)
 
