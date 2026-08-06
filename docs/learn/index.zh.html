@@ -1,0 +1,113 @@
+﻿<!-- 定义 ResearchMate 项目技术学习页面,面向初学者讲解架构、技术栈和代码流转。 -->
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width,initial-scale=1" name="viewport"/>
+  <meta content="ResearchMate 技术学习指南:按项目文件结构拆分,讲解前端、后端、Worker、基础设施、CI/CD 涉及的技术栈基础知识和代码流转。" name="description"/>
+  <title>ResearchMate · 技术学习</title>
+  <link href="../assets/site.css" rel="stylesheet"/>
+</head>
+<body>
+  <header class="mast"><div class="shell mast-row"><a class="brand" href="../index.zh.html">ResearchMate 文档</a><div class="mast-right"><span class="stamp">学习指南 · 2026 年 8 月 6 日</span><a class="lang-toggle" href="index.html" hreflang="en" lang="en">English</a></div></div></header>
+  <nav aria-label="文档" class="global"><div class="shell">
+    <a href="../index.zh.html">概览</a>
+    <a href="../product/index.zh.html">产品与路线图</a>
+    <a href="../architecture/index.zh.html">架构与技术栈</a>
+    <a href="../contracts/data/index.zh.html">数据库</a>
+    <a href="../contracts/api/index.zh.html">API</a>
+    <a aria-current="page" href="index.zh.html">学习</a>
+  </div></nav>
+  <main class="shell">
+    <div class="hero">
+      <p class="eyebrow">技术栈基础 / 项目结构拆分 / 请求流转切片</p>
+      <h1>技术学习指南</h1>
+      <p class="lede">本页面面向初学者,按照 ResearchMate 的 monorepo 文件结构逐层拆分,讲解每个文件夹和关键文件的作用,并以切片的角度分析一个前端请求从浏览器进入后端、经过哪些文件、各文件发挥了什么作用。每个技术栈都附带基础知识讲解并结合项目实际代码分析。</p>
+      <div class="meta">
+        <span class="status local">前端 · Next.js + React + Tailwind + shadcn/ui</span>
+        <span class="status local">后端 · FastAPI + Pydantic + PostgreSQL</span>
+        <span class="status local">Worker · Celery + LangGraph + Hybrid RAG</span>
+        <span class="status local">CI/CD · GitHub Actions + Docker + Render</span>
+      </div>
+    </div>
+    <div class="layout"><div class="content">
+
+      <section id="sub-pages">
+        <p class="eyebrow">深入学习</p>
+        <h2>按模块拆分的子页面</h2>
+        <p class="sub">每个子页面深入到文件级颗粒度,逐文件讲解作用、关键逻辑和依赖关系,并附技术栈基础知识。</p>
+        <div class="doc-index capability-index">
+          <a class="doc-link" href="frontend.zh.html"><b>前端 · apps/web</b><span>50 个源码文件(不含配置和资源文件):Next.js / React / Tailwind / shadcn-ui 组件详解、API 请求切片、状态管理、文件上传流程。</span></a>
+          <a class="doc-link" href="backend.zh.html"><b>后端 · apps/api</b><span>80 个文件:FastAPI 路由/Schema/Service/Persistence 逐文件详解、认证机制、Provider 适配器、幂等协调器。</span></a>
+          <a class="doc-link" href="worker.zh.html"><b>Worker · workers/ai-worker</b><span>37 个文件:Celery 任务、文档摄取、LangGraph 工作流、Outbox 模式、RAGAS 评估、进程监管。</span></a>
+          <a class="doc-link" href="infra.zh.html"><b>基础设施 · infra + scripts</b><span>20 个文件:31 张表的 SQL 迁移逐文件详解、Qdrant 集合配置、OpenAPI 规范、运维脚本。</span></a>
+          <a class="doc-link" href="cicd.zh.html"><b>CI/CD · GitHub Actions + Docker + Render</b><span>ci.yml 逐 Job 详解、两个 Dockerfile 逐行分析、render.yaml 配置、依赖管理双锁策略。</span></a>
+          <a class="doc-link" href="contracts-tests.zh.html"><b>合约与测试 · packages/shared + tests</b><span>contracts.ts 逐类型详解、三层契约镜像、38 个测试文件逐文件分析、Hermetic 测试策略。</span></a>
+        </div>
+      </section>
+
+      <section id="structure">
+        <p class="eyebrow">Monorepo 结构</p>
+        <h2>项目整体结构</h2>
+        <p class="sub">ResearchMate 是一个 monorepo(单仓库多项目),用 npm workspaces 管理 JavaScript/TypeScript 包,用 uv workspace 管理 Python 包。所有代码、配置和文档在同一个 Git 仓库中。</p>
+        <div class="notice"><strong>什么是 monorepo?</strong> monorepo 是一种将多个相关项目放在同一个版本控制仓库中管理的策略。优势是共享配置、统一版本锁定、跨项目重构更方便。ResearchMate 的前端(<code>apps/web</code>)、后端 API(<code>apps/api</code>)和 AI Worker(<code>workers/ai-worker</code>)都在同一个仓库里。</div>
+        <dl class="repo-map">
+          <dt><code>apps/web/</code></dt><dd>Next.js 前端应用,部署在 Vercel。包含页面路由、React 组件、API 客户端和认证逻辑。</dd>
+          <dt><code>apps/api/</code></dt><dd>FastAPI 后端 REST API,提供 45 个 <code>/api/v1</code> 操作。包含路由、Pydantic 模型、服务编排和 PostgreSQL 持久化层。</dd>
+          <dt><code>workers/ai-worker/</code></dt><dd>Celery Worker + Outbox Dispatcher,负责文档解析、向量索引、LangGraph 工作流和评估。与 API 合并部署在同一个 Render 容器。</dd>
+          <dt><code>packages/shared/</code></dt><dd>前后端共享的 TypeScript 类型契约(<code>contracts.ts</code>),定义 API 数据形状的权威来源。</dd>
+          <dt><code>infra/</code></dt><dd>基础设施配置:Supabase SQL 迁移文件、Qdrant 集合配置、OpenAPI 规范。</dd>
+          <dt><code>scripts/</code></dt><dd>运维脚本:数据库迁移执行器、Qdrant rerank 回填、OpenAPI 导出等。</dd>
+          <dt><code>tests/</code></dt><dd>Python 测试套件(36 个文件),覆盖单元测试、HTTP 集成测试、契约检视和发布安全。</dd>
+          <dt><code>docs/</code></dt><dd>浏览器可打开的项目文档(HTML),即你正在查看的页面。</dd>
+          <dt><code>.github/workflows/</code></dt><dd>GitHub Actions CI 流水线定义(<code>ci.yml</code>)。</dd>
+          <dt><code>skill/</code></dt><dd>gstack 开发技能库,包含 land-and-deploy、qa、review 等工作流技能。</dd>
+        </dl>
+        <div class="grid two">
+          <article class="fact"><b>npm workspaces(Node.js 包管理)</b><p>根 <code>package.json</code> 声明 <code>"workspaces": ["apps/web", "packages/shared"]</code>。所有 JS/TS 依赖由根级 <code>package-lock.json</code> 统一锁定,前端和共享包通过 workspace 协议互相引用。</p></article>
+          <article class="fact"><b>uv workspace(Python 包管理)</b><p>根 <code>pyproject.toml</code> 声明 <code>[tool.uv.workspace] members = ["apps/api", "workers/ai-worker"]</code>。所有 Python 依赖由 <code>uv.lock</code> 统一锁定,CI 和 Docker 中用 <code>uv sync --frozen</code> 严格按锁文件安装。</p></article>
+        </div>
+      </section>
+
+      <section id="e2e-slice">
+        <p class="eyebrow">全链路切片</p>
+        <h2>一个 Ask 请求的完整旅程</h2>
+        <p class="sub">从用户在浏览器输入问题,到收到带引用的回答,请求经过的全部文件和模块:</p>
+        <div class="proof-chain">
+          <div class="proof-step"><b>浏览器</b><small>chat-composer.tsx,use-chat-workspace.ts,api.ts(apiFetch + getAccessToken),supabase.ts(JWT),fetch()</small></div>
+          <div class="proof-step"><b>FastAPI 中间件</b><small>main.py:CORS,attach_request_id(生成 request_id + 安全 headers)</small></div>
+          <div class="proof-step"><b>认证 + 依赖注入</b><small>dependencies.py:get_current_user(JWKS 验证 JWT),get_store / get_chat_provider / get_hybrid_store / get_reranker(从 app.state 读取单例)</small></div>
+          <div class="proof-step"><b>路由 + 幂等</b><small>routers/ask.py(极薄编排),services/idempotency.py(四态机:execute / replay / mismatch / in_progress)</small></div>
+          <div class="proof-step"><b>对话 scope</b><small>services/query_conversation.py:验证项目/对话,加载 chunks,query_context.py(摘要压缩 + token 预算 + 跨对话 memory)</small></div>
+          <div class="proof-step"><b>本地检索</b><small>services/query_retrieval.py,retrieval.py(BM25 + CJK bigram),qdrant_store.py(Qdrant dense + RRF 融合),embedding.py(NVIDIA 4096维)</small></div>
+          <div class="proof-step"><b>Rerank</b><small>services/rerank.py:Qdrant native,NVIDIA ranking,Deterministic(三路降级),pack_chunks(token 预算打包)</small></div>
+          <div class="proof-step"><b>答案生成</b><small>services/query_generation.py,answering.py:有证据走 LLM grounded(JSON schema 验证 + 一次修复);无证据走 chat 或 abstain</small></div>
+          <div class="proof-step"><b>持久化 + 响应</b><small>store.py / persistence/postgres.py(RLS 参数):保存 run/trace/消息,返回 AskResponse,中间件附加 headers,浏览器渲染</small></div>
+        </div>
+        <div class="notice"><strong>异步路径:</strong>文档上传后,API 写 outbox_events,dispatcher 轮询分发,Celery worker 摄取(parse + chunk + vector),Qdrant 就绪。用户下次 Ask 时检索到新文档的证据。这条异步链路经过 dispatch_outbox.py,tasks.py,ingestion_service.py,parsing.py,ingestion_projections.py,qdrant_store.py。</div>
+      </section>
+
+      <section id="reading-paths">
+        <p class="eyebrow">延伸阅读</p>
+        <h2>深入学习路径</h2>
+        <div class="doc-index">
+          <a class="doc-link" href="../architecture/index.zh.html#stack"><b>架构与技术栈</b><span>运行时边界、技术栈论证、故障恢复、部署计划和 CI/CD 详解。</span></a>
+          <a class="doc-link" href="../contracts/data/index.zh.html#tables"><b>数据库设计</b><span>31 张表的完整字段、关系、完整性和 RLS 台账。</span></a>
+          <a class="doc-link" href="../contracts/api/index.zh.html#operations"><b>API 设计</b><span>45 个 REST 操作的完整契约和集成状态。</span></a>
+          <a class="doc-link" href="../product/index.zh.html#capabilities"><b>产品能力</b><span>场景、当前能力、验收标准和非目标。</span></a>
+          <a class="doc-link" href="../index.zh.html"><b>项目概览</b><span>证据快照、验证状态和交付边界。</span></a>
+        </div>
+      </section>
+
+    </div>
+    <aside class="toc"><b>本页目录</b>
+      <a href="#sub-pages">子页面索引</a>
+      <a href="#structure">项目结构</a>
+      <a href="#e2e-slice">全链路切片</a>
+      <a href="#reading-paths">延伸阅读</a>
+    </aside></div>
+  </main>
+  <footer class="shell footer">ResearchMate 技术学习指南 · 编写于 2026 年 8 月 6 日</footer>
+  <script src="../assets/site.js"></script>
+</body>
+</html>

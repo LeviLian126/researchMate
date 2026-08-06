@@ -1,0 +1,369 @@
+﻿<!-- 前端模块学习页面:逐文件解析 apps/web 的技术栈、组件、状态管理和请求流转。 -->
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width,initial-scale=1" name="viewport"/>
+  <meta content="ResearchMate 前端学习:逐文件解析 apps/web 的 Next.js 16.3.0 技术栈、React 组件、API 客户端、状态管理和 E2E 测试。" name="description"/>
+  <title>ResearchMate · 前端学习</title>
+  <link href="../assets/site.css" rel="stylesheet"/>
+</head>
+<body>
+  <header class="mast"><div class="shell mast-row"><a class="brand" href="../index.zh.html">ResearchMate 文档</a><div class="mast-right"><span class="stamp">前端学习 · 2026 年 8 月 6 日</span><a class="lang-toggle" href="frontend.html" hreflang="en" lang="en">English</a></div></div></header>
+  <nav aria-label="文档" class="global"><div class="shell">
+    <a href="../index.zh.html">概览</a>
+    <a href="../product/index.zh.html">产品与路线图</a>
+    <a href="../architecture/index.zh.html">架构与技术栈</a>
+    <a href="../contracts/data/index.zh.html">数据库</a>
+    <a href="../contracts/api/index.zh.html">API</a>
+    <a aria-current="page" href="index.zh.html">学习</a>
+  </div></nav>
+  <nav aria-label="子页面" class="global"><div class="shell">
+    <a aria-current="page" href="frontend.zh.html">前端</a>
+    <a href="backend.zh.html">后端</a>
+    <a href="worker.zh.html">Worker</a>
+    <a href="infra.zh.html">基础设施</a>
+    <a href="cicd.zh.html">CI/CD</a>
+    <a href="contracts-tests.zh.html">合约与测试</a>
+  </div></nav>
+  <main class="shell">
+    <div class="hero">
+      <p class="eyebrow">apps/web · Next.js 16.3.0 · 50 个源码文件</p>
+      <h1>前端模块详解</h1>
+      <p class="lede">apps/web 是 ResearchMate 的 Next.js 前端应用,部署在 Vercel。包含 50 个源码文件(不含配置和资源文件),覆盖页面路由、React 组件、API 客户端、认证逻辑和 E2E 测试。本页面逐文件解析每个模块的作用、关键逻辑和依赖关系,并以切片视角追踪一个 Ask 请求从前端到后端的完整旅程。</p>
+      <div class="meta">
+        <span class="status local">Next.js 16.3.0 · App Router</span>
+        <span class="status local">React · Client Components</span>
+        <span class="status local">Tailwind CSS v4.3.3</span>
+        <span class="status local">shadcn/ui · 15 组件</span>
+        <span class="status local">Supabase Auth · GitHub OAuth</span>
+        <span class="status local">Vitest 4.1.10 · Playwright 1.62.1</span>
+      </div>
+    </div>
+    <div class="layout"><div class="content">
+
+      <section id="stack">
+        <p class="eyebrow">技术栈基础</p>
+        <h2>核心技术栈</h2>
+        <p class="sub">apps/web 使用以下 7 项核心技术,每项选择都有明确的项目场景驱动。下方 fact card 逐项说明版本、用途和项目中的实际用法。</p>
+        <div class="grid two">
+          <article class="fact"><b>Next.js 16.3.0</b><p>React 全栈框架,使用 App Router 文件路由系统。静态导出部署在 Vercel,通过 <code>next.config.ts</code> 的 <code>rewrites</code> 将 <code>/api/v1/*</code> 请求代理到 Render 后端,绕过企业代理对跨域请求的拦截。<code>reactStrictMode</code> 开启,使用 Turbopack 构建。<code>distDir</code> 可通过 <code>NEXT_DIST_DIR</code> 环境变量覆盖(E2E 使用 <code>.next-e2e</code>)。</p></article>
+          <article class="fact"><b>React</b><p>UI 库,大量使用 Client Components(<code>"use client"</code>)。通过 hooks(<code>useState</code>, <code>useEffect</code>, <code>useRef</code>, <code>useMemo</code>, <code>useCallback</code>)管理状态,不使用 Redux 或 Zustand 等外部状态库。组件分为容器组件(ChatWorkspace)、展示组件(ConversationThread, ChatComposer)和 UI 原语(ui/*)三层。</p></article>
+          <article class="fact"><b>Tailwind CSS v4.3.3</b><p>原子化 CSS 框架,通过 <code>@tailwindcss/postcss</code> 插件集成。<code>globals.css</code> 使用 <code>@import "tailwindcss"</code> 和 <code>@theme inline</code> 定义设计令牌(CSS 变量),支持 light/dark 双主题和 <code>prefers-reduced-motion</code>。组件使用 <code>cn()</code> 工具函数合并 Tailwind 类名。</p></article>
+          <article class="fact"><b>shadcn/ui</b><p>基于 Radix UI 原语的可定制组件系统。apps/web 包含 15 个 <code>ui/</code> 组件,依赖 9 个 <code>@radix-ui</code> 包。组件使用 <code>class-variance-authority</code>(cva)定义变体,通过 <code>tailwind-merge</code> 去重冲突的类名。不是 npm 包,而是复制到项目中的源码文件。</p></article>
+          <article class="fact"><b>Vitest 4.1.10</b><p>单元测试框架,使用 <code>jsdom</code> 环境模拟浏览器。通过 <code>@vitest/coverage-v8</code> 收集覆盖率,覆盖 <code>app/lib/**/*.ts</code> 和 <code>app/components/**/*.{ts,tsx}</code>,覆盖率基线 40%(lines/statements)。测试文件与源码同目录(<code>.test.ts</code> 后缀),共 8 个测试文件。</p></article>
+          <article class="fact"><b>Playwright 1.62.1</b><p>E2E 测试框架,仅使用 Chromium。通过 <code>webServer</code> 配置在 <code>127.0.0.1:3100</code> 启动 demo 模式 Next.js,测试文件在 <code>e2e/</code> 目录。验证完整用户旅程:发消息、看引用、建项目、生成 quiz,同时检查无浏览器错误和外部请求。</p></article>
+          <article class="fact"><b>Supabase Auth</b><p>认证服务,支持 GitHub OAuth 和邮箱密码。<code>supabase.ts</code> 自实现浏览器端 session 管理(不依赖 <code>@supabase/supabase-js</code>),包括 JWT 解码、refresh token 轮转、localStorage 持久化和 OAuth 重定向恢复。AuthGate 组件守卫所有受保护路由。</p></article>
+        </div>
+      </section>
+
+      <section id="tree">
+        <p class="eyebrow">完整目录树</p>
+        <h2>apps/web/ 文件结构</h2>
+        <p class="sub">下方是 apps/web/ 的完整文件树,排除 <code>.next/</code> 构建产物和 <code>node_modules/</code>。共 50 个源码文件(不含配置和资源文件):9 个页面路由、10 个业务组件、15 个 shadcn/ui 组件、6 个 lib 模块、8 个测试文件、1 个 E2E 测试。</p>
+        <pre class="command-block"><code>apps/web/
+├── AGENTS.md
+├── CLAUDE.md
+├── next-env.d.ts
+├── next.config.ts
+├── package.json
+├── playwright.config.ts
+├── postcss.config.mjs
+├── tsconfig.json
+├── vitest.config.ts
+├── e2e/
+│   └── demo-workspace.e2e.ts
+├── public/
+│   └── researchmate-logo-mark.png
+└── app/
+    ├── globals.css
+    ├── icon.svg
+    ├── layout.tsx                  # 根布局:metadata + globals.css
+    ├── page.tsx                    # 首页:AuthGate + 重定向
+    ├── app/
+    │   ├── layout.tsx              # 受保护布局:AuthGate + AppSidebar
+    │   ├── page.tsx                # 个人聊天:Suspense + ChatWorkspace
+    │   └── projects/
+    │       └── [projectId]/
+    │           ├── page.tsx        # 项目根 → 重定向到 chat
+    │           ├── chat/
+    │           │   └── page.tsx    # 项目聊天:ChatWorkspace(projectMode)
+    │           ├── labs/
+    │           │   └── page.tsx    # 工程实验室:评估/可靠性/故障注入
+    │           ├── library/
+    │           │   └── page.tsx    # 来源库:上传/搜索/删除
+    │           └── quiz/
+    │               └── page.tsx    # Quiz 路由 → 重定向到 chat?quiz=1
+    ├── components/
+    │   ├── app-sidebar.tsx         # 项目/对话导航侧边栏
+    │   ├── auth-gate.tsx           # 认证守卫(5 状态)
+    │   ├── auth-gate.test.tsx
+    │   ├── brand-logo.tsx          # 品牌 logo
+    │   ├── chat-composer.tsx       # 输入区(13 Props)
+    │   ├── chat-workspace.tsx      # 聊天容器(组合根)
+    │   ├── conversation-thread.tsx # 对话线程(11 Props)
+    │   ├── presentation.test.tsx
+    │   ├── project-nav.tsx         # 项目内导航
+    │   ├── project-quiz-drawer.tsx # Quiz 抽屉
+    │   ├── state-notice.tsx        # 通知组件
+    │   ├── use-chat-workspace.ts   # 状态 Hook(核心)
+    │   └── ui/                     # shadcn/ui 组件(15 个)
+    │       ├── avatar.tsx
+    │       ├── badge.tsx
+    │       ├── button.tsx
+    │       ├── card.tsx
+    │       ├── dialog.tsx
+    │       ├── dropdown-menu.tsx
+    │       ├── input.tsx
+    │       ├── scroll-area.tsx
+    │       ├── separator.tsx
+    │       ├── sheet.tsx
+    │       ├── skeleton.tsx
+    │       ├── switch.tsx
+    │       ├── tabs.tsx
+    │       ├── textarea.tsx
+    │       └── tooltip.tsx
+    ├── dev/
+    │   ├── layout.tsx              # 开发者路由认证包装
+    │   └── traces/
+    │       └── [traceId]/
+    │           └── page.tsx        # 开发者执行追踪查看器
+    └── lib/
+        ├── api.ts                  # API 客户端 + 类型契约
+        ├── api.test.ts
+        ├── auth-email-rate-limit.ts
+        ├── auth-email-rate-limit.test.ts
+        ├── demo.ts                 # 确定性浏览器 demo 运行时
+        ├── demo.test.ts
+        ├── idempotent-intent.ts    # 幂等 intent 跟踪
+        ├── idempotent-intent.test.ts
+        ├── supabase.ts             # Supabase Auth 浏览器实现
+        ├── supabase.test.ts
+        └── utils.ts                # cn() 工具函数</code></pre>
+      </section>
+
+      <section id="files">
+        <p class="eyebrow">逐文件详解</p>
+        <h2>页面路由文件</h2>
+        <p class="sub">Next.js App Router 使用文件系统路由:文件夹名映射为 URL 段,<code>layout.tsx</code> 和 <code>page.tsx</code> 是特殊文件。下方逐个解析每个路由文件的作用。</p>
+        <div class="lane"><span class="lane-label">app/layout.tsx</span><p>根布局(root layout),是整个应用的 HTML 外壳。导出 <code>metadata</code> 对象(title/description),导入 <code>globals.css</code> 设计系统,设置 <code>&lt;html lang="en" data-scroll-behavior="smooth"&gt;</code>。每个路由的 <code>children</code> 都被包裹在这个布局中。这是唯一一个不使用 <code>"use client"</code> 的布局文件。</p></div>
+        <div class="lane"><span class="lane-label">app/page.tsx</span><p>首页(<code>/</code>),客户端组件。用 <code>AuthGate</code> 包裹一个 <code>AuthenticatedRedirect</code> 组件:已认证用户通过 <code>router.replace("/app")</code> 直接跳转到工作区,未认证用户看到 <code>AuthGate</code> 的登录面板。展示一个带 <code>Loader2</code> 旋转动画的 "Opening your workspace..." 状态。</p></div>
+        <div class="lane"><span class="lane-label">app/app/layout.tsx</span><p>受保护应用布局,包裹所有 <code>/app/*</code> 路由。用 <code>AuthGate</code> 包裹 <code>AppSidebar</code> + 内容区域。Sidebar 用 <code>Suspense</code> 包裹,fallback 是一个 260px 宽的空 <code>aside</code>。整体布局是 <code>flex h-[100dvh]</code>,Sidebar 左侧固定,内容区域 <code>flex-1</code> 填充剩余空间。</p></div>
+        <div class="lane"><span class="lane-label">app/app/page.tsx</span><p>个人聊天路由(<code>/app</code>),客户端组件。用 <code>Suspense</code> 包裹 <code>ChatWorkspace</code>(不传 <code>projectId</code>),fallback 是一个 "Starting chat" 骨架屏。Suspense 是必需的,因为 <code>ChatWorkspace</code> 内部使用 <code>useSearchParams</code> 读取 URL 中的 <code>conversation</code> 和 <code>new</code> 参数。</p></div>
+        <div class="lane"><span class="lane-label">projects/[projectId]/page.tsx</span><p>项目根路由,服务端组件。接收 <code>params: Promise&lt;{ projectId: string }&gt;</code>(Next.js 16 的 async params),直接 <code>redirect</code> 到 <code>/app/projects/${projectId}/chat</code>。确保每个项目只有一个规范入口路由。</p></div>
+        <div class="lane"><span class="lane-label">projects/[projectId]/chat/page.tsx</span><p>项目聊天路由,客户端组件。用 <code>useParams</code> 读取 <code>projectId</code>,通过 <code>apiFetch</code> 加载项目名称,然后渲染 <code>ChatWorkspace</code> 并传入 <code>projectId</code>、<code>projectName</code> 和 <code>projectMode=true</code>。外层 <code>Suspense</code> 处理 <code>useParams</code> 的异步边界。</p></div>
+        <div class="lane"><span class="lane-label">projects/[projectId]/library/page.tsx</span><p>来源库页面,功能最丰富的路由之一。支持文件上传(拖拽 + 选择)、手动文本回退、文档列表搜索、文档删除(带确认 + 异步 job 轮询)。使用 <code>ProjectNav</code> 顶部导航,文档状态用 <code>Badge</code> 组件展示(ready/uploading/parsing/failed 等),处理中状态每 2 秒轮询刷新。</p></div>
+        <div class="lane"><span class="lane-label">projects/[projectId]/quiz/page.tsx</span><p>Quiz 旧路由,服务端组件。直接 <code>redirect</code> 到 <code>/app/projects/${projectId}/chat?quiz=1</code>。Quiz 功能已从独立页面迁移到 chat 页面的 <code>ProjectQuizDrawer</code> 抽屉,此路由保留向后兼容。</p></div>
+        <div class="lane"><span class="lane-label">projects/[projectId]/labs/page.tsx</span><p>工程实验室页面,角色受限。通过 <code>getSupabaseSession</code> 检查 <code>session.user.role</code> 是否为 <code>developer</code> 或 <code>admin</code>。包含三个面板:评估运行(选择 dataset + pipeline + metrics)、可靠性指标(run_count, success_rate, p95, cost)、故障注入练习(llm_timeout, qdrant_unavailable 等,10 秒限时)。</p></div>
+        <div class="lane"><span class="lane-label">dev/layout.tsx</span><p>开发者路由布局,用 <code>AuthGate</code> 包裹所有 <code>/dev/*</code> 路由。确保开发者工具页面也需要认证,但不像 labs 那样做角色检查(角色检查在后端 API 层执行)。</p></div>
+        <div class="lane"><span class="lane-label">dev/traces/[traceId]/page.tsx</span><p>开发者追踪查看器,客户端组件。通过 <code>apiFetch&lt;DeveloperTrace&gt;</code> 加载执行追踪,以 JSON <code>pre</code> 块展示 <code>execution_plan</code>、<code>validation_result</code>、<code>retrieved_chunks</code> 和 <code>tool_calls</code>。API 密钥、OAuth 令牌等敏感数据在后端已被过滤。</p></div>
+      </section>
+
+      <section id="components">
+        <p class="eyebrow">组件层详解</p>
+        <h2>业务组件</h2>
+        <p class="sub">apps/web 有 10 个业务组件(不含 15 个 ui/ 原语),分为容器组件、展示组件和导航组件。下方逐个解析 Props 数量、职责和关键逻辑。</p>
+        <details>
+          <summary>chat-workspace.tsx — 聊天容器(组合根,3 Props)</summary>
+          <p>容器组件,将状态逻辑(<code>useChatWorkspace</code>)与展示组件(<code>ConversationThread</code>, <code>ChatComposer</code>, <code>ProjectQuizDrawer</code>)组合。Props 仅 3 个:<code>projectId?</code>, <code>projectName?</code>, <code>projectMode?</code>。projectMode 为 true 时渲染项目工具栏(New chat / Quiz / Sources 按钮)和 Quiz 抽屉。个人聊天不传任何 Props,由 Hook 自行 bootstrap。</p>
+        </details>
+        <details>
+          <summary>use-chat-workspace.ts — 状态 Hook(核心编排)</summary>
+          <p>自定义 Hook,是前端最复杂的模块。接收 <code>{ suppliedProjectId?, projectMode }</code>,管理 16 个 <code>useState</code>、8 个 <code>useRef</code>、5 个 <code>useEffect</code>、1 个 <code>useMemo</code>。返回 25+ 个字段和方法。核心职责:对话加载(带 generation 竞态保护)、消息发送(乐观更新 + 幂等键 + intent 指纹)、文件上传(signed URL 流程)、Quiz 生成(幂等 + 历史加载)、事件总线(<code>researchmate:sidebar-refresh</code>)。</p>
+        </details>
+        <details>
+          <summary>chat-composer.tsx — 输入区(13 Props)</summary>
+          <p>展示组件,渲染文件上传按钮、消息输入框、Web 搜索开关和发送按钮。<strong>Props 数量:13</strong>。<code>documents</code>, <code>projectMode</code>, <code>uploading</code>, <code>fileInput</code>(RefObject), <code>message</code>, <code>webEnabled</code>, <code>sending</code>, <code>historyLoading</code>, <code>hasReadyAttachments</code>, <code>onUpload</code>, <code>onSubmit</code>, <code>onMessageChange</code>, <code>onWebEnabledChange</code>。Enter 键提交(Shift+Enter 换行),maxLength 8000,文件类型限制 .pdf/.docx/.pptx。使用 lucide-react 的 Paperclip, ArrowUp, Globe, Loader2 图标。</p>
+        </details>
+        <details>
+          <summary>conversation-thread.tsx — 对话线程(11 Props)</summary>
+          <p>展示组件,渲染消息列表、引用、加载状态和错误通知。<strong>Props 数量:11</strong>。<code>messages</code>, <code>historyLoading</code>, <code>sending</code>, <code>slowResponse</code>, <code>error</code>, <code>degradedNotice</code>, <code>projectMode</code>, <code>projectName</code>, <code>threadEnd</code>(RefObject), <code>onDismissError</code>, <code>onSelectPrompt</code>。空对话时展示 3 个引导提示(EMPTY_PROMPTS)。引用以 <code>details</code> 折叠展示,支持 local_doc 和 web_page 两种 source_type。"thinking" 动画用三个 CSS 动画圆点(<code>rm-thinking</code> keyframe)。slowResponse 10 秒后展示 "Still working" 提示。</p>
+        </details>
+        <details>
+          <summary>app-sidebar.tsx — 导航侧边栏</summary>
+          <p>客户端组件,管理项目列表、对话列表和它们的 CRUD。使用 <code>usePathname</code> + <code>useSearchParams</code> 识别当前活跃项。功能:新建项目(Dialog 表单)、重命名对话(PATCH)、删除对话(带确认状态)、删除项目(异步 job 轮询,最多 20 次,每次 1.5 秒)。桌面端可折叠(72px / 260px),移动端用 Sheet 组件。通过 <code>researchmate:sidebar-refresh</code> 事件总线触发刷新。使用 <code>requestGeneration</code> ref 防止竞态。</p>
+        </details>
+        <details>
+          <summary>auth-gate.tsx — 认证守卫(5 状态)</summary>
+          <p>客户端组件,守卫所有受保护路由。5 种状态:<code>loading</code>(恢复 session)、<code>signed_out</code>(展示 GitHub 登录面板)、<code>signed_in</code>(渲染 children + session bar)、<code>misconfigured</code>(Supabase 未配置)、<code>error</code>(session 恢复失败)。本地开发直接放行(<code>isLocalDevelopment()</code>)。Demo 模式展示静态横幅后放行。挂载时调用 <code>warmApi()</code> 预热 API 健康检查,降低首次请求延迟。</p>
+        </details>
+        <details>
+          <summary>project-quiz-drawer.tsx — Quiz 抽屉(7 Props)</summary>
+          <p>展示组件,固定定位在右侧(最大 430px)。Props: <code>prompt</code>, <code>quiz</code>, <code>loading</code>, <code>onPromptChange</code>, <code>onSubmit</code>, <code>onClose</code>, <code>onReset</code>。两种模式:无 quiz 时展示生成表单(Textarea + 默认 3 单选 + 2 填空 + 2 主观);有 quiz 时以 <code>details</code> 折叠展示每道题(题目/选项/答案/解释)。文案 "Uses available indexed project resources" 避免过度承诺资源覆盖率。</p>
+        </details>
+        <details>
+          <summary>project-nav.tsx — 项目内导航</summary>
+          <p>客户端组件,渲染项目顶部导航栏。Props: <code>projectId</code>, <code>current</code>("chat" | "library" | "evidence" | "quiz" | "labs")。通过 <code>apiFetch</code> 加载项目名称,展示 Chat / Sources / Quiz 三个链接(Quiz 链接到 <code>chat?quiz=1</code>)。当前页面用 <code>aria-current="page"</code> 和高亮样式标记。</p>
+        </details>
+        <details>
+          <summary>state-notice.tsx — 通知组件</summary>
+          <p>展示组件,渲染带分类的恢复通知。Props: <code>state</code>(title, detail, kind), <code>action?</code>(ReactNode)。kind 为 <code>error</code> 或 <code>provider</code> 时 <code>role="alert"</code>,其他为 <code>role="status"</code>。在 AuthGate、ConversationThread、Library 页面中复用,确保错误/状态通知风格一致。</p>
+        </details>
+        <details>
+          <summary>brand-logo.tsx — 品牌 logo</summary>
+          <p>展示组件,使用 <code>next/image</code> 渲染 <code>researchmate-logo-mark.png</code>。Props: <code>withName</code>(默认 false)。logo 区域 36x36px,<code>unoptimized</code> + <code>priority</code>。withName 为 true 时额外渲染 "ResearchMate" 文字。<code>aria-hidden="true"</code> 隐藏装饰性图片。</p>
+        </details>
+      </section>
+
+      <section id="lib">
+        <p class="eyebrow">lib 层详解</p>
+        <h2>lib 模块</h2>
+        <p class="sub">app/lib/ 包含 6 个模块,是前端的核心基础设施:API 传输、认证、demo 运行时、幂等协调、工具函数和限流。下方逐个解析导出的函数和类型。</p>
+        <div class="lane"><span class="lane-label">api.ts</span><p>API 客户端 + 类型契约,是前后端契约的前端镜像。导出 30+ 个 TypeScript interface 和 8 个核心函数。<code>apiFetch&lt;T&gt;</code>:统一 fetch 封装,注入 Authorization header 和 Content-Type,错误时抛 <code>ApiError</code>。<code>getAccessToken</code>:解析 bearer token(本地 dev 或 Supabase session)。<code>describeApiError</code>:将 HTTP 状态码映射为用户友好消息(401→auth, 403→permission, 429→limit, 5xx→provider)。<code>streamRunEvents</code>:消费 SSE 事件流,按 <code>\n\n</code> 分帧解析 <code>data:</code> 行。<code>idempotencyKey</code>:生成 <code>prefix-uuid</code> 格式的幂等键。<code>warmApi</code>:单次 best-effort <code>/healthz</code> 预热请求。API_BASE 在生产环境为 <code>/api/v1</code>(同源 rewrite),本地为 <code>NEXT_PUBLIC_API_BASE_URL</code>。</p></div>
+        <div class="lane"><span class="lane-label">supabase.ts</span><p>浏览器端 Supabase Auth 实现,不依赖 <code>@supabase/supabase-js</code> SDK。自实现 5 个核心函数:<code>getSupabaseSession</code>(恢复/刷新 session)、<code>onAuthStateChange</code>(订阅)、<code>signInWithGitHub</code>(OAuth 跳转)、<code>signOut</code>(登出 + 清理)、<code>signInWithPassword</code> / <code>signUpWithPassword</code> / <code>sendMagicLink</code>(邮箱流程)。session 存储在 localStorage(<code>researchmate_supabase_session</code>),过期前 60 秒自动刷新(refresh skew)。JWT 的 email/role 通过 <code>identityFromAccessToken</code> 解码 base64 payload。<code>workspaceRedirect</code> 强制重定向 URL 必须在 <code>/app</code> 路径下,防止开放重定向。<code>SupabaseAuthError</code> 保留 provider status 和 code。</p></div>
+        <div class="lane"><span class="lane-label">demo.ts</span><p>确定性浏览器 demo 运行时,通过 <code>NEXT_PUBLIC_DEMO_MODE=true</code> 启用。当 <code>isPublicDemo()</code> 为 true 时,<code>apiFetch</code> 委托给 <code>demoFetch</code>。demoFetch 实现了完整 API 子集:项目 CRUD、对话 CRUD、消息列表、文档上传-url/complete、ask、quiz、pipeline-versions、research-runs、evaluation-runs、reliability、traces、fault-scenarios。所有数据存储在模块级变量中(projects, documents, chatMessages, quizSets),不发送任何网络请求。<code>demoRunEvents</code> 发射 2 个确定性事件(retrieve + report_published)。</p></div>
+        <div class="lane"><span class="lane-label">idempotent-intent.ts</span><p>幂等 intent 跟踪器,确保失败重试复用同一个 Idempotency-Key。导出 <code>IntentKeyState</code> 接口(fingerprint + key)和 2 个函数。<code>resolveIntentKey</code>:如果 fingerprint 未变则返回现有 key,否则创建新 key。fingerprint 是请求参数的 JSON 序列化。<code>clearCompletedIntent</code>:成功的请求清除对应的 intent。与 <code>api.ts</code> 的 <code>idempotencyKey</code> 配合使用,在 <code>use-chat-workspace.ts</code> 的 <code>submitQuestion</code> 和 <code>generateQuiz</code> 中应用。</p></div>
+        <div class="lane"><span class="lane-label">utils.ts</span><p>工具函数模块,仅导出 <code>cn(...inputs: ClassValue[])</code>。组合 <code>clsx</code>(条件类名)和 <code>tailwind-merge</code>(去重冲突的 Tailwind 类),是所有 shadcn/ui 组件和业务组件的类名合并基础。例如 <code>cn("px-2 py-1", condition && "bg-accent")</code> → <code>"px-2 py-1 bg-accent"</code>。</p></div>
+        <div class="lane"><span class="lane-label">auth-email-rate-limit.ts</span><p>浏览器端邮件限流守卫,镜像 Supabase 的 per-user 冷却时间。导出 <code>AUTH_EMAIL_COOLDOWN_MS</code>(60 秒)和 2 个函数。<code>remainingEmailCooldown</code>:计算剩余秒数。<code>nextEmailCooldown</code>:计算下次允许时间戳。确保前端不会在冷却期内重复发送 magic link 或确认邮件请求。</p></div>
+      </section>
+
+      <section id="ui">
+        <p class="eyebrow">shadcn/ui 组件清单</p>
+        <h2>15 个 ui/ 组件与 9 个 Radix 依赖</h2>
+        <p class="sub">apps/web 的 <code>app/components/ui/</code> 目录包含 <strong>15 个</strong> shadcn/ui 组件,依赖 <strong>9 个</strong> <code>@radix-ui</code> 包。这些组件不是 npm 依赖,而是复制到项目中的源码文件,使用 cva 定义变体、tailwind-merge 去重类名。</p>
+        <div class="scroll"><table class="dense">
+          <thead><tr><th>组件</th><th>Radix 依赖</th><th>用途</th></tr></thead>
+          <tbody>
+            <tr><td><code>avatar.tsx</code></td><td>@radix-ui/react-avatar</td><td>用户头像(图片 + fallback)</td></tr>
+            <tr><td><code>badge.tsx</code></td><td>—</td><td>标签(4 变体:default/secondary/destructive/outline + success/warning)</td></tr>
+            <tr><td><code>button.tsx</code></td><td>@radix-ui/react-slot</td><td>按钮(6 变体 + 4 尺寸,支持 asChild)</td></tr>
+            <tr><td><code>card.tsx</code></td><td>—</td><td>卡片容器(Card/Header/Title/Description/Content/Footer)</td></tr>
+            <tr><td><code>dialog.tsx</code></td><td>@radix-ui/react-dialog</td><td>模态对话框(项目删除/对话管理)</td></tr>
+            <tr><td><code>dropdown-menu.tsx</code></td><td>@radix-ui/react-dropdown-menu</td><td>下拉菜单(项目操作菜单)</td></tr>
+            <tr><td><code>input.tsx</code></td><td>—</td><td>文本输入框</td></tr>
+            <tr><td><code>scroll-area.tsx</code></td><td>@radix-ui/react-scroll-area</td><td>自定义滚动区域(Sidebar 对话列表)</td></tr>
+            <tr><td><code>separator.tsx</code></td><td>@radix-ui/react-separator</td><td>分隔线</td></tr>
+            <tr><td><code>sheet.tsx</code></td><td>@radix-ui/react-dialog</td><td>侧滑面板(移动端 Sidebar)</td></tr>
+            <tr><td><code>skeleton.tsx</code></td><td>—</td><td>骨架屏占位</td></tr>
+            <tr><td><code>switch.tsx</code></td><td>@radix-ui/react-switch</td><td>开关切换</td></tr>
+            <tr><td><code>tabs.tsx</code></td><td>@radix-ui/react-tabs</td><td>标签页切换</td></tr>
+            <tr><td><code>textarea.tsx</code></td><td>—</td><td>多行文本输入(消息框/Quiz prompt)</td></tr>
+            <tr><td><code>tooltip.tsx</code></td><td>@radix-ui/react-tooltip</td><td>悬停提示</td></tr>
+          </tbody>
+        </table></div>
+        <div class="grid two" style="margin-top:18px">
+          <article class="fact"><b>9 个 @radix-ui 包</b><p><code>react-avatar</code>, <code>react-dialog</code>(dialog + sheet 共用), <code>react-dropdown-menu</code>, <code>react-scroll-area</code>, <code>react-separator</code>, <code>react-slot</code>(button asChild), <code>react-switch</code>, <code>react-tabs</code>, <code>react-tooltip</code>。Radix 提供无样式可访问性原语,shadcn/ui 在其上添加 Tailwind 样式。</p></article>
+          <article class="fact"><b>辅助依赖</b><p><code>class-variance-authority</code>(cva):定义组件变体。<code>clsx</code>:条件类名合并。<code>tailwind-merge</code>:智能去重冲突的 Tailwind 类(如 <code>p-2 p-4</code> → <code>p-4</code>)。<code>lucide-react</code>:图标库(Plus, Trash2, Loader2 等)。<code>tw-animate-css</code>:动画工具类。</p></article>
+        </div>
+      </section>
+
+      <section id="api-slice">
+        <p class="eyebrow">API 请求切片</p>
+        <h2>一个 Ask 请求的 6 步前端旅程</h2>
+        <p class="sub">从用户按下发送按钮到收到带引用的回答,请求在前端经过 6 个步骤。每步涉及不同文件,下方 proof-chain 展示完整流转。</p>
+        <div class="proof-chain">
+          <div class="proof-step"><b>1. 表单提交</b><small>chat-composer.tsx:用户输入消息 → Enter 或点击发送 → <code>onSubmit(event)</code> → 调用 <code>workspace.submitQuestion</code>。发送按钮在 <code>!message.trim() || sending || historyLoading</code> 时禁用。</small></div>
+          <div class="proof-step"><b>2. Hook 编排</b><small>use-chat-workspace.ts:<code>submitQuestion</code> 构建 fingerprint(JSON.stringify 请求参数)→ <code>resolveIntentKey</code> 复用或创建幂等键 → 添加乐观用户消息 → <code>setSending(true)</code> → 调用 <code>apiFetch&lt;AskResponse&gt;("/ask", ...)</code> 并传入 <code>Idempotency-Key</code> header。</small></div>
+          <div class="proof-step"><b>3. Token 解析</b><small>api.ts:<code>apiFetch</code> 调用 <code>getAccessToken()</code> → 本地 dev 返回 <code>getDevToken()</code>(localStorage)→ 生产环境调用 <code>getSupabaseSession()</code> 获取 JWT access_token → 注入 <code>Authorization: Bearer ${token}</code> header。</small></div>
+          <div class="proof-step"><b>4. Session 检查</b><small>supabase.ts:<code>getSupabaseSession</code> 检查 localStorage 中的 session → 如果距过期不足 60 秒则调用 <code>refreshSession</code>(用 refresh_token 换新 access_token)→ 返回有效 session 或 null(触发 401 错误)。</small></div>
+          <div class="proof-step"><b>5. HTTP 请求</b><small>fetch: <code>POST ${API_BASE}/ask</code>,body 包含 <code>project_id</code>, <code>conversation_id</code>, <code>message</code>, <code>web_enabled</code>。API_BASE 在生产环境是 <code>/api/v1</code>(同源 rewrite 到 Render),本地是 <code>http://localhost:8000/api/v1</code>。Demo 模式委托给 <code>demoFetch</code>。</small></div>
+          <div class="proof-step"><b>6. 响应处理</b><small>use-chat-workspace.ts:解析 <code>AskResponse</code>(answer, citations, conversation_id, degraded flags)→ 替换乐观消息 + 添加 assistant 消息 → <code>setConversationId</code> → <code>router.replace</code> 更新 URL → <code>dispatchEvent("researchmate:sidebar-refresh")</code> → 失败时移除乐观消息 + 恢复草稿 + 展示错误。</small></div>
+        </div>
+        <div class="notice"><strong>竞态保护:</strong><code>askInFlight.current</code> ref 防止并发重复提交。如果请求失败,乐观消息被移除,草稿恢复到输入框,用户可以重试且 <code>resolveIntentKey</code> 会复用同一个 Idempotency-Key(fingerprint 未变)。</div>
+      </section>
+
+      <section id="state">
+        <p class="eyebrow">状态管理</p>
+        <h2>React Hooks 与竞态保护</h2>
+        <p class="sub">apps/web 不使用 Redux/Zustand 等外部状态库,全部通过 React Hooks 管理状态。下方解析各 Hook 的使用模式和项目特有的竞态保护机制。</p>
+        <div class="grid two">
+          <article class="fact"><b>useState(16+ 状态变量)</b><p><code>use-chat-workspace.ts</code> 管理最密集:conversationId, messages, message, webEnabled, historyLoading, sending, slowResponse, error, documents, uploading, quizOpen, quizPrompt, quiz, quizLoading, degradedNotice, resolvedProject。<code>app-sidebar.tsx</code> 另有 collapsed, mobileOpen, projects, conversations, personalProjectId, creatingProject 等 12 个。</p></article>
+          <article class="fact"><b>useEffect(5+ 副作用)</b><p><code>use-chat-workspace.ts</code>:(1) bootstrap 个人项目;(2) 加载对话(generation 竞态保护);(3) 自动滚动到底部;(4) slowResponse 10 秒定时器;(5) 文档处理状态轮询(2 秒间隔);(6) Quiz 历史加载。每个 effect 都有 <code>active</code> 标志或 cleanup 防止内存泄漏。</p></article>
+          <article class="fact"><b>useRef(8 个 ref)</b><p><code>fileInput</code>(文件输入引用), <code>threadEnd</code>(滚动锚点), <code>loadGeneration</code>(对话加载竞态计数器), <code>askIntent</code>/<code>quizIntent</code>(幂等 intent 状态), <code>quizHistoryLoadedFor</code>(防止重复加载 Quiz 历史), <code>askInFlight</code>/<code>quizInFlight</code>(防止并发重复请求)。app-sidebar 另有 <code>requestGeneration</code>。</p></article>
+          <article class="fact"><b>useMemo(3 处)</b><p><code>readyAttachments</code>:过滤 status==="ready" 的文档。<code>personalConversations</code>:过滤个人项目的对话。<code>activeProjectConversations</code>:过滤当前项目的对话。避免每次渲染重新计算过滤结果。</p></article>
+          <article class="fact"><b>useCallback(1 处)</b><p><code>app-sidebar.tsx</code> 的 <code>loadNavigation</code>:并行加载项目列表 + 对话列表 + 个人项目。用 <code>requestGeneration</code> ref 拒绝过期的并发响应。作为 <code>useEffect</code> 的依赖项,必须 useCallback 以避免无限重渲染。</p></article>
+          <article class="fact"><b>自定义 Hook</b><p><code>useChatWorkspace</code> 是唯一自定义 Hook,封装聊天工作区的全部状态和动作。接收 <code>{ suppliedProjectId?, projectMode }</code>,返回 25+ 个字段。将状态逻辑从展示组件中完全分离,使 <code>ChatWorkspace</code> 成为纯组合根。</p></article>
+          <article class="fact"><b>事件总线</b><p>使用 <code>window.dispatchEvent(new Event("researchmate:sidebar-refresh"))</code> 和 <code>"researchmate:sources-refresh"</code> 在组件间通信。当发送消息或上传文件后,触发 sidebar 刷新以更新对话列表。Sidebar 通过 <code>window.addEventListener</code> 订阅,在 useEffect cleanup 中取消订阅。不使用 React Context 或全局 store。</p></article>
+          <article class="fact"><b>竞态保护(4 种模式)</b><p>(1) Generation counter: <code>loadGeneration.current</code> / <code>requestGeneration.current</code>,每次请求递增,响应到达时检查是否仍为最新。(2) In-flight flag: <code>askInFlight.current</code> / <code>quizInFlight.current</code>,防止并发提交。(3) Active flag: <code>let active = true</code>,cleanup 时设为 false。(4) Intent fingerprint: <code>resolveIntentKey</code> 确保相同参数复用幂等键。</p></article>
+        </div>
+      </section>
+
+      <section id="upload">
+        <p class="eyebrow">文件上传切片</p>
+        <h2>文件上传的 3 步流程</h2>
+        <p class="sub">用户选择 PDF/DOCX/PPTX 文件后,经过 3 个步骤完成上传和索引。使用 signed URL 模式:前端先请求上传 URL,直接 PUT 到对象存储,再通知后端完成。</p>
+        <div class="proof-chain">
+          <div class="proof-step"><b>1. 文件选择</b><small>chat-composer.tsx:<code>&lt;input type="file" accept=".pdf,.docx,.pptx" multiple&gt;</code> 的 <code>onChange</code> → 调用 <code>onUpload(event)</code> → 传入 <code>workspace.uploadFiles</code>。上传中展示 Loader2 旋转图标。Library 页面还支持拖拽上传(<code>onDrop</code>)。</small></div>
+          <div class="proof-step"><b>2. 上传编排</b><small>use-chat-workspace.ts:<code>uploadFiles</code> → 验证文件扩展名(<code>/\.(pdf|docx|pptx)$/i</code>)→ <code>fileTypeFromName</code> + <code>mimeForFileType</code> 解析类型 → <code>apiFetch POST /documents/upload-url</code> 获取 signed URL → <code>fetch PUT</code> 直传到 R2(本地回退路径读取 <code>file.text()</code>)→ <code>apiFetch POST /documents/{id}/complete</code> 通知后端。</small></div>
+          <div class="proof-step"><b>3. 状态刷新</b><small>use-chat-workspace.ts:项目模式 dispatch <code>"researchmate:sources-refresh"</code> 事件 → 个人模式 <code>setDocuments</code> 刷新文档列表 → 如果文档处于处理中状态,启动 2 秒轮询定时器直到所有文档变为 ready/failed。Library 页面同样轮询 <code>loadDocuments</code>。</small></div>
+        </div>
+        <div class="notice"><strong>Signed URL 模式:</strong>前端不通过后端中转文件二进制数据,而是直接 PUT 到 R2 对象存储的 presigned URL。这减少了后端带宽压力,但要求 R2 的 CORS 配置允许浏览器的 PUT 请求。本地开发回退路径(<code>/api/v1/dev/upload/</code>)由后端直接接收文件文本。</div>
+      </section>
+
+      <section id="deps">
+        <p class="eyebrow">依赖关系图</p>
+        <h2>模块依赖关系</h2>
+        <p class="sub">下方展示 apps/web 各模块的依赖关系。箭头方向为"依赖于"。lib 层是最底层,被组件层和路由层依赖;ui/ 原语被业务组件依赖;shared 包提供跨端类型。</p>
+        <div class="flow">
+          <div class="node"><b>路由层</b><small>app/layout.tsx, app/page.tsx, app/app/layout.tsx, app/app/page.tsx, projects/[projectId]/*, dev/*</small></div>
+          <div class="node"><b>容器组件</b><small>chat-workspace.tsx → use-chat-workspace.ts + ChatComposer + ConversationThread + ProjectQuizDrawer</small></div>
+          <div class="node"><b>展示组件</b><small>chat-composer.tsx, conversation-thread.tsx, project-quiz-drawer.tsx, state-notice.tsx, brand-logo.tsx, project-nav.tsx</small></div>
+          <div class="node"><b>导航组件</b><small>app-sidebar.tsx → BrandLogo + ui/(Dialog, DropdownMenu, Sheet, ScrollArea, Input, Button)</small></div>
+          <div class="node"><b>认证组件</b><small>auth-gate.tsx → supabase.ts + demo.ts + api.ts(warmApi) + StateNotice + BrandLogo</small></div>
+          <div class="node"><b>lib 层</b><small>api.ts → supabase.ts + demo.ts; supabase.ts(独立); demo.ts(独立); idempotent-intent.ts → api.ts; utils.ts(独立)</small></div>
+          <div class="node"><b>ui/ 原语</b><small>15 个组件 → @radix-ui/* + cva + clsx + tailwind-merge + utils.ts(cn)</small></div>
+          <div class="node"><b>外部依赖</b><small>@researchmate/shared(类型契约), next, react, lucide-react, tailwindcss</small></div>
+        </div>
+        <div class="grid two" style="margin-top:18px">
+          <article class="fact"><b>关键依赖链</b><p><code>app/app/page.tsx</code> → <code>ChatWorkspace</code> → <code>useChatWorkspace</code> → <code>apiFetch</code> → <code>getAccessToken</code> → <code>getSupabaseSession</code> → <code>fetch</code>。这条链覆盖了从前端路由到网络请求的完整路径。</p></article>
+          <article class="fact"><b>共享类型来源</b><p><code>@researchmate/shared</code> 包提供前后端共享的 TypeScript 类型契约(<code>contracts.ts</code>),但 apps/web 的 <code>api.ts</code> 也自定义了大量接口(ProjectRecord, AskResponse, Citation 等),形成前端独立的类型层。</p></article>
+        </div>
+      </section>
+
+      <section id="config">
+        <p class="eyebrow">配置文件详解</p>
+        <h2>构建与测试配置</h2>
+        <p class="sub">apps/web 根目录有 6 个配置文件,分别控制 Next.js 构建、TypeScript 类型检查、PostCSS/Tailwind、Vitest 单元测试和 Playwright E2E 测试。</p>
+        <div class="lane"><span class="lane-label">next.config.ts</span><p>Next.js 构建配置。安全 headers:Content-Security-Policy(default-src 'self'; script-src 'self' 'unsafe-inline'; connect-src 'self' https: + 开发环境 localhost)、Referrer-Policy、Permissions-Policy(camera/microphone/geolocation 全部禁用)、X-Content-Type-Options: nosniff、X-Frame-Options: DENY。Rewrites:生产环境将 <code>/api/v1/:path*</code> 代理到 Render 后端(<code>backendOrigin/api/v1/:path*</code>),开发环境直接请求本地 API。distDir 可通过 <code>NEXT_DIST_DIR</code> 覆盖。</p></div>
+        <div class="lane"><span class="lane-label">tsconfig.json</span><p>TypeScript 配置。target ES2022,strict true,moduleResolution bundler,jsx react-jsx。路径别名 <code>@/*</code> → <code>./app/*</code>(使 <code>@/components/ui/button</code> 等导入生效)。include 包含 <code>.next/types</code> 和 <code>.next-e2e/types</code>(Next.js 生成的路由类型)。ignoreDeprecations: "6.0"(TypeScript 6.0 兼容)。</p></div>
+        <div class="lane"><span class="lane-label">vitest.config.ts</span><p>Vitest 配置。environment: jsdom(模拟浏览器 DOM)。resolve.alias: <code>@/</code> → <code>app/</code>(与 tsconfig paths 一致)。coverage: provider v8,include <code>app/lib/**/*.ts</code> 和 <code>app/components/**/*.{ts,tsx}</code>,exclude <code>**/*.test.{ts,tsx}</code>。thresholds: lines/statements 40%(覆盖率基线)。</p></div>
+        <div class="lane"><span class="lane-label">playwright.config.ts</span><p>Playwright E2E 配置。port 3100,baseURL <code>http://127.0.0.1:3100</code>。testMatch <code>**/*.e2e.ts</code>。仅 chromium project。CI 环境:retries 2,workers 1,reporter line + html。webServer:启动 <code>next dev --port 3100</code>,设置 <code>NEXT_PUBLIC_DEMO_MODE=true</code> 和 <code>NEXT_DIST_DIR=.next-e2e</code>(使用独立的构建目录避免与开发服务器冲突)。reuseExistingServer: 非 CI 时复用已运行的服务器。</p></div>
+        <div class="lane"><span class="lane-label">postcss.config.mjs</span><p>PostCSS 配置,仅注册 <code>@tailwindcss/postcss</code> 插件。Tailwind CSS v4 不再使用 <code>tailwind.config.js</code>,而是通过 PostCSS 插件 + CSS 中的 <code>@import "tailwindcss"</code> 和 <code>@theme inline</code> 指令配置。</p></div>
+        <div class="lane"><span class="lane-label">package.json</span><p>包名 <code>@researchmate/web</code>。6 个 scripts:dev, build, start, lint(tsc --noEmit), test(vitest run --coverage), test:e2e(playwright test)。12 个 dependencies(9 个 @radix-ui + next/react/tailwind 等)和 8 个 devDependencies(playwright, vitest, typescript 6.0.3 等)。</p></div>
+      </section>
+
+      <section id="e2e">
+        <p class="eyebrow">E2E 测试</p>
+        <h2>Playwright 端到端测试</h2>
+        <p class="sub">apps/web 有 1 个 E2E 测试文件(<code>e2e/demo-workspace.e2e.ts</code>),在 demo 模式下验证完整用户旅程,不依赖任何后端服务或外部 API。</p>
+        <div class="lane"><span class="lane-label">demo-workspace.e2e.ts</span><p>测试名称:"completes the deterministic research workspace journey"。验证步骤:(1) 访问 <code>/app?new=1</code>,确认 "What can I help with?" 标题可见且 "Welcome back" 登录面板不存在;(2) 输入消息 "What makes retrieved evidence defensible?" 并发送;(3) 确认用户消息和 assistant 回答可见;(4) 点击引用 "1. Project source, page 3" 展开引用文本;(5) 确认 URL 包含 <code>/app?conversation=</code>;(6) 点击 "New project" 创建项目 "E2E evidence workspace";(7) 确认跳转到项目聊天页面且标题 "Chat in E2E evidence workspace" 可见;(8) 点击 "Quiz" 打开抽屉并生成 quiz;(9) 确认 quiz 题目可见。最后断言 <code>browserErrors</code> 为空(无控制台错误)和 <code>externalRequests</code> 为空(不调用云服务)。mock <code>/api/v1/healthz</code> 返回 <code>{ status: "ok" }</code>。</p></div>
+        <div class="grid two" style="margin-top:18px">
+          <article class="fact"><b>Demo 模式隔离</b><p>E2E 通过 <code>NEXT_PUBLIC_DEMO_MODE=true</code> 启用 <code>demo.ts</code> 的确定性运行时。所有 API 请求由 <code>demoFetch</code> 在浏览器内处理,不发送任何网络请求到后端。Playwright 的 <code>page.on("request")</code> 监听器验证没有请求发往 <code>127.0.0.1</code> 以外的主机。</p></article>
+          <article class="fact"><b>独立构建目录</b><p>E2E 使用 <code>NEXT_DIST_DIR=.next-e2e</code> 环境变量,使 E2E 的 Next.js 构建输出到 <code>.next-e2e/</code> 而非 <code>.next/</code>。这避免了 E2E 测试与开发服务器或生产构建的冲突,可以并行运行。</p></article>
+        </div>
+      </section>
+
+      <section id="reading">
+        <p class="eyebrow">延伸阅读</p>
+        <h2>深入学习路径</h2>
+        <div class="doc-index">
+          <a class="doc-link" href="backend.zh.html"><b>后端模块</b><span>FastAPI 路由、Pydantic Schema、Service 编排、PostgreSQL 持久化和认证机制的逐文件详解。</span></a>
+          <a class="doc-link" href="worker.zh.html"><b>Worker 模块</b><span>Celery 任务、LangGraph 工作流、文档摄取、向量索引和 RAGAS 评估的逐文件详解。</span></a>
+          <a class="doc-link" href="../architecture/index.zh.html#stack"><b>架构与技术栈</b><span>运行时边界、技术栈论证、故障恢复策略和部署计划。</span></a>
+          <a class="doc-link" href="../contracts/api/index.zh.html#operations"><b>API 设计</b><span>45 个 REST 操作的完整契约、请求/响应格式和集成状态。</span></a>
+          <a class="doc-link" href="../contracts/data/index.zh.html#tables"><b>数据库设计</b><span>31 张表的完整字段、关系、RLS 策略和完整性约束。</span></a>
+          <a class="doc-link" href="index.zh.html"><b>学习指南首页</b><span>Monorepo 结构总览和全链路 Ask 请求切片。</span></a>
+        </div>
+      </section>
+
+    </div>
+    <aside class="toc"><b>本页目录</b>
+      <a href="#stack">技术栈基础</a>
+      <a href="#tree">完整目录树</a>
+      <a href="#files">逐文件详解</a>
+      <a href="#components">组件层详解</a>
+      <a href="#lib">lib 层详解</a>
+      <a href="#ui">shadcn/ui 清单</a>
+      <a href="#api-slice">API 请求切片</a>
+      <a href="#state">状态管理</a>
+      <a href="#upload">文件上传切片</a>
+      <a href="#deps">依赖关系图</a>
+      <a href="#config">配置文件详解</a>
+      <a href="#e2e">E2E 测试</a>
+      <a href="#reading">延伸阅读</a>
+    </aside></div>
+  </main>
+  <footer class="shell footer">ResearchMate 前端学习指南 · 编写于 2026 年 8 月 6 日</footer>
+  <script src="../assets/site.js"></script>
+</body>
+</html>

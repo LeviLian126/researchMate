@@ -1,0 +1,467 @@
+﻿<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width,initial-scale=1" name="viewport"/>
+  <meta content="ResearchMate 后端学习指南:逐文件解析 FastAPI routers、schemas、services、persistence,涵盖认证机制、Provider 适配器、幂等协调器。" name="description"/>
+  <title>ResearchMate . 后端学习</title>
+  <link href="../assets/site.css" rel="stylesheet"/>
+  <style>.module-nav{border-top:1px solid var(--g200)}.module-nav .shell{padding:6px 0 12px}.module-nav a{font-size:11.5px;padding:5px 11px}</style>
+</head>
+<body>
+  <header class="mast"><div class="shell mast-row"><a class="brand" href="../index.html">ResearchMate documentation</a><div class="mast-right"><span class="stamp">后端 . 2026 年 8 月 6 日</span><a class="lang-toggle" href="backend.html" hreflang="en" lang="en">English</a></div></div></header>
+  <nav aria-label="Documentation" class="global"><div class="shell">
+    <a href="../index.html">概览</a>
+    <a href="../product/index.html">产品与路线图</a>
+    <a href="../architecture/index.html">架构与技术栈</a>
+    <a href="../contracts/data/index.html">数据库</a>
+    <a href="../contracts/api/index.html">API</a>
+    <a aria-current="page" href="index.html">学习</a>
+  </div></nav>
+  <nav aria-label="Learning modules" class="global module-nav"><div class="shell">
+    <a href="frontend.html">Frontend</a>
+    <a aria-current="page" href="backend.html">Backend</a>
+    <a href="worker.html">Worker</a>
+    <a href="infra.html">Infrastructure</a>
+    <a href="cicd.html">CI/CD</a>
+    <a href="contracts-tests.html">Contracts &amp; Tests</a>
+  </div></nav>
+  <main class="shell">
+    <div class="hero">
+      <p class="eyebrow">FastAPI / Pydantic / SQLAlchemy / 45 REST operations</p>
+      <h1>后端 . apps/api</h1>
+      <p class="lede">ResearchMate 后端是一个 FastAPI 应用,对外提供 45 个 REST 操作(/api/v1 前缀)和 6 个 MCP tools(Streamable HTTP)。它负责认证、grounded-query 编排、Provider 适配器、幂等协调,以及内存 / PostgreSQL 双持久化层。本页逐文件解析 apps/api/src/researchmate_api/ 下的全部源码。</p>
+      <div class="meta">
+        <span class="status local">5 个核心文件</span>
+        <span class="status local">11 个 routers</span>
+        <span class="status local">10 个 schemas</span>
+        <span class="status local">35 个 services</span>
+        <span class="status local">19 个 persistence</span>
+        <span class="status local">6 MCP tools . 3 MCP resources</span>
+      </div>
+    </div>
+    <div class="layout"><div class="content">
+
+      <section id="stack">
+        <p class="eyebrow">技术栈基础</p>
+        <h2>驱动后端的 12 个依赖</h2>
+        <p class="sub">每张卡片说明该库的通用职责,以及 ResearchMate 中的具体用法。</p>
+        <div class="grid two">
+          <article class="fact"><b>FastAPI</b><p>组装 REST API 的 Web 框架。main.py 创建应用实例,配置 lifespan、CORS 中间件、自定义 request-id 中间件、通过 response_model 实现的类型化错误响应,以及自动 OpenAPI schema。11 个 routers 全部挂载在 /api/v1 下。</p></article>
+          <article class="fact"><b>Pydantic</b><p>为每个请求和响应提供数据校验。BaseModel 子类通过 Field 约束(min_length、max_length、ge、le)、ConfigDict(extra="forbid")禁止多余字段、model_validator 实现跨字段校验、use_enum_values 保证 JSON 序列化稳定。</p></article>
+          <article class="fact"><b>SQLAlchemy</b><p>管理 PostgreSQL 引擎的 SQL 工具包。create_engine 配置 pool_pre_ping 和 pool_recycle=300 保持连接健康。通过 text() 执行原生 SQL,在 context manager 事务中注入 RLS 参数 request.jwt.claim.sub。</p></article>
+          <article class="fact"><b>psycopg</b><p>PostgreSQL 适配器。_psycopg_url 辅助函数将 postgres:// 和 postgresql:// 归一化为 postgresql+psycopg://,使 SQLAlchemy 使用同步 psycopg 驱动。所有数据库操作均为同步,需要时通过 anyio.to_thread 卸载到线程池。</p></article>
+          <article class="fact"><b>PyJWT</b><p>用于 Supabase 认证的 JWT 验证。PyJWKClient 缓存 JWKS 签名密钥。decode 验证 RS256 或 ES256 算法,检查 audience 和 issuer。必需 claims:exp、iat、sub、aud、iss。角色从 app_metadata.role 派生,默认为 user。</p></article>
+          <article class="fact"><b>Qdrant</b><p>用于混合检索的向量数据库。QdrantClient 通过 RRF 融合 dense 和 sparse 向量,强制 owner-scoped payload 过滤(user_id、project_id、source_type),并在专用 rerank collection 中支持基于 Document 模型的 late-interaction 重排。</p></article>
+          <article class="fact"><b>OpenTelemetry</b><p>分布式链路追踪。OTLPSpanExporter 将 span 发送到 collector 端点。FastAPIInstrumentor 自动插桩应用。Resource 标记 service.name 和 deployment.environment.name。tracer provider 由 ObservabilityRuntime 拥有,在退出时安全关闭。</p></article>
+          <article class="fact"><b>Langfuse</b><p>LLM 可观测性。provider_observation 为每次 NVIDIA chat 和 embedding 调用创建 generation 或 embedding observation,记录模型、输入元数据和使用量。LANGFUSE_ENABLED 为 false 时回退到 _NoopObservation。</p></article>
+          <article class="fact"><b>OpenAI SDK</b><p>NVIDIA NIM 端点的客户端。OpenAI(base_url=nvidia_base_url, api_key, timeout, max_retries=0) 用于 chat.completions.create 和 embeddings.create。SDK 被 NvidiaChatProvider 和 NvidiaEmbeddingProvider 封装,services 层从不直接调用。</p></article>
+          <article class="fact"><b>boto3</b><p>S3 兼容对象存储客户端。S3CompatibleObjectStorage 封装 boto3.client("s3"),提供 presign_upload(签名 PUT URL)和 head(读取对象元数据)。支持 Cloudflare R2(账户级 endpoint)或任意通用 S3 endpoint。</p></article>
+          <article class="fact"><b>httpx</b><p>OpenAI SDK 和 Tavily web search provider 使用的 HTTP 传输层。提供同步 HTTP 请求和可配置超时。Tavily 适配器向 api.tavily.com 发送搜索查询,将结果归一化为 ChunkEntry 对象。</p></article>
+          <article class="fact"><b>MCP</b><p>Model Context Protocol 服务端。FastMCP 通过 Streamable HTTP 暴露 6 个 tools(list_projects、search_project、search_conversation、ask_grounded、get_run_trace、run_evaluation)和 3 个 resources(project documents、conversation documents、run summary),使用与 REST 相同的 bearer 中间件认证。</p></article>
+        </div>
+      </section>
+
+      <section id="tree">
+        <p class="eyebrow">完整目录树</p>
+        <h2>apps/api/src/researchmate_api/</h2>
+        <p class="sub">80 个源码文件,分布在 5 个顶层模块:5 核心、11 routers、10 schemas、35 services、19 persistence。</p>
+        <pre class="command-block"><code>researchmate_api/
+├── __init__.py
+├── main.py                              # FastAPI app factory, middleware, error handlers
+├── config.py                            # Settings (pydantic-settings), security validators
+├── dependencies.py                      # Auth, DI providers, error helpers
+├── mcp_server.py                        # MCP server: 6 tools, 3 resources
+├── observability.py                     # Structured logging, OTEL, Langfuse
+├── routers/                             # 11 router files (excluding __init__.py)
+│   ├── ask.py                           # POST /ask
+│   ├── conversations.py                 # 8 conversation + rerank-config endpoints
+│   ├── dev_traces.py                    # GET /dev/traces/{trace_id}
+│   ├── documents.py                     # 7 document lifecycle endpoints
+│   ├── evidence.py                      # evidence workflow endpoints
+│   ├── health.py                        # healthz, readyz
+│   ├── jobs.py                          # GET /jobs/{job_id}
+│   ├── me.py                            # GET /me
+│   ├── projects.py                      # 5 project endpoints
+│   ├── quiz.py                          # POST /quiz, GET /projects/{id}/quiz
+│   └── runs.py                          # GET /runs/{run_id}/sources
+├── schemas/                             # 10 schema files (excluding __init__.py)
+│   ├── ask.py                           # AskRequest, AskResponse, Claim, GroundedAnswer
+│   ├── common.py                        # Enums, CurrentUser, Citation, ExecutionPlan
+│   ├── conversation.py                  # ConversationSummary, messages, rerank config
+│   ├── document.py                      # UploadUrlRequest, UploadUrlResponse, DocumentRecord
+│   ├── evidence.py                      # Research runs, claims, reports, evaluations
+│   ├── job.py                           # JobRecord
+│   ├── project.py                       # ProjectCreate, ProjectRecord
+│   ├── quiz.py                          # QuizRequest, QuizResponse, QuizSet, QuizCoverage
+│   ├── sources.py                       # RunSourcesResponse
+│   └── trace.py                         # DeveloperTrace, ToolCallTrace
+├── services/                            # 35 service files
+│   ├── grounded_query.py                # Ask orchestrator (unified pipeline)
+│   ├── answering.py                     # Answer builder (grounded / chat / deterministic)
+│   ├── query_context.py                 # Conversation context builder + summary compression
+│   ├── query_conversation.py            # Conversation scope coordinator
+│   ├── query_errors.py                  # GroundedQueryError definition
+│   ├── query_execution.py               # Web retrieval, execution plan, candidate diversity
+│   ├── query_generation.py              # Answer generation dispatcher
+│   ├── query_retrieval.py               # Local evidence retriever (BM25 + Qdrant + RRF)
+│   ├── idempotency.py                   # IdempotencyCoordinator (4-state machine)
+│   ├── access_policy.py                 # TraceQueryService (admin-only policy)
+│   ├── scope_policy.py                  # require_workspace_scope guard
+│   ├── evidence_faults.py               # Fault scenario service
+│   ├── evidence_generation.py           # Evidence report generation
+│   ├── evidence_store.py                # EvidenceRepository protocol + InMemoryEvidenceRepository
+│   ├── quiz_generation.py               # Quiz set generation (LLM + deterministic fallback)
+│   ├── quiz_service.py                  # Quiz orchestration
+│   ├── llm.py                           # ChatProvider Protocol + NvidiaChatProvider
+│   ├── embedding.py                     # NvidiaEmbeddingProvider (4096-dim)
+│   ├── qdrant_store.py                  # QdrantHybridStore (dense + sparse + rerank)
+│   ├── rerank.py                        # RerankCoordinator (3-way fallback)
+│   ├── web_search.py                    # TavilyWebSearchProvider
+│   ├── object_storage.py                # S3CompatibleObjectStorage (boto3)
+│   ├── retrieval.py                     # BM25, RRF fusion, token estimation, pack_chunks
+│   ├── store.py                         # InMemoryResearchMateStore assembler
+│   ├── _store_protocol.py               # ResearchMateRepository Protocol
+│   ├── _store_models.py                 # ChunkEntry, IdempotencyDecision, UploadReservation
+│   ├── _store_core.py                   # InMemoryStoreCore (shared mutable state)
+│   ├── _store_text.py                   # chunk_text() deterministic splitter
+│   ├── _store_chunks.py                 # ChunkStoreMixin
+│   ├── _store_conversations.py          # ConversationStoreMixin
+│   ├── _store_documents.py              # DocumentStoreMixin
+│   ├── _store_limits.py                 # LimitStoreMixin (usage + idempotency)
+│   ├── _store_memory.py                 # MemoryStoreMixin (rerank config + summaries)
+│   ├── _store_projects.py               # ProjectStoreMixin
+│   └── _store_runs.py                   # RunStoreMixin (traces + quiz aggregates)
+└── persistence/                         # 19 persistence files (excluding __init__.py)
+    ├── postgres.py                      # PostgresResearchMateRepository assembler (10 mixins + core)
+    ├── evidence_postgres.py             # PostgresEvidenceRepository assembler (5 mixins + base)
+    ├── evidence_base.py                 # Transaction, RLS, advisory lock, outbox primitives
+    ├── evidence_catalog.py              # Read-only claim / report / pipeline projections
+    ├── evidence_evaluations.py          # Evaluation-run creation + score persistence
+    ├── evidence_operations.py           # Human decisions, run lifecycle, SSE streaming
+    ├── evidence_reports.py              # Report generation and incremental refresh
+    ├── evidence_runs.py                 # Research-run creation, event append, reliability
+    ├── _postgres_core.py                # PostgresRepositoryCore + _psycopg_url + helpers
+    ├── _postgres_chunks.py              # ChunkPersistenceMixin
+    ├── _postgres_conversations.py       # ConversationPersistenceMixin
+    ├── _postgres_document_lifecycle.py  # DocumentLifecycleMixin
+    ├── _postgres_idempotency.py         # IdempotencyPersistenceMixin
+    ├── _postgres_internal.py            # PostgresInternalMixin (outbox, locking, jobs)
+    ├── _postgres_memory.py              # MemoryPersistenceMixin
+    ├── _postgres_projects.py            # ProjectPersistenceMixin
+    ├── _postgres_quizzes.py             # QuizPersistenceMixin
+    ├── _postgres_runs.py                # RunPersistenceMixin
+    └── _postgres_uploads.py             # UploadPersistenceMixin</code></pre>
+      </section>
+
+      <section id="core-files">
+        <p class="eyebrow">核心文件</p>
+        <h2>引导 API 的五个文件</h2>
+        <p class="sub">这些文件负责应用组装、配置校验、认证、MCP 接口和可观测性生命周期。</p>
+
+        <h3>main.py . create_app()</h3>
+        <p>应用工厂函数。构建 FastAPI 实例,lifespan 管理 MCP session manager 和 observability 关闭流程。适配器从 Settings 解析后存储在 app.state 上:store(ResearchMateRepository)、evidence_store(EvidenceRepository)、chat_provider(NvidiaChatProvider 或 None)、hybrid_store(QdrantHybridStore 或 None)、reranker(RerankCoordinator)、web_search(TavilyWebSearchProvider 或 None)。自定义 HTTP 中间件为每个响应附加 X-Request-ID 和安全 headers(Cache-Control: no-store、Referrer-Policy: no-referrer、X-Content-Type-Options: nosniff、X-Frame-Options: DENY),在 /mcp 路径认证 MCP 请求,并记录结构化 http_request_completed 事件(含延迟)。两个异常处理器将 HTTPException 和 RequestValidationError 映射到统一的 ErrorResponse 信封。11 个 routers 挂载在 /api/v1 下。若 MCP SDK 已安装,其 ASGI 应用挂载在 /mcp;否则返回 503 MCP_RUNTIME_NOT_INSTALLED。</p>
+
+        <h3>config.py . Settings</h3>
+        <p>基于 pydantic-settings 的 BaseSettings 类,校验所有运行时配置项。关键分组:环境(app_env: local/test/preview/production)、认证(auth_mode: development/supabase)、仓库(memory/postgres)、LLM(nvidia 模型、temperature、top_p、max_tokens、seed、timeout)、embedding(4096 维 NVIDIA nv-embed-v1)、Qdrant(collection、rerank collection、rerank model)、rerank(auto/qdrant/nvidia/deterministic,candidate_limit=50、top_n=10)、token 预算(chat_history=5000、recent=3500、summary=1500、full_context=12000、retrieval_evidence=8000)、web search(tavily)、CORS、可观测性(OTEL + Langfuse)、对象存储(R2 或通用 S3)。model_validator(mode="after") 拒绝不安全的组合:preview/production 必须使用 Supabase 认证、PostgreSQL、Redis、对象存储、NVIDIA LLM + embedding、Qdrant、Tavily 和 Langfuse。get_settings() 使用 lru_cache 缓存。</p>
+
+        <h3>dependencies.py</h3>
+        <p>FastAPI 依赖提供者和认证逻辑。get_store、get_chat_provider、get_hybrid_store、get_web_search、get_reranker、get_evidence_store 从 request.app.state 读取单例。get_current_user 通过 resolve_bearer_token 解析 bearer token,根据 auth_mode 分发到 _development_user(固定 dev token 或 dev:user_id:role:email 格式)或 _supabase_user(JWKS 验证 JWT,RS256/ES256)。解析用户后调用 repository.ensure_user 持久化规范化 profile。require_admin 限制 developer/admin 角色路由。错误辅助函数(error_detail、raise_api_error、not_implemented_detail)构建全局异常处理器消费的统一错误信封。</p>
+
+        <h3>mcp_server.py . build_mcp_server()</h3>
+        <p>构建无状态 FastMCP 服务端,暴露 6 个 tools 和 3 个 resources。Tools:list_projects、search_project、search_conversation、ask_grounded(完整 GroundedQueryService 执行 + IdempotencyCoordinator)、get_run_trace(admin 限制)、run_evaluation(admin 限制)。Resources:project://{project_id}/documents、conversation://{conversation_id}/documents、run://{run_id}。每个请求由 main.py 中间件认证,设置 ContextVar MCPRequestIdentity 携带 user、repository、evidence store、providers 和 settings。_identity() 辅助函数在未设置 identity 时抛出 PermissionError(失败关闭)。服务端使用 stateless_http=True 和 json_response=True。</p>
+
+        <h3>observability.py</h3>
+        <p>配置隐私安全的日志和可选遥测。log_event 通过 researchmate logger 发送有界 JSON 事件(绝不包含 prompt、token 或文档文本)。configure_observability 可选启动 OpenTelemetry(OTLPSpanExporter + BatchSpanProcessor + FastAPIInstrumentor)和 Langfuse(get_client)。ObservabilityRuntime 拥有 tracer provider 和 Langfuse client,在 lifespan 退出时 flush 并关闭。provider_observation 是一个 context manager,用 Langfuse generation/embedding observation 包装 provider 调用;追踪禁用或 exporter 不可用时 yield _NoopObservation。</p>
+      </section>
+
+      <section id="routers">
+        <p class="eyebrow">routers/ . 11 个文件</p>
+        <h2>Router 逐文件详解</h2>
+        <p class="sub">每个 router 是一个轻量 HTTP 适配器,负责认证、委托 service、将错误映射为统一 API 信封。</p>
+        <dl class="kv">
+          <dt>ask.py</dt><dd><b>POST /ask</b>。统一 Ask 端点。接受 AskRequest 和可选的 Idempotency-Key header(8-160 字符)。构造 IdempotencyCoordinator,调用 begin() 检查是否可重放,执行 GroundedQueryService.execute(),然后调用 complete() 或 abandon()。IdempotencyError 映射为 409,GroundedQueryError 映射为对应状态码。</dd>
+          <dt>conversations.py</dt><dd><b>8 个端点</b>。列出全部会话、在项目中创建/列出会话、列出消息(上限 200 条)、重命名、删除(含附件清理,原子操作),以及两个 admin 专属 rerank-config 路由(GET + PUT 乐观版本检查)。PUT 在激活前验证 Qdrant rerank 就绪状态。</dd>
+          <dt>dev_traces.py</dt><dd><b>GET /dev/traces/{trace_id}</b>。Admin 专属端点,通过 TraceQueryService 返回脱敏的 DeveloperTrace,执行与 MCP 共享的 developer/admin 角色策略。</dd>
+          <dt>documents.py</dt><dd><b>7 个端点</b>。上传地址预约(签名 PUT)、创建文档元数据、列出项目/会话文档、读取单个文档、完成上传(验证对象元数据、入队 ingestion job、接受仅本地 extracted_text)、删除文档(入队删除 job)。UploadVerificationError 映射为 409,ObjectStorage 错误映射为 503。</dd>
+          <dt>evidence.py</dt><dd><b>Evidence 工作流端点</b>。创建幂等 research run(202)、读取 workflow run、SSE 流式 run events、列出/读取 reports、列出 pipeline versions、列出 evaluation datasets(admin)、创建 evaluation run(admin)、刷新 report(202)、读取 reliability 聚合(admin)、创建/读取 fault scenario(admin,仅非生产环境)。所有异步写入需要 8-160 字符 Idempotency-Key。</dd>
+          <dt>health.py</dt><dd><b>GET /healthz + GET /readyz</b>。healthz 不触碰任何依赖直接返回 ok。readyz 探测数据库(select 1 + checkpoint 表 + heartbeats + outbox 积压)、Redis(ping)、Qdrant(get_collection)、对象存储、LLM、web search。任一必需依赖不可用时返回 503 和 failed_components 列表。</dd>
+          <dt>jobs.py</dt><dd><b>GET /jobs/{job_id}</b>。仅返回认证调用者拥有的 JobRecord。</dd>
+          <dt>me.py</dt><dd><b>GET /me</b>。返回 get_current_user 建立的 CurrentUser。最简单的 router:一个依赖,一个响应。</dd>
+          <dt>projects.py</dt><dd><b>5 个端点</b>。POST /chat/bootstrap 返回隐藏的 personal project。POST /projects 创建 workspace 项目。GET /projects 列出拥有的 workspace。GET /projects/{id} 返回单个项目。DELETE /projects/{id} 入队清理(202)。</dd>
+          <dt>quiz.py</dt><dd><b>POST /quiz + GET /projects/{id}/quiz</b>。POST 通过 QuizService 生成可溯源 Quiz,配合 IdempotencyCoordinator。GET 列出项目已保存的 QuizSet。QuizServiceError 映射为对应状态码(404、409、429、503)。</dd>
+          <dt>runs.py</dt><dd><b>GET /runs/{run_id}/sources</b>。返回调用者可见 run 的 Sources 面板数据(RunSourcesResponse,含引用摘要和已验证 citations)。</dd>
+        </dl>
+      </section>
+
+      <section id="schemas">
+        <p class="eyebrow">schemas/ . 10 个文件</p>
+        <h2>Schema 逐文件详解</h2>
+        <p class="sub">Pydantic 模型在 API 边界校验每个请求和响应。所有输入模型使用 ConfigDict(extra="forbid")。</p>
+        <dl class="kv">
+          <dt>ask.py</dt><dd>AskRequest(project_id、conversation_id、message max 8000、web_enabled、extra=forbid)。Claim(id、text、citation_ids)。GroundedAnswer(sources、answer、claims、citations)。AskResponse(run_id、conversation_id、answer、sources、citations、trace_id、validation_status、rerank_degraded、retrieval_degraded、summary_degraded、fallback_reason)。</dd>
+          <dt>common.py</dt><dd>共享枚举:TaskType(answer/quiz)、DocumentStatus(uploaded/parsing/parsed/indexing/ready/failed/expired/deleted)、JobStatus、SourceType(local_doc/web_page)、Difficulty。ErrorDetail + ErrorResponse 信封。CurrentUser(id、email、role)。SourceSummary(local_chunks max 50、web_pages max 20)。Citation(id、source_type、document_id、chunk_id、page_no、slide_no、url、quote、claim_id)。ExecutionPlan(task_type、allowed_tools、requires_local_docs、requires_web、context_strategy、output_schema)。</dd>
+          <dt>conversation.py</dt><dd>ConversationSummary、ConversationListResponse(max 100)、ConversationCreate(title 含 normalize_title validator)、ConversationUpdate、ConversationMessage(role、content max 16000、citations max 80)、ConversationMessagesResponse(max 200)、RuntimeRerankConfig(provider、version、updated_at、updated_by)、RuntimeRerankConfigUpdate(provider、expected_version、extra=forbid)。</dd>
+          <dt>document.py</dt><dd>MIME_BY_TYPE 映射(pdf/docx/pptx)。UploadUrlRequest(project_id、conversation_id、filename、file_type、mime_type、size_bytes max 25MB、validate_mime_matches_type)。UploadUrlResponse(document_id、upload_url、r2_object_key、expires_in_seconds)。UploadCompleteRequest(checksum_sha256 pattern、extracted_text max 200000 仅本地回退)。DocumentRecord 含生命周期状态。</dd>
+          <dt>evidence.py</dt><dd>最大的 schema 文件。SourceScope(document_ids max 200、reject duplicates)。ResearchRunCreate(research_goal 20-12000 字符、max_cost_usd max 25)。WorkflowRunRecord、RunEventRecord、HumanDecisionCreate(approve/edit/reject、edited_payload 一致性)、ClaimSummary、ClaimRelationSummary、ReportSummary、ReportSectionRecord、ReportDetail、PipelineVersionSummary、EvaluationDatasetSummary、EvaluationRunCreate(metrics: schema_valid/citation_precision/evidence_recall/faithfulness)、EvaluationRunRecord、ReliabilityResponse、FaultScenarioCreate(4 种场景)、FaultScenarioRecord。</dd>
+          <dt>job.py</dt><dd>JobRecord(id、user_id、project_id、document_id、type、status、progress 0-100、error_message、timestamps)。使用 use_enum_values 保证 JSON 稳定。</dd>
+          <dt>project.py</dt><dd>ProjectCreate(name 1-120 字符,含 normalize_name validator,extra=forbid)。ProjectRecord(id、user_id、name、kind: personal/workspace、status、expires_at、timestamps、deleted_at)。</dd>
+          <dt>quiz.py</dt><dd>QuizRequest(project_id、prompt、topic_query、resource_scope、single_choice/fill_blank/subjective 各类数量、validate_question_total 1-40)。QuizQuestion(type、question、options 恰好 4 个用于 single_choice、answer、explanation、difficulty、source_citations)。QuizSet(sources、questions 1-40)。QuizCoverage(documents_available、documents_covered、chunks_selected max 50、truncated)。QuizResponse(quiz_set、run_id、trace_id、validation_status、coverage)。QuizHistoryResponse。</dd>
+          <dt>sources.py</dt><dd>RunSourcesResponse(run_id、summary、citations max 120)。GET /runs/{run_id}/sources 返回的 Sources 面板契约。</dd>
+          <dt>trace.py</dt><dd>ToolCallTrace(id、tool_name、input_summary、output_summary、status、latency_ms、error_message)。DeveloperTrace(trace_id、user_id、project_id、run_id、execution_plan、router_reason max 2000、retrieved_chunks max 80、tool_calls max 40、validation_result、latency_ms、token_usage、errors max 20、created_at)。</dd>
+        </dl>
+      </section>
+
+      <section id="services-orchestration">
+        <p class="eyebrow">services/ . 编排服务组(15 个文件)</p>
+        <h2>应用编排服务</h2>
+        <p class="sub">这些服务协调业务逻辑,不拥有适配器机制。它们依赖 ResearchMateRepository protocol 和 provider Protocols,从不依赖具体适配器类。</p>
+        <dl class="kv">
+          <dt>grounded_query.py</dt><dd><b>GroundedQueryService</b>。统一 Ask 编排器。execute() 运行完整管线:准备会话 scope、检索本地 evidence(BM25 + Qdrant)、可选检索 web evidence、rerank 候选、生成回答(grounded 或 chat)、增加使用配额、记录 run 和 trace。为每个阶段构建 ToolCallTrace,将 runtime_metadata(context_strategy、rerank provider/model、token 估算、延迟)打包到持久化 trace 中。</dd>
+          <dt>answering.py</dt><dd>回答构建器,三种模式。build_llm_grounded_answer:构建 evidence JSON(含服务端分配的 evidence_id 整数),校验 provider 输出是否符合 GroundedAnswerProposal schema,允许一次 schema 修复,将 evidence_ids 映射为 Citation 对象。build_grounded_answer:从 chunks 生成确定性本地回答。build_llm_chat_answer / build_chat_answer:无 evidence 的纯聊天。_extract_json_object 处理 markdown-fenced LLM 输出。</dd>
+          <dt>query_context.py</dt><dd><b>ConversationContextBuilder</b>。加载会话历史,应用 token 预算(recent=3500、summary=1500、trigger=8000),将旧消息压缩为 LLM 生成的摘要,并将跨会话 project memory 作为不可信数据包装在 XML-like 块中。bound_messages 在硬 token 预算内保留最新消息。_truncate_to_budget 裁剪超长消息。</dd>
+          <dt>query_conversation.py</dt><dd><b>QueryConversationCoordinator</b>。prepare() 验证项目 active 状态、解析已有会话、加载文档和 chunks(workspace vs personal scope)、拒绝仍处于 PARSING/INDEXING 状态的文档、构建会话 context。ensure_for_commit() 仅在生成成功后创建会话,避免失败时留下空会话。</dd>
+          <dt>query_errors.py</dt><dd>GroundedQueryError 异常,携带 code、message 和 status_code。raise_grounded_error 辅助函数。所有 query_* 模块共享,在不耦合 HTTP 的情况下传播稳定错误。</dd>
+          <dt>query_execution.py</dt><dd>Web 检索和执行计划辅助函数。retrieve_web 调用 TavilyWebSearchProvider 或抛出 WebEvidenceError。limit_rerank_candidates 按文档多样化同时为 web 结果保留名额。build_execution_plan 将策略(full_context / hybrid_retrieval / web / hybrid_retrieval_web / chat)映射为 ExecutionPlan。</dd>
+          <dt>query_generation.py</dt><dd>generate_answer 分发器。有检索 evidence:grounded LLM 或确定性。有文档但无 evidence 且未启用 web:诚实弃答。无文档:纯聊天。ProviderOutputError 映射为 502,ProviderRequestError 映射为 503。返回 GenerationOutcome(含 answer、citations、summary、LLMResult、latency)。</dd>
+          <dt>query_retrieval.py</dt><dd><b>LocalEvidenceRetriever</b>。结合词法检索(BM25,通过 retrieval.py)和语义检索(Qdrant dense,通过 qdrant_store.py),使用 RRF 融合。返回 RetrievalOutcome(含 candidates、strategy、estimated_tokens、degradation 标志)。search_workspace 和 search_conversation 是 MCP tools 使用的 scoped 搜索方法。</dd>
+          <dt>idempotency.py</dt><dd><b>IdempotencyCoordinator</b>。四态状态机:begin() 返回 execute(新 key)、replay(缓存响应)、mismatch(相同 key 不同 body)、in_progress(并发)。complete() 持久化响应快照。abandon() 在失败时释放 pending 预约。request_hash 通过 sorted JSON + SHA-256 规范化 Pydantic payload。</dd>
+          <dt>access_policy.py</dt><dd><b>TraceQueryService</b>。集中 developer/admin trace 访问策略。get() 仅对 developer 或 admin 角色返回 DeveloperTrace,否则抛出 TraceAccessError。HTTP dev_traces router 和 MCP get_run_trace tool 共用。</dd>
+          <dt>scope_policy.py</dt><dd>require_workspace_scope 守卫。当 project kind 不为 workspace 时抛出 ProjectScopeError。MCP search_project 和 project_documents resource 使用,阻止通过 MCP 访问 personal project。</dd>
+          <dt>evidence_faults.py</dt><dd>非生产可靠性演练的 fault scenario 服务。支持四种场景:llm_timeout、qdrant_unavailable、worker_interrupt、r2_failure。有界持续时间(1-60 秒)。仅在 local/test/preview 环境可用。</dd>
+          <dt>evidence_generation.py</dt><dd>Evidence report 生成。从 research run 输出创建 draft report,生成含 evidence snapshot 的 report section,处理源文档变更时的增量刷新。按 section 跟踪 validation_status。</dd>
+          <dt>evidence_store.py</dt><dd><b>EvidenceRepository</b> Protocol,定义 evidence 工作流持久化边界:create/get research run、append event、list claim 和 relation、list/get report、list pipeline version、create evaluation run、reliability 聚合、fault scenario。InMemoryEvidenceRepository 提供进程内实现。EvidenceStoreError 携带 code、message、status_code。</dd>
+          <dt>quiz_generation.py</dt><dd>Quiz set 生成。generate_llm_quiz_set:构建 evidence JSON,校验 provider 输出是否符合 QuizSetProposal schema(single_choice 恰好 4 个选项、evidence_ids 在白名单内)。generate_quiz_set:从 chunk 片段生成确定性本地 quiz(含中文题目)。QuizGenerationError 用于无效 provider 输出。</dd>
+        </dl>
+        <div class="notice"><strong>此外:</strong>quiz_service.py 编排 Quiz 检索、生成、覆盖度测量、使用配额、trace 和持久化。它验证项目 scope(仅 workspace)、选择 chunks(all_ready_documents 或 topic)、通过 LLM 或确定性回退生成、记录 quiz run,并返回含诚实 QuizCoverage 的 QuizResponse。</div>
+      </section>
+
+      <section id="services-providers">
+        <p class="eyebrow">services/ . Provider 适配器组(7 个文件)</p>
+        <h2>Provider 适配器与检索工具</h2>
+        <p class="sub">每个适配器将外部 SDK 封装在 Protocol 接口之后,归一化错误和遥测。Services 依赖 Protocols,从不依赖具体类。</p>
+        <dl class="kv">
+          <dt>llm.py</dt><dd><b>ChatProvider</b> Protocol(complete、complete_bounded、stream)。<b>NvidiaChatProvider</b> 封装 OpenAI(base_url=nvidia_base_url),配置 temperature、top_p、max_tokens、seed、max_retries=0。_request 用 provider_observation(Langfuse)包装每次调用。根据状态码(408/409/429/500/502/503/504)将 provider 异常映射为 ProviderRequestError(retryable)。LLMResult 归一化 content、reasoning_content、model 和 token 使用量。</dd>
+          <dt>embedding.py</dt><dd><b>NvidiaEmbeddingProvider</b>。封装 OpenAI embeddings.create,extra_body={input_type, truncate:END}。校验向量数量和维度(4096)是否匹配 settings。Provider 错误归一化为 ProviderRequestError。Observation 记录 input_count、input_chars 和 usage。</dd>
+          <dt>qdrant_store.py</dt><dd><b>QdrantHybridStore</b>。每次查询强制 owner_filter(user_id + project_id + source_type + 可选 document_ids)。query() 通过 Qdrant RRF 融合 sparse(BM25 派生的 sparse_text_vector)和 dense(embedding)。query_dense() 仅返回语义结果。rerank_query() 在 rerank collection 中使用 Document 模型。rerank_ready() 检查 model、collection 配置和点数对等。upsert_chunks() 投影 dense + sparse 向量并附加 owner-tagged payload。</dd>
+          <dt>rerank.py</dt><dd><b>RerankCoordinator</b>。三路回退:Qdrant native(late-interaction Document rerank)、NVIDIA ranking API、Deterministic(词法分数 + RRF)。根据 runtime config(get_runtime_rerank_config)或 settings 默认值选择 provider。返回 RerankResult(含 provider、model、candidates、degraded 标志、fallback_reason)。Rerank-config 读取缓存 5 秒。</dd>
+          <dt>web_search.py</dt><dd><b>TavilyWebSearchProvider</b>。向 api.tavily.com 发送搜索查询,将结果归一化为 ChunkEntry 对象(SourceType.WEB_PAGE)。WebSearchRequestError 携带 retryable 标志。超时通过 web_search_timeout_seconds(默认 30s)配置。结果包含 url、title 和 content 片段。</dd>
+          <dt>object_storage.py</dt><dd><b>S3CompatibleObjectStorage</b>。封装 boto3.client("s3"),提供 presign_upload(签名 PUT URL,600s 过期)和 head(读取 size_bytes、content_type、etag)。未完整配置时抛出 ObjectStorageConfigurationError。大小/类型不匹配时抛出 UploadVerificationError。StoredObjectMetadata dataclass 归一化 head 响应。支持 R2(账户级 endpoint)或通用 S3。</dd>
+          <dt>retrieval.py</dt><dd>确定性词法检索工具,被内存和 Qdrant 路径共享。tokenize() 提取 Latin 单词、CJK 字符和 CJK bigram。bm25_candidates() 用 BM25(k1=2.2, b=0.75)评分,加上精确匹配和标题匹配加成。fuse_candidates() 应用 Reciprocal Rank Fusion(RRF k=60)。pack_chunks() 在 token 预算内打包完整 chunks。estimate_tokens() 提供保守的混合文本 token 估算。snippet() 折叠空白用于展示。</dd>
+        </dl>
+      </section>
+
+      <section id="services-store">
+        <p class="eyebrow">services/ . Store 组(12 个文件)</p>
+        <h2>内存 Store:protocol、models、core、text utils 与 mixins</h2>
+        <p class="sub">Store 组将 InMemoryResearchMateStore 从面向聚合的 mixins 组装。同一个 ResearchMateRepository Protocol 由内存 store 和 PostgresResearchMateRepository 共同实现,通过 REPOSITORY_BACKEND 实现零代码切换。</p>
+        <dl class="kv">
+          <dt>_store_protocol.py</dt><dd><b>ResearchMateRepository</b> Protocol。声明完整持久化接口:ensure_user、create/ensure_personal/list/get/delete_project、upload-url/create/list/get/complete/delete_document、get_job、get_run_sources、get_trace、record_run、record_quiz_run、save/list_quiz_sets、会话 CRUD + messages、project/conversation chunks、usage + idempotency、rerank config、会话摘要、project memory。每个方法的第一个参数是 CurrentUser,用于 owner scoping。</dd>
+          <dt>_store_models.py</dt><dd>内部数据模型:ChunkEntry(id、user_id、project_id、document_id、source_type、page_no、slide_no、source_title、url、text)、IdempotencyDecision(state: execute/replay/mismatch/in_progress、可选 response)、UploadReservation。</dd>
+          <dt>_store_core.py</dt><dd><b>InMemoryStoreCore</b>。拥有 RLock 和所有共享可变状态:profiles、projects、documents、jobs、uploads、chunks、run_sources、traces、quiz_sets、conversations、conversation_items、conversation_summaries、api_usage、idempotency_records、runtime_rerank_config。reset() 清空状态用于隔离测试。_create_job_locked 在锁内创建 JobRecord。</dd>
+          <dt>_store_text.py</dt><dd>chunk_text(text, target_size=900)。确定性段落感知分割器,归一化空白并在 target_size 边界拆分超长段落。</dd>
+          <dt>_store_chunks.py</dt><dd><b>ChunkStoreMixin</b>。project_chunks 返回已拥有项目中的 ready-document chunks。conversation_chunks 按会话附件过滤。get_chunks_by_ids 保持可见性。按 DocumentStatus.READY 和 deleted_at is None 过滤。</dd>
+          <dt>_store_conversations.py</dt><dd><b>ConversationStoreMixin</b>。会话 CRUD、列出消息(max 200)、重命名、删除(含附件清理)。delete_conversation_with_attachments 原子化调度文档删除和会话删除。</dd>
+          <dt>_store_documents.py</dt><dd><b>DocumentStoreMixin</b>。上传预约、文档创建、完成(状态转为 PARSING、通过 chunk_text 提取 chunks、创建 job)、删除(软删除 + chunk 清理 + job)。强制 personal-project 会话绑定。</dd>
+          <dt>_store_limits.py</dt><dd><b>LimitStoreMixin</b>。increment_usage 统计每日每用户每类型配额。begin/complete/abandon_idempotent_operation 在内存中用 RLock 实现四态状态机。</dd>
+          <dt>_store_memory.py</dt><dd><b>MemoryStoreMixin</b>。Runtime rerank config(乐观版本控制)、会话摘要存储(滚动摘要 + message_count)、project_memory_context(workspace 项目的跨会话 memory,包装为不可信数据)。</dd>
+          <dt>_store_projects.py</dt><dd><b>ProjectStoreMixin</b>。ensure_user、create_project(workspace,7 天 TTL)、ensure_personal_project(隐藏,无过期)、list_projects(仅 workspace)、get_project(owner 校验)、delete_project(软删除 + 依赖清理)。</dd>
+          <dt>_store_runs.py</dt><dd><b>RunStoreMixin</b>。get_run_sources、get_trace(角色限制)、record_run(原子持久化 run、sources、trace 和可选 messages)、save_quiz_set、record_quiz_run(失败时快照回滚)、list_quiz_sets。</dd>
+          <dt>store.py</dt><dd><b>InMemoryResearchMateStore</b> 组装器。多重继承 7 个 mixins + InMemoryStoreCore,提供线程安全的进程内 ResearchMateRepository。模块级单例 store 在导入时创建,用于开发和测试。</dd>
+        </dl>
+      </section>
+
+      <section id="persistence">
+        <p class="eyebrow">persistence/ . 19 个文件</p>
+        <h2>Persistence 逐文件详解</h2>
+        <p class="sub">两个仓库组装器(postgres.py、evidence_postgres.py)组合面向聚合的 mixins。每个事务注入 RLS 参数 request.jwt.claim.sub 实现行级安全。</p>
+        <dl class="kv">
+          <dt>postgres.py</dt><dd><b>PostgresResearchMateRepository</b> 组装器。多重继承 10 个 persistence mixins + PostgresRepositoryCore:ProjectPersistenceMixin、UploadPersistenceMixin、DocumentLifecycleMixin、RunPersistenceMixin、QuizPersistenceMixin、ConversationPersistenceMixin、MemoryPersistenceMixin、IdempotencyPersistenceMixin、ChunkPersistenceMixin、PostgresInternalMixin。导出辅助函数 _enum_value、_json、_psycopg_url、_safe_filename。</dd>
+          <dt>evidence_postgres.py</dt><dd><b>PostgresEvidenceRepository</b> 组装器。多重继承 5 个 evidence mixins + PostgresEvidenceRepositoryBase:PostgresEvidenceRunMixin、PostgresEvidenceCatalogMixin、PostgresEvidenceReportMixin、PostgresEvidenceEvaluationMixin、PostgresEvidenceOperationsMixin。导出 _json、_progress、DEFAULT_EVALUATION_BUDGET_USD。</dd>
+          <dt>evidence_base.py</dt><dd><b>PostgresEvidenceRepositoryBase</b>。拥有 SQLAlchemy 引擎和事务原语。_transaction 打开连接并注入 RLS 参数。_lock_active_project 用 SELECT FOR UPDATE 串行化 evidence 写入。_lock_idempotency 使用 pg_advisory_xact_lock(hashtextextended)。_append_event 插入有序 run_events。_append_outbox 插入去重 outbox_events。</dd>
+          <dt>evidence_catalog.py</dt><dd><b>PostgresEvidenceCatalogMixin</b>。只读投影:list_claims(通过 joined 聚合查询统计 evidence/support/contradiction/duplicate 计数)、list_claim_relations、list_reports(含 affected_section_count)、get_report(含有序 sections)、list_pipeline_versions、list_evaluation_datasets。所有查询强制 owner + active project 存在性。</dd>
+          <dt>evidence_evaluations.py</dt><dd><b>PostgresEvidenceEvaluationMixin</b>。create_evaluation_run:idempotency 锁定,验证 frozen dataset + accepted pipeline version,统计 case 数量,设置 budget 边界。返回 EvaluationRunAccepted(含 status_url)。get_evaluation_run 返回进度和安全聚合分数。</dd>
+          <dt>evidence_operations.py</dt><dd><b>PostgresEvidenceOperationsMixin</b>。人在环操作:提交 human decision(approve/edit/reject)、恢复暂停的工作流、通过 SSE 流式传输 run events(使用 after_sequence 游标)。所有操作均为 owner-scoped 且受 idempotency 保护。</dd>
+          <dt>evidence_reports.py</dt><dd><b>PostgresEvidenceReportMixin</b>。Report 生成和增量刷新。从 research run 输出创建 draft report,生成含 evidence snapshot 的 section,处理 report 刷新(从变更文档识别受影响 section,创建新 revision run)。</dd>
+          <dt>evidence_runs.py</dt><dd><b>PostgresEvidenceRunMixin</b>。Research-run 创建(idempotency 锁定,验证 active project + pipeline version,追加 outbox event)。get_run 返回 WorkflowRunRecord。list_run_events 返回有序 RunEventRecord。reliability 返回时间窗口内的有界聚合(success_rate、p50/p95 延迟、token 使用量、cost)。</dd>
+          <dt>_postgres_core.py</dt><dd><b>PostgresRepositoryCore</b>。引擎配置(pool_pre_ping、pool_recycle=300、future=True)。_transaction 通过 ContextVar 支持嵌套 Unit-of-Work。_psycopg_url 归一化 Postgres URL。_enum_value、_json、_safe_filename 辅助函数。upload_url_factory 和 object_metadata_reader 为可注入回调。</dd>
+          <dt>_postgres_chunks.py</dt><dd><b>ChunkPersistenceMixin</b>。project_chunks 和 conversation_chunks 返回 ready-document chunks,带 owner + active-project 校验。get_chunks_by_ids 保持可见性。Chunk 查询按 DocumentStatus.READY 和 deleted_at IS NULL 过滤。</dd>
+          <dt>_postgres_conversations.py</dt><dd><b>ConversationPersistenceMixin</b>。ensure_conversation(自动将 "New chat" 重命名为首条消息)、create、list、list_messages(通过 ask_run_id 为每条 assistant 消息加载 citations)、rename、delete(软删除)、delete_conversation_with_attachments(原子化文档清理 + 会话删除)。</dd>
+          <dt>_postgres_document_lifecycle.py</dt><dd><b>DocumentLifecycleMixin</b>。complete_document:验证对象元数据(size + content_type),状态转为 PARSING,入队 ingestion outbox event。delete_document:状态转为 DELETED,入队删除 outbox event。两者均强制 active-project 锁和 owner scope。</dd>
+          <dt>_postgres_idempotency.py</dt><dd><b>IdempotencyPersistenceMixin</b>。increment_usage:原子 INSERT ON CONFLICT DO UPDATE,带配额检查。begin_idempotent_operation:INSERT ON CONFLICT DO NOTHING,返回状态(execute/replay/mismatch/in_progress)。complete:UPDATE 状态为 succeeded 并写入 JSON 响应。abandon:DELETE pending 预约。</dd>
+          <dt>_postgres_internal.py</dt><dd><b>PostgresInternalMixin</b>。_enqueue_project_deletion 和 _enqueue_document_event:去重 outbox 写入,带 pending/recent/count 守卫。_lock_active_project:SELECT FOR UPDATE。_load_citations:join citations 到 ask_runs 进行 owner 校验。_insert_job:插入并映射 JobRecord。</dd>
+          <dt>_postgres_memory.py</dt><dd><b>MemoryPersistenceMixin</b>。Runtime rerank config(通过 UPDATE WHERE version=expected 实现乐观版本控制)。会话摘要存储(滚动摘要 + message_count)。project_memory_context(workspace 项目的跨会话消息,上限 16 条近期项)。</dd>
+          <dt>_postgres_projects.py</dt><dd><b>ProjectPersistenceMixin</b>。ensure_user(INSERT ON CONFLICT DO NOTHING)。create_project(workspace,7 天 TTL)。ensure_personal_project(隐藏,无过期)。list_projects(仅 workspace)。get_project(owner 校验)。delete_project(软删除 + 依赖文档/chunk 清理 + outbox event + job)。</dd>
+          <dt>_postgres_quizzes.py</dt><dd><b>QuizPersistenceMixin</b>。save_quiz_set(插入 QuizSet,questions 以 JSONB 存储)。record_quiz_run(事务性:记录 run + trace + quiz 聚合,失败时回滚)。list_quiz_sets(按创建时间排序,owner-scoped)。</dd>
+          <dt>_postgres_runs.py</dt><dd><b>RunPersistenceMixin</b>。record_run:插入 ask_runs(含 execution plan + runtime metadata)、插入 tool_calls、插入 citations、追加 user + assistant messages、更新会话时间戳。get_run_sources:加载 citations 并进行 owner 校验。get_trace:角色限制的 trace 读取。</dd>
+          <dt>_postgres_uploads.py</dt><dd><b>UploadPersistenceMixin</b>。create_upload_url:生成 object key,调用 upload_url_factory,插入 document(带 active-project 锁和 personal-project 会话绑定)。create_document:解析最新匹配预约。list_project/conversation_documents。get_document(owner 校验)。</dd>
+        </dl>
+      </section>
+
+      <section id="ask-slice">
+        <p class="eyebrow">请求切片</p>
+        <h2>POST /api/v1/ask . 10 步 proof chain</h2>
+        <p class="sub">从 HTTP 请求到达 FastAPI 到 AskResponse 返回客户端,请求经过的每个文件和函数:</p>
+        <div class="proof-chain">
+          <div class="proof-step"><b>1. Middleware</b><small>main.py:attach_request_id 生成 X-Request-ID,设置安全 headers,记录 http_request_completed</small></div>
+          <div class="proof-step"><b>2. 认证</b><small>dependencies.py:get_current_user 调用 resolve_bearer_token(dev token 或 JWKS JWT),repository.ensure_user</small></div>
+          <div class="proof-step"><b>3. 依赖注入</b><small>dependencies.py:get_store、get_chat_provider、get_hybrid_store、get_reranker、get_web_search 读取 app.state 单例</small></div>
+          <div class="proof-step"><b>4. Router 入口</b><small>routers/ask.py:接受 AskRequest + Idempotency-Key header,构造 IdempotencyCoordinator</small></div>
+          <div class="proof-step"><b>5. 幂等检查</b><small>services/idempotency.py:begin() 返回 execute / replay / mismatch / in_progress;request_hash = 规范 JSON 的 SHA-256</small></div>
+          <div class="proof-step"><b>6. 会话 scope</b><small>services/query_conversation.py:prepare() 验证项目,加载文档 + chunks,拒绝 PARSING/INDEXING 文档</small></div>
+          <div class="proof-step"><b>7. 上下文构建</b><small>services/query_context.py:加载历史,应用 token 预算,压缩摘要,将 project memory 包装为不可信数据</small></div>
+          <div class="proof-step"><b>8. 本地检索</b><small>services/query_retrieval.py + retrieval.py:BM25(k1=2.2)+ Qdrant dense + RRF 融合(k=60)</small></div>
+          <div class="proof-step"><b>9. Rerank</b><small>services/rerank.py:Qdrant native / NVIDIA / Deterministic 回退;pack_chunks 在 retrieval_evidence_token_budget 内打包</small></div>
+          <div class="proof-step"><b>10. 生成 + 持久化</b><small>services/query_generation.py + answering.py + grounded_query.py:LLM grounded answer(JSON schema + 1 次修复),record_run,返回 AskResponse</small></div>
+        </div>
+        <div class="notice"><strong>配额门:</strong>repository.increment_usage(user, "ask", limit=200) 仅在成功生成后调用。Provider 失败不消耗每日配额。超限时服务抛出 RATE_LIMITED(429),coordinator 执行 abandon。</div>
+      </section>
+
+      <section id="auth">
+        <p class="eyebrow">认证机制</p>
+        <h2>双模式认证机制</h2>
+        <p class="sub">API 支持由 AUTH_MODE 选择两种认证模式。Preview 和 production 必须使用 Supabase;local 和 test 使用 development 模式。</p>
+
+        <h3>Development 模式(auth_mode=development)</h3>
+        <p>_development_user 解析固定 dev token:"dev"(developer)、"dev-admin"(admin)、"dev-user-a" / "dev-user-b"(user)。也接受格式为 <code>dev:{user_id}:{role}:{email}</code> 的动态 token,其中 role 必须为 user / developer / admin 之一。此模式仅用于本地开发和自动化测试。</p>
+
+        <h3>Supabase 模式(auth_mode=supabase)</h3>
+        <p>_supabase_user 使用 PyJWKClient(通过 lru_cache 缓存)验证签名 JWT。流程:JWKS URL 从 SUPABASE_JWKS_URL 解析,或从 <code>{supabase_url}/auth/v1/.well-known/jwks.json</code> 派生。从 JWKS 端点获取签名密钥。jwt.decode 验证 RS256 或 ES256,检查 audience=authenticated 和 issuer=ACCESS_TOKEN_ISSUER。必需 claims:exp、iat、sub、aud、iss。user_id 从 sub 提取为 UUID。角色从 app_metadata.role 派生(developer 或 admin,默认 user)。Email 可选地从 email claim 提取。</p>
+
+        <h3>授权</h3>
+        <p>解析用户后,get_current_user 调用 repository.ensure_user 持久化规范化 profile。require_admin 是独立依赖,拒绝非 developer/non-admin 调用者(403 ADMIN_REQUIRED)。用于 dev_traces、rerank-config 更新、evaluation-run 创建、evaluation-dataset 列出、reliability 和 fault-scenario 端点。</p>
+
+        <h3>MCP 认证</h3>
+        <p>/mcp 路径的 MCP 请求在 HTTP 中间件中认证,而非通过 FastAPI 依赖。中间件提取 Bearer token,调用 resolve_bearer_token,ensure user,然后设置 ContextVar MCPRequestIdentity 携带所有依赖。每个 MCP tool 通过 _identity() 读取 identity,未设置时抛出 PermissionError(失败关闭)。</p>
+
+        <div class="notice"><strong>安全 headers:</strong> 每个响应包含 Cache-Control: no-store、Referrer-Policy: no-referrer、X-Content-Type-Options: nosniff 和 X-Frame-Options: DENY。CORS 显式配置 allow_credentials=True 和特定 origin 白名单。Idempotency-Key、X-Request-ID 和 Mcp-Session-Id headers 在允许和暴露的 header 列表中。</div>
+      </section>
+
+      <section id="provider-pattern">
+        <p class="eyebrow">设计模式</p>
+        <h2>Provider 适配器架构</h2>
+        <p class="sub">后端使用 Python Protocol 类定义适配器契约。Services 依赖 Protocols,从不依赖具体类。适配器在启动时构造一次并存储在 app.state 上。</p>
+
+        <h3>Protocol 契约</h3>
+        <dl class="kv">
+          <dt>ChatProvider</dt><dd>complete(messages) -&gt; LLMResult。由 NvidiaChatProvider 实现。被 GroundedQueryService 和 QuizService 使用。</dd>
+          <dt>ResearchMateRepository</dt><dd>完整持久化 Protocol,约 30 个方法。由 InMemoryResearchMateStore 和 PostgresResearchMateRepository 实现。通过 REPOSITORY_BACKEND 选择。</dd>
+          <dt>EvidenceRepository</dt><dd>Evidence 工作流持久化 Protocol。由 InMemoryEvidenceRepository 和 PostgresEvidenceRepository 实现。</dd>
+        </dl>
+
+        <h3>适配器生命周期</h3>
+        <p>main.py 中的 create_app() 从 Settings 构造适配器并存储在 app.state 上:store、evidence_store、chat_provider、hybrid_store、reranker、web_search。reranker 接收 hybrid_store 的引用。object_storage 适配器不存储在 app.state 上,而是通过 upload_url_factory 和 object_metadata_reader 回调注入到 Postgres repository 中。</p>
+
+        <h3>错误归一化</h3>
+        <p>每个适配器将 SDK 特定异常归一化为服务级错误:ProviderRequestError(retryable)用于 LLM 和 embedding 失败。VectorStoreRequestError(retryable)用于 Qdrant 失败。WebSearchRequestError(retryable)用于 Tavily 失败。ObjectStorageConfigurationError 和 UploadVerificationError 用于 S3 失败。这些由 routers 或编排服务映射为 HTTP 状态码。</p>
+
+        <h3>可观测性集成</h3>
+        <p>observability.py 中的 provider_observation 用 Langfuse observation 包装每次 NVIDIA chat 和 embedding 调用。Context manager 接受 name、observation_type(generation/embedding)、model 和 metadata。Langfuse 禁用或不可用时 yield _NoopObservation,它静默接受 update() 调用。这确保追踪永不阻塞 provider 工作。</p>
+      </section>
+
+      <section id="idempotency">
+        <p class="eyebrow">可靠性</p>
+        <h2>幂等协调器</h2>
+        <p class="sub">IdempotencyCoordinator 确保成本承载操作(ask、quiz)可以安全重试,不会产生重复的 provider 调用或持久化消息。</p>
+
+        <h3>四态状态机</h3>
+        <dl class="kv">
+          <dt>execute</dt><dd>Key 是新的或 pending 预约已被 abandon。调用者继续执行,必须调用 complete() 或 abandon()。</dd>
+          <dt>replay</dt><dd>此 user/operation/key/body 存在已成功的响应。返回缓存响应,不执行。</dd>
+          <dt>mismatch</dt><dd>存在相同 key 但不同 request_hash 的记录。抛出 IDEMPOTENCY_KEY_REUSED(409)。</dd>
+          <dt>in_progress</dt><dd>存在相同请求的 pending 预约。抛出 IDEMPOTENCY_REQUEST_IN_PROGRESS(409)。</dd>
+        </dl>
+
+        <h3>请求哈希</h3>
+        <p>request_hash(payload) 通过 model_dump(mode="json") 配合 sort_keys=True 和 separators=(",", ":") 规范化 Pydantic BaseModel,然后 SHA-256 哈希。这确保 body 一致性:相同 key 不同 body 是冲突,不是重放。</p>
+
+        <h3>持久化</h3>
+        <p>内存:LimitStoreMixin 将 idempotency_records 存储为 dict,键为 (user_id, operation, key),值为 state 和 response。PostgreSQL:IdempotencyPersistenceMixin 使用 INSERT ON CONFLICT DO NOTHING 进行原子预约,SELECT FOR UPDATE 检查重放,pg_advisory_xact_lock 串行化并发写入。Evidence repository 使用自己的 _lock_idempotency advisory lock。</p>
+
+        <h3>Router 中的生命周期</h3>
+        <p>routers/ask.py 和 routers/quiz.py 都遵循相同模式:构造 IdempotencyCoordinator,调用 begin(),若 replay 不为 None 则返回,否则执行 service,成功时调用 complete(),失败时调用 abandon()。MCP ask_grounded tool 遵循相同模式。Evidence 端点使用类似的 _idempotency() 校验和 _store_call() 错误映射流程。</p>
+      </section>
+
+      <section id="dependency-graph">
+        <p class="eyebrow">模块依赖</p>
+        <h2>模块依赖图</h2>
+        <p class="sub">源码文件之间的依赖关系,按层分组。箭头从依赖方指向被依赖方。</p>
+        <pre class="command-block"><code>routers/ask.py
+  → services/idempotency.py
+  → services/grounded_query.py
+      → services/query_conversation.py
+          → services/query_context.py → services/llm.py (ChatProvider Protocol)
+          → services/query_errors.py
+      → services/query_retrieval.py
+          → services/retrieval.py (BM25 + RRF + token estimation)
+          → services/qdrant_store.py (QdrantHybridStore)
+          → services/scope_policy.py
+      → services/query_execution.py
+          → services/web_search.py (TavilyWebSearchProvider)
+      → services/query_generation.py
+          → services/answering.py (grounded / chat / deterministic)
+          → services/llm.py (ChatProvider Protocol)
+      → services/rerank.py (RerankCoordinator)
+          → services/qdrant_store.py
+      → services/store.py (ResearchMateRepository Protocol)
+
+services/store.py
+  → _store_protocol.py (Protocol definition)
+  → _store_models.py (ChunkEntry, IdempotencyDecision)
+  → _store_core.py (InMemoryStoreCore: lock + shared state)
+  → _store_text.py (chunk_text utility)
+  → 9 store mixins + protocol + models + text utils
+      _store_projects.py, _store_documents.py, _store_runs.py,
+      _store_limits.py, _store_chunks.py, _store_conversations.py,
+      _store_memory.py, _store_core.py, store.py
+
+persistence/postgres.py
+  → _postgres_core.py (engine + _psycopg_url + helpers)
+  → 10 Postgres mixins:
+      _postgres_projects.py, _postgres_uploads.py,
+      _postgres_document_lifecycle.py, _postgres_runs.py,
+      _postgres_quizzes.py, _postgres_conversations.py,
+      _postgres_memory.py, _postgres_idempotency.py,
+      _postgres_chunks.py, _postgres_internal.py
+
+persistence/evidence_postgres.py
+  → evidence_base.py (engine + transaction + advisory lock + outbox)
+  → 5 evidence mixins:
+      evidence_runs.py, evidence_catalog.py,
+      evidence_reports.py, evidence_evaluations.py,
+      evidence_operations.py
+
+main.py (app factory)
+  → config.py (Settings + security validators)
+  → dependencies.py (auth + DI + error helpers)
+  → mcp_server.py (6 tools + 3 resources, FastMCP)
+  → observability.py (logging + OTEL + Langfuse)
+  → routers/ (11 router modules)
+  → services/store.py, evidence_store.py, llm.py,
+    qdrant_store.py, rerank.py, web_search.py,
+    object_storage.py, embedding.py</code></pre>
+        <div class="notice"><strong>关键洞察:</strong> Routers 仅依赖 service Protocols 和 IdempotencyCoordinator。Services 依赖 ResearchMateRepository Protocol 和 provider Protocols。具体适配器(NvidiaChatProvider、QdrantHybridStore、PostgresResearchMateRepository)在 main.py 中构造一次并通过 app.state 注入。这意味着任何适配器都可以通过修改 Settings 来替换,无需触碰 service 代码。</div>
+      </section>
+
+    </div>
+    <aside class="toc"><b>本页内容</b>
+      <a href="#stack">技术栈</a>
+      <a href="#tree">目录树</a>
+      <a href="#core-files">核心文件</a>
+      <a href="#routers">Routers</a>
+      <a href="#schemas">Schemas</a>
+      <a href="#services-orchestration">Services: 编排</a>
+      <a href="#services-providers">Services: Provider</a>
+      <a href="#services-store">Services: Store</a>
+      <a href="#persistence">Persistence</a>
+      <a href="#ask-slice">Ask proof chain</a>
+      <a href="#auth">认证机制</a>
+      <a href="#provider-pattern">Provider 模式</a>
+      <a href="#idempotency">幂等协调器</a>
+      <a href="#dependency-graph">依赖图</a>
+    </aside></div>
+  </main>
+  <footer class="shell footer">ResearchMate 后端学习指南 . 2026 年 8 月 6 日</footer>
+  <script src="../assets/site.js"></script>
+</body>
+</html>

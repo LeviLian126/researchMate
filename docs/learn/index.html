@@ -1,0 +1,113 @@
+﻿<!-- ResearchMate technical learning guide: module-by-module breakdown of architecture, tech stack, and code flow. -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width,initial-scale=1" name="viewport"/>
+  <meta content="ResearchMate technical learning guide: module-by-module breakdown of frontend, backend, worker, infrastructure, CI/CD tech stack fundamentals and code flow." name="description"/>
+  <title>ResearchMate · Technical learning</title>
+  <link href="../assets/site.css" rel="stylesheet"/>
+</head>
+<body>
+  <header class="mast"><div class="shell mast-row"><a class="brand" href="../index.html">ResearchMate documentation</a><div class="mast-right"><span class="stamp">Learning guide · 6 August 2026</span><a class="lang-toggle" href="index.zh.html" hreflang="zh" lang="zh">中文</a></div></div></header>
+  <nav aria-label="Documentation" class="global"><div class="shell">
+    <a href="../index.html">Overview</a>
+    <a href="../product/index.html">Product &amp; roadmap</a>
+    <a href="../architecture/index.html">Architecture &amp; stack</a>
+    <a href="../contracts/data/index.html">Database</a>
+    <a href="../contracts/api/index.html">API</a>
+    <a aria-current="page" href="index.html">Learn</a>
+  </div></nav>
+  <main class="shell">
+    <div class="hero">
+      <p class="eyebrow">Tech stack fundamentals / Module breakdown / Request flow slices</p>
+      <h1>Technical learning guide</h1>
+      <p class="lede">This page is aimed at beginners, breaking down the ResearchMate monorepo file structure layer by layer, explaining the purpose of each folder and key file, and analyzing from a slice perspective which files a frontend request passes through from the browser into the backend and what role each file plays. Each technology stack includes fundamentals and project-specific code analysis.</p>
+      <div class="meta">
+        <span class="status local">Frontend · Next.js + React + Tailwind + shadcn/ui</span>
+        <span class="status local">Backend · FastAPI + Pydantic + PostgreSQL</span>
+        <span class="status local">Worker · Celery + LangGraph + Hybrid RAG</span>
+        <span class="status local">CI/CD · GitHub Actions + Docker + Render</span>
+      </div>
+    </div>
+    <div class="layout"><div class="content">
+
+      <section id="sub-pages">
+        <p class="eyebrow">Deep dive</p>
+        <h2>Module sub-pages</h2>
+        <p class="sub">Each sub-page goes to file-level granularity, explaining every file's purpose, key logic, and dependencies, with technology stack fundamentals.</p>
+        <div class="doc-index capability-index">
+          <a class="doc-link" href="frontend.html"><b>Frontend · apps/web</b><span>50 source files (excluding config and assets): Next.js / React / Tailwind / shadcn-ui component walkthrough, API request slice, state management, file upload flow.</span></a>
+          <a class="doc-link" href="backend.html"><b>Backend · apps/api</b><span>80 files: FastAPI routers/schemas/services/persistence file-by-file, authentication, provider adapters, idempotency coordinator.</span></a>
+          <a class="doc-link" href="worker.html"><b>Worker · workers/ai-worker</b><span>37 files: Celery tasks, document ingestion, LangGraph workflow, Outbox pattern, RAGAS evaluation, process supervision.</span></a>
+          <a class="doc-link" href="infra.html"><b>Infrastructure · infra + scripts</b><span>20 files: 31-table SQL migrations file-by-file, Qdrant collection config, OpenAPI spec, operational scripts.</span></a>
+          <a class="doc-link" href="cicd.html"><b>CI/CD · GitHub Actions + Docker + Render</b><span>ci.yml job-by-job, two Dockerfiles line-by-line, render.yaml config, dependency management dual-lock strategy.</span></a>
+          <a class="doc-link" href="contracts-tests.html"><b>Contracts &amp; Tests · packages/shared + tests</b><span>contracts.ts type-by-type, three-layer contract mirroring, 38 test files analyzed, hermetic testing strategy.</span></a>
+        </div>
+      </section>
+
+      <section id="structure">
+        <p class="eyebrow">Monorepo structure</p>
+        <h2>Project structure</h2>
+        <p class="sub">ResearchMate is a monorepo (single repository, multiple projects) managed by npm workspaces for JavaScript/TypeScript packages and uv workspace for Python packages. All code, configuration, and documentation live in the same Git repository.</p>
+        <div class="notice"><strong>What is a monorepo?</strong> A monorepo is a strategy for managing multiple related projects in a single version-controlled repository. Advantages include shared configuration, unified version locking, and easier cross-project refactoring. ResearchMate's frontend (<code>apps/web</code>), backend API (<code>apps/api</code>), and AI Worker (<code>workers/ai-worker</code>) all live in the same repository.</div>
+        <dl class="repo-map">
+          <dt><code>apps/web/</code></dt><dd>Next.js frontend application deployed on Vercel. Contains page routes, React components, API client, and authentication logic.</dd>
+          <dt><code>apps/api/</code></dt><dd>FastAPI backend REST API providing 45 <code>/api/v1</code> operations. Contains routers, Pydantic models, service orchestration, and PostgreSQL persistence layer.</dd>
+          <dt><code>workers/ai-worker/</code></dt><dd>Celery Worker + Outbox Dispatcher handling document parsing, vector indexing, LangGraph workflow, and evaluation. Deployed with the API in the same Render container.</dd>
+          <dt><code>packages/shared/</code></dt><dd>Shared TypeScript type contracts (<code>contracts.ts</code>), the authoritative source for API data shapes.</dd>
+          <dt><code>infra/</code></dt><dd>Infrastructure configuration: Supabase SQL migration files, Qdrant collection config, OpenAPI spec.</dd>
+          <dt><code>scripts/</code></dt><dd>Operational scripts: database migration runner, Qdrant rerank backfill, OpenAPI export, and more.</dd>
+          <dt><code>tests/</code></dt><dd>Python test suite (36 files) covering unit tests, HTTP integration tests, contract inspection, and release safety.</dd>
+          <dt><code>docs/</code></dt><dd>Browser-openable project documentation (HTML), the page you are viewing now.</dd>
+          <dt><code>.github/workflows/</code></dt><dd>GitHub Actions CI pipeline definition (<code>ci.yml</code>).</dd>
+          <dt><code>skill/</code></dt><dd>gstack development skill library, including land-and-deploy, qa, review, and other workflow skills.</dd>
+        </dl>
+        <div class="grid two">
+          <article class="fact"><b>npm workspaces (Node.js package management)</b><p>The root <code>package.json</code> declares <code>"workspaces": ["apps/web", "packages/shared"]</code>. All JS/TS dependencies are locked by the root-level <code>package-lock.json</code>, and the frontend and shared package reference each other via the workspace protocol.</p></article>
+          <article class="fact"><b>uv workspace (Python package management)</b><p>The root <code>pyproject.toml</code> declares <code>[tool.uv.workspace] members = ["apps/api", "workers/ai-worker"]</code>. All Python dependencies are locked by <code>uv.lock</code>, and CI and Docker install with <code>uv sync --frozen</code> to strictly follow the lockfile.</p></article>
+        </div>
+      </section>
+
+      <section id="e2e-slice">
+        <p class="eyebrow">End-to-end slice</p>
+        <h2>The complete journey of an Ask request</h2>
+        <p class="sub">From the user typing a question in the browser to receiving a cited answer, all files and modules the request passes through:</p>
+        <div class="proof-chain">
+          <div class="proof-step"><b>Browser</b><small>chat-composer.tsx, use-chat-workspace.ts, api.ts (apiFetch + getAccessToken), supabase.ts (JWT), fetch()</small></div>
+          <div class="proof-step"><b>FastAPI middleware</b><small>main.py: CORS, attach_request_id (generate request_id + security headers)</small></div>
+          <div class="proof-step"><b>Auth + DI</b><small>dependencies.py: get_current_user (JWKS JWT verification), get_store / get_chat_provider / get_hybrid_store / get_reranker (read singletons from app.state)</small></div>
+          <div class="proof-step"><b>Router + idempotency</b><small>routers/ask.py (thin orchestration), services/idempotency.py (four-state machine: execute / replay / mismatch / in_progress)</small></div>
+          <div class="proof-step"><b>Conversation scope</b><small>services/query_conversation.py: validate project/conversation, load chunks, query_context.py (summary compression + token budget + cross-conversation memory)</small></div>
+          <div class="proof-step"><b>Local retrieval</b><small>services/query_retrieval.py, retrieval.py (BM25 + CJK bigram), qdrant_store.py (Qdrant dense + RRF fusion), embedding.py (NVIDIA 4096-dim)</small></div>
+          <div class="proof-step"><b>Rerank</b><small>services/rerank.py: Qdrant native, NVIDIA ranking, Deterministic (three-way fallback), pack_chunks (token budget packing)</small></div>
+          <div class="proof-step"><b>Answer generation</b><small>services/query_generation.py, answering.py: with evidence → LLM grounded (JSON schema validation + one repair); without evidence → chat or abstain</small></div>
+          <div class="proof-step"><b>Persistence + response</b><small>store.py / persistence/postgres.py (RLS parameter): save run/trace/messages, return AskResponse, middleware attaches headers, browser renders</small></div>
+        </div>
+        <div class="notice"><strong>Async path:</strong> After document upload, the API writes outbox_events, the dispatcher polls and dispatches, the Celery worker ingests (parse + chunk + vector), and Qdrant becomes ready. The next Ask retrieves evidence from the new document. This async chain passes through dispatch_outbox.py, tasks.py, ingestion_service.py, parsing.py, ingestion_projections.py, qdrant_store.py.</div>
+      </section>
+
+      <section id="reading-paths">
+        <p class="eyebrow">Further reading</p>
+        <h2>Deep learning paths</h2>
+        <div class="doc-index">
+          <a class="doc-link" href="../architecture/index.html#stack"><b>Architecture &amp; stack</b><span>Runtime boundaries, stack justification, failure recovery, deployment plan, and CI/CD details.</span></a>
+          <a class="doc-link" href="../contracts/data/index.html#tables"><b>Database design</b><span>Complete field, relationship, integrity, and RLS ledger for 31 tables.</span></a>
+          <a class="doc-link" href="../contracts/api/index.html#operations"><b>API design</b><span>Complete contracts and integration status for 45 REST operations.</span></a>
+          <a class="doc-link" href="../product/index.html#capabilities"><b>Product capabilities</b><span>Scenario, current capabilities, acceptance criteria, and non-goals.</span></a>
+          <a class="doc-link" href="../index.html"><b>Project overview</b><span>Evidence snapshot, verification status, and delivery boundary.</span></a>
+        </div>
+      </section>
+
+    </div>
+    <aside class="toc"><b>On this page</b>
+      <a href="#sub-pages">Sub-pages</a>
+      <a href="#structure">Project structure</a>
+      <a href="#e2e-slice">End-to-end slice</a>
+      <a href="#reading-paths">Further reading</a>
+    </aside></div>
+  </main>
+  <footer class="shell footer">ResearchMate technical learning guide · written 6 August 2026</footer>
+  <script src="../assets/site.js"></script>
+</body>
+</html>

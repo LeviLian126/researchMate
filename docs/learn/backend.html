@@ -1,0 +1,467 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width,initial-scale=1" name="viewport"/>
+  <meta content="ResearchMate backend learning guide: file-by-file breakdown of FastAPI routers, schemas, services, and persistence with authentication, provider adapters, and idempotency analysis." name="description"/>
+  <title>ResearchMate . Backend learning</title>
+  <link href="../assets/site.css" rel="stylesheet"/>
+  <style>.module-nav{border-top:1px solid var(--g200)}.module-nav .shell{padding:6px 0 12px}.module-nav a{font-size:11.5px;padding:5px 11px}</style>
+</head>
+<body>
+  <header class="mast"><div class="shell mast-row"><a class="brand" href="../index.html">ResearchMate documentation</a><div class="mast-right"><span class="stamp">Backend . 6 August 2026</span><a class="lang-toggle" href="backend.zh.html" hreflang="zh" lang="zh">中文</a></div></div></header>
+  <nav aria-label="Documentation" class="global"><div class="shell">
+    <a href="../index.html">Overview</a>
+    <a href="../product/index.html">Product &amp; roadmap</a>
+    <a href="../architecture/index.html">Architecture &amp; stack</a>
+    <a href="../contracts/data/index.html">Database</a>
+    <a href="../contracts/api/index.html">API</a>
+    <a aria-current="page" href="index.html">Learn</a>
+  </div></nav>
+  <nav aria-label="Learning modules" class="global module-nav"><div class="shell">
+    <a href="frontend.html">Frontend</a>
+    <a aria-current="page" href="backend.html">Backend</a>
+    <a href="worker.html">Worker</a>
+    <a href="infra.html">Infrastructure</a>
+    <a href="cicd.html">CI/CD</a>
+    <a href="contracts-tests.html">Contracts &amp; Tests</a>
+  </div></nav>
+  <main class="shell">
+    <div class="hero">
+      <p class="eyebrow">FastAPI / Pydantic / SQLAlchemy / 45 REST operations</p>
+      <h1>Backend . apps/api</h1>
+      <p class="lede">The ResearchMate backend is a FastAPI application exposing 45 REST operations under /api/v1 and 6 MCP tools over Streamable HTTP. It owns authentication, grounded-query orchestration, provider adapters, idempotency, and a dual in-memory / PostgreSQL persistence layer. This page walks through every source file in apps/api/src/researchmate_api/.</p>
+      <div class="meta">
+        <span class="status local">5 core files</span>
+        <span class="status local">11 routers</span>
+        <span class="status local">10 schemas</span>
+        <span class="status local">35 services</span>
+        <span class="status local">19 persistence</span>
+        <span class="status local">6 MCP tools . 3 MCP resources</span>
+      </div>
+    </div>
+    <div class="layout"><div class="content">
+
+      <section id="stack">
+        <p class="eyebrow">Technology stack fundamentals</p>
+        <h2>12 dependencies that power the backend</h2>
+        <p class="sub">Each card explains what the library does in general and how ResearchMate uses it specifically.</p>
+        <div class="grid two">
+          <article class="fact"><b>FastAPI</b><p>Web framework that assembles the REST API. main.py creates the app with lifespan, CORS middleware, a custom request-id middleware, typed error responses via response_model, and automatic OpenAPI schema. All 11 routers are mounted under /api/v1.</p></article>
+          <article class="fact"><b>Pydantic</b><p>Data validation for every request and response. BaseModel subclasses enforce Field constraints (min_length, max_length, ge, le), ConfigDict(extra="forbid") on inputs, model_validator for cross-field rules, and use_enum_values for stable JSON serialization.</p></article>
+          <article class="fact"><b>SQLAlchemy</b><p>SQL toolkit managing the PostgreSQL engine. create_engine with pool_pre_ping and pool_recycle=300 keeps connections healthy. Raw SQL executes via text() within context-managed transactions that inject the RLS parameter request.jwt.claim.sub.</p></article>
+          <article class="fact"><b>psycopg</b><p>PostgreSQL adapter. The _psycopg_url helper normalizes postgres:// and postgresql:// to postgresql+psycopg:// so SQLAlchemy uses the synchronous psycopg driver. All database operations are synchronous, offloaded to anyio.to_thread when needed.</p></article>
+          <article class="fact"><b>PyJWT</b><p>JWT verification for Supabase authentication. PyJWKClient caches JWKS signing keys. decode validates RS256 or ES256 with audience and issuer checks. Required claims: exp, iat, sub, aud, iss. Role is derived from app_metadata.role, defaulting to user.</p></article>
+          <article class="fact"><b>Qdrant</b><p>Vector database for hybrid retrieval. QdrantClient fuses dense and sparse vectors via RRF, enforces owner-scoped payload filters (user_id, project_id, source_type), and supports late-interaction reranking through Document models in a dedicated rerank collection.</p></article>
+          <article class="fact"><b>OpenTelemetry</b><p>Distributed tracing. OTLPSpanExporter sends spans to a collector endpoint. FastAPIInstrumentor instruments the app automatically. Resource tags service.name and deployment.environment.name. The tracer provider is owned by ObservabilityRuntime and shut down cleanly on exit.</p></article>
+          <article class="fact"><b>Langfuse</b><p>LLM observability. provider_observation wraps every NVIDIA chat and embedding call with a generation or embedding observation, recording model, input metadata, and usage details. Falls back to _NoopObservation when LANGFUSE_ENABLED is false.</p></article>
+          <article class="fact"><b>OpenAI SDK</b><p>Client for NVIDIA NIM endpoints. OpenAI(base_url=nvidia_base_url, api_key, timeout, max_retries=0) is used for chat.completions.create and embeddings.create. The SDK is wrapped by NvidiaChatProvider and NvidiaEmbeddingProvider, never called directly by services.</p></article>
+          <article class="fact"><b>boto3</b><p>S3-compatible object storage client. S3CompatibleObjectStorage wraps boto3.client("s3") to presign upload URLs and read object metadata via head. Supports Cloudflare R2 (account-scoped endpoint) or any generic S3 endpoint.</p></article>
+          <article class="fact"><b>httpx</b><p>HTTP transport used by the OpenAI SDK and Tavily web search provider. Provides synchronous HTTP with configurable timeouts. The Tavily adapter posts search queries to api.tavily.com and normalizes results into ChunkEntry objects.</p></article>
+          <article class="fact"><b>MCP</b><p>Model Context Protocol server. FastMCP exposes 6 tools (list_projects, search_project, search_conversation, ask_grounded, get_run_trace, run_evaluation) and 3 resources (project documents, conversation documents, run summary) over Streamable HTTP, authenticated by the same bearer middleware as REST.</p></article>
+        </div>
+      </section>
+
+      <section id="tree">
+        <p class="eyebrow">Complete directory tree</p>
+        <h2>apps/api/src/researchmate_api/</h2>
+        <p class="sub">80 source files across 5 top-level modules: 5 core, 11 routers, 10 schemas, 35 services, 19 persistence.</p>
+        <pre class="command-block"><code>researchmate_api/
+├── __init__.py
+├── main.py                              # FastAPI app factory, middleware, error handlers
+├── config.py                            # Settings (pydantic-settings), security validators
+├── dependencies.py                      # Auth, DI providers, error helpers
+├── mcp_server.py                        # MCP server: 6 tools, 3 resources
+├── observability.py                     # Structured logging, OTEL, Langfuse
+├── routers/                             # 11 router files (excluding __init__.py)
+│   ├── ask.py                           # POST /ask
+│   ├── conversations.py                 # 8 conversation + rerank-config endpoints
+│   ├── dev_traces.py                    # GET /dev/traces/{trace_id}
+│   ├── documents.py                     # 7 document lifecycle endpoints
+│   ├── evidence.py                      # evidence workflow endpoints
+│   ├── health.py                        # healthz, readyz
+│   ├── jobs.py                          # GET /jobs/{job_id}
+│   ├── me.py                            # GET /me
+│   ├── projects.py                      # 5 project endpoints
+│   ├── quiz.py                          # POST /quiz, GET /projects/{id}/quiz
+│   └── runs.py                          # GET /runs/{run_id}/sources
+├── schemas/                             # 10 schema files (excluding __init__.py)
+│   ├── ask.py                           # AskRequest, AskResponse, Claim, GroundedAnswer
+│   ├── common.py                        # Enums, CurrentUser, Citation, ExecutionPlan
+│   ├── conversation.py                  # ConversationSummary, messages, rerank config
+│   ├── document.py                      # UploadUrlRequest, UploadUrlResponse, DocumentRecord
+│   ├── evidence.py                      # Research runs, claims, reports, evaluations
+│   ├── job.py                           # JobRecord
+│   ├── project.py                       # ProjectCreate, ProjectRecord
+│   ├── quiz.py                          # QuizRequest, QuizResponse, QuizSet, QuizCoverage
+│   ├── sources.py                       # RunSourcesResponse
+│   └── trace.py                         # DeveloperTrace, ToolCallTrace
+├── services/                            # 35 service files
+│   ├── grounded_query.py                # Ask orchestrator (unified pipeline)
+│   ├── answering.py                     # Answer builder (grounded / chat / deterministic)
+│   ├── query_context.py                 # Conversation context builder + summary compression
+│   ├── query_conversation.py            # Conversation scope coordinator
+│   ├── query_errors.py                  # GroundedQueryError definition
+│   ├── query_execution.py               # Web retrieval, execution plan, candidate diversity
+│   ├── query_generation.py              # Answer generation dispatcher
+│   ├── query_retrieval.py               # Local evidence retriever (BM25 + Qdrant + RRF)
+│   ├── idempotency.py                   # IdempotencyCoordinator (4-state machine)
+│   ├── access_policy.py                 # TraceQueryService (admin-only policy)
+│   ├── scope_policy.py                  # require_workspace_scope guard
+│   ├── evidence_faults.py               # Fault scenario service
+│   ├── evidence_generation.py           # Evidence report generation
+│   ├── evidence_store.py                # EvidenceRepository protocol + InMemoryEvidenceRepository
+│   ├── quiz_generation.py               # Quiz set generation (LLM + deterministic fallback)
+│   ├── quiz_service.py                  # Quiz orchestration
+│   ├── llm.py                           # ChatProvider Protocol + NvidiaChatProvider
+│   ├── embedding.py                     # NvidiaEmbeddingProvider (4096-dim)
+│   ├── qdrant_store.py                  # QdrantHybridStore (dense + sparse + rerank)
+│   ├── rerank.py                        # RerankCoordinator (3-way fallback)
+│   ├── web_search.py                    # TavilyWebSearchProvider
+│   ├── object_storage.py                # S3CompatibleObjectStorage (boto3)
+│   ├── retrieval.py                     # BM25, RRF fusion, token estimation, pack_chunks
+│   ├── store.py                         # InMemoryResearchMateStore assembler
+│   ├── _store_protocol.py               # ResearchMateRepository Protocol
+│   ├── _store_models.py                 # ChunkEntry, IdempotencyDecision, UploadReservation
+│   ├── _store_core.py                   # InMemoryStoreCore (shared mutable state)
+│   ├── _store_text.py                   # chunk_text() deterministic splitter
+│   ├── _store_chunks.py                 # ChunkStoreMixin
+│   ├── _store_conversations.py          # ConversationStoreMixin
+│   ├── _store_documents.py              # DocumentStoreMixin
+│   ├── _store_limits.py                 # LimitStoreMixin (usage + idempotency)
+│   ├── _store_memory.py                 # MemoryStoreMixin (rerank config + summaries)
+│   ├── _store_projects.py               # ProjectStoreMixin
+│   └── _store_runs.py                   # RunStoreMixin (traces + quiz aggregates)
+└── persistence/                         # 19 persistence files (excluding __init__.py)
+    ├── postgres.py                      # PostgresResearchMateRepository assembler (10 mixins + core)
+    ├── evidence_postgres.py             # PostgresEvidenceRepository assembler (5 mixins + base)
+    ├── evidence_base.py                 # Transaction, RLS, advisory lock, outbox primitives
+    ├── evidence_catalog.py              # Read-only claim / report / pipeline projections
+    ├── evidence_evaluations.py          # Evaluation-run creation + score persistence
+    ├── evidence_operations.py           # Human decisions, run lifecycle, SSE streaming
+    ├── evidence_reports.py              # Report generation and incremental refresh
+    ├── evidence_runs.py                 # Research-run creation, event append, reliability
+    ├── _postgres_core.py                # PostgresRepositoryCore + _psycopg_url + helpers
+    ├── _postgres_chunks.py              # ChunkPersistenceMixin
+    ├── _postgres_conversations.py       # ConversationPersistenceMixin
+    ├── _postgres_document_lifecycle.py  # DocumentLifecycleMixin
+    ├── _postgres_idempotency.py         # IdempotencyPersistenceMixin
+    ├── _postgres_internal.py            # PostgresInternalMixin (outbox, locking, jobs)
+    ├── _postgres_memory.py              # MemoryPersistenceMixin
+    ├── _postgres_projects.py            # ProjectPersistenceMixin
+    ├── _postgres_quizzes.py             # QuizPersistenceMixin
+    ├── _postgres_runs.py                # RunPersistenceMixin
+    └── _postgres_uploads.py             # UploadPersistenceMixin</code></pre>
+      </section>
+
+      <section id="core-files">
+        <p class="eyebrow">Core files</p>
+        <h2>The five files that bootstrap the API</h2>
+        <p class="sub">These files own application assembly, configuration validation, authentication, the MCP surface, and observability lifecycle.</p>
+
+        <h3>main.py . create_app()</h3>
+        <p>The application factory. It constructs the FastAPI instance with a lifespan that owns the MCP session manager and observability shutdown. Adapters are resolved from Settings and stored on app.state: store (ResearchMateRepository), evidence_store (EvidenceRepository), chat_provider (NvidiaChatProvider or None), hybrid_store (QdrantHybridStore or None), reranker (RerankCoordinator), and web_search (TavilyWebSearchProvider or None). A custom HTTP middleware attaches X-Request-ID and security headers (Cache-Control: no-store, Referrer-Policy: no-referrer, X-Content-Type-Options: nosniff, X-Frame-Options: DENY) to every response, authenticates MCP requests at /mcp, and logs a structured http_request_completed event with latency. Two exception handlers map HTTPException and RequestValidationError into the stable ErrorResponse envelope. The 11 routers are included under /api/v1 with tags. If the MCP SDK is installed, its ASGI app is mounted at /mcp; otherwise a 503 stub returns MCP_RUNTIME_NOT_INSTALLED.</p>
+
+        <h3>config.py . Settings</h3>
+        <p>A pydantic-settings BaseSettings class validating every runtime knob. Key groups: environment (app_env: local/test/preview/production), auth (auth_mode: development/supabase), repository (memory/postgres), LLM (nvidia model, temperature, top_p, max_tokens, seed, timeout), embedding (4096-dim NVIDIA nv-embed-v1), Qdrant (collection, rerank collection, rerank model), rerank (auto/qdrant/nvidia/deterministic with candidate_limit=50, top_n=10), token budgets (chat_history=5000, recent=3500, summary=1500, full_context=12000, retrieval_evidence=8000), web search (tavily), CORS, observability (OTEL + Langfuse), and object storage (R2 or generic S3). A model_validator(mode="after") rejects unsafe combinations: preview/production must use Supabase auth, PostgreSQL, Redis, object storage, NVIDIA LLM + embedding, Qdrant, Tavily, and Langfuse. get_settings() is lru_cached.</p>
+
+        <h3>dependencies.py</h3>
+        <p>FastAPI dependency providers and authentication logic. get_store, get_chat_provider, get_hybrid_store, get_web_search, get_reranker, and get_evidence_store read singletons from request.app.state. get_current_user resolves a bearer token via resolve_bearer_token, which dispatches to _development_user (fixed dev tokens or dev:user_id:role:email format) or _supabase_user (JWKS-verified JWT with RS256/ES256). After resolving the user, repository.ensure_user persists the canonical profile. require_admin gates developer/admin-only routes. Error helpers (error_detail, raise_api_error, not_implemented_detail) build the stable error envelope consumed by the global exception handler.</p>
+
+        <h3>mcp_server.py . build_mcp_server()</h3>
+        <p>Builds a stateless FastMCP server exposing 6 tools and 3 resources. Tools: list_projects, search_project, search_conversation, ask_grounded (full GroundedQueryService execution with IdempotencyCoordinator), get_run_trace (admin-gated), run_evaluation (admin-gated). Resources: project://{project_id}/documents, conversation://{conversation_id}/documents, run://{run_id}. Each request is authenticated by main.py middleware, which sets a ContextVar MCPRequestIdentity carrying the user, repository, evidence store, providers, and settings. The _identity() helper fails closed with PermissionError if no identity is set. The server uses stateless_http=True and json_response=True.</p>
+
+        <h3>observability.py</h3>
+        <p>Configures privacy-safe logging and optional telemetry. log_event emits bounded JSON events (never prompts, tokens, or document text) via the researchmate logger. configure_observability optionally starts OpenTelemetry (OTLPSpanExporter + BatchSpanProcessor + FastAPIInstrumentor) and Langfuse (get_client). ObservabilityRuntime owns the tracer provider and Langfuse client, flushing and shutting them down on lifespan exit. provider_observation is a context manager that wraps provider calls with a Langfuse generation/embedding observation, or yields _NoopObservation when tracing is disabled or the exporter is unavailable.</p>
+      </section>
+
+      <section id="routers">
+        <p class="eyebrow">routers/ . 11 files</p>
+        <h2>Router file-by-file breakdown</h2>
+        <p class="sub">Each router is a thin HTTP adapter that authenticates, delegates to a service, and maps errors into the stable API envelope.</p>
+        <dl class="kv">
+          <dt>ask.py</dt><dd><b>POST /ask</b>. The unified Ask endpoint. Accepts AskRequest with an optional Idempotency-Key header (8-160 chars). Constructs an IdempotencyCoordinator, calls begin() to check for replay, executes GroundedQueryService.execute(), and calls complete() or abandon(). Maps IdempotencyError to 409 and GroundedQueryError to its status code.</dd>
+          <dt>conversations.py</dt><dd><b>8 endpoints</b>. List all conversations, create/list conversations in a project, list messages (bounded to 200), rename, delete with attachment cleanup (atomic), and two admin-only rerank-config routes (GET + PUT with optimistic version check). The PUT verifies Qdrant rerank readiness before activation.</dd>
+          <dt>dev_traces.py</dt><dd><b>GET /dev/traces/{trace_id}</b>. Admin-only endpoint returning a redacted DeveloperTrace through TraceQueryService, which enforces the developer/admin role policy shared with MCP.</dd>
+          <dt>documents.py</dt><dd><b>7 endpoints</b>. Upload-url reservation (signed PUT), create document metadata, list project/conversation documents, get single document, complete upload (verifies object metadata, enqueues ingestion job, accepts local-only extracted_text), and delete document (enqueues deletion job). Maps UploadVerificationError to 409 and ObjectStorage errors to 503.</dd>
+          <dt>evidence.py</dt><dd><b>Evidence workflow endpoints</b>. Creates idempotent research runs (202), reads workflow runs, streams run events via SSE, lists/gets reports, lists pipeline versions, lists evaluation datasets (admin), creates evaluation runs (admin), refreshes reports (202), reads reliability aggregates (admin), and creates/reads fault scenarios (admin, non-production only). All async writes require an 8-160 char Idempotency-Key.</dd>
+          <dt>health.py</dt><dd><b>GET /healthz + GET /readyz</b>. healthz returns ok without touching dependencies. readyz probes database (select 1 + checkpoint tables + heartbeats + outbox backlog), Redis (ping), Qdrant (get_collection), object storage, LLM, and web search. Returns 503 with failed_components list when any required dependency is unavailable.</dd>
+          <dt>jobs.py</dt><dd><b>GET /jobs/{job_id}</b>. Returns a JobRecord visible only to the authenticated caller who owns it.</dd>
+          <dt>me.py</dt><dd><b>GET /me</b>. Returns the CurrentUser established by get_current_user. The simplest router: one dependency, one response.</dd>
+          <dt>projects.py</dt><dd><b>5 endpoints</b>. POST /chat/bootstrap returns the hidden personal project. POST /projects creates a workspace project. GET /projects lists owned workspaces. GET /projects/{id} returns one project. DELETE /projects/{id} enqueues cleanup (202).</dd>
+          <dt>quiz.py</dt><dd><b>POST /quiz + GET /projects/{id}/quiz</b>. POST generates a source-backed Quiz through QuizService with IdempotencyCoordinator. GET lists saved QuizSets for a project. Maps QuizServiceError to its status code (404, 409, 429, 503).</dd>
+          <dt>runs.py</dt><dd><b>GET /runs/{run_id}/sources</b>. Returns the Sources panel data (RunSourcesResponse with citation summary and validated citations) for a caller-visible run.</dd>
+        </dl>
+      </section>
+
+      <section id="schemas">
+        <p class="eyebrow">schemas/ . 10 files</p>
+        <h2>Schema file-by-file breakdown</h2>
+        <p class="sub">Pydantic models that validate every request and response at the API boundary. All input models use ConfigDict(extra="forbid").</p>
+        <dl class="kv">
+          <dt>ask.py</dt><dd>AskRequest (project_id, conversation_id, message max 8000, web_enabled, extra=forbid). Claim (id, text, citation_ids). GroundedAnswer (sources, answer, claims, citations). AskResponse (run_id, conversation_id, answer, sources, citations, trace_id, validation_status, rerank_degraded, retrieval_degraded, summary_degraded, fallback_reason).</dd>
+          <dt>common.py</dt><dd>Shared enums: TaskType (answer/quiz), DocumentStatus (uploaded/parsing/parsed/indexing/ready/failed/expired/deleted), JobStatus, SourceType (local_doc/web_page), Difficulty. ErrorDetail + ErrorResponse envelope. CurrentUser (id, email, role). SourceSummary (local_chunks max 50, web_pages max 20). Citation (id, source_type, document_id, chunk_id, page_no, slide_no, url, quote, claim_id). ExecutionPlan (task_type, allowed_tools, requires_local_docs, requires_web, context_strategy, output_schema).</dd>
+          <dt>conversation.py</dt><dd>ConversationSummary, ConversationListResponse (max 100), ConversationCreate (title with normalize_title validator), ConversationUpdate, ConversationMessage (role, content max 16000, citations max 80), ConversationMessagesResponse (max 200), RuntimeRerankConfig (provider, version, updated_at, updated_by), RuntimeRerankConfigUpdate (provider, expected_version, extra=forbid).</dd>
+          <dt>document.py</dt><dd>MIME_BY_TYPE mapping for pdf/docx/pptx. UploadUrlRequest (project_id, conversation_id, filename, file_type, mime_type, size_bytes max 25MB, validate_mime_matches_type). UploadUrlResponse (document_id, upload_url, r2_object_key, expires_in_seconds). UploadCompleteRequest (checksum_sha256 pattern, extracted_text max 200000 local-only fallback). DocumentRecord with lifecycle status.</dd>
+          <dt>evidence.py</dt><dd>The largest schema file. SourceScope (document_ids max 200, reject duplicates). ResearchRunCreate (research_goal 20-12000 chars, max_cost_usd max 25). WorkflowRunRecord, RunEventRecord, HumanDecisionCreate (approve/edit/reject with edited_payload consistency), ClaimSummary, ClaimRelationSummary, ReportSummary, ReportSectionRecord, ReportDetail, PipelineVersionSummary, EvaluationDatasetSummary, EvaluationRunCreate (metrics: schema_valid/citation_precision/evidence_recall/faithfulness), EvaluationRunRecord, ReliabilityResponse, FaultScenarioCreate (4 scenarios), FaultScenarioRecord.</dd>
+          <dt>job.py</dt><dd>JobRecord (id, user_id, project_id, document_id, type, status, progress 0-100, error_message, timestamps). Uses use_enum_values for stable JSON.</dd>
+          <dt>project.py</dt><dd>ProjectCreate (name 1-120 chars with normalize_name validator, extra=forbid). ProjectRecord (id, user_id, name, kind: personal/workspace, status, expires_at, timestamps, deleted_at).</dd>
+          <dt>quiz.py</dt><dd>QuizRequest (project_id, prompt, topic_query, resource_scope, single_choice/fill_blank/subjective counts, validate_question_total 1-40). QuizQuestion (type, question, options exactly 4 for single_choice, answer, explanation, difficulty, source_citations). QuizSet (sources, questions 1-40). QuizCoverage (documents_available, documents_covered, chunks_selected max 50, truncated). QuizResponse (quiz_set, run_id, trace_id, validation_status, coverage). QuizHistoryResponse.</dd>
+          <dt>sources.py</dt><dd>RunSourcesResponse (run_id, summary, citations max 120). The Sources panel contract returned by GET /runs/{run_id}/sources.</dd>
+          <dt>trace.py</dt><dd>ToolCallTrace (id, tool_name, input_summary, output_summary, status, latency_ms, error_message). DeveloperTrace (trace_id, user_id, project_id, run_id, execution_plan, router_reason max 2000, retrieved_chunks max 80, tool_calls max 40, validation_result, latency_ms, token_usage, errors max 20, created_at).</dd>
+        </dl>
+      </section>
+
+      <section id="services-orchestration">
+        <p class="eyebrow">services/ . Orchestration group (15 files)</p>
+        <h2>Application orchestration services</h2>
+        <p class="sub">These services coordinate business logic without owning adapter mechanics. They depend on the ResearchMateRepository protocol and provider Protocols, never on concrete adapter classes.</p>
+        <dl class="kv">
+          <dt>grounded_query.py</dt><dd><b>GroundedQueryService</b>. The unified Ask orchestrator. execute() runs the full pipeline: prepare conversation scope, retrieve local evidence (BM25 + Qdrant), optionally retrieve web evidence, rerank candidates, generate answer (grounded or chat), increment usage quota, and record the run with trace. Builds ToolCallTrace entries for each stage and packs runtime_metadata (context_strategy, rerank provider/model, token estimates, latency) into the persisted trace.</dd>
+          <dt>answering.py</dt><dd>Answer builder with three modes. build_llm_grounded_answer: constructs evidence JSON with server-assigned evidence_id integers, validates provider output against GroundedAnswerProposal schema, allows one schema repair, maps evidence_ids to Citation objects. build_grounded_answer: deterministic local answer from chunks. build_llm_chat_answer / build_chat_answer: plain chat without evidence. _extract_json_object handles markdown-fenced LLM output.</dd>
+          <dt>query_context.py</dt><dd><b>ConversationContextBuilder</b>. Loads conversation history, applies token budgets (recent=3500, summary=1500, trigger=8000), compresses old messages into LLM-generated summaries, and wraps cross-conversation project memory as untrusted data inside an XML-like block. bound_messages keeps newest messages within a hard token budget. _truncate_to_budget trims oversized messages.</dd>
+          <dt>query_conversation.py</dt><dd><b>QueryConversationCoordinator</b>. prepare() validates the project is active, resolves an existing conversation, loads documents and chunks (workspace vs personal scope), rejects documents still in PARSING/INDEXING status, and builds conversation context. ensure_for_commit() creates the conversation only after generation succeeds, avoiding empty conversations on failure.</dd>
+          <dt>query_errors.py</dt><dd>GroundedQueryError exception carrying code, message, and status_code. raise_grounded_error helper. Shared by all query_* modules to propagate stable errors without coupling to HTTP.</dd>
+          <dt>query_execution.py</dt><dd>Web retrieval and execution-plan helpers. retrieve_web calls TavilyWebSearchProvider or raises WebEvidenceError. limit_rerank_candidates diversifies by document while reserving slots for web results. build_execution_plan maps the strategy (full_context / hybrid_retrieval / web / hybrid_retrieval_web / chat) to an ExecutionPlan.</dd>
+          <dt>query_generation.py</dt><dd>generate_answer dispatcher. With retrieved evidence: grounded LLM or deterministic. With documents but no evidence and no web: abstains with an honest message. Without documents: plain chat. Maps ProviderOutputError to 502 and ProviderRequestError to 503. Returns GenerationOutcome with answer, citations, summary, LLMResult, and latency.</dd>
+          <dt>query_retrieval.py</dt><dd><b>LocalEvidenceRetriever</b>. Combines lexical (BM25 via retrieval.py) and semantic (Qdrant dense via qdrant_store.py) retrieval with RRF fusion. Returns RetrievalOutcome with candidates, strategy (full_context vs hybrid_retrieval), estimated_tokens, and degradation flags. search_workspace and search_conversation are scoped search methods used by MCP tools.</dd>
+          <dt>idempotency.py</dt><dd><b>IdempotencyCoordinator</b>. Four-state machine: begin() returns execute (new key), replay (cached response), mismatch (different body, same key), or in_progress (concurrent). complete() persists the response snapshot. abandon() releases the pending reservation on failure. request_hash canonicalizes the Pydantic payload via sorted JSON + SHA-256.</dd>
+          <dt>access_policy.py</dt><dd><b>TraceQueryService</b>. Centralizes the developer/admin trace-access policy. get() returns a DeveloperTrace only to developer or admin roles, raising TraceAccessError otherwise. Shared by the HTTP dev_traces router and the MCP get_run_trace tool.</dd>
+          <dt>scope_policy.py</dt><dd>require_workspace_scope guard. Raises ProjectScopeError if a project is not kind=workspace. Used by MCP search_project and project_documents resource to prevent personal-project access through MCP.</dd>
+          <dt>evidence_faults.py</dt><dd>Fault scenario service for non-production reliability exercises. Supports four scenarios: llm_timeout, qdrant_unavailable, worker_interrupt, r2_failure. Bounded duration (1-60 seconds). Only available in local/test/preview environments.</dd>
+          <dt>evidence_generation.py</dt><dd>Evidence report generation. Creates draft reports from research run outputs, generates report sections with evidence snapshots, and handles incremental refresh when source documents change. Tracks validation_status per section.</dd>
+          <dt>evidence_store.py</dt><dd><b>EvidenceRepository</b> Protocol defining the evidence-workflow persistence boundary: create/get research runs, append events, list claims and relations, list/get reports, list pipeline versions, create evaluation runs, reliability aggregates, fault scenarios. InMemoryEvidenceRepository provides a process-local implementation. EvidenceStoreError carries code, message, status_code.</dd>
+          <dt>quiz_generation.py</dt><dd>Quiz set generation. generate_llm_quiz_set: constructs evidence JSON, validates provider output against QuizSetProposal schema (exactly 4 options for single_choice, evidence_ids within allowlist). generate_quiz_set: deterministic local quiz with Chinese-language questions sourced from chunk snippets. QuizGenerationError for invalid provider output.</dd>
+        </dl>
+        <div class="notice"><strong>Also:</strong> quiz_service.py orchestrates Quiz retrieval, generation, coverage measurement, usage quota, trace, and persistence. It validates project scope (workspace only), selects chunks (all_ready_documents or topic), generates via LLM or deterministic fallback, records the quiz run, and returns QuizResponse with honest QuizCoverage.</div>
+      </section>
+
+      <section id="services-providers">
+        <p class="eyebrow">services/ . Provider adapter group (7 files)</p>
+        <h2>Provider adapters and retrieval utilities</h2>
+        <p class="sub">Each adapter wraps an external SDK behind a Protocol interface, normalizing errors and telemetry. Services depend on Protocols, never on concrete classes.</p>
+        <dl class="kv">
+          <dt>llm.py</dt><dd><b>ChatProvider</b> Protocol (complete, complete_bounded, stream). <b>NvidiaChatProvider</b> wraps OpenAI(base_url=nvidia_base_url) with temperature, top_p, max_tokens, seed, and max_retries=0. _request wraps every call in provider_observation (Langfuse). Maps provider exceptions to ProviderRequestError(retryable) based on status codes (408/409/429/500/502/503/504). LLMResult normalizes content, reasoning_content, model, and token usage.</dd>
+          <dt>embedding.py</dt><dd><b>NvidiaEmbeddingProvider</b>. Wraps OpenAI embeddings.create with extra_body={input_type, truncate:END}. Validates vector count and dimension (4096) against settings. Provider errors normalized to ProviderRequestError. Observation wraps input_count, input_chars, and usage.</dd>
+          <dt>qdrant_store.py</dt><dd><b>QdrantHybridStore</b>. Enforces owner_filter (user_id + project_id + source_type + optional document_ids) on every query. query() fuses sparse (BM25-derived sparse_text_vector) and dense (embedding) via Qdrant RRF. query_dense() returns semantic-only results. rerank_query() uses Document models in the rerank collection. rerank_ready() checks model, collection config, and point-count parity. upsert_chunks() projects dense + sparse vectors with owner-tagged payloads.</dd>
+          <dt>rerank.py</dt><dd><b>RerankCoordinator</b>. Three-way fallback: Qdrant native (late-interaction Document rerank), NVIDIA ranking API, and Deterministic (lexical score + RRF). Selects provider based on runtime config (get_runtime_rerank_config) or settings default. Returns RerankResult with provider, model, candidates, degraded flag, and fallback_reason. Caches rerank-config reads for 5 seconds.</dd>
+          <dt>web_search.py</dt><dd><b>TavilyWebSearchProvider</b>. Posts search queries to api.tavily.com, normalizes results into ChunkEntry objects with SourceType.WEB_PAGE. WebSearchRequestError carries retryable flag. Timeout configurable via web_search_timeout_seconds (default 30s). Results include url, title, and content snippet.</dd>
+          <dt>object_storage.py</dt><dd><b>S3CompatibleObjectStorage</b>. Wraps boto3.client("s3") with presign_upload (signed PUT URL, 600s expiry) and head (reads size_bytes, content_type, etag). ObjectStorageConfigurationError when not fully configured. UploadVerificationError for size/type mismatch. StoredObjectMetadata dataclass normalizes head response. Supports R2 (account-scoped endpoint) or generic S3.</dd>
+          <dt>retrieval.py</dt><dd>Deterministic lexical retrieval utilities shared by in-memory and Qdrant paths. tokenize() extracts Latin words, CJK characters, and CJK bigrams. bm25_candidates() scores chunks with BM25 (k1=2.2, b=0.75) plus exact-match and title-match boosts. fuse_candidates() applies Reciprocal Rank Fusion (RRF k=60). pack_chunks() packs whole chunks within a token budget. estimate_tokens() provides a conservative mixed-text token estimate. snippet() collapses whitespace for display.</dd>
+        </dl>
+      </section>
+
+      <section id="services-store">
+        <p class="eyebrow">services/ . Store group (12 files)</p>
+        <h2>In-memory store: protocol, models, core, text utils, and mixins</h2>
+        <p class="sub">The store group assembles InMemoryResearchMateStore from aggregate-focused mixins. The same ResearchMateRepository Protocol is implemented by both the in-memory store and PostgresResearchMateRepository, enabling zero-code swap via REPOSITORY_BACKEND.</p>
+        <dl class="kv">
+          <dt>_store_protocol.py</dt><dd><b>ResearchMateRepository</b> Protocol. Declares the full persistence surface: ensure_user, create/ensure_personal/list/get/delete_project, upload-url/create/list/get/complete/delete_document, get_job, get_run_sources, get_trace, record_run, record_quiz_run, save/list_quiz_sets, conversation CRUD + messages, project/conversation chunks, usage + idempotency, rerank config, conversation summaries, and project memory. Every method takes CurrentUser as the first argument for owner scoping.</dd>
+          <dt>_store_models.py</dt><dd>Internal data models: ChunkEntry (id, user_id, project_id, document_id, source_type, page_no, slide_no, source_title, url, text), IdempotencyDecision (state: execute/replay/mismatch/in_progress, optional response), UploadReservation.</dd>
+          <dt>_store_core.py</dt><dd><b>InMemoryStoreCore</b>. Owns the RLock and all shared mutable state: profiles, projects, documents, jobs, uploads, chunks, run_sources, traces, quiz_sets, conversations, conversation_items, conversation_summaries, api_usage, idempotency_records, and runtime_rerank_config. reset() clears state for isolated tests. _create_job_locked creates JobRecords under the lock.</dd>
+          <dt>_store_text.py</dt><dd>chunk_text(text, target_size=900). Deterministic paragraph-aware splitter that normalizes whitespace and handles oversized paragraphs by splitting at target_size boundaries.</dd>
+          <dt>_store_chunks.py</dt><dd><b>ChunkStoreMixin</b>. project_chunks returns ready-document chunks for an owned project. conversation_chunks filters by conversation attachments. get_chunks_by_ids preserves visibility. Filters by DocumentStatus.READY and deleted_at is None.</dd>
+          <dt>_store_conversations.py</dt><dd><b>ConversationStoreMixin</b>. Conversation CRUD, list messages (max 200), rename, delete with attachment cleanup. delete_conversation_with_attachments schedules document deletion atomically.</dd>
+          <dt>_store_documents.py</dt><dd><b>DocumentStoreMixin</b>. Upload reservation, document creation, completion (status transition to PARSING, chunk extraction via chunk_text, job creation), deletion (soft delete + chunk cleanup + job). Enforces personal-project conversation binding.</dd>
+          <dt>_store_limits.py</dt><dd><b>LimitStoreMixin</b>. increment_usage counts daily per-user-per-kind quota. begin/complete/abandon_idempotent_operation implements the four-state machine in-memory with the RLock.</dd>
+          <dt>_store_memory.py</dt><dd><b>MemoryStoreMixin</b>. Runtime rerank config (optimistic version control), conversation summary storage (rolling summary + message_count), and project_memory_context (cross-conversation memory for workspace projects, wrapped as untrusted data).</dd>
+          <dt>_store_projects.py</dt><dd><b>ProjectStoreMixin</b>. ensure_user, create_project (workspace, 7-day TTL), ensure_personal_project (hidden, no expiry), list_projects (workspace only), get_project (owner check), delete_project (soft delete + dependent cleanup).</dd>
+          <dt>_store_runs.py</dt><dd><b>RunStoreMixin</b>. get_run_sources, get_trace (role-gated), record_run (persists run, sources, trace, and optional messages atomically), save_quiz_set, record_quiz_run (snapshot-rollback on failure), list_quiz_sets.</dd>
+          <dt>store.py</dt><dd><b>InMemoryResearchMateStore</b> assembler. Multiple-inherits from 7 mixins + InMemoryStoreCore to provide a thread-safe, process-local ResearchMateRepository. A module-level singleton store is created at import time for development and testing.</dd>
+        </dl>
+      </section>
+
+      <section id="persistence">
+        <p class="eyebrow">persistence/ . 19 files</p>
+        <h2>Persistence file-by-file breakdown</h2>
+        <p class="sub">Two repository assemblers (postgres.py, evidence_postgres.py) combine aggregate-focused mixins. Every transaction injects the RLS parameter request.jwt.claim.sub for row-level security.</p>
+        <dl class="kv">
+          <dt>postgres.py</dt><dd><b>PostgresResearchMateRepository</b> assembler. Multiple-inherits from 10 persistence mixins + PostgresRepositoryCore: ProjectPersistenceMixin, UploadPersistenceMixin, DocumentLifecycleMixin, RunPersistenceMixin, QuizPersistenceMixin, ConversationPersistenceMixin, MemoryPersistenceMixin, IdempotencyPersistenceMixin, ChunkPersistenceMixin, PostgresInternalMixin. Exports helper functions _enum_value, _json, _psycopg_url, _safe_filename.</dd>
+          <dt>evidence_postgres.py</dt><dd><b>PostgresEvidenceRepository</b> assembler. Multiple-inherits from 5 evidence mixins + PostgresEvidenceRepositoryBase: PostgresEvidenceRunMixin, PostgresEvidenceCatalogMixin, PostgresEvidenceReportMixin, PostgresEvidenceEvaluationMixin, PostgresEvidenceOperationsMixin. Exports _json, _progress, DEFAULT_EVALUATION_BUDGET_USD.</dd>
+          <dt>evidence_base.py</dt><dd><b>PostgresEvidenceRepositoryBase</b>. Owns the SQLAlchemy engine and transaction primitives. _transaction opens a connection with RLS parameter injection. _lock_active_project serializes evidence writes with SELECT FOR UPDATE. _lock_idempotency uses pg_advisory_xact_lock(hashtextextended). _append_event inserts ordered run_events. _append_outbox inserts deduplicated outbox_events.</dd>
+          <dt>evidence_catalog.py</dt><dd><b>PostgresEvidenceCatalogMixin</b>. Read-only projections: list_claims (with evidence/support/contradiction/duplicate counts via joined aggregate queries), list_claim_relations, list_reports (with affected_section_count), get_report (with ordered sections), list_pipeline_versions, list_evaluation_datasets. All queries enforce owner + active project existence.</dd>
+          <dt>evidence_evaluations.py</dt><dd><b>PostgresEvidenceEvaluationMixin</b>. create_evaluation_run: idempotency-locked, validates frozen dataset + accepted pipeline version, counts cases, sets budget boundary. Returns EvaluationRunAccepted with status_url. get_evaluation_run returns progress and safe aggregate scores.</dd>
+          <dt>evidence_operations.py</dt><dd><b>PostgresEvidenceOperationsMixin</b>. Human-in-the-loop operations: submit human decisions (approve/edit/reject), resume paused workflows, stream run events via SSE with after_sequence cursor. All operations are owner-scoped and idempotency-protected.</dd>
+          <dt>evidence_reports.py</dt><dd><b>PostgresEvidenceReportMixin</b>. Report generation and incremental refresh. Creates draft reports from research run outputs, generates sections with evidence snapshots, handles report refresh (identifies impacted sections from changed documents, creates a new revision run).</dd>
+          <dt>evidence_runs.py</dt><dd><b>PostgresEvidenceRunMixin</b>. Research-run creation (idempotency-locked, validates active project + pipeline version, appends outbox event). get_run returns WorkflowRunRecord. list_run_events returns ordered RunEventRecords. reliability returns bounded aggregates (success_rate, p50/p95 latency, token usage, cost) over a time window.</dd>
+          <dt>_postgres_core.py</dt><dd><b>PostgresRepositoryCore</b>. Engine configuration (pool_pre_ping, pool_recycle=300, future=True). _transaction supports nested unit-of-work via ContextVar. _psycopg_url normalizes Postgres URLs. _enum_value, _json, _safe_filename helpers. upload_url_factory and object_metadata_reader are injectable callbacks.</dd>
+          <dt>_postgres_chunks.py</dt><dd><b>ChunkPersistenceMixin</b>. project_chunks and conversation_chunks return ready-document chunks with owner + active-project checks. get_chunks_by_ids preserves visibility. Chunk queries filter by DocumentStatus.READY and deleted_at IS NULL.</dd>
+          <dt>_postgres_conversations.py</dt><dd><b>ConversationPersistenceMixin</b>. ensure_conversation (auto-renames "New chat" to first message), create, list, list_messages (loads citations per assistant message via ask_run_id), rename, delete (soft), delete_conversation_with_attachments (atomic document cleanup + conversation deletion).</dd>
+          <dt>_postgres_document_lifecycle.py</dt><dd><b>DocumentLifecycleMixin</b>. complete_document: verifies object metadata (size + content_type), transitions to PARSING, enqueues ingestion outbox event. delete_document: transitions to DELETED, enqueues deletion outbox event. Both enforce active-project lock and owner scope.</dd>
+          <dt>_postgres_idempotency.py</dt><dd><b>IdempotencyPersistenceMixin</b>. increment_usage: atomic INSERT ON CONFLICT DO UPDATE with quota check. begin_idempotent_operation: INSERT ON CONFLICT DO NOTHING, returns state (execute/replay/mismatch/in_progress). complete: UPDATE state to succeeded with JSON response. abandon: DELETE pending reservation.</dd>
+          <dt>_postgres_internal.py</dt><dd><b>PostgresInternalMixin</b>. _enqueue_project_deletion and _enqueue_document_event: deduplicated outbox writes with pending/recent/count guards. _lock_active_project: SELECT FOR UPDATE. _load_citations: joins citations to ask_runs for owner check. _insert_job: inserts and maps JobRecord.</dd>
+          <dt>_postgres_memory.py</dt><dd><b>MemoryPersistenceMixin</b>. Runtime rerank config (optimistic version control via UPDATE WHERE version=expected). Conversation summary storage (rolling summary + message_count). project_memory_context (cross-conversation messages for workspace projects, bounded to 16 recent items).</dd>
+          <dt>_postgres_projects.py</dt><dd><b>ProjectPersistenceMixin</b>. ensure_user (INSERT ON CONFLICT DO NOTHING). create_project (workspace, 7-day TTL). ensure_personal_project (hidden, no expiry). list_projects (workspace only). get_project (owner check). delete_project (soft delete + dependent document/chunk cleanup + outbox event + job).</dd>
+          <dt>_postgres_quizzes.py</dt><dd><b>QuizPersistenceMixin</b>. save_quiz_set (inserts QuizSet with questions as JSONB). record_quiz_run (transactional: records run + trace + quiz aggregate, rollback on failure). list_quiz_sets (ordered by creation, owner-scoped).</dd>
+          <dt>_postgres_runs.py</dt><dd><b>RunPersistenceMixin</b>. record_run: inserts ask_runs with execution plan + runtime metadata, inserts tool_calls, inserts citations, appends user + assistant messages, updates conversation timestamp. get_run_sources: loads citations with owner check. get_trace: role-gated trace read.</dd>
+          <dt>_postgres_uploads.py</dt><dd><b>UploadPersistenceMixin</b>. create_upload_url: generates object key, calls upload_url_factory, inserts document with active-project lock and personal-project conversation binding. create_document: resolves latest matching reservation. list_project/conversation_documents. get_document (owner check).</dd>
+        </dl>
+      </section>
+
+      <section id="ask-slice">
+        <p class="eyebrow">Request slice</p>
+        <h2>POST /api/v1/ask . 10-step proof chain</h2>
+        <p class="sub">From the HTTP request arriving at FastAPI to the AskResponse returned to the client, every file and function the request passes through:</p>
+        <div class="proof-chain">
+          <div class="proof-step"><b>1. Middleware</b><small>main.py: attach_request_id generates X-Request-ID, sets security headers, logs http_request_completed</small></div>
+          <div class="proof-step"><b>2. Authentication</b><small>dependencies.py: get_current_user calls resolve_bearer_token (dev tokens or JWKS JWT), repository.ensure_user</small></div>
+          <div class="proof-step"><b>3. Dependency injection</b><small>dependencies.py: get_store, get_chat_provider, get_hybrid_store, get_reranker, get_web_search read app.state singletons</small></div>
+          <div class="proof-step"><b>4. Router entry</b><small>routers/ask.py: accepts AskRequest + Idempotency-Key header, constructs IdempotencyCoordinator</small></div>
+          <div class="proof-step"><b>5. Idempotency</b><small>services/idempotency.py: begin() returns execute / replay / mismatch / in_progress; request_hash = SHA-256 of canonical JSON</small></div>
+          <div class="proof-step"><b>6. Conversation scope</b><small>services/query_conversation.py: prepare() validates project, loads documents + chunks, rejects PARSING/INDEXING docs</small></div>
+          <div class="proof-step"><b>7. Context building</b><small>services/query_context.py: loads history, applies token budgets, compresses summaries, wraps project memory as untrusted data</small></div>
+          <div class="proof-step"><b>8. Local retrieval</b><small>services/query_retrieval.py + retrieval.py: BM25 (k1=2.2) + Qdrant dense + RRF fusion (k=60)</small></div>
+          <div class="proof-step"><b>9. Rerank</b><small>services/rerank.py: Qdrant native / NVIDIA / Deterministic fallback; pack_chunks packs within retrieval_evidence_token_budget</small></div>
+          <div class="proof-step"><b>10. Generation + persist</b><small>services/query_generation.py + answering.py + grounded_query.py: LLM grounded answer (JSON schema + 1 repair), record_run, return AskResponse</small></div>
+        </div>
+        <div class="notice"><strong>Quota gate:</strong> repository.increment_usage(user, "ask", limit=200) is called only after successful generation. Provider failures do not consume daily quota. If the limit is exceeded, the service raises RATE_LIMITED (429) and the coordinator abandons.</div>
+      </section>
+
+      <section id="auth">
+        <p class="eyebrow">Authentication</p>
+        <h2>Dual-mode authentication mechanism</h2>
+        <p class="sub">The API supports two authentication modes selected by AUTH_MODE. Preview and production must use Supabase; local and test use development mode.</p>
+
+        <h3>Development mode (auth_mode=development)</h3>
+        <p>_development_user resolves fixed dev tokens: "dev" (developer), "dev-admin" (admin), "dev-user-a" / "dev-user-b" (user). It also accepts dynamic tokens in the format <code>dev:{user_id}:{role}:{email}</code>, where role must be one of user / developer / admin. This mode is for local development and automated tests only.</p>
+
+        <h3>Supabase mode (auth_mode=supabase)</h3>
+        <p>_supabase_user validates a signed JWT using PyJWKClient (cached with lru_cache). The flow: JWKS URL is resolved from SUPABASE_JWKS_URL or derived as <code>{supabase_url}/auth/v1/.well-known/jwks.json</code>. The signing key is fetched from the JWKS endpoint. jwt.decode validates RS256 or ES256 with audience=authenticated and issuer=ACCESS_TOKEN_ISSUER. Required claims: exp, iat, sub, aud, iss. The user_id is extracted from sub as a UUID. Role is derived from app_metadata.role (developer or admin; defaults to user). Email is optionally extracted from the email claim.</p>
+
+        <h3>Authorization</h3>
+        <p>After resolving the user, get_current_user calls repository.ensure_user to persist the canonical profile. require_admin is a separate dependency that rejects non-developer/non-admin callers with 403 ADMIN_REQUIRED. It is used by dev_traces, rerank-config updates, evaluation-run creation, evaluation-dataset listing, reliability, and fault-scenario endpoints.</p>
+
+        <h3>MCP authentication</h3>
+        <p>MCP requests at /mcp are authenticated in the HTTP middleware, not by FastAPI dependencies. The middleware extracts the Bearer token, calls resolve_bearer_token, ensures the user, and sets a ContextVar MCPRequestIdentity carrying all dependencies. Each MCP tool reads the identity via _identity(), which fails closed with PermissionError if no identity is set.</p>
+
+        <div class="notice"><strong>Security headers:</strong> Every response includes Cache-Control: no-store, Referrer-Policy: no-referrer, X-Content-Type-Options: nosniff, and X-Frame-Options: DENY. CORS is explicitly configured with allow_credentials=True and a specific origin allowlist. The Idempotency-Key, X-Request-ID, and Mcp-Session-Id headers are in the allowed and exposed header lists.</div>
+      </section>
+
+      <section id="provider-pattern">
+        <p class="eyebrow">Design pattern</p>
+        <h2>Provider adapter architecture</h2>
+        <p class="sub">The backend uses Python Protocol classes to define adapter contracts. Services depend on Protocols, never on concrete classes. Adapters are constructed once at startup and stored on app.state.</p>
+
+        <h3>Protocol contracts</h3>
+        <dl class="kv">
+          <dt>ChatProvider</dt><dd>complete(messages) -&gt; LLMResult. Implemented by NvidiaChatProvider. Used by GroundedQueryService and QuizService.</dd>
+          <dt>ResearchMateRepository</dt><dd>Full persistence Protocol with ~30 methods. Implemented by InMemoryResearchMateStore and PostgresResearchMateRepository. Selected by REPOSITORY_BACKEND.</dd>
+          <dt>EvidenceRepository</dt><dd>Evidence-workflow persistence Protocol. Implemented by InMemoryEvidenceRepository and PostgresEvidenceRepository.</dd>
+        </dl>
+
+        <h3>Adapter lifecycle</h3>
+        <p>create_app() in main.py constructs adapters from Settings and stores them on app.state: store, evidence_store, chat_provider, hybrid_store, reranker, web_search. The reranker receives a reference to the hybrid_store. The object_storage adapter is not stored on app.state; it is injected into the Postgres repository via upload_url_factory and object_metadata_reader callbacks.</p>
+
+        <h3>Error normalization</h3>
+        <p>Each adapter normalizes SDK-specific exceptions into service-level errors: ProviderRequestError(retryable) for LLM and embedding failures. VectorStoreRequestError(retryable) for Qdrant failures. WebSearchRequestError(retryable) for Tavily failures. ObjectStorageConfigurationError and UploadVerificationError for S3 failures. These are mapped to HTTP status codes by routers or orchestration services.</p>
+
+        <h3>Observability integration</h3>
+        <p>provider_observation in observability.py wraps every NVIDIA chat and embedding call with a Langfuse observation. The context manager accepts name, observation_type (generation/embedding), model, and metadata. When Langfuse is disabled or unavailable, it yields _NoopObservation, which silently accepts update() calls. This ensures tracing never blocks provider work.</p>
+      </section>
+
+      <section id="idempotency">
+        <p class="eyebrow">Reliability</p>
+        <h2>Idempotency coordinator</h2>
+        <p class="sub">IdempotencyCoordinator ensures that cost-bearing operations (ask, quiz) can be safely retried without duplicate provider calls or persisted messages.</p>
+
+        <h3>Four-state machine</h3>
+        <dl class="kv">
+          <dt>execute</dt><dd>The key is new or the pending reservation was abandoned. The caller proceeds with execution and must call complete() or abandon().</dd>
+          <dt>replay</dt><dd>A succeeded response exists for this user/operation/key/body. The cached response is returned without execution.</dd>
+          <dt>mismatch</dt><dd>A record exists with the same key but a different request_hash. Raises IDEMPOTENCY_KEY_REUSED (409).</dd>
+          <dt>in_progress</dt><dd>A pending reservation exists for an identical request. Raises IDEMPOTENCY_REQUEST_IN_PROGRESS (409).</dd>
+        </dl>
+
+        <h3>Request hash</h3>
+        <p>request_hash(payload) canonicalizes the Pydantic BaseModel via model_dump(mode="json") with sort_keys=True and separators=(",", ":"), then SHA-256 hashes the result. This ensures body consistency: the same key with a different body is a conflict, not a replay.</p>
+
+        <h3>Persistence</h3>
+        <p>In-memory: LimitStoreMixin stores idempotency_records as a dict keyed by (user_id, operation, key) with state and response. PostgreSQL: IdempotencyPersistenceMixin uses INSERT ON CONFLICT DO NOTHING for atomic reservation, SELECT FOR UPDATE for replay checks, and pg_advisory_xact_lock for concurrent-write serialization. The evidence repository uses its own _lock_idempotency advisory lock.</p>
+
+        <h3>Lifecycle in routers</h3>
+        <p>routers/ask.py and routers/quiz.py both follow the same pattern: construct IdempotencyCoordinator, call begin(), if replay is not None return it, otherwise execute the service, call complete() on success or abandon() on failure. The MCP ask_grounded tool follows the same pattern. Evidence endpoints use a similar flow with _idempotency() validation and _store_call() error mapping.</p>
+      </section>
+
+      <section id="dependency-graph">
+        <p class="eyebrow">Module dependencies</p>
+        <h2>Module dependency graph</h2>
+        <p class="sub">How source files depend on each other, grouped by layer. Arrows point from dependent to dependency.</p>
+        <pre class="command-block"><code>routers/ask.py
+  → services/idempotency.py
+  → services/grounded_query.py
+      → services/query_conversation.py
+          → services/query_context.py → services/llm.py (ChatProvider Protocol)
+          → services/query_errors.py
+      → services/query_retrieval.py
+          → services/retrieval.py (BM25 + RRF + token estimation)
+          → services/qdrant_store.py (QdrantHybridStore)
+          → services/scope_policy.py
+      → services/query_execution.py
+          → services/web_search.py (TavilyWebSearchProvider)
+      → services/query_generation.py
+          → services/answering.py (grounded / chat / deterministic)
+          → services/llm.py (ChatProvider Protocol)
+      → services/rerank.py (RerankCoordinator)
+          → services/qdrant_store.py
+      → services/store.py (ResearchMateRepository Protocol)
+
+services/store.py
+  → _store_protocol.py (Protocol definition)
+  → _store_models.py (ChunkEntry, IdempotencyDecision)
+  → _store_core.py (InMemoryStoreCore: lock + shared state)
+  → _store_text.py (chunk_text utility)
+  → 9 store mixins + protocol + models + text utils
+      _store_projects.py, _store_documents.py, _store_runs.py,
+      _store_limits.py, _store_chunks.py, _store_conversations.py,
+      _store_memory.py, _store_core.py, store.py
+
+persistence/postgres.py
+  → _postgres_core.py (engine + _psycopg_url + helpers)
+  → 10 Postgres mixins:
+      _postgres_projects.py, _postgres_uploads.py,
+      _postgres_document_lifecycle.py, _postgres_runs.py,
+      _postgres_quizzes.py, _postgres_conversations.py,
+      _postgres_memory.py, _postgres_idempotency.py,
+      _postgres_chunks.py, _postgres_internal.py
+
+persistence/evidence_postgres.py
+  → evidence_base.py (engine + transaction + advisory lock + outbox)
+  → 5 evidence mixins:
+      evidence_runs.py, evidence_catalog.py,
+      evidence_reports.py, evidence_evaluations.py,
+      evidence_operations.py
+
+main.py (app factory)
+  → config.py (Settings + security validators)
+  → dependencies.py (auth + DI + error helpers)
+  → mcp_server.py (6 tools + 3 resources, FastMCP)
+  → observability.py (logging + OTEL + Langfuse)
+  → routers/ (11 router modules)
+  → services/store.py, evidence_store.py, llm.py,
+    qdrant_store.py, rerank.py, web_search.py,
+    object_storage.py, embedding.py</code></pre>
+        <div class="notice"><strong>Key insight:</strong> Routers depend only on service Protocols and the IdempotencyCoordinator. Services depend on the ResearchMateRepository Protocol and provider Protocols. Concrete adapters (NvidiaChatProvider, QdrantHybridStore, PostgresResearchMateRepository) are constructed once in main.py and injected via app.state. This means any adapter can be swapped by changing Settings without touching service code.</div>
+      </section>
+
+    </div>
+    <aside class="toc"><b>On this page</b>
+      <a href="#stack">Tech stack</a>
+      <a href="#tree">Directory tree</a>
+      <a href="#core-files">Core files</a>
+      <a href="#routers">Routers</a>
+      <a href="#schemas">Schemas</a>
+      <a href="#services-orchestration">Services: orchestration</a>
+      <a href="#services-providers">Services: providers</a>
+      <a href="#services-store">Services: store</a>
+      <a href="#persistence">Persistence</a>
+      <a href="#ask-slice">Ask proof chain</a>
+      <a href="#auth">Authentication</a>
+      <a href="#provider-pattern">Provider pattern</a>
+      <a href="#idempotency">Idempotency</a>
+      <a href="#dependency-graph">Dependency graph</a>
+    </aside></div>
+  </main>
+  <footer class="shell footer">ResearchMate backend learning guide . written 6 August 2026</footer>
+  <script src="../assets/site.js"></script>
+</body>
+</html>

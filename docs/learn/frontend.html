@@ -1,0 +1,369 @@
+﻿<!-- Frontend learning page: file-by-file analysis of apps/web tech stack, components, state management, and request flow. -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width,initial-scale=1" name="viewport"/>
+  <meta content="ResearchMate frontend learning: file-by-file analysis of apps/web Next.js 16.3.0 tech stack, React components, API client, state management, and E2E tests." name="description"/>
+  <title>ResearchMate · Frontend learning</title>
+  <link href="../assets/site.css" rel="stylesheet"/>
+</head>
+<body>
+  <header class="mast"><div class="shell mast-row"><a class="brand" href="../index.html">ResearchMate documentation</a><div class="mast-right"><span class="stamp">Frontend learning · 6 August 2026</span><a class="lang-toggle" href="frontend.zh.html" hreflang="zh" lang="zh">中文</a></div></div></header>
+  <nav aria-label="Documentation" class="global"><div class="shell">
+    <a href="../index.html">Overview</a>
+    <a href="../product/index.html">Product &amp; roadmap</a>
+    <a href="../architecture/index.html">Architecture &amp; stack</a>
+    <a href="../contracts/data/index.html">Database</a>
+    <a href="../contracts/api/index.html">API</a>
+    <a aria-current="page" href="index.html">Learn</a>
+  </div></nav>
+  <nav aria-label="Sub-pages" class="global"><div class="shell">
+    <a aria-current="page" href="frontend.html">Frontend</a>
+    <a href="backend.html">Backend</a>
+    <a href="worker.html">Worker</a>
+    <a href="infra.html">Infrastructure</a>
+    <a href="cicd.html">CI/CD</a>
+    <a href="contracts-tests.html">Contracts &amp; Tests</a>
+  </div></nav>
+  <main class="shell">
+    <div class="hero">
+      <p class="eyebrow">apps/web · Next.js 16.3.0 · 50 source files</p>
+      <h1>Frontend module deep dive</h1>
+      <p class="lede">apps/web is the ResearchMate Next.js frontend application, deployed on Vercel. It contains 50 source files (excluding config and assets), covering page routes, React components, API client, authentication logic, and E2E tests. This page analyzes every file's purpose, key logic, and dependencies, and traces the complete journey of an Ask request from the browser to the backend through a slice perspective.</p>
+      <div class="meta">
+        <span class="status local">Next.js 16.3.0 · App Router</span>
+        <span class="status local">React · Client Components</span>
+        <span class="status local">Tailwind CSS v4.3.3</span>
+        <span class="status local">shadcn/ui · 15 components</span>
+        <span class="status local">Supabase Auth · GitHub OAuth</span>
+        <span class="status local">Vitest 4.1.10 · Playwright 1.62.1</span>
+      </div>
+    </div>
+    <div class="layout"><div class="content">
+
+      <section id="stack">
+        <p class="eyebrow">Tech stack fundamentals</p>
+        <h2>Core technology stack</h2>
+        <p class="sub">apps/web uses the following 7 core technologies, each chosen for a specific project scenario. The fact cards below describe version, purpose, and actual usage in the project.</p>
+        <div class="grid two">
+          <article class="fact"><b>Next.js 16.3.0</b><p>React full-stack framework using the App Router file-based routing system. Statically exported and deployed on Vercel, with <code>next.config.ts</code> rewrites proxying <code>/api/v1/*</code> requests to the Render backend, bypassing corporate proxy interception of cross-origin requests. <code>reactStrictMode</code> enabled, Turbopack bundler. <code>distDir</code> overridable via <code>NEXT_DIST_DIR</code> env var (E2E uses <code>.next-e2e</code>).</p></article>
+          <article class="fact"><b>React</b><p>UI library, heavily using Client Components (<code>"use client"</code>). State managed through hooks (<code>useState</code>, <code>useEffect</code>, <code>useRef</code>, <code>useMemo</code>, <code>useCallback</code>) without Redux or Zustand. Components are layered into container (ChatWorkspace), presentation (ConversationThread, ChatComposer), and UI primitives (ui/*).</p></article>
+          <article class="fact"><b>Tailwind CSS v4.3.3</b><p>Utility-first CSS framework, integrated via the <code>@tailwindcss/postcss</code> plugin. <code>globals.css</code> uses <code>@import "tailwindcss"</code> and <code>@theme inline</code> to define design tokens (CSS variables), supporting light/dark themes and <code>prefers-reduced-motion</code>. Components use the <code>cn()</code> utility to merge Tailwind class names.</p></article>
+          <article class="fact"><b>shadcn/ui</b><p>Customizable component system built on Radix UI primitives. apps/web includes 15 <code>ui/</code> components, depending on 9 <code>@radix-ui</code> packages. Components use <code>class-variance-authority</code> (cva) for variants and <code>tailwind-merge</code> for class deduplication. Not an npm package but source files copied into the project.</p></article>
+          <article class="fact"><b>Vitest 4.1.10</b><p>Unit testing framework using <code>jsdom</code> environment to simulate the browser. Coverage collected via <code>@vitest/coverage-v8</code>, covering <code>app/lib/**/*.ts</code> and <code>app/components/**/*.{ts,tsx}</code>, with a 40% baseline (lines/statements). Test files live alongside source (<code>.test.ts</code> suffix), totaling 8 test files.</p></article>
+          <article class="fact"><b>Playwright 1.62.1</b><p>E2E testing framework using only Chromium. The <code>webServer</code> config starts a demo-mode Next.js on <code>127.0.0.1:3100</code>, with test files in <code>e2e/</code>. Validates the complete user journey: send a message, view citations, create a project, generate a quiz, while checking for zero browser errors and zero external requests.</p></article>
+          <article class="fact"><b>Supabase Auth</b><p>Authentication service supporting GitHub OAuth and email/password. <code>supabase.ts</code> implements browser-side session management from scratch (no <code>@supabase/supabase-js</code> dependency), including JWT decoding, refresh token rotation, localStorage persistence, and OAuth redirect recovery. The AuthGate component guards all protected routes.</p></article>
+        </div>
+      </section>
+
+      <section id="tree">
+        <p class="eyebrow">Complete directory tree</p>
+        <h2>apps/web/ file structure</h2>
+        <p class="sub">Below is the complete file tree of apps/web/, excluding <code>.next/</code> build artifacts and <code>node_modules/</code>. There are 50 source files (excluding config and assets): 9 page routes, 10 business components, 15 shadcn/ui components, 6 lib modules, 8 test files, and 1 E2E test.</p>
+        <pre class="command-block"><code>apps/web/
+├── AGENTS.md
+├── CLAUDE.md
+├── next-env.d.ts
+├── next.config.ts
+├── package.json
+├── playwright.config.ts
+├── postcss.config.mjs
+├── tsconfig.json
+├── vitest.config.ts
+├── e2e/
+│   └── demo-workspace.e2e.ts
+├── public/
+│   └── researchmate-logo-mark.png
+└── app/
+    ├── globals.css
+    ├── icon.svg
+    ├── layout.tsx                  # Root layout: metadata + globals.css
+    ├── page.tsx                    # Home: AuthGate + redirect
+    ├── app/
+    │   ├── layout.tsx              # Protected layout: AuthGate + AppSidebar
+    │   ├── page.tsx                # Personal chat: Suspense + ChatWorkspace
+    │   └── projects/
+    │       └── [projectId]/
+    │           ├── page.tsx        # Project root → redirect to chat
+    │           ├── chat/
+    │           │   └── page.tsx    # Project chat: ChatWorkspace(projectMode)
+    │           ├── labs/
+    │           │   └── page.tsx    # Engineering labs: eval/reliability/fault
+    │           ├── library/
+    │           │   └── page.tsx    # Source library: upload/search/delete
+    │           └── quiz/
+    │               └── page.tsx    # Quiz route → redirect to chat?quiz=1
+    ├── components/
+    │   ├── app-sidebar.tsx         # Project/conversation nav sidebar
+    │   ├── auth-gate.tsx           # Auth guard (5 states)
+    │   ├── auth-gate.test.tsx
+    │   ├── brand-logo.tsx          # Brand logo
+    │   ├── chat-composer.tsx       # Input area (13 Props)
+    │   ├── chat-workspace.tsx      # Chat container (composition root)
+    │   ├── conversation-thread.tsx # Conversation thread (11 Props)
+    │   ├── presentation.test.tsx
+    │   ├── project-nav.tsx         # In-project navigation
+    │   ├── project-quiz-drawer.tsx # Quiz drawer
+    │   ├── state-notice.tsx        # Notice component
+    │   ├── use-chat-workspace.ts   # State hook (core)
+    │   └── ui/                     # shadcn/ui components (15)
+    │       ├── avatar.tsx
+    │       ├── badge.tsx
+    │       ├── button.tsx
+    │       ├── card.tsx
+    │       ├── dialog.tsx
+    │       ├── dropdown-menu.tsx
+    │       ├── input.tsx
+    │       ├── scroll-area.tsx
+    │       ├── separator.tsx
+    │       ├── sheet.tsx
+    │       ├── skeleton.tsx
+    │       ├── switch.tsx
+    │       ├── tabs.tsx
+    │       ├── textarea.tsx
+    │       └── tooltip.tsx
+    ├── dev/
+    │   ├── layout.tsx              # Dev route auth wrapper
+    │   └── traces/
+    │       └── [traceId]/
+    │           └── page.tsx        # Developer execution trace viewer
+    └── lib/
+        ├── api.ts                  # API client + type contracts
+        ├── api.test.ts
+        ├── auth-email-rate-limit.ts
+        ├── auth-email-rate-limit.test.ts
+        ├── demo.ts                 # Deterministic browser demo runtime
+        ├── demo.test.ts
+        ├── idempotent-intent.ts    # Idempotent intent tracking
+        ├── idempotent-intent.test.ts
+        ├── supabase.ts             # Supabase Auth browser implementation
+        ├── supabase.test.ts
+        └── utils.ts                # cn() utility function</code></pre>
+      </section>
+
+      <section id="files">
+        <p class="eyebrow">File-by-file analysis</p>
+        <h2>Page route files</h2>
+        <p class="sub">Next.js App Router uses filesystem routing: folder names map to URL segments, <code>layout.tsx</code> and <code>page.tsx</code> are special files. Below is a file-by-file analysis of each route's purpose.</p>
+        <div class="lane"><span class="lane-label">app/layout.tsx</span><p>Root layout, the HTML shell for the entire application. Exports a <code>metadata</code> object (title/description), imports <code>globals.css</code> design system, and sets <code>&lt;html lang="en" data-scroll-behavior="smooth"&gt;</code>. Every route's <code>children</code> is wrapped in this layout. This is the only layout file that does not use <code>"use client"</code>.</p></div>
+        <div class="lane"><span class="lane-label">app/page.tsx</span><p>Home page (<code>/</code>), a client component. Wraps an <code>AuthenticatedRedirect</code> component in <code>AuthGate</code>: authenticated users are redirected via <code>router.replace("/app")</code> directly to the workspace, while unauthenticated users see the <code>AuthGate</code> sign-in panel. Displays a "Opening your workspace..." status with a <code>Loader2</code> spinner.</p></div>
+        <div class="lane"><span class="lane-label">app/app/layout.tsx</span><p>Protected application layout, wrapping all <code>/app/*</code> routes. Wraps <code>AppSidebar</code> + content area in <code>AuthGate</code>. The sidebar is wrapped in <code>Suspense</code> with a 260px-wide empty <code>aside</code> fallback. The layout is <code>flex h-[100dvh]</code> with the sidebar fixed on the left and the content area filling the remaining space with <code>flex-1</code>.</p></div>
+        <div class="lane"><span class="lane-label">app/app/page.tsx</span><p>Personal chat route (<code>/app</code>), a client component. Wraps <code>ChatWorkspace</code> (without <code>projectId</code>) in <code>Suspense</code>, with a "Starting chat" skeleton fallback. Suspense is required because <code>ChatWorkspace</code> internally uses <code>useSearchParams</code> to read the <code>conversation</code> and <code>new</code> URL parameters.</p></div>
+        <div class="lane"><span class="lane-label">projects/[projectId]/page.tsx</span><p>Project root route, a server component. Receives <code>params: Promise&lt;{ projectId: string }&gt;</code> (Next.js 16 async params) and directly <code>redirect</code>s to <code>/app/projects/${projectId}/chat</code>. Ensures each project has a single canonical entry route.</p></div>
+        <div class="lane"><span class="lane-label">projects/[projectId]/chat/page.tsx</span><p>Project chat route, a client component. Reads <code>projectId</code> via <code>useParams</code>, loads the project name via <code>apiFetch</code>, then renders <code>ChatWorkspace</code> with <code>projectId</code>, <code>projectName</code>, and <code>projectMode=true</code>. An outer <code>Suspense</code> handles the <code>useParams</code> async boundary.</p></div>
+        <div class="lane"><span class="lane-label">projects/[projectId]/library/page.tsx</span><p>Source library page, one of the most feature-rich routes. Supports file upload (drag + select), manual text fallback, document list search, and document deletion (with confirmation + async job polling). Uses <code>ProjectNav</code> for top navigation, displays document status with <code>Badge</code> components (ready/uploading/parsing/failed), and polls every 2 seconds while documents are processing.</p></div>
+        <div class="lane"><span class="lane-label">projects/[projectId]/quiz/page.tsx</span><p>Legacy quiz route, a server component. Directly <code>redirect</code>s to <code>/app/projects/${projectId}/chat?quiz=1</code>. Quiz functionality has migrated from a standalone page to the <code>ProjectQuizDrawer</code> on the chat page; this route is retained for backward compatibility.</p></div>
+        <div class="lane"><span class="lane-label">projects/[projectId]/labs/page.tsx</span><p>Engineering labs page, role-restricted. Checks <code>session.user.role</code> via <code>getSupabaseSession</code> for <code>developer</code> or <code>admin</code>. Contains three panels: evaluation runs (select dataset + pipeline + metrics), reliability metrics (run_count, success_rate, p95, cost), and fault injection exercises (llm_timeout, qdrant_unavailable, etc., 10-second limit).</p></div>
+        <div class="lane"><span class="lane-label">dev/layout.tsx</span><p>Developer route layout, wrapping all <code>/dev/*</code> routes in <code>AuthGate</code>. Ensures developer tool pages require authentication, but does not perform role checks here (role enforcement is at the backend API layer).</p></div>
+        <div class="lane"><span class="lane-label">dev/traces/[traceId]/page.tsx</span><p>Developer trace viewer, a client component. Loads an execution trace via <code>apiFetch&lt;DeveloperTrace&gt;</code> and displays <code>execution_plan</code>, <code>validation_result</code>, <code>retrieved_chunks</code>, and <code>tool_calls</code> as JSON <code>pre</code> blocks. API keys, OAuth tokens, and other sensitive data are filtered on the backend.</p></div>
+      </section>
+
+      <section id="components">
+        <p class="eyebrow">Component layer</p>
+        <h2>Business components</h2>
+        <p class="sub">apps/web has 10 business components (excluding 15 ui/ primitives), divided into container, presentation, and navigation components. Below is a Props count, responsibility, and key logic analysis for each.</p>
+        <details>
+          <summary>chat-workspace.tsx — Chat container (composition root, 3 Props)</summary>
+          <p>Container component that composes state logic (<code>useChatWorkspace</code>) with presentation components (<code>ConversationThread</code>, <code>ChatComposer</code>, <code>ProjectQuizDrawer</code>). Only 3 Props: <code>projectId?</code>, <code>projectName?</code>, <code>projectMode?</code>. When projectMode is true, renders a project toolbar (New chat / Quiz / Sources buttons) and the Quiz drawer. Personal chat passes no Props; the Hook bootstraps itself.</p>
+        </details>
+        <details>
+          <summary>use-chat-workspace.ts — State hook (core orchestration)</summary>
+          <p>Custom hook, the most complex module in the frontend. Receives <code>{ suppliedProjectId?, projectMode }</code>, manages 16 <code>useState</code>, 8 <code>useRef</code>, 5 <code>useEffect</code>, and 1 <code>useMemo</code>. Returns 25+ fields and methods. Core responsibilities: conversation loading (with generation race protection), message sending (optimistic update + idempotency key + intent fingerprint), file upload (signed URL flow), quiz generation (idempotent + history loading), event bus (<code>researchmate:sidebar-refresh</code>).</p>
+        </details>
+        <details>
+          <summary>chat-composer.tsx — Input area (13 Props)</summary>
+          <p>Presentation component rendering the file upload button, message input, web search toggle, and send button. <strong>Props count: 13</strong>. <code>documents</code>, <code>projectMode</code>, <code>uploading</code>, <code>fileInput</code> (RefObject), <code>message</code>, <code>webEnabled</code>, <code>sending</code>, <code>historyLoading</code>, <code>hasReadyAttachments</code>, <code>onUpload</code>, <code>onSubmit</code>, <code>onMessageChange</code>, <code>onWebEnabledChange</code>. Enter key submits (Shift+Enter for newline), maxLength 8000, file type restricted to .pdf/.docx/.pptx. Uses lucide-react Paperclip, ArrowUp, Globe, Loader2 icons.</p>
+        </details>
+        <details>
+          <summary>conversation-thread.tsx — Conversation thread (11 Props)</summary>
+          <p>Presentation component rendering the message list, citations, loading states, and error notices. <strong>Props count: 11</strong>. <code>messages</code>, <code>historyLoading</code>, <code>sending</code>, <code>slowResponse</code>, <code>error</code>, <code>degradedNotice</code>, <code>projectMode</code>, <code>projectName</code>, <code>threadEnd</code> (RefObject), <code>onDismissError</code>, <code>onSelectPrompt</code>. Empty conversations show 3 starter prompts (EMPTY_PROMPTS). Citations are collapsible via <code>details</code>, supporting local_doc and web_page source types. The "thinking" animation uses three CSS-animated dots (<code>rm-thinking</code> keyframe). slowResponse shows "Still working" after 10 seconds.</p>
+        </details>
+        <details>
+          <summary>app-sidebar.tsx — Navigation sidebar</summary>
+          <p>Client component managing project lists, conversation lists, and their CRUD. Uses <code>usePathname</code> + <code>useSearchParams</code> to identify the active item. Features: create project (Dialog form), rename conversation (PATCH), delete conversation (with confirmation state), delete project (async job polling, up to 20 attempts, 1.5s each). Desktop collapsible (72px / 260px), mobile uses Sheet component. Refreshes via <code>researchmate:sidebar-refresh</code> event bus. Uses <code>requestGeneration</code> ref to prevent race conditions.</p>
+        </details>
+        <details>
+          <summary>auth-gate.tsx — Auth guard (5 states)</summary>
+          <p>Client component guarding all protected routes. 5 states: <code>loading</code> (restoring session), <code>signed_out</code> (GitHub sign-in panel), <code>signed_in</code> (renders children + session bar), <code>misconfigured</code> (Supabase not configured), <code>error</code> (session recovery failed). Local development passes through directly (<code>isLocalDevelopment()</code>). Demo mode shows a static banner then passes through. Calls <code>warmApi()</code> on mount to pre-warm the API health check, reducing first-request latency.</p>
+        </details>
+        <details>
+          <summary>project-quiz-drawer.tsx — Quiz drawer (7 Props)</summary>
+          <p>Presentation component, fixed-positioned on the right (max 430px). Props: <code>prompt</code>, <code>quiz</code>, <code>loading</code>, <code>onPromptChange</code>, <code>onSubmit</code>, <code>onClose</code>, <code>onReset</code>. Two modes: without quiz, shows a generation form (Textarea + default 3 single-choice + 2 fill-blank + 2 subjective); with quiz, displays each question in a collapsible <code>details</code> (question/options/answer/explanation). Copy reads "Uses available indexed project resources" to avoid overpromising coverage.</p>
+        </details>
+        <details>
+          <summary>project-nav.tsx — In-project navigation</summary>
+          <p>Client component rendering the project top navigation bar. Props: <code>projectId</code>, <code>current</code> ("chat" | "library" | "evidence" | "quiz" | "labs"). Loads the project name via <code>apiFetch</code> and displays Chat / Sources / Quiz links (Quiz links to <code>chat?quiz=1</code>). The current page is marked with <code>aria-current="page"</code> and a highlighted style.</p>
+        </details>
+        <details>
+          <summary>state-notice.tsx — Notice component</summary>
+          <p>Presentation component rendering categorized recovery notices. Props: <code>state</code> (title, detail, kind), <code>action?</code> (ReactNode). When kind is <code>error</code> or <code>provider</code>, <code>role="alert"</code>; otherwise <code>role="status"</code>. Reused across AuthGate, ConversationThread, and the Library page, ensuring consistent error/status notice styling.</p>
+        </details>
+        <details>
+          <summary>brand-logo.tsx — Brand logo</summary>
+          <p>Presentation component using <code>next/image</code> to render <code>researchmate-logo-mark.png</code>. Props: <code>withName</code> (default false). Logo area 36x36px, <code>unoptimized</code> + <code>priority</code>. When withName is true, also renders the "ResearchMate" wordmark. <code>aria-hidden="true"</code> hides the decorative image.</p>
+        </details>
+      </section>
+
+      <section id="lib">
+        <p class="eyebrow">Lib layer</p>
+        <h2>Lib modules</h2>
+        <p class="sub">app/lib/ contains 6 modules that form the frontend's core infrastructure: API transport, authentication, demo runtime, idempotency coordination, utility functions, and rate limiting. Below is an analysis of exported functions and types for each.</p>
+        <div class="lane"><span class="lane-label">api.ts</span><p>API client + type contracts, the frontend mirror of the backend contract. Exports 30+ TypeScript interfaces and 8 core functions. <code>apiFetch&lt;T&gt;</code>: unified fetch wrapper injecting Authorization header and Content-Type, throwing <code>ApiError</code> on error. <code>getAccessToken</code>: resolves bearer token (local dev or Supabase session). <code>describeApiError</code>: maps HTTP status codes to user-friendly messages (401→auth, 403→permission, 429→limit, 5xx→provider). <code>streamRunEvents</code>: consumes SSE event streams, parsing <code>data:</code> lines by splitting on <code>\n\n</code>. <code>idempotencyKey</code>: generates <code>prefix-uuid</code> format keys. <code>warmApi</code>: single best-effort <code>/healthz</code> pre-warm request. API_BASE is <code>/api/v1</code> (same-origin rewrite) in production, <code>NEXT_PUBLIC_API_BASE_URL</code> locally.</p></div>
+        <div class="lane"><span class="lane-label">supabase.ts</span><p>Browser-side Supabase Auth implementation, not depending on <code>@supabase/supabase-js</code> SDK. Implements 5 core functions: <code>getSupabaseSession</code> (restore/refresh session), <code>onAuthStateChange</code> (subscribe), <code>signInWithGitHub</code> (OAuth redirect), <code>signOut</code> (logout + cleanup), <code>signInWithPassword</code> / <code>signUpWithPassword</code> / <code>sendMagicLink</code> (email flows). Session stored in localStorage (<code>researchmate_supabase_session</code>), auto-refreshed 60 seconds before expiry (refresh skew). JWT email/role decoded via <code>identityFromAccessToken</code> (base64 payload). <code>workspaceRedirect</code> enforces redirect URLs stay within <code>/app</code> paths, preventing open redirects. <code>SupabaseAuthError</code> preserves provider status and code.</p></div>
+        <div class="lane"><span class="lane-label">demo.ts</span><p>Deterministic browser demo runtime, enabled via <code>NEXT_PUBLIC_DEMO_MODE=true</code>. When <code>isPublicDemo()</code> is true, <code>apiFetch</code> delegates to <code>demoFetch</code>. demoFetch implements the complete API subset: project CRUD, conversation CRUD, message lists, document upload-url/complete, ask, quiz, pipeline-versions, research-runs, evaluation-runs, reliability, traces, fault-scenarios. All data stored in module-level variables (projects, documents, chatMessages, quizSets), with no network requests sent. <code>demoRunEvents</code> emits 2 deterministic events (retrieve + report_published).</p></div>
+        <div class="lane"><span class="lane-label">idempotent-intent.ts</span><p>Idempotent intent tracker ensuring failed retries reuse the same Idempotency-Key. Exports <code>IntentKeyState</code> interface (fingerprint + key) and 2 functions. <code>resolveIntentKey</code>: returns the existing key if the fingerprint is unchanged, otherwise creates a new one. The fingerprint is the JSON serialization of request parameters. <code>clearCompletedIntent</code>: clears the intent for a successful request. Used with <code>api.ts</code>'s <code>idempotencyKey</code> in <code>use-chat-workspace.ts</code>'s <code>submitQuestion</code> and <code>generateQuiz</code>.</p></div>
+        <div class="lane"><span class="lane-label">utils.ts</span><p>Utility module exporting only <code>cn(...inputs: ClassValue[])</code>. Combines <code>clsx</code> (conditional class names) and <code>tailwind-merge</code> (deduplicating conflicting Tailwind classes), forming the class name merging foundation for all shadcn/ui and business components. For example, <code>cn("px-2 py-1", condition && "bg-accent")</code> → <code>"px-2 py-1 bg-accent"</code>.</p></div>
+        <div class="lane"><span class="lane-label">auth-email-rate-limit.ts</span><p>Browser-side email rate-limit guard mirroring Supabase's per-user cooldown. Exports <code>AUTH_EMAIL_COOLDOWN_MS</code> (60 seconds) and 2 functions. <code>remainingEmailCooldown</code>: computes remaining seconds. <code>nextEmailCooldown</code>: computes the next allowed timestamp. Ensures the frontend does not send duplicate magic link or confirmation email requests within the cooldown window.</p></div>
+      </section>
+
+      <section id="ui">
+        <p class="eyebrow">shadcn/ui inventory</p>
+        <h2>15 ui/ components and 9 Radix dependencies</h2>
+        <p class="sub">The <code>app/components/ui/</code> directory contains <strong>15</strong> shadcn/ui components, depending on <strong>9</strong> <code>@radix-ui</code> packages. These are not npm dependencies but source files copied into the project, using cva for variants and tailwind-merge for class deduplication.</p>
+        <div class="scroll"><table class="dense">
+          <thead><tr><th>Component</th><th>Radix dependency</th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr><td><code>avatar.tsx</code></td><td>@radix-ui/react-avatar</td><td>User avatar (image + fallback)</td></tr>
+            <tr><td><code>badge.tsx</code></td><td>—</td><td>Label (4 variants: default/secondary/destructive/outline + success/warning)</td></tr>
+            <tr><td><code>button.tsx</code></td><td>@radix-ui/react-slot</td><td>Button (6 variants + 4 sizes, supports asChild)</td></tr>
+            <tr><td><code>card.tsx</code></td><td>—</td><td>Card container (Card/Header/Title/Description/Content/Footer)</td></tr>
+            <tr><td><code>dialog.tsx</code></td><td>@radix-ui/react-dialog</td><td>Modal dialog (project delete/conversation manage)</td></tr>
+            <tr><td><code>dropdown-menu.tsx</code></td><td>@radix-ui/react-dropdown-menu</td><td>Dropdown menu (project action menu)</td></tr>
+            <tr><td><code>input.tsx</code></td><td>—</td><td>Text input</td></tr>
+            <tr><td><code>scroll-area.tsx</code></td><td>@radix-ui/react-scroll-area</td><td>Custom scroll area (sidebar conversation list)</td></tr>
+            <tr><td><code>separator.tsx</code></td><td>@radix-ui/react-separator</td><td>Separator line</td></tr>
+            <tr><td><code>sheet.tsx</code></td><td>@radix-ui/react-dialog</td><td>Side panel (mobile sidebar)</td></tr>
+            <tr><td><code>skeleton.tsx</code></td><td>—</td><td>Skeleton placeholder</td></tr>
+            <tr><td><code>switch.tsx</code></td><td>@radix-ui/react-switch</td><td>Toggle switch</td></tr>
+            <tr><td><code>tabs.tsx</code></td><td>@radix-ui/react-tabs</td><td>Tab navigation</td></tr>
+            <tr><td><code>textarea.tsx</code></td><td>—</td><td>Multi-line text input (message box/quiz prompt)</td></tr>
+            <tr><td><code>tooltip.tsx</code></td><td>@radix-ui/react-tooltip</td><td>Hover tooltip</td></tr>
+          </tbody>
+        </table></div>
+        <div class="grid two" style="margin-top:18px">
+          <article class="fact"><b>9 @radix-ui packages</b><p><code>react-avatar</code>, <code>react-dialog</code> (shared by dialog + sheet), <code>react-dropdown-menu</code>, <code>react-scroll-area</code>, <code>react-separator</code>, <code>react-slot</code> (button asChild), <code>react-switch</code>, <code>react-tabs</code>, <code>react-tooltip</code>. Radix provides unstyled accessibility primitives; shadcn/ui adds Tailwind styling on top.</p></article>
+          <article class="fact"><b>Auxiliary dependencies</b><p><code>class-variance-authority</code> (cva): defines component variants. <code>clsx</code>: conditional class merging. <code>tailwind-merge</code>: intelligently deduplicates conflicting Tailwind classes (e.g., <code>p-2 p-4</code> → <code>p-4</code>). <code>lucide-react</code>: icon library (Plus, Trash2, Loader2, etc.). <code>tw-animate-css</code>: animation utilities.</p></article>
+        </div>
+      </section>
+
+      <section id="api-slice">
+        <p class="eyebrow">API request slice</p>
+        <h2>The 6-step frontend journey of an Ask request</h2>
+        <p class="sub">From the user pressing send to receiving a cited answer, the request passes through 6 steps on the frontend. Each step involves different files; the proof-chain below shows the complete flow.</p>
+        <div class="proof-chain">
+          <div class="proof-step"><b>1. Form submit</b><small>chat-composer.tsx: user types a message → Enter or click send → <code>onSubmit(event)</code> → calls <code>workspace.submitQuestion</code>. Send button disabled when <code>!message.trim() || sending || historyLoading</code>.</small></div>
+          <div class="proof-step"><b>2. Hook orchestration</b><small>use-chat-workspace.ts: <code>submitQuestion</code> builds a fingerprint (JSON.stringify of request params) → <code>resolveIntentKey</code> reuses or creates an idempotency key → adds an optimistic user message → <code>setSending(true)</code> → calls <code>apiFetch&lt;AskResponse&gt;("/ask", ...)</code> with the <code>Idempotency-Key</code> header.</small></div>
+          <div class="proof-step"><b>3. Token resolution</b><small>api.ts: <code>apiFetch</code> calls <code>getAccessToken()</code> → local dev returns <code>getDevToken()</code> (localStorage) → production calls <code>getSupabaseSession()</code> for a JWT access_token → injects <code>Authorization: Bearer ${token}</code> header.</small></div>
+          <div class="proof-step"><b>4. Session check</b><small>supabase.ts: <code>getSupabaseSession</code> checks the localStorage session → if within 60 seconds of expiry, calls <code>refreshSession</code> (trades refresh_token for a new access_token) → returns a valid session or null (triggering a 401 error).</small></div>
+          <div class="proof-step"><b>5. HTTP request</b><small>fetch: <code>POST ${API_BASE}/ask</code>, body contains <code>project_id</code>, <code>conversation_id</code>, <code>message</code>, <code>web_enabled</code>. API_BASE is <code>/api/v1</code> (same-origin rewrite to Render) in production, <code>http://localhost:8000/api/v1</code> locally. Demo mode delegates to <code>demoFetch</code>.</small></div>
+          <div class="proof-step"><b>6. Response handling</b><small>use-chat-workspace.ts: parses <code>AskResponse</code> (answer, citations, conversation_id, degraded flags) → replaces optimistic message + adds assistant message → <code>setConversationId</code> → <code>router.replace</code> updates URL → <code>dispatchEvent("researchmate:sidebar-refresh")</code> → on failure, removes optimistic message + restores draft + displays error.</small></div>
+        </div>
+        <div class="notice"><strong>Race protection:</strong> The <code>askInFlight.current</code> ref prevents concurrent duplicate submissions. If the request fails, the optimistic message is removed, the draft is restored to the input, and the user can retry while <code>resolveIntentKey</code> reuses the same Idempotency-Key (fingerprint unchanged).</div>
+      </section>
+
+      <section id="state">
+        <p class="eyebrow">State management</p>
+        <h2>React Hooks and race protection</h2>
+        <p class="sub">apps/web does not use Redux/Zustand or other external state libraries; all state is managed through React Hooks. Below is an analysis of each Hook's usage patterns and the project's race protection mechanisms.</p>
+        <div class="grid two">
+          <article class="fact"><b>useState (16+ state variables)</b><p><code>use-chat-workspace.ts</code> is the densest: conversationId, messages, message, webEnabled, historyLoading, sending, slowResponse, error, documents, uploading, quizOpen, quizPrompt, quiz, quizLoading, degradedNotice, resolvedProject. <code>app-sidebar.tsx</code> has another 12: collapsed, mobileOpen, projects, conversations, personalProjectId, creatingProject, and more.</p></article>
+          <article class="fact"><b>useEffect (5+ side effects)</b><p><code>use-chat-workspace.ts</code>: (1) bootstrap personal project; (2) load conversation (generation race protection); (3) auto-scroll to bottom; (4) slowResponse 10s timer; (5) document processing status polling (2s interval); (6) quiz history loading. Each effect has an <code>active</code> flag or cleanup to prevent memory leaks.</p></article>
+          <article class="fact"><b>useRef (8 refs)</b><p><code>fileInput</code> (file input reference), <code>threadEnd</code> (scroll anchor), <code>loadGeneration</code> (conversation load race counter), <code>askIntent</code>/<code>quizIntent</code> (idempotent intent state), <code>quizHistoryLoadedFor</code> (prevents duplicate quiz history loading), <code>askInFlight</code>/<code>quizInFlight</code> (prevents concurrent duplicate requests). app-sidebar has <code>requestGeneration</code>.</p></article>
+          <article class="fact"><b>useMemo (3 usages)</b><p><code>readyAttachments</code>: filters documents with status==="ready". <code>personalConversations</code>: filters personal project conversations. <code>activeProjectConversations</code>: filters current project conversations. Avoids recomputing filter results on every render.</p></article>
+          <article class="fact"><b>useCallback (1 usage)</b><p><code>app-sidebar.tsx</code>'s <code>loadNavigation</code>: parallel-loads project list + conversation list + personal project. Uses <code>requestGeneration</code> ref to reject stale concurrent responses. Must be useCallback as a <code>useEffect</code> dependency to avoid infinite re-renders.</p></article>
+          <article class="fact"><b>Custom hook</b><p><code>useChatWorkspace</code> is the only custom hook, encapsulating all chat workspace state and actions. Receives <code>{ suppliedProjectId?, projectMode }</code>, returns 25+ fields. Completely separates state logic from presentation components, making <code>ChatWorkspace</code> a pure composition root.</p></article>
+          <article class="fact"><b>Event bus</b><p>Uses <code>window.dispatchEvent(new Event("researchmate:sidebar-refresh"))</code> and <code>"researchmate:sources-refresh"</code> for inter-component communication. When a message is sent or a file is uploaded, a sidebar refresh is triggered to update the conversation list. The sidebar subscribes via <code>window.addEventListener</code> and unsubscribes in useEffect cleanup. No React Context or global store is used.</p></article>
+          <article class="fact"><b>Race protection (4 patterns)</b><p>(1) Generation counter: <code>loadGeneration.current</code> / <code>requestGeneration.current</code>, incremented per request, checked on response arrival. (2) In-flight flag: <code>askInFlight.current</code> / <code>quizInFlight.current</code>, prevents concurrent submissions. (3) Active flag: <code>let active = true</code>, set to false in cleanup. (4) Intent fingerprint: <code>resolveIntentKey</code> ensures identical params reuse the idempotency key.</p></article>
+        </div>
+      </section>
+
+      <section id="upload">
+        <p class="eyebrow">File upload slice</p>
+        <h2>The 3-step file upload flow</h2>
+        <p class="sub">After a user selects a PDF/DOCX/PPTX file, it goes through 3 steps to complete upload and indexing. Uses a signed URL pattern: the frontend first requests an upload URL, PUTs directly to object storage, then notifies the backend to complete.</p>
+        <div class="proof-chain">
+          <div class="proof-step"><b>1. File selection</b><small>chat-composer.tsx: <code>&lt;input type="file" accept=".pdf,.docx,.pptx" multiple&gt;</code> <code>onChange</code> → calls <code>onUpload(event)</code> → passed to <code>workspace.uploadFiles</code>. Shows a Loader2 spinner during upload. The Library page also supports drag-and-drop (<code>onDrop</code>).</small></div>
+          <div class="proof-step"><b>2. Upload orchestration</b><small>use-chat-workspace.ts: <code>uploadFiles</code> → validates file extension (<code>/\.(pdf|docx|pptx)$/i</code>) → <code>fileTypeFromName</code> + <code>mimeForFileType</code> resolve type → <code>apiFetch POST /documents/upload-url</code> gets a signed URL → <code>fetch PUT</code> uploads directly to R2 (local fallback reads <code>file.text()</code>) → <code>apiFetch POST /documents/{id}/complete</code> notifies the backend.</small></div>
+          <div class="proof-step"><b>3. State refresh</b><small>use-chat-workspace.ts: project mode dispatches <code>"researchmate:sources-refresh"</code> event → personal mode <code>setDocuments</code> refreshes the document list → if documents are still processing, starts a 2-second polling timer until all documents become ready/failed. The Library page similarly polls <code>loadDocuments</code>.</small></div>
+        </div>
+        <div class="notice"><strong>Signed URL pattern:</strong> The frontend does not relay file binary data through the backend but PUTs directly to an R2 presigned URL. This reduces backend bandwidth pressure but requires R2 CORS configuration to allow browser PUT requests. The local development fallback path (<code>/api/v1/dev/upload/</code>) has the backend receive file text directly.</div>
+      </section>
+
+      <section id="deps">
+        <p class="eyebrow">Dependency graph</p>
+        <h2>Module dependencies</h2>
+        <p class="sub">Below is the dependency relationship between apps/web modules. Arrows point in the "depends on" direction. The lib layer is the lowest level, depended on by components and routes; ui/ primitives are depended on by business components; the shared package provides cross-stack types.</p>
+        <div class="flow">
+          <div class="node"><b>Route layer</b><small>app/layout.tsx, app/page.tsx, app/app/layout.tsx, app/app/page.tsx, projects/[projectId]/*, dev/*</small></div>
+          <div class="node"><b>Container component</b><small>chat-workspace.tsx → use-chat-workspace.ts + ChatComposer + ConversationThread + ProjectQuizDrawer</small></div>
+          <div class="node"><b>Presentation components</b><small>chat-composer.tsx, conversation-thread.tsx, project-quiz-drawer.tsx, state-notice.tsx, brand-logo.tsx, project-nav.tsx</small></div>
+          <div class="node"><b>Navigation component</b><small>app-sidebar.tsx → BrandLogo + ui/(Dialog, DropdownMenu, Sheet, ScrollArea, Input, Button)</small></div>
+          <div class="node"><b>Auth component</b><small>auth-gate.tsx → supabase.ts + demo.ts + api.ts(warmApi) + StateNotice + BrandLogo</small></div>
+          <div class="node"><b>Lib layer</b><small>api.ts → supabase.ts + demo.ts; supabase.ts (standalone); demo.ts (standalone); idempotent-intent.ts → api.ts; utils.ts (standalone)</small></div>
+          <div class="node"><b>ui/ primitives</b><small>15 components → @radix-ui/* + cva + clsx + tailwind-merge + utils.ts(cn)</small></div>
+          <div class="node"><b>External dependencies</b><small>@researchmate/shared (type contracts), next, react, lucide-react, tailwindcss</small></div>
+        </div>
+        <div class="grid two" style="margin-top:18px">
+          <article class="fact"><b>Key dependency chain</b><p><code>app/app/page.tsx</code> → <code>ChatWorkspace</code> → <code>useChatWorkspace</code> → <code>apiFetch</code> → <code>getAccessToken</code> → <code>getSupabaseSession</code> → <code>fetch</code>. This chain covers the complete path from frontend route to network request.</p></article>
+          <article class="fact"><b>Shared type source</b><p><code>@researchmate/shared</code> provides frontend-backend shared TypeScript type contracts (<code>contracts.ts</code>), but apps/web's <code>api.ts</code> also defines many interfaces (ProjectRecord, AskResponse, Citation, etc.) independently, forming a frontend-specific type layer.</p></article>
+        </div>
+      </section>
+
+      <section id="config">
+        <p class="eyebrow">Configuration files</p>
+        <h2>Build and test configuration</h2>
+        <p class="sub">The apps/web root directory has 6 configuration files controlling Next.js build, TypeScript type checking, PostCSS/Tailwind, Vitest unit tests, and Playwright E2E tests.</p>
+        <div class="lane"><span class="lane-label">next.config.ts</span><p>Next.js build configuration. Security headers: Content-Security-Policy (default-src 'self'; script-src 'self' 'unsafe-inline'; connect-src 'self' https: + dev localhost), Referrer-Policy, Permissions-Policy (camera/microphone/geolocation all disabled), X-Content-Type-Options: nosniff, X-Frame-Options: DENY. Rewrites: production proxies <code>/api/v1/:path*</code> to the Render backend (<code>backendOrigin/api/v1/:path*</code>); development talks directly to the local API. distDir overridable via <code>NEXT_DIST_DIR</code>.</p></div>
+        <div class="lane"><span class="lane-label">tsconfig.json</span><p>TypeScript configuration. target ES2022, strict true, moduleResolution bundler, jsx react-jsx. Path alias <code>@/*</code> → <code>./app/*</code> (makes <code>@/components/ui/button</code> imports work). include covers <code>.next/types</code> and <code>.next-e2e/types</code> (Next.js-generated route types). ignoreDeprecations: "6.0" (TypeScript 6.0 compatibility).</p></div>
+        <div class="lane"><span class="lane-label">vitest.config.ts</span><p>Vitest configuration. environment: jsdom (simulates browser DOM). resolve.alias: <code>@/</code> → <code>app/</code> (matches tsconfig paths). coverage: provider v8, include <code>app/lib/**/*.ts</code> and <code>app/components/**/*.{ts,tsx}</code>, exclude <code>**/*.test.{ts,tsx}</code>. thresholds: lines/statements 40% (coverage baseline).</p></div>
+        <div class="lane"><span class="lane-label">playwright.config.ts</span><p>Playwright E2E configuration. port 3100, baseURL <code>http://127.0.0.1:3100</code>. testMatch <code>**/*.e2e.ts</code>. chromium project only. CI: retries 2, workers 1, reporter line + html. webServer: starts <code>next dev --port 3100</code> with <code>NEXT_PUBLIC_DEMO_MODE=true</code> and <code>NEXT_DIST_DIR=.next-e2e</code> (separate build directory to avoid conflicts with the dev server). reuseExistingServer: non-CI reuses a running server.</p></div>
+        <div class="lane"><span class="lane-label">postcss.config.mjs</span><p>PostCSS configuration registering only the <code>@tailwindcss/postcss</code> plugin. Tailwind CSS v4 no longer uses <code>tailwind.config.js</code>; instead, configuration is done through the PostCSS plugin + CSS directives <code>@import "tailwindcss"</code> and <code>@theme inline</code>.</p></div>
+        <div class="lane"><span class="lane-label">package.json</span><p>Package name <code>@researchmate/web</code>. 6 scripts: dev, build, start, lint (tsc --noEmit), test (vitest run --coverage), test:e2e (playwright test). 12 dependencies (9 @radix-ui + next/react/tailwind etc.) and 8 devDependencies (playwright, vitest, typescript 6.0.3, etc.).</p></div>
+      </section>
+
+      <section id="e2e">
+        <p class="eyebrow">E2E testing</p>
+        <h2>Playwright end-to-end tests</h2>
+        <p class="sub">apps/web has 1 E2E test file (<code>e2e/demo-workspace.e2e.ts</code>) that validates the complete user journey in demo mode, without depending on any backend service or external API.</p>
+        <div class="lane"><span class="lane-label">demo-workspace.e2e.ts</span><p>Test name: "completes the deterministic research workspace journey". Verification steps: (1) navigate to <code>/app?new=1</code>, confirm "What can I help with?" heading is visible and "Welcome back" sign-in panel is absent; (2) type "What makes retrieved evidence defensible?" and send; (3) confirm user message and assistant answer are visible; (4) click citation "1. Project source, page 3" to expand the quote; (5) confirm URL contains <code>/app?conversation=</code>; (6) click "New project" and create "E2E evidence workspace"; (7) confirm redirect to project chat page with heading "Chat in E2E evidence workspace"; (8) click "Quiz" to open the drawer and generate a quiz; (9) confirm quiz question is visible. Finally asserts <code>browserErrors</code> is empty (no console errors) and <code>externalRequests</code> is empty (no cloud service calls). Mocks <code>/api/v1/healthz</code> to return <code>{ status: "ok" }</code>.</p></div>
+        <div class="grid two" style="margin-top:18px">
+          <article class="fact"><b>Demo mode isolation</b><p>E2E enables <code>demo.ts</code>'s deterministic runtime via <code>NEXT_PUBLIC_DEMO_MODE=true</code>. All API requests are handled by <code>demoFetch</code> in-browser, sending no network requests to the backend. Playwright's <code>page.on("request")</code> listener verifies no requests go to hosts other than <code>127.0.0.1</code>.</p></article>
+          <article class="fact"><b>Separate build directory</b><p>E2E uses the <code>NEXT_DIST_DIR=.next-e2e</code> environment variable, directing Next.js build output to <code>.next-e2e/</code> instead of <code>.next/</code>. This avoids conflicts between E2E tests and the development server or production build, enabling parallel execution.</p></article>
+        </div>
+      </section>
+
+      <section id="reading">
+        <p class="eyebrow">Further reading</p>
+        <h2>Deep learning paths</h2>
+        <div class="doc-index">
+          <a class="doc-link" href="backend.html"><b>Backend module</b><span>FastAPI routers, Pydantic schemas, service orchestration, PostgreSQL persistence, and authentication mechanism file-by-file.</span></a>
+          <a class="doc-link" href="worker.html"><b>Worker module</b><span>Celery tasks, LangGraph workflow, document ingestion, vector indexing, and RAGAS evaluation file-by-file.</span></a>
+          <a class="doc-link" href="../architecture/index.html#stack"><b>Architecture &amp; stack</b><span>Runtime boundaries, stack justification, failure recovery strategy, and deployment plan.</span></a>
+          <a class="doc-link" href="../contracts/api/index.html#operations"><b>API design</b><span>Complete contracts, request/response formats, and integration status for 45 REST operations.</span></a>
+          <a class="doc-link" href="../contracts/data/index.html#tables"><b>Database design</b><span>Complete fields, relationships, RLS policies, and integrity constraints for 31 tables.</span></a>
+          <a class="doc-link" href="index.html"><b>Learning guide home</b><span>Monorepo structure overview and the end-to-end Ask request slice.</span></a>
+        </div>
+      </section>
+
+    </div>
+    <aside class="toc"><b>On this page</b>
+      <a href="#stack">Tech stack</a>
+      <a href="#tree">Directory tree</a>
+      <a href="#files">File-by-file</a>
+      <a href="#components">Components</a>
+      <a href="#lib">Lib layer</a>
+      <a href="#ui">shadcn/ui</a>
+      <a href="#api-slice">API request slice</a>
+      <a href="#state">State management</a>
+      <a href="#upload">File upload slice</a>
+      <a href="#deps">Dependency graph</a>
+      <a href="#config">Config files</a>
+      <a href="#e2e">E2E tests</a>
+      <a href="#reading">Further reading</a>
+    </aside></div>
+  </main>
+  <footer class="shell footer">ResearchMate frontend learning guide · written 6 August 2026</footer>
+  <script src="../assets/site.js"></script>
+</body>
+</html>
