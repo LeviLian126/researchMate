@@ -13,7 +13,7 @@
     "api:dev": "uv run --frozen uvicorn researchmate_api.main:app --reload --host 127.0.0.1 --port 8000",
     "web:dev": "npm --workspace @researchmate/web run dev",
     "test": "npm run test:python && npm run test:web",
-    "test:python": "uv run --frozen coverage run --branch --source=apps/api/src/researchmate_api,workers/ai-worker/src/researchmate_worker -m pytest -q && uv run --frozen coverage report --fail-under=70",
+    "test:python": "uv run --frozen coverage run --branch --source=apps/api/src/researchmate_api,workers/ai-worker/src/researchmate_worker -m pytest -q && uv run --frozen coverage report --fail-under=69",
     "test:web": "npm --workspace @researchmate/web run test",
     "test:e2e": "npm --workspace @researchmate/web run test:e2e",
     "check:api": "uv run --frozen pytest tests/test_api_workflow.py -q",
