@@ -19,7 +19,7 @@
     "check:api": "uv run --frozen pytest tests/test_api_workflow.py -q",
     "check:frontend-contracts": "uv run --frozen pytest tests/test_frontend_contracts.py -q",
     "check:lint": "uv run --frozen ruff check apps/api/src workers/ai-worker/src tests",
-    "check:types": "uv run --frozen pyright",
+    "check:types": "npx --yes pyright@1.1.390",
     "check:web": "npm --workspace @researchmate/web run build",
     "check:audit": "npm audit --omit=dev --audit-level=moderate",
     "check:openapi": "uv run --frozen python scripts/export_openapi.py --check",
