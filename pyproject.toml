@@ -41,7 +41,8 @@ exclude = [
 ]
 pythonVersion = "3.13"
 typeCheckingMode = "basic"
-strict = false
+venvPath = "."
+venv = ".venv"
 reportMissingImports = "warning"
 reportMissingTypeStubs = "none"
 reportMissingParameterType = "warning"
