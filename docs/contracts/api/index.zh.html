@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh">
 <head>
  <meta charset="utf-8"/>
@@ -144,11 +144,12 @@
      </dl></details>
     <details id="op-ready" data-api-card data-api="identity" data-method="GET" data-access="public"><summary><code>GET /api/v1/readyz</code> — 检查非计费依赖就绪</summary><dl class="kv">
       <dt>调用方 / 访问</dt><dd>部署平台、就绪冒烟测试或操作员。公开；无需 bearer 令牌，无私有负载。</dd>
-      <dt>输入</dt><dd>无路径、查询或请求体字段。</dd>
-      <dt>成功</dt><dd><code>200</code>，包含 <code>status:"ready"</code>、环境、组件状态和空的失败组件列表。本地/内存依赖可能为 <code>not_required</code>。</dd>
-      <dt>故障 / 语义</dt><dd><code>503</code>，包含 <code>status:"not_ready"</code> 和安全的失败组件名称。它对 Postgres 执行 <code>select 1</code>，验证四个 SDK 拥有的检查点表，检查最新的 worker/dispatcher 心跳，拒绝过期或耗尽的 outbox 工作，ping Redis，并读取 Qdrant 集合元数据。S3 兼容对象存储、LLM 和 Web 搜索仍仅进行配置检查，因此不会消耗 NVIDIA 或 Tavily 配额。</dd>
+      <dt>输入</dt><dd>可选的 <code>verbose</code> 布尔查询参数。传入 <code>?verbose=true</code> 可获取完整的组件快照。在生产与预览环境中默认返回最小载荷,以避免在公共入口暴露组件状态和失败列表;local 与 test 环境默认为 verbose 以便操作员快速迭代。</dd>
+      <dt>成功</dt><dd><code>200</code>，包含 <code>status:"ready"</code> 和环境。当 <code>verbose</code> 解析为 true 时,响应还包含 <code>components</code>(每个非计费依赖的状态;本地/内存依赖可能为 <code>not_required</code>)和空的 <code>failed_components</code> 列表。非 verbose 的最小载荷会完全省略 <code>components</code> 与 <code>failed_components</code>。</dd>
+      <dt>故障 / 语义</dt><dd><code>503</code>，包含 <code>status:"not_ready"</code>;在 verbose 模式下还会携带 <code>failed_components</code>(仅为安全的组件名称,绝不泄露拓扑细节)。它对 Postgres 执行 <code>select 1</code>，验证四个 SDK 拥有的检查点表，检查最新的 worker/dispatcher 心跳，拒绝过期或耗尽的 outbox 工作，ping Redis，并读取 Qdrant 集合元数据。S3 兼容对象存储、LLM 和 Web 搜索仍仅进行配置检查，因此不会消耗 NVIDIA 或 Tavily 配额。</dd>
       <dt>当前边界</dt><dd>2026 年 8 月 1 日，后端修正 <code>c5c89f5</code> 上线 Live，公开存活检查和合并就绪检查均返回 HTTP 200；Postgres、Redis、Qdrant 集合访问、worker/dispatcher 心跳、outbox 状态和检查点表均已就绪。认证生产验收通过了普通聊天、文本层 PDF 上传/索引、有依据的回答和页面引用、Web 搜索、项目 Quiz 生成和通过前端修正 <code>ce54452</code> 的刷新恢复、对话删除和项目删除。</dd>
-      <dt>证据</dt><dd><span class="source">routers/health.py · tests/test_runtime_foundation.py · infra/openapi/openapi.yaml</span></dd>
+      <dt>信息泄漏缓解</dt><dd><code>verbose</code> 参数与生产模式最小默认载荷于 2026 年 8 月 7 日加入,使公共就绪端点不再泄露依赖拓扑、组件状态或失败列表。操作员和集成测试可通过 <code>?verbose=true</code> 重新开启完整载荷;现有的 local/test verbose 默认值保留了对迭代调试的人体工学。覆盖测试位于 <code>tests/test_http_security_hardening.py</code>。</dd>
+      <dt>证据</dt><dd><span class="source">routers/health.py · tests/test_runtime_foundation.py · tests/test_http_security_hardening.py · infra/openapi/openapi.yaml</span></dd>
      </dl></details>
     <details id="op-me" data-api-card data-api="identity" data-method="GET" data-access="bearer"><summary><code>GET /api/v1/me</code> — 解析当前身份</summary><dl class="kv">
       <dt>调用方 / 访问</dt><dd>已认证的 Web 客户端。需要 bearer 令牌。</dd>

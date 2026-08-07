@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8"/>
@@ -24,7 +24,7 @@
   <style>.module-nav{border-top:1px solid var(--g200)}.module-nav .shell{padding:6px 0 12px}.module-nav a{font-size:11.5px;padding:5px 11px}</style>
 </head>
 <body>
-  <header class="mast"><div class="shell mast-row"><a class="brand" href="../index.html">ResearchMate documentation</a><div class="mast-right"><span class="stamp">CI/CD . 6 August 2026</span><a class="lang-toggle" href="cicd.zh.html" hreflang="zh" lang="zh">中文</a></div></div></header>
+  <header class="mast"><div class="shell mast-row"><a class="brand" href="../index.html">ResearchMate documentation</a><div class="mast-right"><span class="stamp">CI/CD . 7 August 2026</span><a class="lang-toggle" href="cicd.zh.html" hreflang="zh" lang="zh">中文</a></div></div></header>
   <nav aria-label="Documentation" class="global"><div class="shell">
     <a href="../index.html">Overview</a>
     <a href="../product/index.html">Product &amp; roadmap</a>
@@ -89,9 +89,10 @@
                   <p>setup-uv 0.12.1 (enable-cache) + setup-python 3.13</p>
                   <p><code>uv sync --frozen --all-packages --group dev</code></p>
                   <p><code>npm run test:python</code></p>
+                  <p><code>npm run check:types</code> (continue-on-error: true)</p>
                   <p><code>npm run check:lint &amp;&amp; npm run check:openapi &amp;&amp; npm run check:migrations</code></p>
                 </td>
-                <td>Coverage threshold 50%, ruff clean, OpenAPI export matches, migrations valid</td>
+                <td>Coverage threshold 69%, type checks non-blocking, ruff clean, OpenAPI export matches, migrations valid</td>
               </tr>
               <tr>
                 <td><b>web-quality</b></td>
@@ -151,7 +152,7 @@
   = uv run --frozen coverage run --branch \
       --source=apps/api/src/researchmate_api,workers/ai-worker/src/researchmate_worker \
       -m pytest -q
-  &amp;&amp; uv run --frozen coverage report --fail-under=50
+  &amp;&amp; uv run --frozen coverage report --fail-under=69
 
 npm run check:lint
   = uv run --frozen ruff check apps/api/src workers/ai-worker/src tests</code></div>
@@ -266,21 +267,25 @@ else exec python -m celery -A researchmate_worker.celery_app:celery_app worker -
         <p class="sub">ResearchMate manages dependencies with two independent lockfiles: uv.lock for the Python workspace and package-lock.json for the npm workspace. Both are committed to the repository and used with --frozen flags in CI and Docker to guarantee reproducible installs.</p>
         <div class="grid two">
           <article class="fact"><b>Root package.json</b><p>Declares <code>packageManager: npm@11.6.0</code> and <code>workspaces: ["apps/web", "packages/shared"]</code>. Defines 17 scripts including <code>test:python</code>, <code>test:web</code>, <code>test:e2e</code>, <code>check:lint</code>, <code>check:openapi</code>, <code>check:migrations</code>, <code>check:web</code>, <code>check:audit</code>, and the umbrella <code>check:all</code>. The private flag prevents accidental npm publish.</p></article>
-          <article class="fact"><b>Root pyproject.toml</b><p>Declares the uv workspace (<code>members = ["apps/api", "workers/ai-worker"]</code>) and the dev dependency group: <code>coverage&gt;=7.10.0,&lt;8</code>, <code>httpx2&gt;=2.5.0,&lt;3</code>, <code>pytest&gt;=9.0.0,&lt;10</code>, <code>pyyaml&gt;=6.0.0,&lt;7</code>, <code>ruff==0.16.0</code>. A dedicated <code>pytorch-cpu</code> index is declared for torch CPU wheels.</p></article>
+          <article class="fact"><b>Root pyproject.toml</b><p>Declares the uv workspace (<code>members = ["apps/api", "workers/ai-worker"]</code>) and the dev dependency group: <code>coverage&gt;=7.10.0,&lt;8</code>, <code>httpx2&gt;=2.5.0,&lt;3</code>, <code>pre-commit&gt;=4.2.0,&lt;5</code>, <code>pytest&gt;=9.0.0,&lt;10</code>, <code>pyyaml&gt;=6.0.0,&lt;7</code>, <code>ruff==0.16.0</code>. A dedicated <code>pytorch-cpu</code> index is declared for torch CPU wheels. The pinned <code>pyright==1.1.390</code> is no longer in this dev group: <code>npm run check:types</code> now invokes <code>npx --yes pyright@1.1.390</code>. A new <code>[tool.pyright]</code> section configures the project-wide type checker with <code>typeCheckingMode = "basic"</code>, <code>venvPath = "."</code>, <code>venv = ".venv"</code>, <code>pythonVersion = "3.13"</code>, and <code>include</code>/<code>exclude</code> path lists.</p></article>
           <article class="fact"><b>apps/api/pyproject.toml</b><p>17 production dependencies including FastAPI, Pydantic, SQLAlchemy, psycopg, PyJWT, qdrant-client, redis, boto3, OpenAI SDK, Langfuse, and four OpenTelemetry packages (<code>opentelemetry-api</code>, <code>opentelemetry-exporter-otlp-proto-http</code>, <code>opentelemetry-instrumentation-fastapi</code>, <code>opentelemetry-sdk</code>). Ruff is configured with line-length=100 and ignores B008 and BLE001.</p></article>
           <article class="fact"><b>workers/ai-worker/pyproject.toml</b><p>18 production dependencies including Celery[redis], Docling (pinned 2.111.0), LangGraph, RAGAS 0.4.3, torch 2.13.0+cpu, torchvision 0.28.0+cpu, and pypdf. Declares the <code>researchmate-dispatch-outbox</code> console script. Sources torch and torchvision from the pytorch-cpu index.</p></article>
           <article class="fact"><b>apps/web/package.json</b><p>Next.js 16.3.0 with React, 10 Radix UI primitives, Tailwind CSS 4, lucide-react, and class-variance-authority. Dev tools: Vitest 4 with coverage-v8, Playwright 1.62, TypeScript 6.0.3, jsdom. The <code>type: module</code> flag enables ESM.</p></article>
           <article class="fact"><b>Dual-lock strategy</b><p>uv.lock pins the complete Python dependency graph (including transitive deps and the pytorch-cpu index). package-lock.json pins the npm workspace tree. CI and Dockerfiles use <code>--frozen</code> (uv) and <code>npm install</code> (reads lockfile by default). Neither lockfile is edited manually; both are regenerated by their respective package managers.</p></article>
+          <article class="fact"><b>Quality gates &amp; AI guidance</b><p>Two new root-level files codify the local quality and code-generation gates. The new <code>.pre-commit-config.yaml</code> installs three hook groups through the locked uv environment (<code>language: system</code>): built-in checks (merge-conflict, end-of-file-fixer, check-yaml, check-toml, trailing-whitespace), <code>ruff</code> with <code>--fix</code> + <code>ruff-format --check</code> on <code>apps/api/src workers/ai-worker/src tests</code>, and a local <code>pyright</code> hook that reuses the <code>[tool.pyright]</code> config. The new root <code>AGENTS.md</code> file orients AI coding tools (CodeAgentCLI, Cursor, Copilot, Codex) to ResearchMate's standards: <code>from __future__ import annotations</code> on every module, full type hints, snake_case/PascalCase/SCREAMING_SNAKE_CASE naming, fail-closed error handling at boundaries, English-only comments, no unjustified <code>typing.Any</code>, domain constants instead of magic numbers, and the <code>npm run check:*</code> gate commands.</p></article>
         </div>
         <div class="command-block"><code># Python dev group (root pyproject.toml)
 [dependency-groups]
 dev = [
   "coverage&gt;=7.10.0,&lt;8",
   "httpx2&gt;=2.5.0,&lt;3",
+  "pre-commit&gt;=4.2.0,&lt;5",
   "pytest&gt;=9.0.0,&lt;10",
   "pyyaml&gt;=6.0.0,&lt;7",
   "ruff==0.16.0",
 ]
+# pyright is invoked via `npx --yes pyright@1.1.390` (npm run check:types)
+# rather than the uv dev group.
 
 # CI install command
 uv sync --frozen --all-packages --group dev
@@ -346,7 +351,7 @@ uv sync --frozen --no-dev --all-packages</code></div>
         <p class="sub">Every push to main or develop, and every pull request, follows this chain. A failure at any step blocks deployment; Render's autoDeployTrigger: checksPass is the final gate.</p>
         <div class="proof-chain">
           <div class="proof-step"><b>1. Source change</b><small>Developer pushes to main/develop or opens a PR. GitHub Actions triggers the researchmate-ci workflow. The concurrency group cancels any in-progress run for the same ref.</small></div>
-          <div class="proof-step"><b>2. Four parallel gates</b><small>python-quality (lint + test + coverage 50% + OpenAPI + migrations), web-quality (Vitest + build + audit), browser-e2e (Playwright), and container-quality (hadolint + Docker build + Trivy scan) run concurrently on ubuntu-latest.</small></div>
+          <div class="proof-step"><b>2. Four parallel gates</b><small>python-quality (lint + test + coverage 69% + types continue-on-error + OpenAPI + migrations), web-quality (Vitest + build + audit), browser-e2e (Playwright), and container-quality (hadolint + Docker build + Trivy scan) run concurrently on ubuntu-latest.</small></div>
           <div class="proof-step"><b>3. ci-success aggregator</b><small>Runs with if: always() and needs all four jobs. Asserts PYTHON_RESULT, WEB_RESULT, E2E_RESULT, and CONTAINER_RESULT all equal success. If any gate failed or was cancelled, this step fails and the workflow is red.</small></div>
           <div class="proof-step"><b>4. Render checksPass</b><small>Render observes GitHub check statuses on the main branch. autoDeployTrigger: checksPass means a new deploy begins only when all checks report success. The buildFilter ensures irrelevant path changes do not trigger a rebuild.</small></div>
           <div class="proof-step"><b>5. Docker build &amp; deploy</b><small>Render builds the image from workers/ai-worker/Dockerfile with dockerContext: ., applies the 48 env vars from the researchmate-backend group plus 3 service-level overrides, and starts the container with dockerCommand: python -m researchmate_worker.render_combined.</small></div>
@@ -422,7 +427,7 @@ uv sync --frozen --no-dev --all-packages</code></div>
       <a href="#further-reading">Further reading</a>
     </aside></div>
   </main>
-  <footer class="shell footer">ResearchMate CI/CD learning guide . written 6 August 2026</footer>
+  <footer class="shell footer">ResearchMate CI/CD learning guide . written 7 August 2026</footer>
   <script src="../assets/site.js"></script>
 </body>
 </html>

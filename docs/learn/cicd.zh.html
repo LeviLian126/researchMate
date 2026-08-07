@@ -24,7 +24,7 @@
   <style>.module-nav{border-top:1px solid var(--g200)}.module-nav .shell{padding:6px 0 12px}.module-nav a{font-size:11.5px;padding:5px 11px}</style>
 </head>
 <body>
-  <header class="mast"><div class="shell mast-row"><a class="brand" href="../index.zh.html">ResearchMate 文档</a><div class="mast-right"><span class="stamp">CI/CD . 2026 年 8 月 6 日</span><a class="lang-toggle" href="cicd.html" hreflang="en" lang="en">English</a></div></div></header>
+  <header class="mast"><div class="shell mast-row"><a class="brand" href="../index.zh.html">ResearchMate 文档</a><div class="mast-right"><span class="stamp">CI/CD . 2026 年 8 月 7 日</span><a class="lang-toggle" href="cicd.html" hreflang="en" lang="en">English</a></div></div></header>
   <nav aria-label="文档" class="global"><div class="shell">
     <a href="../index.zh.html">概览</a>
     <a href="../product/index.zh.html">产品与路线图</a>
@@ -89,9 +89,10 @@
                   <p>setup-uv 0.12.1 (enable-cache) + setup-python 3.13</p>
                   <p><code>uv sync --frozen --all-packages --group dev</code></p>
                   <p><code>npm run test:python</code></p>
+                  <p><code>npm run check:types</code>(continue-on-error: true)</p>
                   <p><code>npm run check:lint &amp;&amp; npm run check:openapi &amp;&amp; npm run check:migrations</code></p>
                 </td>
-                <td>覆盖率阈值 50%,ruff 无违规,OpenAPI 导出一致,migrations 有效</td>
+                <td>覆盖率阈值 69%,类型检查非阻塞,ruff 无违规,OpenAPI 导出一致,migrations 有效</td>
               </tr>
               <tr>
                 <td><b>web-quality</b></td>
@@ -151,7 +152,7 @@
   = uv run --frozen coverage run --branch \
       --source=apps/api/src/researchmate_api,workers/ai-worker/src/researchmate_worker \
       -m pytest -q
-  &amp;&amp; uv run --frozen coverage report --fail-under=50
+  &amp;&amp; uv run --frozen coverage report --fail-under=69
 
 npm run check:lint
   = uv run --frozen ruff check apps/api/src workers/ai-worker/src tests</code></div>
@@ -266,21 +267,26 @@ else exec python -m celery -A researchmate_worker.celery_app:celery_app worker -
         <p class="sub">ResearchMate 使用两个独立的锁文件管理依赖:Python workspace 的 uv.lock 和 npm workspace 的 package-lock.json。两者都提交到仓库,并在 CI 和 Docker 中使用 --frozen 标志保证可复现安装。</p>
         <div class="grid two">
           <article class="fact"><b>根 package.json</b><p>声明 <code>packageManager: npm@11.6.0</code> 和 <code>workspaces: ["apps/web", "packages/shared"]</code>。定义 17 个脚本,包括 <code>test:python</code>、<code>test:web</code>、<code>test:e2e</code>、<code>check:lint</code>、<code>check:openapi</code>、<code>check:migrations</code>、<code>check:web</code>、<code>check:audit</code> 以及总括脚本 <code>check:all</code>。private 标志防止意外 npm 发布。</p></article>
-          <article class="fact"><b>根 pyproject.toml</b><p>声明 uv workspace(<code>members = ["apps/api", "workers/ai-worker"]</code>)和 dev 依赖组:<code>coverage&gt;=7.10.0,&lt;8</code>、<code>httpx2&gt;=2.5.0,&lt;3</code>、<code>pytest&gt;=9.0.0,&lt;10</code>、<code>pyyaml&gt;=6.0.0,&lt;7</code>、<code>ruff==0.16.0</code>。声明专用 <code>pytorch-cpu</code> index 用于 torch CPU wheel。</p></article>
+          <article class="fact"><b>根 pyproject.toml</b><p>声明 uv workspace(<code>members = ["apps/api", "workers/ai-worker"]</code>)和 dev 依赖组:<code>coverage&gt;=7.10.0,&lt;8</code>、<code>httpx2&gt;=2.5.0,&lt;3</code>、<code>pre-commit&gt;=4.2.0,&lt;5</code>、<code>pytest&gt;=9.0.0,&lt;10</code>、<code>pyyaml&gt;=6.0.0,&lt;7</code>、<code>ruff==0.16.0</code>。pyright 不再列入 dev 依赖——<code>check:types</code> 脚本改用 <code>npx --yes pyright@1.1.390</code> 拉取。声明专用 <code>pytorch-cpu</code> index 用于 torch CPU wheel,并通过新的 <code>[tool.pyright]</code> 节集中配置类型检查器:<code>typeCheckingMode = "basic"</code>、<code>pythonVersion = "3.13"</code>、<code>venvPath = "."</code>、<code>venv = ".venv"</code>,include 覆盖 <code>apps/api/src/researchmate_api</code>、<code>workers/ai-worker/src/researchmate_worker</code> 和 <code>tests</code>。</p></article>
           <article class="fact"><b>apps/api/pyproject.toml</b><p>17 个生产依赖,包括 FastAPI、Pydantic、SQLAlchemy、psycopg、PyJWT、qdrant-client、redis、boto3、OpenAI SDK、Langfuse 和四个 OpenTelemetry 包(<code>opentelemetry-api</code>、<code>opentelemetry-exporter-otlp-proto-http</code>、<code>opentelemetry-instrumentation-fastapi</code>、<code>opentelemetry-sdk</code>)。Ruff 配置 line-length=100,忽略 B008 和 BLE001。</p></article>
           <article class="fact"><b>workers/ai-worker/pyproject.toml</b><p>18 个生产依赖,包括 Celery[redis]、Docling(固定 2.111.0)、LangGraph、RAGAS 0.4.3、torch 2.13.0+cpu、torchvision 0.28.0+cpu 和 pypdf。声明 <code>researchmate-dispatch-outbox</code> console script。torch 和 torchvision 从 pytorch-cpu index 获取。</p></article>
           <article class="fact"><b>apps/web/package.json</b><p>Next.js 16.3.0 配合 React、10 个 Radix UI 原语、Tailwind CSS 4、lucide-react 和 class-variance-authority。Dev 工具:Vitest 4 配合 coverage-v8、Playwright 1.62、TypeScript 6.0.3、jsdom。<code>type: module</code> 标志启用 ESM。</p></article>
           <article class="fact"><b>双锁策略</b><p>uv.lock 固定完整的 Python 依赖图(包括传递依赖和 pytorch-cpu index)。package-lock.json 固定 npm workspace 树。CI 和 Dockerfile 使用 <code>--frozen</code>(uv)和 <code>npm install</code>(默认读取锁文件)。两个锁文件均不手动编辑,由各自的包管理器重新生成。</p></article>
+          <article class="fact"><b>质量门禁与 AI 指导</b><p>新增 <code>.pre-commit-config.yaml</code> 通过 <code>uv run pre-commit install</code> 启用本地提交门禁,包含三组钩子:基础设施(check-merge-conflict、end-of-file-fixer、check-yaml、check-toml、trailing-whitespace)、ruff(<code>ruff</code> lint+autofix 与 <code>ruff-format</code> 检查,均通过 <code>language: system</code> 复用 uv 环境)以及本地 pyright 钩子(读取根 <code>[tool.pyright]</code> 配置)。同时新增根级 <code>AGENTS.md</code> 作为面向 AI 代码生成工具(Cursor、Copilot、CodeAgentCLI 等)的指导文件,规定 <code>from __future__ import annotations</code>、强制类型标注、snake_case/PascalCase 命名、按边界捕获异常、英文注释、避免 <code>typing.Any</code>、使用域常量替代魔术数字,并列出 <code>npm run check:lint</code>、<code>npm run check:types</code>、<code>npm run test:python</code> 与 <code>npm run check:all</code> 四个门禁命令。</p></article>
         </div>
         <div class="command-block"><code># Python dev 依赖组 (根 pyproject.toml)
 [dependency-groups]
 dev = [
   "coverage&gt;=7.10.0,&lt;8",
   "httpx2&gt;=2.5.0,&lt;3",
+  "pre-commit&gt;=4.2.0,&lt;5",
   "pytest&gt;=9.0.0,&lt;10",
   "pyyaml&gt;=6.0.0,&lt;7",
   "ruff==0.16.0",
 ]
+
+# pyright 改由 npx 拉取,不在 dev 依赖中
+# package.json: "check:types": "npx --yes pyright@1.1.390"
 
 # CI 安装命令
 uv sync --frozen --all-packages --group dev
@@ -346,7 +352,7 @@ uv sync --frozen --no-dev --all-packages</code></div>
         <p class="sub">每次 push 到 main 或 develop,以及每个 pull request,都遵循此链。每个步骤对应一个明确的状态转换(planned → ready → executed → verified),任一步骤失败都会阻止部署;Render 的 autoDeployTrigger: checksPass 是最终门控。</p>
         <div class="proof-chain">
           <div class="proof-step"><b>1. 源码变更 <small>planned</small></b><small>开发者 push 到 main/develop 或发起 PR。GitHub Actions 触发 researchmate-ci 工作流。concurrency group 取消同一 ref 的进行中运行。</small></div>
-          <div class="proof-step"><b>2. 四个并行门控 <small>ready</small></b><small>python-quality(lint + 测试 + 覆盖率 50% + OpenAPI + migrations)、web-quality(Vitest + 构建 + 审计)、browser-e2e(Playwright)和 container-quality(hadolint + Docker 构建 + Trivy 扫描)在 ubuntu-latest 上并发运行。全部通过才进入 executed 状态。</small></div>
+          <div class="proof-step"><b>2. 四个并行门控 <small>ready</small></b><small>python-quality(lint + 测试 + 覆盖率 69% + 类型检查(非阻塞) + OpenAPI + migrations)、web-quality(Vitest + 构建 + 审计)、browser-e2e(Playwright)和 container-quality(hadolint + Docker 构建 + Trivy 扫描)在 ubuntu-latest 上并发运行。全部通过才进入 executed 状态。</small></div>
           <div class="proof-step"><b>3. ci-success 聚合器 <small>verified</small></b><small>使用 if: always() 运行,needs 全部四个 Job。断言 PYTHON_RESULT、WEB_RESULT、E2E_RESULT 和 CONTAINER_RESULT 均等于 success。如果任一门控失败或被取消,此步骤失败,工作流标红,部署被阻止。</small></div>
           <div class="proof-step"><b>4. Render checksPass <small>executed</small></b><small>Render 观察 main 分支上的 GitHub 检查状态。autoDeployTrigger: checksPass 意味着仅当所有检查报告成功时才开始新部署。buildFilter 确保不相关路径变更不触发重建。</small></div>
           <div class="proof-step"><b>5. Docker 构建与部署 <small>executed</small></b><small>Render 从 workers/ai-worker/Dockerfile 构建镜像(dockerContext: .),应用 researchmate-backend 组的 48 个环境变量加 3 个服务级覆盖,并以 dockerCommand: python -m researchmate_worker.render_combined 启动容器。</small></div>
@@ -416,7 +422,7 @@ uv sync --frozen --no-dev --all-packages</code></div>
       <a href="#further-reading">延伸阅读</a>
     </aside></div>
   </main>
-  <footer class="shell footer">ResearchMate CI/CD 学习指南 . 编写于 2026 年 8 月 6 日</footer>
+  <footer class="shell footer">ResearchMate CI/CD 学习指南 . 编写于 2026 年 8 月 7 日</footer>
   <script src="../assets/site.js"></script>
 </body>
 </html>

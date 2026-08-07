@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
  <meta charset="utf-8"/>
@@ -144,11 +144,12 @@
      </dl></details>
      <details id="op-ready" data-api-card data-api="identity" data-method="GET" data-access="public"><summary><code>GET /api/v1/readyz</code> — check non-charging dependency readiness</summary><dl class="kv">
       <dt>Caller / access</dt><dd>Deployment platform, readiness smoke, or operator. Public; no bearer token and no private payload.</dd>
-      <dt>Input</dt><dd>No path, query, or body fields.</dd>
-      <dt>Success</dt><dd><code>200</code> with <code>status:"ready"</code>, environment, component states, and an empty failed-component list. Local/memory dependencies may be <code>not_required</code>.</dd>
-      <dt>Failure / semantics</dt><dd><code>503</code> with <code>status:"not_ready"</code> and safe failed component names. It executes <code>select 1</code> for Postgres, verifies the four SDK-owned checkpoint tables, checks fresh worker/dispatcher heartbeats, rejects stale or exhausted outbox work, pings Redis, and reads Qdrant collection metadata. S3-compatible object storage, LLM, and web search remain configuration checks only, so it never spends NVIDIA or Tavily quota.</dd>
+      <dt>Input</dt><dd>Optional <code>verbose</code> boolean query parameter. Pass <code>?verbose=true</code> to receive the full component snapshot. In production and preview environments the default is the minimal payload so component state and failure lists are not exposed at the public entrypoint; local and test environments default to verbose for operator iteration.</dd>
+      <dt>Success</dt><dd><code>200</code> with <code>status:"ready"</code> and environment. When <code>verbose</code> resolves to true the response also includes <code>components</code> (state per non-charging dependency; local/memory dependencies may be <code>not_required</code>) and an empty <code>failed_components</code> list. The minimal non-verbose payload omits <code>components</code> and <code>failed_components</code> entirely.</dd>
+      <dt>Failure / semantics</dt><dd><code>503</code> with <code>status:"not_ready"</code>; in verbose mode also <code>failed_components</code> with safe component names, never topology details. It executes <code>select 1</code> for Postgres, verifies the four SDK-owned checkpoint tables, checks fresh worker/dispatcher heartbeats, rejects stale or exhausted outbox work, pings Redis, and reads Qdrant collection metadata. S3-compatible object storage, LLM, and web search remain configuration checks only, so it never spends NVIDIA or Tavily quota.</dd>
       <dt>Current boundary</dt><dd>On 1 August 2026 backend correction <code>c5c89f5</code> became Live and public liveness plus combined readiness returned HTTP 200; Postgres, Redis, Qdrant collection access, worker/dispatcher heartbeats, outbox state, and checkpoint tables were ready. Authenticated production acceptance passed ordinary chat, text-layer PDF upload/indexing, grounded answer and page citation, Web search, project Quiz generation and refresh recovery through frontend correction <code>ce54452</code>, conversation deletion, and project deletion.</dd>
-      <dt>Evidence</dt><dd><span class="source">routers/health.py · tests/test_runtime_foundation.py · infra/openapi/openapi.yaml</span></dd>
+      <dt>Evidence</dt><dd><span class="source">routers/health.py · tests/test_runtime_foundation.py · tests/test_http_security_hardening.py · infra/openapi/openapi.yaml</span></dd>
+      <dt>Information-leak reduction</dt><dd>The <code>verbose</code> parameter and the production-mode minimal default were added on 7 August 2026 so the public readiness endpoint no longer leaks dependency topology, component state, or failure lists. Operators and integration tests can opt back in with <code>?verbose=true</code>; the existing local/test verbose default preserves ergonomic iteration. Coverage lives in <code>tests/test_http_security_hardening.py</code>.</dd>
      </dl></details>
      <details id="op-me" data-api-card data-api="identity" data-method="GET" data-access="bearer"><summary><code>GET /api/v1/me</code> — resolve the current identity</summary><dl class="kv">
       <dt>Caller / access</dt><dd>Authenticated web client. Bearer token required.</dd>

@@ -1,9 +1,9 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8"/>
   <meta content="width=device-width,initial-scale=1" name="viewport"/>
-  <meta content="ResearchMate contracts and tests learning guide: contracts.ts type-by-type breakdown, three-layer contract mirroring, 36 Python test files analyzed, hermetic testing strategy, mock patterns, coverage configuration, frontend Vitest and Playwright tests." name="description"/>
+  <meta content="ResearchMate contracts and tests learning guide: contracts.ts type-by-type breakdown, three-layer contract mirroring, 39 Python test files analyzed, hermetic testing strategy, mock patterns, coverage configuration, frontend Vitest and Playwright tests." name="description"/>
   <title>ResearchMate &middot; Contracts &amp; Tests learning</title>
   <link href="../assets/site.css" rel="stylesheet"/>
   <style>
@@ -25,7 +25,7 @@
   <style>.module-nav{border-top:1px solid var(--g200)}.module-nav .shell{padding:6px 0 12px}.module-nav a{font-size:11.5px;padding:5px 11px}</style>
 </head>
 <body>
-  <header class="mast"><div class="shell mast-row"><a class="brand" href="../index.html">ResearchMate documentation</a><div class="mast-right"><span class="stamp">Contracts &amp; Tests &middot; 6 August 2026</span><a class="lang-toggle" href="contracts-tests.zh.html" hreflang="zh" lang="zh">中文</a></div></div></header>
+  <header class="mast"><div class="shell mast-row"><a class="brand" href="../index.html">ResearchMate documentation</a><div class="mast-right"><span class="stamp">Contracts &amp; Tests &middot; 7 August 2026</span><a class="lang-toggle" href="contracts-tests.zh.html" hreflang="zh" lang="zh">中文</a></div></div></header>
   <nav aria-label="Documentation" class="global"><div class="shell">
     <a href="../index.html">Overview</a>
     <a href="../product/index.html">Product &amp; roadmap</a>
@@ -50,7 +50,7 @@
       <p class="lede">The ResearchMate test suite is a hermetic, contract-first verification system. A single TypeScript file (contracts.ts) defines 23 shared types that mirror across Pydantic schemas and SQL migrations. The Python test suite contains 36 test_*.py files organized into HTTP integration, unit, worker, workflow, and contract-source-inspection categories. Every test runs without external dependencies, using fake providers, in-memory stores, and source-file inspection. This page walks through every contract type and every test file.</p>
       <div class="meta">
         <span class="status local">23 contract types (4 type + 19 interface)</span>
-        <span class="status local">36 test_*.py files</span>
+        <span class="status local">39 test_*.py files</span>
         <span class="status local">3 Python infra files + 1 INI config</span>
         <span class="status local">7 Vitest + 1 Playwright frontend tests</span>
         <span class="status local">Three-layer contract mirroring</span>
@@ -146,8 +146,8 @@
 
       <section id="test-tree">
         <p class="eyebrow">tests/ directory structure</p>
-        <h2>36 test files + 3 infrastructure files + 1 INI config</h2>
-        <p class="sub">The tests/ directory contains 36 test_*.py files, 3 Python infrastructure files (conftest.py, api_workflow_fixtures.py, api_workflow_support.py), 1 pytest.ini configuration file, and a fixtures/ directory with one test PDF.</p>
+        <h2>39 test files + 3 infrastructure files + 1 INI config</h2>
+        <p class="sub">The tests/ directory contains 39 test_*.py files, 3 Python infrastructure files (conftest.py, api_workflow_fixtures.py, api_workflow_support.py), 1 pytest.ini configuration file, and a fixtures/ directory with one test PDF.</p>
         <pre class="command-block"><code>tests/
 ├── pytest.ini                              # addopts: -p no:cacheprovider --basetemp=.pytest-temp
 ├── conftest.py                             # sys.path setup: API_SRC + WORKER_SRC
@@ -157,15 +157,17 @@
 ├── fixtures/
 │   └── acceptance-text.pdf                 # Real PDF fixture for parser compatibility tests
 │
-├── HTTP integration tests (6 files)
+├── HTTP integration tests (7 files)
 │   ├── test_api_policy_workflow.py         # API lifecycle, security, developer-policy workflows
 │   ├── test_api_regressions.py             # Repaired Ask, Quiz, quota, idempotency regressions
 │   ├── test_api_workflow.py                # Core HTTP workflows: Ask, Quiz, projects, conversations
 │   ├── test_evidence_api.py                # Evidence API ownership, idempotency, privilege, routes
+│   ├── test_http_security_hardening.py     # Rate limits, CSP/HSTS headers, readyz leak (skipif)
 │   ├── test_mcp_boundary.py                # MCP auth, runtime fallback, REST-equivalent policies
 │   └── test_runtime_foundation.py          # Auth, config, request ID, readiness foundations
 │
-├── Unit tests (15 files)
+├── Unit tests (16 files)
+│   ├── test_chat_answer_injection_boundary.py # Chat path wraps query as untrusted JSON
 │   ├── test_document_deletion.py           # Deletion order across external projections
 │   ├── test_document_ingestion.py          # Ingestion state transitions, content projections
 │   ├── test_enabled_ai_runtime.py          # Pinned AI runtime dependency compatibility
@@ -176,7 +178,7 @@
 │   ├── test_hybrid_retrieval.py            # Vector retrieval shapes, mandatory owner filters
 │   ├── test_hybrid_retrieval_and_rerank.py # Lexical retrieval, fusion, packing, rerank
 │   ├── test_llm_provider.py                # NVIDIA chat adapter request and error contracts
-│   ├── test_object_storage.py              # S3 upload signing, metadata, credential selection
+│   ├── test_object_storage.py              # S3 signing, metadata, MIME verification
 │   ├── test_postgres_repository_contract.py# Repository ownership, transaction, delivery
 │   ├── test_query_policies.py              # Retrieval, context, scope, trace, idempotency
 │   ├── test_runtime_safety_extensions.py   # Source scope, budget, pipeline-version safety
@@ -254,7 +256,7 @@ def create_ready_document(client, headers=HEADERS) -> tuple[str, str]:
 
       <section id="http-tests">
         <p class="eyebrow">HTTP integration tests</p>
-        <h2>6 files &middot; FastAPI TestClient</h2>
+        <h2>7 files &middot; FastAPI TestClient</h2>
         <p class="sub">These tests import <code>TestClient</code> from <code>fastapi.testclient</code> and exercise the full HTTP request-response cycle through an in-process FastAPI application. No real HTTP server is started; TestClient wraps the ASGI app directly.</p>
         <div class="grid two">
           <article class="fact"><b>test_api_workflow.py</b><p>9 tests exercising core HTTP workflows: local Ask with sources and trace, admin-only trace access, user isolation for projects and documents, quiz generation and history, quiz output size rejection, personal chat attachments, personal project quiz rejection, plain Chat without documents, conversation resume and cross-user concealment. Imports <code>create_ready_document</code> from api_workflow_support.</p></article>
@@ -262,15 +264,17 @@ def create_ready_document(client, headers=HEADERS) -> tuple[str, str]:
           <article class="fact"><b>test_api_regressions.py</b><p>5 tests exercising repaired regressions: invalid conversation does not consume Ask quota, Ask idempotency replays without duplicate messages, idempotency key body mismatch returns conflict, quiz default instructions work for Chinese documents, quiz idempotency replays the same aggregate.</p></article>
           <article class="fact"><b>test_evidence_api.py</b><p>5 tests verifying evidence API contracts: research-run owner-scoped and idempotent, idempotency key reuse with different body rejected, evaluation and reliability require privileged identity, evidence routes exposed in generated OpenAPI, fault exercise status URL queryable and owner-scoped. Creates its own TestClient per test.</p></article>
           <article class="fact"><b>test_mcp_boundary.py</b><p>5 tests verifying MCP authentication and fallback: MCP requires same bearer boundary as REST, missing SDK returns explicit authenticated 503, installed MCP runtime initializes behind REST bearer boundary, MCP personal project search requires conversation scope, MCP trace access matches REST admin policy. Uses monkeypatch to simulate missing MCP module.</p></article>
+          <article class="fact"><b>test_http_security_hardening.py</b><p>5 tests verifying HTTP security hardening: every response carries Content-Security-Policy and Strict-Transport-Security headers, the rate-limit constants protect health and auth paths, the slowapi limiter is registered on <code>app.state</code>, the 61st call to <code>/healthz</code> in a minute returns the <code>429 RATE_LIMITED</code> envelope, and unprotected paths are not blocked by the protected-path bucket. The /readyz information-leak reduction is also covered: default production-mode hides component details, <code>?verbose=true</code> returns the full snapshot, and local/test environments default to verbose. Tests that touch the limiter are decorated with <code>@pytest.mark.skipif(not _HAS_SLOWAPI, reason="slowapi not installed")</code> and skip gracefully when the optional <code>slowapi</code> dependency is absent.</p></article>
           <article class="fact"><b>test_runtime_foundation.py</b><p>8 tests verifying runtime foundations: production rejects development auth, enabled observability and web providers require credentials, configured CORS and request ID applied, liveness probe independent of sync thread pool, local readiness explicit and non-charging, managed readiness requires live background delivery, unknown bearer token fails closed, explicit development identity available locally.</p></article>
         </div>
       </section>
 
       <section id="unit-tests">
         <p class="eyebrow">Unit tests</p>
-        <h2>15 files &middot; isolated doubles and in-memory stores</h2>
+        <h2>16 files &middot; isolated doubles and in-memory stores</h2>
         <p class="sub">These tests verify individual modules, services, and provider adapters using lightweight doubles (SimpleNamespace, RecordingConnection, EmptyResult) and the in-memory store. No HTTP client is used.</p>
         <div class="grid two">
+          <article class="fact"><b>test_chat_answer_injection_boundary.py</b><p>7 tests covering the prompt-injection boundary on the chat answer path: the user query is wrapped in a JSON payload with a <code>question</code> field, the system prompt tells the model the user message is untrusted data, prior turns are passed as a <code>conversation_history</code> JSON field, no raw user role with the untampered query is emitted to the model, the local-doc fallback still returns the Chinese standalone local answer, and only <code>user</code> and <code>assistant</code> history roles reach the model. Mirrors the grounded-answer path's prompt-injection boundary for the chat path in <code>services/answering.py::build_llm_chat_answer</code>.</p></article>
           <article class="fact"><b>test_document_deletion.py</b><p>3 tests: deletion removes external projections before finalizing database, retryable object delete keeps database cleanup pending, project deletion removes all external objects before database cascade. Verifies the correct deletion order across Qdrant, object storage, and PostgreSQL.</p></article>
           <article class="fact"><b>test_document_ingestion.py</b><p>3 tests: ingestion builds stable page and chunk projections, checksum mismatch is terminal and never reaches parser, retryable projection failure requeues before attempt limit. Uses SHA-256 and UUID for deterministic projection verification.</p></article>
           <article class="fact"><b>test_enabled_ai_runtime.py</b><p>2 tests: LangGraph graph executes a bounded local path, RAGAS and strict checkpoint serializer import with pinned compatibility. Verifies that pinned dependency versions support the bounded local contracts without network calls.</p></article>
@@ -281,7 +285,7 @@ def create_ready_document(client, headers=HEADERS) -> tuple[str, str]:
           <article class="fact"><b>test_hybrid_retrieval.py</b><p>6 tests: embedding distinguishes query and passage modes, hybrid query has dense/sparse/RRF and all owner filters, sparse vector is stable and sorted, upsert uses named vectors and owner payload, delete points keeps owner filter at vector boundary, delete project points removes every point inside owner boundary.</p></article>
           <article class="fact"><b>test_hybrid_retrieval_and_rerank.py</b><p>7 tests: mixed tokenizer keeps identifiers and Chinese bigrams, BM25 weights exact phrase/title/repeated hits, RRF deduplicates and rewards cross-channel hits, context packer respects budget after first item, NVIDIA adapter uses ranking API and top_n, auto provider degrades deterministically, provider candidate limit preserves web and document diversity.</p></article>
           <article class="fact"><b>test_llm_provider.py</b><p>4 tests: non-streaming completion uses approved model parameters, stream skips empty chunks and separates reasoning from content, provider cannot start without NVIDIA configuration, timeout is normalized without leaking provider details. Uses SimpleNamespace to simulate the OpenAI-compatible client.</p></article>
-          <article class="fact"><b>test_object_storage.py</b><p>2 tests: R2 adapter presigns and normalizes metadata, generic S3 endpoint uses its own credential set. Verifies presigned URL generation and credential isolation between R2 and generic S3 endpoints using Settings and SecretStr.</p></article>
+          <article class="fact"><b>test_object_storage.py</b><p>5 tests: R2 adapter presigns and normalizes metadata, generic S3 endpoint uses its own credential set, server-side MIME verification accepts matching magic bytes, rejects disguised uploads (deletes the object with <code>MIME_MISMATCH</code>), and fails open when libmagic is missing. Verifies presigned URL generation, credential isolation between R2 and generic S3 endpoints, and the new <code>verify_uploaded_content</code> magic-byte check. The mismatch test is decorated with <code>@pytest.mark.skipif(not _HAS_MAGIC, reason="python-magic not installed")</code> and skips gracefully when the optional <code>python-magic</code> dependency is absent.</p></article>
           <article class="fact"><b>test_postgres_repository_contract.py</b><p>10 tests: Postgres URLs select psycopg3 driver, preview requires Postgres and DATABASE_URL, resource lookup sets RLS subject and owner predicate, upload factory receives validated content metadata, completion verifies reserved object, completion persists job and outbox intent in one method, async repository contract uses real job types, document mutations require active parent project, project-scoped writes lock active project transition, active project lock keeps static helper call contract. Uses RecordingConnection double and pytest.importorskip for SQLAlchemy.</p></article>
           <article class="fact"><b>test_query_policies.py</b><p>8 tests: pack_chunks never allows first chunk over budget, bound_messages truncates one oversized recent message, project_memory preserves untrusted user provenance, small document still requires relevant evidence, personal project rejects project-wide scope, trace policy is privileged even for trace owner, idempotency replays and rejects body mismatch, conversation cleanup rolls back after attachment failure.</p></article>
           <article class="fact"><b>test_runtime_safety_extensions.py</b><p>5 tests: source scope rejects duplicate document IDs, workflow budget reserves before call and persists usage, workflow budget fails before provider when reservation denied, workflow budget rejects oversized prompt before database reservation, pipeline runtime configuration is not an unvalidated label.</p></article>
@@ -339,7 +343,9 @@ def create_ready_document(client, headers=HEADERS) -> tuple[str, str]:
           <article class="fact"><b>Source inspection without execution</b><p>Six contract-source-inspection tests read files from disk using <code>pathlib.Path.read_text()</code> and parse them with regex or string matching. They verify structural contracts (file existence, content patterns, schema correctness) without importing or executing any application code.</p></article>
           <article class="fact"><b>Unit doubles</b><p>Unit tests use lightweight doubles instead of real infrastructure: <code>SimpleNamespace</code> for mock objects, <code>RecordingConnection</code> to capture SQL statements without a database, <code>EmptyResult</code> to simulate query responses, and <code>collections.deque</code> for deterministic workflow state transitions.</p></article>
           <article class="fact"><b>No real PDF parsing models</b><p>test_worker_parsing_unit.py uses the lightweight pypdf backend and a 703-byte real PDF fixture. Docling visual pipeline (which requires torch) is never loaded in tests. The parser verifies text extraction, provenance serialization, and OOXML parsing without heavy ML dependencies.</p></article>
+          <article class="fact"><b>Optional dep <code>skipif</code> pattern</b><p>Tests that exercise optional adapters (the slowapi limiter, the python-magic MIME verifier) skip gracefully rather than fail when the dependency is absent. The pattern: a module-level <code>try: import slowapi ... _HAS_SLOWAPI = True except ModuleNotFoundError: _HAS_SLOWAPI = False</code> guard sets a boolean, and the affected assertions are decorated with <code>@pytest.mark.skipif(not _HAS_SLOWAPI, reason="slowapi not installed")</code> (and the matching <code>not _HAS_MAGIC</code> for <code>python-magic</code>). The constant-level tests in <code>test_http_security_hardening.py</code> always run; only the limiter-enforcement tests skip. The MIME matcher tests in <code>test_object_storage.py</code> always run; only the mismatch-rejecting assertion skips when libmagic is unavailable, and the verifier fails open in production rather than blocking legitimate traffic.</p></article>
         </div>
+        <div class="notice"><strong>Hermetic + optional together:</strong> The HTTP-security and object-storage tests keep the suite hermetic even when the optional dep is installed: <code>test_http_security_hardening.py</code> uses <code>Settings(app_env="local", auth_mode="development")</code> against an in-process TestClient, and <code>test_object_storage.py</code> uses a <code>FakeS3Client</code> with <code>fetched_bytes</code> fixtures rather than real S3. The optional dep only changes whether the limiter middleware or libmagic detection runs &mdash; the assertions still do not touch any external service.</div>
       </section>
 
       <section id="mock-strategy">
@@ -361,7 +367,7 @@ def create_ready_document(client, headers=HEADERS) -> tuple[str, str]:
         <h2>Python coverage + frontend v8 coverage</h2>
         <p class="sub">Coverage is configured at two levels: the Python test suite uses the <code>coverage</code> package (pinned 7.10+), and the frontend uses Vitest built-in v8 coverage provider with threshold enforcement.</p>
         <div class="grid two">
-          <article class="fact"><b>Python dependencies (pyproject.toml)</b><p>The root <code>pyproject.toml</code> pins <code>coverage&gt;=7.10.0,&lt;8</code> and <code>pytest&gt;=9.0.0,&lt;10</code> as dev dependencies. The coverage package instruments Python source files during test execution and produces line and branch coverage reports.</p></article>
+          <article class="fact"><b>Python dependencies (pyproject.toml)</b><p>The root <code>pyproject.toml</code> pins <code>coverage&gt;=7.10.0,&lt;8</code> and <code>pytest&gt;=9.0.0,&lt;10</code> as dev dependencies. The coverage package instruments Python source files during test execution and produces line and branch reports. The CI gate <code>npm run test:python</code> enforces <code>coverage report --fail-under=69</code>, so the Python suite must keep at least 69% combined line and branch coverage across <code>apps/api/src/researchmate_api</code> and <code>workers/ai-worker/src/researchmate_worker</code> for a push to be deployable.</p></article>
           <article class="fact"><b>pytest.ini</b><p>Disables the cache provider (<code>-p no:cacheprovider</code>) to prevent stale cache from affecting coverage results. Sets <code>--basetemp=.pytest-temp</code> to keep all temporary test artifacts inside the repository.</p></article>
           <article class="fact"><b>Vitest v8 coverage</b><p>apps/web/vitest.config.ts configures the v8 coverage provider with <code>include: ["app/lib/**/*.ts", "app/components/**/*.{ts,tsx}"]</code> and <code>exclude: ["app/**/*.test.{ts,tsx}"]</code>. Reporters: text and json-summary. Thresholds: 40% lines and 40% statements.</p></article>
           <article class="fact"><b>Coverage scope rationale</b><p>The Vitest coverage includes orchestration code (app/lib) and presentation code (app/components) but excludes test files themselves. The 40% threshold is intentionally modest: it ensures that core logic is tested without forcing brittle tests on every utility function. The <code>coverage-v8</code> package provides native V8 instrumentation.</p></article>
@@ -420,6 +426,6 @@ def create_ready_document(client, headers=HEADERS) -> tuple[str, str]:
 
     </div></div>
   </main>
-  <footer class="foot"><div class="shell"><p>ResearchMate documentation &middot; Contracts &amp; Tests learning guide &middot; 6 August 2026</p></div></footer>
+  <footer class="foot"><div class="shell"><p>ResearchMate documentation &middot; Contracts &amp; Tests learning guide &middot; 7 August 2026</p></div></footer>
 </body>
 </html>

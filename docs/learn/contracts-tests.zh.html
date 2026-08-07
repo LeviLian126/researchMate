@@ -1,9 +1,9 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh">
 <head>
   <meta charset="utf-8"/>
   <meta content="width=device-width,initial-scale=1" name="viewport"/>
-  <meta content="ResearchMate 共享合约与测试学习指南:contracts.ts 逐类型解析,三层契约镜像架构,36 个 Python 测试文件分析,Hermetic 测试策略,Mock 模式,覆盖率配置,前端 Vitest 与 Playwright 测试。" name="description"/>
+  <meta content="ResearchMate 共享合约与测试学习指南:contracts.ts 逐类型解析,三层契约镜像架构,38 个 Python 测试文件分析,Hermetic 测试策略,Mock 模式,覆盖率配置,前端 Vitest 与 Playwright 测试。" name="description"/>
   <title>ResearchMate &middot; 合约与测试学习</title>
   <link href="../assets/site.css" rel="stylesheet"/>
   <style>
@@ -25,7 +25,7 @@
   <style>.module-nav{border-top:1px solid var(--g200)}.module-nav .shell{padding:6px 0 12px}.module-nav a{font-size:11.5px;padding:5px 11px}</style>
 </head>
 <body>
-  <header class="mast"><div class="shell mast-row"><a class="brand" href="../index.zh.html">ResearchMate 文档</a><div class="mast-right"><span class="stamp">合约与测试 &middot; 2026 年 8 月 6 日</span><a class="lang-toggle" href="contracts-tests.html" hreflang="en" lang="en">English</a></div></div></header>
+  <header class="mast"><div class="shell mast-row"><a class="brand" href="../index.zh.html">ResearchMate 文档</a><div class="mast-right"><span class="stamp">合约与测试 &middot; 2026 年 8 月 7 日</span><a class="lang-toggle" href="contracts-tests.html" hreflang="en" lang="en">English</a></div></div></header>
   <nav aria-label="文档" class="global"><div class="shell">
     <a href="../index.zh.html">概览</a>
     <a href="../product/index.zh.html">产品与路线图</a>
@@ -50,7 +50,7 @@
       <p class="lede">ResearchMate 测试套件是一个 Hermetic、合约优先的验证系统。单个 TypeScript 文件(contracts.ts)定义了 23 个共享类型,在 Pydantic schema 和 SQL migration 中镜像。Python 测试套件包含 36 个 test_*.py 文件,分为 HTTP 集成测试、单元测试、Worker 测试、工作流测试和契约源码检视测试五类。每个测试都在无外部依赖的情况下运行,使用 fake provider、内存 store 和源码文件检视。本页逐类型解析每个合约,逐文件解析每个测试。</p>
       <div class="meta">
         <span class="status local">23 个合约类型(4 type + 19 interface)</span>
-        <span class="status local">36 个 test_*.py 文件</span>
+        <span class="status local">38 个 test_*.py 文件</span>
         <span class="status local">3 个 Python 基础设施文件 + 1 个 INI 配置</span>
         <span class="status local">7 个 Vitest + 1 个 Playwright 前端测试</span>
         <span class="status local">三层契约镜像架构</span>
@@ -146,8 +146,8 @@
 
       <section id="test-tree">
         <p class="eyebrow">tests/ 目录结构</p>
-        <h2>36 个测试文件 + 3 个基础设施文件 + 1 个 INI 配置</h2>
-        <p class="sub">tests/ 目录包含 36 个 test_*.py 文件、3 个 Python 基础设施文件(conftest.py、api_workflow_fixtures.py、api_workflow_support.py)、1 个 pytest.ini 配置文件,以及一个包含测试 PDF 的 fixtures/ 目录。</p>
+        <h2>38 个测试文件 + 3 个基础设施文件 + 1 个 INI 配置</h2>
+        <p class="sub">tests/ 目录包含 38 个 test_*.py 文件、3 个 Python 基础设施文件(conftest.py、api_workflow_fixtures.py、api_workflow_support.py)、1 个 pytest.ini 配置文件,以及一个包含测试 PDF 的 fixtures/ 目录。</p>
         <pre class="command-block"><code>tests/
 ├── pytest.ini                              # addopts: -p no:cacheprovider --basetemp=.pytest-temp
 ├── conftest.py                             # sys.path setup: API_SRC + WORKER_SRC
@@ -157,15 +157,16 @@
 ├── fixtures/
 │   └── acceptance-text.pdf                 # 真实 PDF fixture,用于 parser 兼容性测试
 │
-├── HTTP 集成测试 (6 个文件)
+├── HTTP 集成测试 (7 个文件)
 │   ├── test_api_policy_workflow.py         # API 生命周期、安全、developer-policy 工作流
 │   ├── test_api_regressions.py             # 修复后的 Ask、Quiz、配额、幂等性回归
 │   ├── test_api_workflow.py                # 核心 HTTP 工作流:Ask、Quiz、项目、对话
 │   ├── test_evidence_api.py                # Evidence API 所有权、幂等性、权限、路由
+│   ├── test_http_security_hardening.py     # 速率限制、CSP/HSTS 头、readyz 信息泄漏缓解(skipif)
 │   ├── test_mcp_boundary.py                # MCP 认证、运行时降级、REST 等价策略
 │   └── test_runtime_foundation.py          # 认证、配置、请求 ID、readiness 基础
 │
-├── 单元测试 (15 个文件)
+├── 单元测试 (16 个文件)
 │   ├── test_document_deletion.py           # 跨外部 projection 的删除顺序
 │   ├── test_document_ingestion.py          # 摄取状态转换、内容 projection
 │   ├── test_enabled_ai_runtime.py          # 锁定的 AI runtime 依赖兼容性
@@ -174,9 +175,10 @@
 │   ├── test_fault_simulation.py            # 有界恢复,无外部变更
 │   ├── test_grounded_generation.py         # 服务端 evidence allowlist 强制
 │   ├── test_hybrid_retrieval.py            # 向量检索形状、强制 owner 过滤
+│   ├── test_chat_answer_injection_boundary.py  # chat 路径将查询包装为不可信 JSON
 │   ├── test_hybrid_retrieval_and_rerank.py # 词法检索、fusion、packing、rerank
 │   ├── test_llm_provider.py                # NVIDIA chat adapter 请求和错误合约
-│   ├── test_object_storage.py              # S3 上传签名、元数据、凭证选择
+│   ├── test_object_storage.py              # S3 上传签名、元数据、凭证选择、MIME 验证
 │   ├── test_postgres_repository_contract.py# Repository 所有权、事务、交付
 │   ├── test_query_policies.py              # 检索、上下文、范围、trace、幂等性
 │   ├── test_runtime_safety_extensions.py   # Source scope、budget、pipeline-version 安全
@@ -254,13 +256,14 @@ def create_ready_document(client, headers=HEADERS) -> tuple[str, str]:
 
       <section id="http-tests">
         <p class="eyebrow">HTTP 集成测试</p>
-        <h2>6 个文件 &middot; FastAPI TestClient</h2>
+        <h2>7 个文件 &middot; FastAPI TestClient</h2>
         <p class="sub">这些测试从 <code>fastapi.testclient</code> 导入 <code>TestClient</code>,通过进程内 FastAPI 应用执行完整 HTTP 请求-响应周期。不启动真实 HTTP server;TestClient 直接包装 ASGI app。</p>
         <div class="grid two">
           <article class="fact"><b>test_api_workflow.py</b><p>9 个测试,验证核心 HTTP 工作流:本地 Ask 含 sources 和 trace、trace 仅管理员可访问、项目和文档的用户隔离、quiz 生成和历史、quiz 输出大小拒绝、个人 chat 附件、个人项目 quiz 拒绝、无文档时的纯 Chat、对话恢复和跨用户隐藏。从 api_workflow_support 导入 <code>create_ready_document</code>。</p></article>
           <article class="fact"><b>test_api_policy_workflow.py</b><p>10 个测试,验证 API 生命周期和安全:对话重命名/删除与跨用户隐藏、已删除项目的对话隐藏、删除项目时拒绝 chat 和 quiz、管理员版本化 rerank 配置、小文档无关查询弃答、MIME 不匹配拒绝、非十六进制 checksum 拒绝、移除的 source selector 拒绝、executable catalog fail-closed、evaluation catalog 开发者角色。</p></article>
           <article class="fact"><b>test_api_regressions.py</b><p>5 个测试,验证修复后的回归:无效对话不消耗 Ask 配额、Ask 幂等性重放不产生重复消息、幂等键 body 不匹配返回 conflict、quiz 默认指令适用于中文文档、quiz 幂等性重放相同聚合。</p></article>
           <article class="fact"><b>test_evidence_api.py</b><p>5 个测试,验证 evidence API 合约:research-run 按 owner 限定且幂等、幂等键重用不同 body 被拒绝、evaluation 和 reliability 需要特权身份、evidence 路由在生成的 OpenAPI 中暴露、fault exercise 状态 URL 可查询且按 owner 限定。每个测试创建自己的 TestClient。</p></article>
+          <article class="fact"><b>test_http_security_hardening.py</b><p>5 个测试,验证 HTTP 安全加固:每个响应携带 Content-Security-Policy 与 Strict-Transport-Security 头、速率限制常量保护 health 与 auth 路径、slowapi limiter 已注册到 <code>app.state</code>、一分钟内第 61 次调用 <code>/healthz</code> 返回 <code>429 RATE_LIMITED</code> 信封、未受保护路径不被受保护路径的 bucket 阻断。覆盖 /readyz 信息泄漏缓解:生产模式默认隐藏 component 详情、<code>?verbose=true</code> 返回完整快照、local/test 环境默认为 verbose。触及 limiter 的测试用 <code>@pytest.mark.skipif(not _HAS_SLOWAPI, reason="slowapi not installed")</code> 装饰,在可选 <code>slowapi</code> 依赖缺失时优雅跳过。</p></article>
           <article class="fact"><b>test_mcp_boundary.py</b><p>5 个测试,验证 MCP 认证和降级:MCP 需要与 REST 相同的 bearer 边界、缺失 SDK 返回明确的已认证 503、已安装 MCP runtime 在 REST bearer 边界后初始化、MCP 个人项目搜索需要对话范围、MCP trace 访问匹配 REST 管理员策略。使用 monkeypatch 模拟缺失的 MCP 模块。</p></article>
           <article class="fact"><b>test_runtime_foundation.py</b><p>8 个测试,验证运行时基础:production 拒绝 development auth、启用的可观测性和 web provider 需要凭证、配置的 CORS 和 request ID 已应用、liveness probe 不依赖同步线程池、本地 readiness 明确且不收费、managed readiness 需要活跃后台交付、未知 bearer token fail-closed、显式 development identity 在本地可用。</p></article>
         </div>
@@ -268,9 +271,10 @@ def create_ready_document(client, headers=HEADERS) -> tuple[str, str]:
 
       <section id="unit-tests">
         <p class="eyebrow">单元测试</p>
-        <h2>15 个文件 &middot; 隔离 double 和内存 store</h2>
+        <h2>16 个文件 &middot; 隔离 double 和内存 store</h2>
         <p class="sub">这些测试使用轻量级 double(SimpleNamespace、RecordingConnection、EmptyResult)和内存 store 验证单个模块、服务和 provider adapter。不使用 HTTP client。</p>
         <div class="grid two">
+          <article class="fact"><b>test_chat_answer_injection_boundary.py</b><p>7 个测试,覆盖 chat 回答路径的提示注入边界:用户查询被包装为带 <code>question</code> 字段的 JSON 载荷、系统提示告知模型用户消息为不可信数据、先前对话以 <code>conversation_history</code> JSON 字段传入、不会向模型发送以原始未篡改查询作为 <code>user</code> 角色的消息、本地文档回退仍返回中文独立本地回答、只有 <code>user</code> 与 <code>assistant</code> 历史角色会到达模型。镜像 grounded 路径的提示注入边界,适用于 <code>services/answering.py::build_llm_chat_answer</code> 的 chat 路径。</p></article>
           <article class="fact"><b>test_document_deletion.py</b><p>3 个测试:删除在最终化数据库前移除外部 projection、可重试 object delete 保持数据库清理 pending、项目删除在数据库级联前移除所有外部对象。验证 Qdrant、object storage 和 PostgreSQL 之间的正确删除顺序。</p></article>
           <article class="fact"><b>test_document_ingestion.py</b><p>3 个测试:ingestion 构建稳定的 page 和 chunk projection、checksum 不匹配是终端错误且永不到达 parser、可重试 projection 失败在尝试限制前重新入队。使用 SHA-256 和 UUID 进行确定性 projection 验证。</p></article>
           <article class="fact"><b>test_enabled_ai_runtime.py</b><p>2 个测试:LangGraph graph 执行有界本地路径、RAGAS 和 strict checkpoint serializer 以锁定兼容性导入。验证锁定的依赖版本支持有界本地合约,无网络调用。</p></article>
@@ -281,7 +285,7 @@ def create_ready_document(client, headers=HEADERS) -> tuple[str, str]:
           <article class="fact"><b>test_hybrid_retrieval.py</b><p>6 个测试:embedding 区分 query 和 passage 模式、hybrid query 包含 dense/sparse/RRF 和所有 owner 过滤、sparse vector 稳定且有序、upsert 使用 named vector 和 owner payload、delete points 在 vector 边界保持 owner 过滤、delete project points 移除 owner 边界内的每个点。</p></article>
           <article class="fact"><b>test_hybrid_retrieval_and_rerank.py</b><p>7 个测试:混合 tokenizer 保留标识符和中文 bigram、BM25 加权精确短语/标题/重复命中、RRF 去重并奖励跨通道命中、context packer 在首项后遵守 budget、NVIDIA adapter 使用 ranking API 和 top_n、auto provider 确定性降级、provider candidate limit 保留 web 和文档多样性。</p></article>
           <article class="fact"><b>test_llm_provider.py</b><p>4 个测试:非流式 completion 使用批准的 model 参数、stream 跳过空 chunk 并分离 reasoning 和 content、provider 无法在没有 NVIDIA 配置时启动、timeout 被规范化但不泄露 provider 详情。使用 SimpleNamespace 模拟 OpenAI-compatible client。</p></article>
-          <article class="fact"><b>test_object_storage.py</b><p>2 个测试:R2 adapter presign 并规范化元数据、generic S3 endpoint 使用自己的凭证集。验证 presigned URL 生成和 R2 与 generic S3 endpoint 之间的凭证隔离,使用 Settings 和 SecretStr。</p></article>
+          <article class="fact"><b>test_object_storage.py</b><p>5 个测试:R2 adapter presign 并规范化元数据、generic S3 endpoint 使用自己的凭证集、服务端 MIME 验证接受匹配的魔术字节、拒绝伪装上传(以 <code>MIME_MISMATCH</code> 删除对象)、libmagic 缺失时优雅跳过(fail open)。验证 presigned URL 生成、R2 与 generic S3 endpoint 之间的凭证隔离,以及新增的 <code>verify_uploaded_content</code> 魔术字节检查。mismatch 测试用 <code>@pytest.mark.skipif(not _HAS_MAGIC, reason="python-magic not installed")</code> 装饰,在可选 <code>python-magic</code> 依赖缺失时优雅跳过。</p></article>
           <article class="fact"><b>test_postgres_repository_contract.py</b><p>10 个测试:Postgres URL 选择 psycopg3 driver、preview 需要 Postgres 和 DATABASE_URL、resource lookup 设置 RLS subject 和 owner 谓词、upload factory 接收已验证的内容元数据、completion 验证预留 object、completion 在一个方法中持久化 job 和 outbox intent、async repository 合约使用真实 job 类型、文档变更需要活跃父项目、项目范围写入锁定活跃项目转换、活跃项目锁保持静态 helper 调用合约。使用 RecordingConnection double 和 pytest.importorskip 处理 SQLAlchemy。</p></article>
           <article class="fact"><b>test_query_policies.py</b><p>8 个测试:pack_chunks 永不允许首 chunk 超出 budget、bound_messages 截断一个过大的近期消息、project_memory 保留不可信用户 provenance、小文档仍需要相关 evidence、个人项目拒绝项目范围 scope、trace policy 即使对 trace owner 也是特权的、幂等性重放并拒绝 body 不匹配、对话清理在附件失败后回滚。</p></article>
           <article class="fact"><b>test_runtime_safety_extensions.py</b><p>5 个测试:source scope 拒绝重复 document ID、workflow budget 在调用前预留并持久化使用量、workflow budget 在 reservation 被拒绝时在 provider 之前失败、workflow budget 在数据库 reservation 之前拒绝过大的 prompt、pipeline runtime configuration 不是未验证的 label。</p></article>
@@ -339,6 +343,7 @@ def create_ready_document(client, headers=HEADERS) -> tuple[str, str]:
           <article class="fact"><b>源码检视不执行</b><p>6 个契约源码检视测试使用 <code>pathlib.Path.read_text()</code> 从磁盘读取文件,用 regex 或字符串匹配解析。它们验证结构合约(文件存在、内容模式、schema 正确性)而不导入或执行任何应用代码。</p></article>
           <article class="fact"><b>Unit double</b><p>单元测试使用轻量级 double 替代真实基础设施:<code>SimpleNamespace</code> 用于 mock 对象、<code>RecordingConnection</code> 用于在无数据库情况下捕获 SQL 语句、<code>EmptyResult</code> 用于模拟查询响应、<code>collections.deque</code> 用于确定性工作流状态转换。</p></article>
           <article class="fact"><b>无真实 PDF 解析模型</b><p>test_worker_parsing_unit.py 使用轻量级 pypdf backend 和 703 字节的真实 PDF fixture。Docling 视觉 pipeline(需要 torch)在测试中从不加载。parser 验证文本提取、provenance 序列化和 OOXML 解析,无需重型 ML 依赖。</p></article>
+          <article class="fact"><b>可选依赖 <code>skipif</code> 模式</b><p>触及可选适配器(slowapi limiter、python-magic MIME 验证器)的测试在依赖缺失时优雅跳过而非失败。模式为:模块级 <code>try: import slowapi ... _HAS_SLOWAPI = True except ModuleNotFoundError: _HAS_SLOWAPI = False</code> 守卫设置布尔值,相关断言用 <code>@pytest.mark.skipif(not _HAS_SLOWAPI, reason="slowapi not installed")</code>(以及对应的 <code>not _HAS_MAGIC</code> for <code>python-magic</code>)装饰。<code>test_http_security_hardening.py</code> 中的常量级测试始终运行,只有 limiter-enforcement 测试会跳过。<code>test_object_storage.py</code> 中的 MIME matcher 测试始终运行,只有 mismatch-rejecting 断言在 libmagic 不可用时跳过,生产环境验证器 fail open 而非阻断合法流量。</p></article>
         </div>
       </section>
 
@@ -361,7 +366,7 @@ def create_ready_document(client, headers=HEADERS) -> tuple[str, str]:
         <h2>Python coverage + 前端 v8 coverage</h2>
         <p class="sub">覆盖率在两个层面配置:Python 测试套件使用 <code>coverage</code> 包(锁定 7.10+),前端使用 Vitest 内置 v8 coverage provider 并强制阈值。</p>
         <div class="grid two">
-          <article class="fact"><b>Python 依赖(pyproject.toml)</b><p>根 <code>pyproject.toml</code> 将 <code>coverage&gt;=7.10.0,&lt;8</code> 和 <code>pytest&gt;=9.0.0,&lt;10</code> 锁定为 dev 依赖。coverage 包在测试执行期间检测 Python 源码文件,生成行和分支覆盖率报告。</p></article>
+          <article class="fact"><b>Python 依赖(pyproject.toml)</b><p>根 <code>pyproject.toml</code> 将 <code>coverage&gt;=7.10.0,&lt;8</code> 和 <code>pytest&gt;=9.0.0,&lt;10</code> 锁定为 dev 依赖。coverage 包在测试执行期间检测 Python 源码文件,生成行和分支覆盖率报告。CI 门禁 <code>npm run test:python</code> 强制执行 <code>coverage report --fail-under=69</code>,因此 Python 套件必须对 <code>apps/api/src/researchmate_api</code> 和 <code>workers/ai-worker/src/researchmate_worker</code> 保持至少 69% 的合并行与分支覆盖率,push 才可部署。</p></article>
           <article class="fact"><b>pytest.ini</b><p>禁用 cache provider(<code>-p no:cacheprovider</code>)以防止过期缓存影响覆盖率结果。设置 <code>--basetemp=.pytest-temp</code> 将所有临时测试产物保留在仓库内。</p></article>
           <article class="fact"><b>Vitest v8 coverage</b><p>apps/web/vitest.config.ts 配置 v8 coverage provider,<code>include: ["app/lib/**/*.ts", "app/components/**/*.{ts,tsx}"]</code>,<code>exclude: ["app/**/*.test.{ts,tsx}"]</code>。Reporter:text 和 json-summary。阈值:40% 行和 40% 语句。</p></article>
           <article class="fact"><b>覆盖率范围理由</b><p>Vitest coverage 包含编排代码(app/lib)和展示代码(app/components),但排除测试文件本身。40% 阈值是有意保守的:确保核心逻辑被测试,而不迫使对每个工具函数写脆弱的测试。<code>coverage-v8</code> 包提供原生 V8 检测。</p></article>
@@ -420,6 +425,6 @@ def create_ready_document(client, headers=HEADERS) -> tuple[str, str]:
 
     </div></div>
   </main>
-  <footer class="foot"><div class="shell"><p>ResearchMate documentation &middot; 合约与测试学习指南 &middot; 2026 年 8 月 6 日</p></div></footer>
+  <footer class="foot"><div class="shell"><p>ResearchMate documentation &middot; 合约与测试学习指南 &middot; 2026 年 8 月 7 日</p></div></footer>
 </body>
 </html>
