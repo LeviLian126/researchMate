@@ -81,9 +81,30 @@ paths:
       tags:
       - health
       summary: Readyz
-      description: Probe non-charging dependencies required to safely accept production
+      description: 'Probe non-charging dependencies required to safely accept production
         work.
+
+
+        By default in production and preview environments only a minimal status payload
+        is
+
+        returned so that internal component states and failure lists are not exposed
+        at the
+
+        public entrypoint. Operators and tests can pass ``?verbose=true`` to receive
+        the full
+
+        detail payload for debugging.'
       operationId: readyz_api_v1_readyz_get
+      parameters:
+      - name: verbose
+        in: query
+        required: false
+        schema:
+          type: boolean
+          description: Return full component details. Defaults to False in production.
+          title: Verbose
+        description: Return full component details. Defaults to False in production.
       responses:
         '200':
           description: Successful Response
