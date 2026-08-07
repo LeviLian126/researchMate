@@ -1,5 +1,7 @@
 """Expose owner-scoped document upload, lookup, ingestion, and deletion routes."""
 
+from __future__ import annotations
+
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, status
@@ -22,7 +24,7 @@ from researchmate_api.services.store import ResearchMateRepository
 router = APIRouter()
 
 
-# 生成本地 R2 signed upload URL 占位，并创建 uploaded 文档记录。
+# Generate a local R2 signed upload URL placeholder and create an uploaded document record.
 @router.post("/documents/upload-url", response_model=UploadUrlResponse)
 def create_upload_url(
     payload: UploadUrlRequest,
@@ -36,7 +38,7 @@ def create_upload_url(
     return response
 
 
-# 创建或确认文档元数据，必须绑定 user_id 和 project_id。
+# Create or confirm document metadata; must bind user_id and project_id.
 @router.post("/documents", response_model=DocumentRecord, status_code=status.HTTP_201_CREATED)
 def create_document(
     payload: UploadUrlRequest,
@@ -50,7 +52,7 @@ def create_document(
     return document
 
 
-# 列出项目文档，按 user_id 和 project_id 过滤。
+# List project documents, filtered by user_id and project_id.
 @router.get("/projects/{project_id}/documents", response_model=list[DocumentRecord])
 def list_project_documents(
     project_id: UUID,
@@ -81,7 +83,7 @@ def list_conversation_documents(
     return documents
 
 
-# 读取单个文档，必须校验资源归属。
+# Read a single document; must validate resource ownership.
 @router.get("/documents/{document_id}", response_model=DocumentRecord)
 def get_document(
     document_id: UUID,
@@ -95,7 +97,7 @@ def get_document(
     return document
 
 
-# 通知上传完成；本地开发可传 extracted_text，生产 worker 应从 R2 解析。
+# Notify upload completion; local development may pass extracted_text, production worker should parse from R2.
 @router.post("/documents/{document_id}/complete", status_code=status.HTTP_202_ACCEPTED)
 def complete_upload(
     document_id: UUID,
@@ -129,7 +131,7 @@ def complete_upload(
     return {"job_id": str(job.id), "status": job.status}
 
 
-# 删除文档并清理 metadata、chunks 和本地缓存。
+# Delete a document and clean up metadata, chunks, and local cache.
 @router.delete("/documents/{document_id}", status_code=status.HTTP_202_ACCEPTED)
 def delete_document(
     document_id: UUID,

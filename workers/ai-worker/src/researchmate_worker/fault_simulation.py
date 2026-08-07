@@ -20,6 +20,7 @@ SCENARIO_BOUNDARIES = {
 @dataclass(frozen=True)
 class ClaimedFaultExercise:
     """Carry one leased reliability exercise into bounded worker execution."""
+
     id: UUID
     scenario: str
     target_run_id: UUID | None

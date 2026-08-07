@@ -21,7 +21,7 @@ DOC_LEADS = {
 ASSET_STYLE = "assets/site.css"
 
 
-# 计算当前 HTML-first docs 页面到共享样式的相对路径。
+# Compute the relative path from the current HTML-first docs page to the shared stylesheet.
 def stylesheet_link(path: Path) -> str:
     """Resolve the shared stylesheet path relative to a documentation page."""
     relative = Path(
@@ -31,7 +31,7 @@ def stylesheet_link(path: Path) -> str:
     return f'<link rel="stylesheet" href="{relative}">'
 
 
-# 修复通用文档页里被替换为问号的导航、目录和摘要文案。
+# Repair navigation, table-of-contents, and summary text in generic doc pages that was replaced with question marks.
 def repair_common_wrappers() -> None:
     """Restore known corrupted navigation and summary labels."""
     for path in DOCS.rglob("*.html"):
@@ -58,7 +58,7 @@ def repair_common_wrappers() -> None:
         path.write_text(text, encoding="utf-8", newline="\n")
 
 
-# 统一 docs 根页面样式入口，避免继续保留每页一套内联 CSS。
+# Unify the docs root stylesheet entry point to avoid keeping per-page inline CSS.
 def unify_shared_styles() -> None:
     """Replace per-page inline styles with the shared documentation stylesheet."""
     for path in DOCS.rglob("*.html"):
@@ -72,7 +72,7 @@ def unify_shared_styles() -> None:
         path.write_text(text, encoding="utf-8", newline="\n")
 
 
-# 执行所有文档乱码修复任务。
+# Run every documentation garbled-text repair task.
 def main() -> None:
     """Run each deterministic documentation repair pass."""
     repair_common_wrappers()

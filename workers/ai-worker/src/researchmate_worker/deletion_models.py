@@ -11,6 +11,7 @@ from pydantic import BaseModel
 
 class DocumentDeletionEvent(BaseModel):
     """Validate identifiers for one durable document-deletion delivery."""
+
     job_id: UUID
     user_id: UUID
     project_id: UUID
@@ -19,6 +20,7 @@ class DocumentDeletionEvent(BaseModel):
 
 class ProjectDeletionEvent(BaseModel):
     """Validate identifiers for one durable project-deletion delivery."""
+
     job_id: UUID
     user_id: UUID
     project_id: UUID
@@ -27,6 +29,7 @@ class ProjectDeletionEvent(BaseModel):
 @dataclass(frozen=True)
 class DeletionRecord:
     """Carry the claimed document artifacts and ownership scope."""
+
     job_id: UUID
     user_id: UUID
     project_id: UUID
@@ -39,6 +42,7 @@ class DeletionRecord:
 @dataclass(frozen=True)
 class ProjectDeletionRecord:
     """Carry the claimed project artifacts and ownership scope."""
+
     job_id: UUID
     user_id: UUID
     project_id: UUID
@@ -49,6 +53,7 @@ class ProjectDeletionRecord:
 
 class DeletionStore(Protocol):
     """Define lease-safe persistence operations for document deletion."""
+
     def claim(
         self, event: DocumentDeletionEvent, *, worker_id: str, lease_seconds: int
     ) -> DeletionRecord | None: ...
@@ -62,11 +67,13 @@ class DeletionStore(Protocol):
 
 class ObjectDeletion(Protocol):
     """Define remote object removal without exposing a storage SDK."""
+
     def delete(self, object_key: str) -> None: ...
 
 
 class VectorDeletion(Protocol):
     """Define scoped vector removal for documents and projects."""
+
     def delete_points(self, point_ids: list[str], *, user_id: str, project_id: str) -> None: ...
 
     def delete_project_points(self, *, user_id: str, project_id: str) -> None: ...
@@ -74,6 +81,7 @@ class VectorDeletion(Protocol):
 
 class ProjectDeletionStore(Protocol):
     """Define lease-safe persistence operations for project deletion."""
+
     def claim(
         self, event: ProjectDeletionEvent, *, worker_id: str, lease_seconds: int
     ) -> ProjectDeletionRecord | None: ...

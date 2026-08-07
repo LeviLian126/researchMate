@@ -56,9 +56,7 @@ class QueryConversationCoordinator:
             documents, chunks = [], []
         else:
             documents = self.repository.list_conversation_documents(user, conversation.id) or []
-            chunks = self.repository.conversation_chunks(
-                user, payload.project_id, conversation.id
-            )
+            chunks = self.repository.conversation_chunks(user, payload.project_id, conversation.id)
         if chunks is None:
             raise_grounded_error("PROJECT_NOT_FOUND", "Project was not found.", 404)
         self._reject_processing_documents(documents, chunks)
@@ -114,9 +112,7 @@ class QueryConversationCoordinator:
         if project.kind != "workspace":
             return context
         excluded_id = conversation.id if conversation is not None else UUID(int=0)
-        memory = self.repository.project_memory_context(
-            user, payload.project_id, excluded_id
-        ) or []
+        memory = self.repository.project_memory_context(user, payload.project_id, excluded_id) or []
         return ContextOutcome(
             [*build_project_memory(memory), *context.messages],
             degraded=context.degraded,

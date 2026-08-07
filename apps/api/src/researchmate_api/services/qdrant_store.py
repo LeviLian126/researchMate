@@ -9,17 +9,18 @@ from math import log1p
 from typing import Any
 
 from qdrant_client import QdrantClient, models
-
 from researchmate_api.config import Settings
-from researchmate_api.schemas.common import SourceType
+from researchmate_api.schemas.common import MAX_TEXT_LENGTH, SourceType
 from researchmate_api.services.embedding import NvidiaEmbeddingProvider
 from researchmate_api.services.retrieval import tokenize
 from researchmate_api.services.store import ChunkEntry
 
 LOGGER = logging.getLogger(__name__)
 
+
 class VectorStoreRequestError(RuntimeError):
     """Normalize vector-store failures and their retryability."""
+
     def __init__(self, operation: str, *, retryable: bool = True) -> None:
         super().__init__(f"Vector store {operation} failed")
         self.operation = operation
@@ -44,6 +45,7 @@ def sparse_text_vector(text: str) -> models.SparseVector:
 
 class QdrantHybridStore:
     """Enforce owner filters around hybrid Qdrant queries and mutations."""
+
     def __init__(
         self,
         settings: Settings,
@@ -73,9 +75,9 @@ class QdrantHybridStore:
         """Build the mandatory owner, project, source, and document filter."""
         source_value = source_type.value if isinstance(source_type, SourceType) else source_type
         conditions: list[Any] = [
-                models.FieldCondition(key="user_id", match=models.MatchValue(value=user_id)),
-                models.FieldCondition(key="project_id", match=models.MatchValue(value=project_id)),
-                models.FieldCondition(key="source_type", match=models.MatchValue(value=source_value)),
+            models.FieldCondition(key="user_id", match=models.MatchValue(value=user_id)),
+            models.FieldCondition(key="project_id", match=models.MatchValue(value=project_id)),
+            models.FieldCondition(key="source_type", match=models.MatchValue(value=source_value)),
         ]
         if document_ids:
             conditions.append(
@@ -172,7 +174,7 @@ class QdrantHybridStore:
         try:
             result = self.client.query_points(
                 collection_name=self.rerank_collection,
-                query=models.Document(text=text[:1200], model=model),
+                query=models.Document(text=text[:MAX_TEXT_LENGTH], model=model),
                 using="multi",
                 query_filter=query_filter,
                 limit=limit,
@@ -248,7 +250,7 @@ class QdrantHybridStore:
                     id=str(chunk.id),
                     vector={
                         "multi": models.Document(
-                            text=chunk.text[:1200],
+                            text=chunk.text[:MAX_TEXT_LENGTH],
                             model=self.settings.qdrant_rerank_model,
                         )
                     },

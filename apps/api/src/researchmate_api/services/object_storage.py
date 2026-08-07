@@ -15,6 +15,7 @@ class ObjectStorageConfigurationError(RuntimeError):
 
 class ObjectStorageRequestError(RuntimeError):
     """Normalize an object-storage operation failure and retryability."""
+
     def __init__(self, operation: str, *, retryable: bool) -> None:
         """Capture the failed storage operation and retry classification."""
         super().__init__(f"Object storage {operation} failed")
@@ -24,15 +25,84 @@ class ObjectStorageRequestError(RuntimeError):
 
 class UploadVerificationError(RuntimeError):
     """Expose a stable code for uploaded-object validation failures."""
+
     def __init__(self, code: str, message: str) -> None:
         """Capture the stable upload-verification code and safe message."""
         super().__init__(message)
         self.code = code
 
 
+# Map declared MIME types to the magic-byte signatures that python-magic is expected to
+# surface for a genuinely matching file. Values are kept as prefixes so that parameter
+# suffixes (e.g. " application/pdf; charset=binary" in some libmagic builds) still match.
+_MIME_MAGIC_ALIASES: dict[str, tuple[str, ...]] = {
+    "application/pdf": ("application/pdf",),
+    "image/png": ("image/png",),
+    "image/jpeg": ("image/jpeg", "image/jpg"),
+    "image/gif": ("image/gif",),
+    "image/webp": ("image/webp",),
+    "text/plain": ("text/plain", "ascii"),
+    "text/markdown": ("text/plain", "ascii"),
+    "text/csv": ("text/plain", "csv", "ascii"),
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": (
+        "application/vnd.openxmlformats",
+        "application/zip",
+    ),
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation": (
+        "application/vnd.openxmlformats",
+        "application/zip",
+    ),
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": (
+        "application/vnd.openxmlformats",
+        "application/zip",
+    ),
+    "application/vnd.ms-powerpoint": ("application/vnd.ms-powerpoint", "application/xzip"),
+    "application/vnd.ms-excel": ("application/vnd.ms-excel", "application/xzip"),
+    "application/msword": ("application/msword", "application/x-zip-compressed"),
+    "application/zip": ("application/zip",),
+    "application/json": ("application/json", "text/plain", "ascii"),
+}
+
+
+def _detect_mime_type(data: bytes) -> str | None:
+    """Return the libmagic-detected MIME type for the first chunk of bytes.
+
+    The python-magic library is loaded lazily so that environments without it (e.g. worker
+    pods that do not upload files) can still import this module. ``None`` is returned when
+    the library is unavailable, which callers treat as "skip validation".
+    """
+    if not data:
+        return None
+    try:
+        import magic
+    except ModuleNotFoundError:
+        return None
+    try:
+        return magic.from_buffer(data, mime=True)
+    except Exception:  # pragma: no cover - libmagic is a C extension; defensive only.
+        return None
+
+
+def _mime_matches(detected: str | None, declared: str) -> bool:
+    """Return True when the detected MIME is a known alias of the declared type."""
+    if detected is None:
+        # Without libmagic available we cannot verify; fail open to avoid blocking uploads
+        # in environments that deliberately skip the optional python-magic dependency.
+        return True
+    declared_lower = declared.lower()
+    aliases = _MIME_MAGIC_ALIASES.get(declared_lower)
+    detected_lower = detected.lower()
+    if aliases:
+        return any(alias in detected_lower for alias in aliases)
+    # Unknown-to-the-allowlist declared type: accept when libmagic agrees with the declared
+    # type itself (covers rare types not enumerated above).
+    return declared_lower in detected_lower or detected_lower.startswith(declared_lower)
+
+
 @dataclass(frozen=True)
 class StoredObjectMetadata:
     """Normalize object metadata used to verify an upload."""
+
     size_bytes: int
     content_type: str | None
     etag: str | None
@@ -45,13 +115,17 @@ class S3CompatibleObjectStorage:
     def __init__(self, settings: Settings, client: Any | None = None) -> None:
         """Bind verified object-storage settings and an optional injected client."""
         if not settings.object_storage_configured:
-            raise ObjectStorageConfigurationError("S3-compatible object storage is not fully configured")
+            raise ObjectStorageConfigurationError(
+                "S3-compatible object storage is not fully configured"
+            )
         endpoint_url = settings.object_storage_endpoint_url_resolved
         access_key_id = settings.object_storage_access_key_id_resolved
         secret_access_key = settings.object_storage_secret_access_key_resolved
         bucket = settings.object_storage_bucket_resolved
         if not endpoint_url or not access_key_id or not secret_access_key or not bucket:
-            raise ObjectStorageConfigurationError("S3-compatible object storage is not fully configured")
+            raise ObjectStorageConfigurationError(
+                "S3-compatible object storage is not fully configured"
+            )
         self.bucket = bucket
         if client is None:
             import boto3
@@ -101,6 +175,44 @@ class S3CompatibleObjectStorage:
             etag=str(response["ETag"]).strip('"') if response.get("ETag") else None,
             metadata={str(key): str(value) for key, value in response.get("Metadata", {}).items()},
         )
+
+    def verify_uploaded_content(
+        self,
+        object_key: str,
+        *,
+        declared_mime_type: str,
+        sample_bytes: int = 4096,
+    ) -> None:
+        """Verify an uploaded object's magic bytes match its declared MIME type.
+
+        After a client PUT completes the server downloads the first ``sample_bytes`` of the
+        stored object and asks libmagic (via ``python-magic``) to identify the actual MIME
+        type. When that disagrees with the declared MIME type stored at upload reservation
+        time the upload is rejected as ``MIME_MISMATCH`` and the object is deleted to avoid
+        leaving attacker-controlled bytes in private storage.
+        """
+        try:
+            body = self.client.get_object(
+                Bucket=self.bucket, Key=object_key, Range=f"bytes=0-{sample_bytes - 1}"
+            )["Body"].read()
+        except Exception as exc:
+            raise ObjectStorageRequestError("get_object", retryable=False) from exc
+        detected = _detect_mime_type(body)
+        if not _mime_matches(detected, declared_mime_type):
+            # Best-effort cleanup: delete the offending object so private storage does not
+            # retain content that fails verification. A delete failure does not mask the
+            # verification error.
+            try:
+                self.delete(object_key)
+            except ObjectStorageRequestError:
+                pass
+            raise UploadVerificationError(
+                code="MIME_MISMATCH",
+                message=(
+                    f"Uploaded object content (detected MIME {detected!r}) does not match "
+                    f"declared MIME type {declared_mime_type!r}."
+                ),
+            )
 
     def delete(self, object_key: str) -> None:
         """Delete one private object while normalizing provider failures."""

@@ -34,6 +34,7 @@ from researchmate_api.schemas.sources import RunSourcesResponse
 @dataclass
 class ChunkEntry:
     """Represent one retrievable source chunk with ownership and citation metadata."""
+
     id: UUID
     user_id: UUID
     project_id: UUID
@@ -50,6 +51,7 @@ class ChunkEntry:
 @dataclass
 class UploadReservation:
     """Track an in-memory object upload reservation."""
+
     document_id: UUID
     r2_object_key: str
     request: UploadUrlRequest

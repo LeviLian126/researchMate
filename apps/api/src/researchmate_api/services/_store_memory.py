@@ -110,9 +110,7 @@ class MemoryStoreMixin:
                 for message in self.conversation_items.get(conversation_id, [])
             ]
             for conversation_id in other_ids:
-                summary, _ = self.conversation_summaries.get(
-                    conversation_id, (None, 0)
-                )
+                summary, _ = self.conversation_summaries.get(conversation_id, (None, 0))
                 if summary:
                     messages.append(
                         ConversationMessage(
@@ -121,9 +119,7 @@ class MemoryStoreMixin:
                             role="assistant",
                             content=f"Project conversation summary: {summary}",
                             citations=[],
-                            created_at=self.conversations[
-                                conversation_id
-                            ].updated_at,
+                            created_at=self.conversations[conversation_id].updated_at,
                         )
                     )
             return sorted(messages, key=lambda item: item.created_at)[-limit:]

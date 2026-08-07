@@ -72,6 +72,7 @@ def test_context_packer_respects_budget_after_first_item() -> None:
 
 class _Response:
     """Provide a minimal successful ranking response."""
+
     def raise_for_status(self) -> None:
         return None
 
@@ -81,6 +82,7 @@ class _Response:
 
 class _NvidiaClient:
     """Record NVIDIA ranking requests and return stable rankings."""
+
     def __init__(self) -> None:
         self.payload = None
 
@@ -99,9 +101,7 @@ def test_nvidia_adapter_uses_ranking_api_and_top_n() -> None:
         RetrievalCandidate(_chunk("first"), 1),
         RetrievalCandidate(_chunk("second"), 0.5),
     ]
-    result = reranker.rerank(
-        "query", candidates, top_n=2, user_id="user", project_id="project"
-    )
+    result = reranker.rerank("query", candidates, top_n=2, user_id="user", project_id="project")
     assert [item.chunk.text for item in result] == ["second", "first"]
     assert client.payload["model"] == "rank-model"
     assert client.payload["top_n"] == 2
@@ -120,9 +120,7 @@ def test_auto_provider_degrades_deterministically_when_models_unavailable() -> N
         qdrant=None,
     )
     candidates = [RetrievalCandidate(_chunk("candidate"), 0.25)]
-    result = coordinator.execute(
-        "auto", "query", candidates, user_id="user", project_id="project"
-    )
+    result = coordinator.execute("auto", "query", candidates, user_id="user", project_id="project")
     assert result.provider == "deterministic"
     assert result.degraded is True
     assert "nvidia_unavailable" in (result.fallback_reason or "")

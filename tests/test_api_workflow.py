@@ -12,7 +12,7 @@ from tests.api_workflow_support import (
 pytest_plugins = ["tests.api_workflow_fixtures"]
 
 
-# 验证本地资料问答、Sources panel 和 Developer Trace 闭环。
+# Verify the local-evidence ask, Sources panel, and Developer Trace closed loop.
 def test_local_ask_sources_and_trace_workflow(client: TestClient) -> None:
     """Persist an evidence-backed answer with sources and a developer trace."""
     project_id, _ = create_ready_document(client)
@@ -44,7 +44,7 @@ def test_local_ask_sources_and_trace_workflow(client: TestClient) -> None:
     assert all(call["latency_ms"] >= 0 for call in trace["tool_calls"])
 
 
-# 验证普通用户无法查看 Developer Trace。
+# Verify that regular users cannot view the Developer Trace.
 def test_trace_is_admin_only(client: TestClient) -> None:
     """Deny developer-trace access to a regular authenticated user."""
     project_id, _ = create_ready_document(client, headers=USER_A_HEADERS)
@@ -66,7 +66,7 @@ def test_trace_is_admin_only(client: TestClient) -> None:
     assert admin_visible.status_code == 200
 
 
-# 验证 user_id 隔离：用户 B 不能读取用户 A 的项目与文件。
+# Verify user_id isolation: user B cannot read user A's projects or files.
 def test_user_isolation_for_project_and_documents(client: TestClient) -> None:
     """Conceal one user's project and document identifiers from another user."""
     project_id, document_id = create_ready_document(client, headers=USER_A_HEADERS)
@@ -79,7 +79,7 @@ def test_user_isolation_for_project_and_documents(client: TestClient) -> None:
     )
 
 
-# 验证 Quiz 输出、四选项约束和历史列表。
+# Verify Quiz output, four-option constraint, and history list.
 def test_quiz_generation_and_history(client: TestClient) -> None:
     """Generate a contract-valid Quiz and expose it through project history."""
     project_id, _ = create_ready_document(client)
@@ -220,7 +220,7 @@ def test_personal_project_is_hidden_and_cannot_generate_quiz(client: TestClient)
     assert rejected.json()["error"]["code"] == "QUIZ_NOT_AVAILABLE"
 
 
-# 验证没有本地 indexed chunks 时拒绝 Local Ask，不编造答案。
+# Verify that Local Ask is rejected (no fabricated answer) when no local indexed chunks exist.
 def test_ask_without_document_is_plain_chat(client: TestClient) -> None:
     """Allow an empty workspace to answer as plain chat without fabricated sources."""
     project_response = client.post("/api/v1/projects", json={"name": "Empty"}, headers=HEADERS)

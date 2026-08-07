@@ -1,5 +1,7 @@
 """Expose owned conversation lifecycle and privileged rerank configuration routes."""
 
+from __future__ import annotations
+
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Response, status

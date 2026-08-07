@@ -168,9 +168,7 @@ def test_accepted_responses_use_stable_resource_urls() -> None:
 
 def test_refresh_acceptance_uses_persisted_or_fallback_sections() -> None:
     """Prefer persisted impact analysis and retain a deterministic fallback."""
-    persisted_connection = SequentialConnection(
-        [{"impacted_section_keys": ["risk", "summary"]}]
-    )
+    persisted_connection = SequentialConnection([{"impacted_section_keys": ["risk", "summary"]}])
     fallback_connection = SequentialConnection([{}])
 
     persisted = PostgresEvidenceRepository._refresh_accepted(

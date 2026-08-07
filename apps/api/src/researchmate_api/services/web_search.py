@@ -21,6 +21,7 @@ class HttpClient(Protocol):
 
 class WebSearchRequestError(RuntimeError):
     """Normalize web-search failures while retaining retryability."""
+
     def __init__(self, *, retryable: bool) -> None:
         super().__init__("Web search provider request failed")
         self.retryable = retryable

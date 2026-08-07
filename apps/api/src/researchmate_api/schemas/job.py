@@ -1,16 +1,18 @@
 """Define the public status record for owner-scoped asynchronous jobs."""
 
+from __future__ import annotations
+
 from datetime import datetime
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
-
 from researchmate_api.schemas.common import JobStatus
 
 
-# 定义异步任务响应。
+# Define the asynchronous job response.
 class JobRecord(BaseModel):
     """Represent an asynchronous job without exposing worker internals."""
+
     id: UUID
     user_id: UUID
     project_id: UUID | None = None

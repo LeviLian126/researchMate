@@ -84,8 +84,12 @@ class RunStoreMixin:
             trace_id = uuid4()
             total_latency_ms = int((runtime_metadata or {}).get("total_latency_ms", 0))
             summary = SourceSummary(
-                local_chunks=sum(1 for citation in citations if citation.source_type == SourceType.LOCAL_DOC),
-                web_pages=sum(1 for citation in citations if citation.source_type == SourceType.WEB_PAGE),
+                local_chunks=sum(
+                    1 for citation in citations if citation.source_type == SourceType.LOCAL_DOC
+                ),
+                web_pages=sum(
+                    1 for citation in citations if citation.source_type == SourceType.WEB_PAGE
+                ),
             )
             self.run_sources[run_id] = RunSourcesResponse(
                 run_id=run_id,

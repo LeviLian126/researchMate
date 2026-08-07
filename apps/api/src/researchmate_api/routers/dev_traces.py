@@ -1,5 +1,7 @@
 """Expose the privileged HTTP endpoint for redacted developer traces."""
 
+from __future__ import annotations
+
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, status

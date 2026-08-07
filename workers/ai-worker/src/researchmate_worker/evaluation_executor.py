@@ -23,6 +23,7 @@ SUPPORTED_METRICS = {"schema_valid", "citation_precision", "evidence_recall", "f
 
 class QdrantCaseExecutor:
     """Generate a grounded answer for one owned evaluation case."""
+
     def __init__(
         self, engine: Engine, vector_store: QdrantHybridStore, provider: ChatProvider
     ) -> None:

@@ -63,16 +63,20 @@ class UploadPersistenceMixin:
         with self._transaction(user) as connection:
             if not self._lock_active_project(connection, user.id, payload.project_id):
                 return None
-            project = connection.execute(
-                text(
-                    """
+            project = (
+                connection.execute(
+                    text(
+                        """
                     select id,kind from projects
                     where id=:project_id and user_id=:user_id
                       and status='active' and deleted_at is null
                     """
-                ),
-                {"project_id": payload.project_id, "user_id": user.id},
-            ).mappings().one_or_none()
+                    ),
+                    {"project_id": payload.project_id, "user_id": user.id},
+                )
+                .mappings()
+                .one_or_none()
+            )
             if project is None:
                 return None
             if project["kind"] == "personal":
@@ -139,9 +143,10 @@ class UploadPersistenceMixin:
     ) -> DocumentRecord | None:
         """Resolve the latest matching uploaded document reservation."""
         with self._transaction(user) as connection:
-            row = connection.execute(
-                text(
-                    """
+            row = (
+                connection.execute(
+                    text(
+                        """
                     select id, user_id, project_id, conversation_id, filename, file_type,
                            mime_type, size_bytes,
                            status, error_message, expires_at, created_at, updated_at, deleted_at
@@ -158,15 +163,18 @@ class UploadPersistenceMixin:
                     order by created_at desc
                     limit 1
                     """
-                ),
-                {
-                    "user_id": user.id,
-                    "project_id": payload.project_id,
-                    "conversation_id": payload.conversation_id,
-                    "filename": payload.filename,
-                    "size_bytes": payload.size_bytes,
-                },
-            ).mappings().one_or_none()
+                    ),
+                    {
+                        "user_id": user.id,
+                        "project_id": payload.project_id,
+                        "conversation_id": payload.conversation_id,
+                        "filename": payload.filename,
+                        "size_bytes": payload.size_bytes,
+                    },
+                )
+                .mappings()
+                .one_or_none()
+            )
         if row is not None:
             return DocumentRecord.model_validate(dict(row))
         reservation = self.create_upload_url(user, payload)
@@ -234,16 +242,20 @@ class UploadPersistenceMixin:
     def get_document(self, user: CurrentUser, document_id: UUID) -> DocumentRecord | None:
         """Return one visible document owned by the caller."""
         with self._transaction(user) as connection:
-            row = connection.execute(
-                text(
-                    """
+            row = (
+                connection.execute(
+                    text(
+                        """
                     select id, user_id, project_id, conversation_id, filename, file_type,
                            mime_type, size_bytes,
                            status, error_message, expires_at, created_at, updated_at, deleted_at
                     from documents
                     where id = :document_id and user_id = :user_id and deleted_at is null
                     """
-                ),
-                {"document_id": document_id, "user_id": user.id},
-            ).mappings().one_or_none()
+                    ),
+                    {"document_id": document_id, "user_id": user.id},
+                )
+                .mappings()
+                .one_or_none()
+            )
         return None if row is None else DocumentRecord.model_validate(dict(row))

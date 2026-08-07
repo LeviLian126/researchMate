@@ -61,9 +61,10 @@ class ConversationPersistenceMixin:
             if not self._lock_active_project(connection, user.id, project_id):
                 return None
             if conversation_id is not None:
-                row = connection.execute(
-                    text(
-                        """
+                row = (
+                    connection.execute(
+                        text(
+                            """
                         select id, project_id, title, created_at, updated_at
                         from conversations
                         where id=:id and project_id=:project_id and user_id=:user_id
@@ -75,17 +76,21 @@ class ConversationPersistenceMixin:
                               and p.deleted_at is null
                           )
                         """
-                    ),
-                    {
-                        "id": conversation_id,
-                        "project_id": project_id,
-                        "user_id": user.id,
-                    },
-                ).mappings().one_or_none()
+                        ),
+                        {
+                            "id": conversation_id,
+                            "project_id": project_id,
+                            "user_id": user.id,
+                        },
+                    )
+                    .mappings()
+                    .one_or_none()
+                )
                 if row is not None and row["title"] == "New chat":
-                    renamed_row = connection.execute(
-                        text(
-                            """
+                    renamed_row = (
+                        connection.execute(
+                            text(
+                                """
                             update conversations c
                             set title=:title,updated_at=now()
                             where c.id=:id and c.user_id=:user_id
@@ -95,19 +100,23 @@ class ConversationPersistenceMixin:
                               )
                             returning id,project_id,title,created_at,updated_at
                             """
-                        ),
-                        {
-                            "id": conversation_id,
-                            "user_id": user.id,
-                            "title": (" ".join(first_message.split())[:120] or "New chat"),
-                        },
-                    ).mappings().one_or_none()
+                            ),
+                            {
+                                "id": conversation_id,
+                                "user_id": user.id,
+                                "title": (" ".join(first_message.split())[:120] or "New chat"),
+                            },
+                        )
+                        .mappings()
+                        .one_or_none()
+                    )
                     if renamed_row is not None:
                         row = renamed_row
             else:
-                row = connection.execute(
-                    text(
-                        """
+                row = (
+                    connection.execute(
+                        text(
+                            """
                         insert into conversations (id,user_id,project_id,title)
                         select :id,:user_id,p.id,:title
                         from projects p
@@ -115,14 +124,17 @@ class ConversationPersistenceMixin:
                           and p.status='active' and p.deleted_at is null
                         returning id,project_id,title,created_at,updated_at
                         """
-                    ),
-                    {
-                        "id": uuid4(),
-                        "project_id": project_id,
-                        "user_id": user.id,
-                        "title": (" ".join(first_message.split())[:120] or "New conversation"),
-                    },
-                ).mappings().one_or_none()
+                        ),
+                        {
+                            "id": uuid4(),
+                            "project_id": project_id,
+                            "user_id": user.id,
+                            "title": (" ".join(first_message.split())[:120] or "New conversation"),
+                        },
+                    )
+                    .mappings()
+                    .one_or_none()
+                )
         return ConversationSummary.model_validate(row) if row else None
 
     def create_conversation(
@@ -252,9 +264,10 @@ class ConversationPersistenceMixin:
     ) -> ConversationSummary | None:
         """Rename an owned conversation."""
         with self._transaction(user) as connection:
-            row = connection.execute(
-                text(
-                    """
+            row = (
+                connection.execute(
+                    text(
+                        """
                     update conversations
                     set title=:title,updated_at=now()
                     where id=:id and user_id=:user_id and deleted_at is null
@@ -266,9 +279,12 @@ class ConversationPersistenceMixin:
                       )
                     returning id,project_id,title,created_at,updated_at
                     """
-                ),
-                {"id": conversation_id, "user_id": user.id, "title": title.strip()},
-            ).mappings().one_or_none()
+                    ),
+                    {"id": conversation_id, "user_id": user.id, "title": title.strip()},
+                )
+                .mappings()
+                .one_or_none()
+            )
         return ConversationSummary.model_validate(row) if row else None
 
     def delete_conversation(self, user: CurrentUser, conversation_id: UUID) -> bool:

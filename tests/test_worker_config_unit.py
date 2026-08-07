@@ -1,4 +1,5 @@
 """Verify worker configuration projection and shared provider compatibility."""
+
 from __future__ import annotations
 
 from types import SimpleNamespace

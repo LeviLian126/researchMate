@@ -29,15 +29,19 @@ class PostgresEvidenceEvaluationMixin:
         request_hash = evidence_fingerprint(payload)
         with self._transaction(user) as connection:
             self._lock_idempotency(connection, user.id, idempotency_key)
-            existing = connection.execute(
-                text(
-                    """
+            existing = (
+                connection.execute(
+                    text(
+                        """
                     select id, summary, budget_limit_usd from evaluation_runs
                     where user_id = :user_id and idempotency_key = :key for update
                     """
-                ),
-                {"user_id": user.id, "key": idempotency_key},
-            ).mappings().one_or_none()
+                    ),
+                    {"user_id": user.id, "key": idempotency_key},
+                )
+                .mappings()
+                .one_or_none()
+            )
             if existing is not None:
                 summary = existing["summary"] or {}
                 if summary.get("request_hash") != request_hash:
@@ -48,9 +52,10 @@ class PostgresEvidenceEvaluationMixin:
                     status_url=f"/api/v1/evaluation-runs/{existing['id']}",
                     estimated_budget_boundary=existing["budget_limit_usd"],
                 )
-            valid = connection.execute(
-                text(
-                    """
+            valid = (
+                connection.execute(
+                    text(
+                        """
                     select d.project_id, d.user_id as dataset_user_id,
                       count(c.id) as case_count
                     from evaluation_datasets d
@@ -65,14 +70,17 @@ class PostgresEvidenceEvaluationMixin:
                       and (d.user_id = :user_id or :privileged)
                     group by d.project_id, d.user_id
                     """
-                ),
-                {
-                    "dataset_id": payload.dataset_id,
-                    "pipeline_id": payload.pipeline_version_id,
-                    "user_id": user.id,
-                    "privileged": user.role in {"developer", "admin"},
-                },
-            ).mappings().one_or_none()
+                    ),
+                    {
+                        "dataset_id": payload.dataset_id,
+                        "pipeline_id": payload.pipeline_version_id,
+                        "user_id": user.id,
+                        "privileged": user.role in {"developer", "admin"},
+                    },
+                )
+                .mappings()
+                .one_or_none()
+            )
             if valid is None:
                 raise EvidenceStoreError("DATASET_NOT_FROZEN")
             if valid["project_id"] is not None and not self._lock_active_project(
@@ -133,29 +141,37 @@ class PostgresEvidenceEvaluationMixin:
         """Read an authorized evaluation run, scores, and computed progress."""
         privileged = user.role in {"developer", "admin"}
         with self._transaction(user) as connection:
-            row = connection.execute(
-                text(
-                    """
+            row = (
+                connection.execute(
+                    text(
+                        """
                     select id,dataset_id,pipeline_version_id,status,summary,created_at,
                       started_at,completed_at
                     from evaluation_runs
                     where id = :id and (user_id = :user_id or :privileged)
                     """
-                ),
-                {"id": evaluation_run_id, "user_id": user.id, "privileged": privileged},
-            ).mappings().one_or_none()
+                    ),
+                    {"id": evaluation_run_id, "user_id": user.id, "privileged": privileged},
+                )
+                .mappings()
+                .one_or_none()
+            )
             if row is None:
                 return None
-            scores = connection.execute(
-                text(
-                    """
+            scores = (
+                connection.execute(
+                    text(
+                        """
                     select case_id,metric_name,metric_version,value,passed,details,judge_model
                     from evaluation_scores where evaluation_run_id = :id
                     order by case_id,metric_name,metric_version
                     """
-                ),
-                {"id": evaluation_run_id},
-            ).mappings().all()
+                    ),
+                    {"id": evaluation_run_id},
+                )
+                .mappings()
+                .all()
+            )
             total_cases = connection.execute(
                 text("select count(*) from evaluation_cases where dataset_id = :id"),
                 {"id": row["dataset_id"]},
@@ -166,8 +182,10 @@ class PostgresEvidenceEvaluationMixin:
                 ),
                 {"id": evaluation_run_id},
             ).scalar_one()
-        progress = 100 if row["status"] in {"succeeded", "failed", "cancelled"} else (
-            int(scored_cases * 100 / total_cases) if total_cases else 0
+        progress = (
+            100
+            if row["status"] in {"succeeded", "failed", "cancelled"}
+            else (int(scored_cases * 100 / total_cases) if total_cases else 0)
         )
         return EvaluationRunRecord(
             evaluation_run_id=row["id"],

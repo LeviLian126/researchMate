@@ -25,6 +25,7 @@ from researchmate_api.services.object_storage import (
 
 class EmptyResult:
     """Return no rows from isolated repository queries."""
+
     def mappings(self) -> "EmptyResult":
         return self
 
@@ -34,6 +35,7 @@ class EmptyResult:
 
 class RecordingConnection:
     """Record SQL statements issued by repository operations."""
+
     def __init__(self) -> None:
         self.calls: list[tuple[str, dict[str, Any]]] = []
 
@@ -44,6 +46,7 @@ class RecordingConnection:
 
 class ConnectionContext(AbstractContextManager[RecordingConnection]):
     """Provide a recording connection through a context manager."""
+
     def __init__(self, connection: RecordingConnection) -> None:
         self.connection = connection
 
@@ -56,6 +59,7 @@ class ConnectionContext(AbstractContextManager[RecordingConnection]):
 
 class RecordingEngine:
     """Expose recording transaction and connection contexts."""
+
     def __init__(self) -> None:
         self.connection = RecordingConnection()
 
@@ -137,14 +141,18 @@ def test_upload_factory_receives_validated_content_metadata() -> None:
         size_bytes=100,
     )
 
-    assert repository.upload_url_factory(
-        UUID("20000000-0000-4000-8000-000000000042"), "object-key", payload
-    ) == "https://upload.example.test/signed"
+    assert (
+        repository.upload_url_factory(
+            UUID("20000000-0000-4000-8000-000000000042"), "object-key", payload
+        )
+        == "https://upload.example.test/signed"
+    )
     assert captured["payload"].mime_type == "application/pdf"
 
 
 class OneMappingResult:
     """Return one configured mapping from a repository query."""
+
     def __init__(self, value: dict[str, Any]) -> None:
         self.value = value
 
@@ -157,6 +165,7 @@ class OneMappingResult:
 
 class ReservationConnection(RecordingConnection):
     """Return deterministic upload-reservation records while recording SQL."""
+
     def execute(self, statement: Any, parameters: dict[str, Any]):
         self.calls.append((str(statement), parameters))
         if "r2_object_key" in str(statement) and "join projects" in str(statement):
@@ -172,6 +181,7 @@ class ReservationConnection(RecordingConnection):
 
 class ReservationEngine(RecordingEngine):
     """Provide reservation-aware repository connections."""
+
     def __init__(self) -> None:
         self.connection = ReservationConnection()
 
@@ -180,7 +190,7 @@ def test_completion_verifies_reserved_object_before_accepting_work() -> None:
     """Verify reserved object metadata before accepting ingestion work."""
     repository = PostgresResearchMateRepository(
         ReservationEngine(),  # type: ignore[arg-type]
-        object_metadata_reader=lambda _key: StoredObjectMetadata(
+        object_metadata_reader=lambda _key, **_kwargs: StoredObjectMetadata(
             size_bytes=99,
             content_type="application/pdf",
             etag=None,
@@ -198,6 +208,37 @@ def test_completion_verifies_reserved_object_before_accepting_work() -> None:
         )
 
     assert raised.value.code == "UPLOAD_SIZE_MISMATCH"
+
+
+def test_completion_passes_declared_mime_type_to_metadata_reader() -> None:
+    """Forward the reserved MIME type so the reader can perform server-side content checks."""
+    captured: dict[str, object] = {}
+
+    def reader(_key, *, declared_mime_type=None):
+        captured["declared_mime_type"] = declared_mime_type
+        # Match the reservation size so the size-mismatch branch is skipped; the next
+        # branch (content-type mismatch) is also satisfied by reusing the same value.
+        return StoredObjectMetadata(
+            size_bytes=100,
+            content_type=declared_mime_type,
+            etag=None,
+            metadata={},
+        )
+
+    repository = PostgresResearchMateRepository(
+        ReservationEngine(),  # type: ignore[arg-type]
+        object_metadata_reader=reader,
+    )
+    user = CurrentUser(id=UUID("00000000-0000-4000-8000-000000000042"))
+
+    repository.complete_document(
+        user,
+        UUID("10000000-0000-4000-8000-000000000042"),
+        None,
+        "a" * 64,
+    )
+
+    assert captured["declared_mime_type"] == "application/pdf"
 
 
 def test_completion_persists_job_and_outbox_intent_in_one_method() -> None:

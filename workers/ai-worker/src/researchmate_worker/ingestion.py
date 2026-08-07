@@ -1,5 +1,7 @@
 """Expose the stable ingestion API while storage and orchestration evolve independently."""
 
+from __future__ import annotations
+
 from researchmate_worker.ingestion_models import (
     DocumentParser,
     IngestionEvent,

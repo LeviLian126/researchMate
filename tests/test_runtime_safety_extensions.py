@@ -14,6 +14,7 @@ from researchmate_worker.evaluation import PipelineRuntimeConfig
 
 class _Result:
     """Expose minimal reservation and usage result mappings."""
+
     def __init__(self, claimed: bool = True) -> None:
         self.claimed = claimed
 
@@ -23,6 +24,7 @@ class _Result:
 
 class _Connection:
     """Record budget SQL and return deterministic reservation results."""
+
     def __init__(self, claimed: bool = True) -> None:
         self.claimed = claimed
         self.statements: list[str] = []
@@ -35,6 +37,7 @@ class _Connection:
 
 class _Engine:
     """Provide an isolated budget transaction context."""
+
     def __init__(self, claimed: bool = True) -> None:
         self.connection = _Connection(claimed)
 
@@ -45,6 +48,7 @@ class _Engine:
 
 class _Provider:
     """Record bounded prompts and return deterministic token usage."""
+
     def complete(self, messages):
         assert list(messages)
         return LLMResult(

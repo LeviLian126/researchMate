@@ -22,6 +22,7 @@ EVENT = IngestionEvent(
 
 class FakeStore:
     """Record ingestion claims, projections, and lifecycle transitions."""
+
     def __init__(self, checksum=None, attempts=1):
         self.record = IngestionRecord(
             **EVENT.model_dump(),
@@ -60,6 +61,7 @@ class FakeStore:
 
 class FakeObjectReader:
     """Provide deterministic uploaded bytes to the ingestion service."""
+
     def __init__(self, content=b"source bytes"):
         self.content = content
 
@@ -69,6 +71,7 @@ class FakeObjectReader:
 
 class FakeParser:
     """Return deterministic parsed pages for ingestion tests."""
+
     def parse(self, source, *, file_type):
         assert source.read_bytes() == b"source bytes"
         assert file_type == "pdf"
@@ -84,6 +87,7 @@ class FakeParser:
 
 class FakeVectorProjection:
     """Record vector upserts and inject configured projection failures."""
+
     def __init__(self, error=None):
         self.error = error
         self.chunks = []

@@ -52,14 +52,18 @@ class MemoryPersistenceMixin:
     def get_runtime_rerank_config(self) -> RuntimeRerankConfig:
         """Return the active runtime rerank configuration."""
         with self._transaction() as connection:
-            row = connection.execute(
-                text(
-                    """
+            row = (
+                connection.execute(
+                    text(
+                        """
                     select provider,version,updated_at,updated_by
                     from runtime_ai_config where config_key='rerank'
                     """
+                    )
                 )
-            ).mappings().one()
+                .mappings()
+                .one()
+            )
         return RuntimeRerankConfig.model_validate(row)
 
     def update_runtime_rerank_config(
@@ -67,21 +71,25 @@ class MemoryPersistenceMixin:
     ) -> RuntimeRerankConfig | None:
         """Update rerank configuration using optimistic version control."""
         with self._transaction(user) as connection:
-            row = connection.execute(
-                text(
-                    """
+            row = (
+                connection.execute(
+                    text(
+                        """
                     update runtime_ai_config
                     set provider=:provider,version=version+1,updated_at=now(),updated_by=:user_id
                     where config_key='rerank' and version=:expected_version
                     returning provider,version,updated_at,updated_by
                     """
-                ),
-                {
-                    "provider": provider,
-                    "user_id": user.id,
-                    "expected_version": expected_version,
-                },
-            ).mappings().one_or_none()
+                    ),
+                    {
+                        "provider": provider,
+                        "user_id": user.id,
+                        "expected_version": expected_version,
+                    },
+                )
+                .mappings()
+                .one_or_none()
+            )
         return RuntimeRerankConfig.model_validate(row) if row else None
 
     def conversation_summary(
@@ -89,9 +97,10 @@ class MemoryPersistenceMixin:
     ) -> tuple[str | None, int] | None:
         """Return the saved rolling summary for an owned conversation."""
         with self._transaction(user) as connection:
-            row = connection.execute(
-                text(
-                    """
+            row = (
+                connection.execute(
+                    text(
+                        """
                     select summary_text,summary_message_count
                     from conversations
                     where id=:id and user_id=:user_id and deleted_at is null
@@ -102,9 +111,12 @@ class MemoryPersistenceMixin:
                           and p.deleted_at is null
                       )
                     """
-                ),
-                {"id": conversation_id, "user_id": user.id},
-            ).mappings().one_or_none()
+                    ),
+                    {"id": conversation_id, "user_id": user.id},
+                )
+                .mappings()
+                .one_or_none()
+            )
         if row is None:
             return None
         return row["summary_text"], int(row["summary_message_count"])
@@ -156,16 +168,20 @@ class MemoryPersistenceMixin:
     ) -> list[ConversationMessage] | None:
         """Return recent conversation memory for an owned project."""
         with self._transaction(user) as connection:
-            project = connection.execute(
-                text(
-                    """
+            project = (
+                connection.execute(
+                    text(
+                        """
                     select kind from projects
                     where id=:project_id and user_id=:user_id
                       and status='active' and deleted_at is null
                     """
-                ),
-                {"project_id": project_id, "user_id": user.id},
-            ).mappings().one_or_none()
+                    ),
+                    {"project_id": project_id, "user_id": user.id},
+                )
+                .mappings()
+                .one_or_none()
+            )
             if project is None:
                 return None
             if project["kind"] != "workspace":

@@ -1,4 +1,5 @@
 """Exercise bounded worker document parsing and provenance contracts."""
+
 from __future__ import annotations
 
 import sys
@@ -71,9 +72,7 @@ def test_parser_rejects_unsupported_incomplete_and_failed_conversion(tmp_path) -
         parser.parse(source, file_type="pdf")
 
 
-def test_pdf_parser_uses_lightweight_page_text_without_visual_models(
-    tmp_path, monkeypatch
-) -> None:
+def test_pdf_parser_uses_lightweight_page_text_without_visual_models(tmp_path, monkeypatch) -> None:
     """Keep free-tier ingestion below the memory needed by Docling's PDF models."""
     source = tmp_path / "source.pdf"
     source.write_bytes(b"%PDF synthetic")
@@ -96,9 +95,7 @@ def test_pdf_parser_uses_lightweight_page_text_without_visual_models(
 
     blocks = parser.parse(source, file_type="pdf")
 
-    assert [(block.page_no, block.text) for block in blocks] == [
-        (1, "Aurora code is RM-20260730.")
-    ]
+    assert [(block.page_no, block.text) for block in blocks] == [(1, "Aurora code is RM-20260730.")]
     assert blocks[0].metadata["parser_name"] == "pypdf"
     assert blocks[0].metadata["source_anchors"][0]["locator_kind"] == "page"
     assert blocks[0].metadata["source_anchors"][0]["page_no"] == 1
@@ -229,5 +226,3 @@ def test_pptx_ooxml_parser_preserves_slide_numbers(tmp_path) -> None:
         (2, "Second slide"),
     ]
     assert parser.converter is None
-
-

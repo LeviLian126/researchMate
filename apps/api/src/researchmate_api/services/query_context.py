@@ -68,10 +68,7 @@ def build_project_memory(
     if not selected:
         return []
     memory = "\n".join(
-        (
-            f"conversation={message.conversation_id} original_role={message.role}: "
-            f"{message.content}"
-        )
+        (f"conversation={message.conversation_id} original_role={message.role}: {message.content}")
         for message in selected
     )
     content = (
@@ -157,13 +154,10 @@ class ConversationContextBuilder:
         return bool(
             self.chat_provider is not None
             and pending
-            and sum(estimate_tokens(item.content) for item in pending)
-            > self.summary_trigger_tokens
+            and sum(estimate_tokens(item.content) for item in pending) > self.summary_trigger_tokens
         )
 
-    def _summarize(
-        self, previous_summary: str | None, pending: list[ConversationMessage]
-    ) -> str:
+    def _summarize(self, previous_summary: str | None, pending: list[ConversationMessage]) -> str:
         """Request a bounded factual summary without changing message provenance."""
         assert self.chat_provider is not None
         summary_messages = [

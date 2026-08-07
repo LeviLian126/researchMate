@@ -12,24 +12,30 @@ from researchmate_api.services.qdrant_store import QdrantHybridStore, sparse_tex
 
 class FakeEmbeddings:
     """Return deterministic vectors and record embedding modes."""
+
     def __init__(self) -> None:
         self.calls = []
 
     def create(self, **kwargs):
         self.calls.append(kwargs)
         return SimpleNamespace(
-            data=[SimpleNamespace(index=index, embedding=[float(index)] * 4096) for index, _ in enumerate(kwargs["input"])]
+            data=[
+                SimpleNamespace(index=index, embedding=[float(index)] * 4096)
+                for index, _ in enumerate(kwargs["input"])
+            ]
         )
 
 
 class FakeOpenAIClient:
     """Expose the minimal embeddings client surface."""
+
     def __init__(self) -> None:
         self.embeddings = FakeEmbeddings()
 
 
 class FakeQdrantClient:
     """Record Qdrant query and mutation payloads."""
+
     def __init__(self) -> None:
         self.query_call = None
         self.upsert_call = None
@@ -37,7 +43,9 @@ class FakeQdrantClient:
 
     def query_points(self, **kwargs):
         self.query_call = kwargs
-        return SimpleNamespace(points=[SimpleNamespace(id=UUID(int=1), score=0.9, payload={"chunk_id": "1"})])
+        return SimpleNamespace(
+            points=[SimpleNamespace(id=UUID(int=1), score=0.9, payload={"chunk_id": "1"})]
+        )
 
     def upsert(self, **kwargs):
         self.upsert_call = kwargs

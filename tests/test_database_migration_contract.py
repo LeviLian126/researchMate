@@ -4,13 +4,7 @@ import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-MIGRATION = (
-    ROOT
-    / "infra"
-    / "supabase"
-    / "migrations"
-    / "202607150002_evidence_review_schema.sql"
-)
+MIGRATION = ROOT / "infra" / "supabase" / "migrations" / "202607150002_evidence_review_schema.sql"
 
 
 def _migration_source() -> str:
@@ -20,9 +14,7 @@ def _migration_source() -> str:
 def test_additive_migration_defines_all_planned_tables() -> None:
     """Require every planned table in the additive migration set."""
     source = _migration_source()
-    tables = set(
-        re.findall(r"(?im)^create table if not exists\s+([a-z_]+)", source)
-    )
+    tables = set(re.findall(r"(?im)^create table if not exists\s+([a-z_]+)", source))
 
     assert tables == {
         "workflow_runs",
@@ -61,9 +53,7 @@ def test_migration_closes_initial_child_rls_gaps() -> None:
 def test_planned_tables_have_rls_and_outbox_has_no_user_policy() -> None:
     """Require planned RLS while keeping the service-owned outbox inaccessible."""
     source = _migration_source()
-    tables = re.findall(
-        r"(?im)^create table if not exists\s+([a-z_]+)", source
-    )
+    tables = re.findall(r"(?im)^create table if not exists\s+([a-z_]+)", source)
 
     for table in tables:
         assert f"alter table {table} enable row level security" in source

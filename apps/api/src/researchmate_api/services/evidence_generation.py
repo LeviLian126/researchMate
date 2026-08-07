@@ -6,18 +6,19 @@ import json
 from typing import Literal
 
 from pydantic import BaseModel, Field, ValidationError
-
 from researchmate_api.services.llm import ChatProvider
 from researchmate_api.services.store import ChunkEntry
 
 
 class ResearchPlan(BaseModel):
     """Represent bounded, non-overlapping research questions."""
+
     questions: list[str] = Field(min_length=2, max_length=8)
 
 
 class ExtractedClaim(BaseModel):
     """Represent a claim tied to server-assigned evidence identifiers."""
+
     text: str = Field(min_length=1, max_length=1600)
     stance: Literal["supports", "opposes", "neutral"] = "neutral"
     confidence: float = Field(ge=0, le=1)
@@ -26,11 +27,13 @@ class ExtractedClaim(BaseModel):
 
 class ClaimBatch(BaseModel):
     """Wrap a bounded provider-generated set of claims."""
+
     claims: list[ExtractedClaim] = Field(min_length=1, max_length=30)
 
 
 class ClaimRelationProposal(BaseModel):
     """Represent a provider-proposed relation between allowlisted claims."""
+
     source_claim_id: int = Field(ge=1)
     target_claim_id: int = Field(ge=1)
     relation: Literal["supports", "contradicts", "duplicates"]
@@ -40,11 +43,13 @@ class ClaimRelationProposal(BaseModel):
 
 class RelationBatch(BaseModel):
     """Wrap validated claim-relation proposals."""
+
     relations: list[ClaimRelationProposal] = Field(default_factory=list, max_length=200)
 
 
 class ReportSectionProposal(BaseModel):
     """Represent a report section grounded in accepted claim identifiers."""
+
     section_key: str = Field(pattern=r"^[a-z0-9][a-z0-9_-]{0,79}$")
     heading: str = Field(min_length=1, max_length=240)
     body_markdown: str = Field(min_length=1, max_length=20_000)
@@ -53,6 +58,7 @@ class ReportSectionProposal(BaseModel):
 
 class ReportProposal(BaseModel):
     """Represent a structured evidence report proposed by a provider."""
+
     title: str = Field(min_length=1, max_length=240)
     sections: list[ReportSectionProposal] = Field(min_length=1, max_length=30)
 
@@ -160,7 +166,9 @@ def reconcile_claims(provider: ChatProvider, claims: list[ExtractedClaim]) -> Re
     seen: set[tuple[int, int, str]] = set()
     for relation in batch.relations:
         if relation.source_claim_id > len(claims) or relation.target_claim_id > len(claims):
-            raise EvidenceGenerationError("relation referenced a claim outside the server allowlist")
+            raise EvidenceGenerationError(
+                "relation referenced a claim outside the server allowlist"
+            )
         if relation.source_claim_id == relation.target_claim_id:
             raise EvidenceGenerationError("relation cannot reference the same claim twice")
         key = (relation.source_claim_id, relation.target_claim_id, relation.relation)
@@ -209,8 +217,9 @@ def synthesize_report(
         raise EvidenceGenerationError("report referenced a claim outside the server allowlist")
     if len({section.section_key for section in report.sections}) != len(report.sections):
         raise EvidenceGenerationError("report section keys must be unique")
-    if required_section_keys is not None and [
-        section.section_key for section in report.sections
-    ] != required_section_keys:
+    if (
+        required_section_keys is not None
+        and [section.section_key for section in report.sections] != required_section_keys
+    ):
         raise EvidenceGenerationError("report did not preserve the required section keys")
     return report

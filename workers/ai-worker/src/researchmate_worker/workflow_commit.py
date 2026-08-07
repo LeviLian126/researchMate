@@ -1,4 +1,5 @@
 """Atomically commit validated reports, sections, claims, and provenance."""
+
 from __future__ import annotations
 
 from hashlib import sha256
@@ -16,6 +17,7 @@ from researchmate_worker.workflow_models import WorkflowRuntimeError, _json
 
 class WorkflowCommitMixin(WorkflowEvidenceLoaderMixin):
     """Persist one workflow outcome within a single database transaction boundary."""
+
     def _commit(self, state: EvidenceWorkflowState, report: ReportProposal) -> None:
         run_id = UUID(state["run_id"])
         user_id = UUID(state["user_id"])
@@ -38,7 +40,7 @@ class WorkflowCommitMixin(WorkflowEvidenceLoaderMixin):
             if locked is None:
                 raise WorkflowRuntimeError("WORKFLOW_OWNERSHIP_MISMATCH")
             if locked["status"] in ("succeeded", "failed", "cancelled"):
-               return
+                return
             # Serialize project commits so claim versions and report revisions stay unique.
             connection.execute(
                 text("select pg_advisory_xact_lock(hashtextextended(:key,1))"),
@@ -204,9 +206,9 @@ class WorkflowCommitMixin(WorkflowEvidenceLoaderMixin):
                         """
                     ),
                     {
-                       "source_id": claim_ids[source_idx],
-                       "target_id": claim_ids[target_idx],
-                       "relation": relation["relation"],
+                        "source_id": claim_ids[source_idx],
+                        "target_id": claim_ids[target_idx],
+                        "relation": relation["relation"],
                         "confidence": relation["confidence"],
                         "rationale": relation["rationale_summary"],
                     },

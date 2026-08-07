@@ -117,7 +117,9 @@ def test_openapi_contract_declares_mvp_routes() -> None:
 def test_docs_use_english_html_without_parallel_markdown() -> None:
     """Keep the HTML board authoritative without a root or docs Markdown duplicate."""
     assert not (ROOT / "README.md").exists()
-    markdown_files = sorted(path.relative_to(ROOT).as_posix() for path in (ROOT / "docs").rglob("*.md"))
+    markdown_files = sorted(
+        path.relative_to(ROOT).as_posix() for path in (ROOT / "docs").rglob("*.md")
+    )
     assert markdown_files == []
 
     html_files = authoritative_html_files()
@@ -133,7 +135,12 @@ def test_docs_separate_current_truth_from_archived_plans() -> None:
     html_files = AUTHORITATIVE_DOCS
 
     combined = "\n".join((ROOT / path).read_text(encoding="utf-8") for path in html_files)
-    for retired in ("delivery/index.html", "operations/index.html", "activity/index.html", "todo.md"):
+    for retired in (
+        "delivery/index.html",
+        "operations/index.html",
+        "activity/index.html",
+        "todo.md",
+    ):
         assert retired not in combined
 
     archive = (ROOT / "docs/archive/cloudflare/index.html").read_text(encoding="utf-8")
@@ -165,9 +172,7 @@ def test_database_and_api_docs_reconcile_complete_source_contracts() -> None:
         )
     )
     data_docs = (ROOT / "docs/contracts/data/index.html").read_text(encoding="utf-8")
-    migration_tables = set(
-        re.findall(r"(?im)^create table if not exists\s+([a-z_]+)", migration)
-    )
+    migration_tables = set(re.findall(r"(?im)^create table if not exists\s+([a-z_]+)", migration))
     documented_tables = set(
         re.findall(r'<details id="[^"]+"><summary><code>([a-z_]+)</code>', data_docs)
     )
@@ -256,7 +261,9 @@ def test_docs_html_do_not_contain_question_mark_garbled_text() -> None:
 
 def test_database_schema_has_security_boundaries() -> None:
     """Confirm that the maintained schema retains its tenant and access controls."""
-    migration = (ROOT / "infra/supabase/migrations/202605260001_initial_schema.sql").read_text(encoding="utf-8")
+    migration = (ROOT / "infra/supabase/migrations/202605260001_initial_schema.sql").read_text(
+        encoding="utf-8"
+    )
     required_tokens = [
         "create table if not exists profiles",
         "create table if not exists projects",
@@ -322,9 +329,9 @@ def test_local_verification_policy_keeps_integration_on_deployed_environment() -
     architecture = (ROOT / "docs/architecture/index.html").read_text(encoding="utf-8")
     product = (ROOT / "docs/product/index.html").read_text(encoding="utf-8")
     overview = (ROOT / "docs/index.html").read_text(encoding="utf-8")
-    delivery_skill = (ROOT / "skill/personal-dev-skills-v9-baseline-plus-en/indie-product-delivery/SKILL.md").read_text(
-        encoding="utf-8"
-    )
+    delivery_skill = (
+        ROOT / "skill/personal-dev-skills-v9-baseline-plus-en/indie-product-delivery/SKILL.md"
+    ).read_text(encoding="utf-8")
     proof_guide = (
         ROOT
         / "skill/personal-dev-skills-v9-baseline-plus-en/indie-product-delivery/references/nodes/03-backend-api-data-build"

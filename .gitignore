@@ -68,3 +68,6 @@ Thumbs.db
 .qdrant/
 .redis/
 .docker/
+
+# Resume outputs
+resume/

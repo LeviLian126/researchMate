@@ -1,7 +1,29 @@
 line-length = 100
 
+target-version = "py313"
+
 [lint]
+# Default ruff rules (E4, E7, E9, F) plus I (import sorting) and UP (pyupgrade,
+# which encourages PEP 604 `X | Y` annotations once `from __future__ import
+# annotations` is present — required project-wide, see AGENTS.md).
+select = [
+  "E4",
+  "E7",
+  "E9",
+  "F",
+  "I",
+  "UP",
+]
 ignore = [
   # Provider and delivery boundaries intentionally normalize unknown SDK failures.
   "BLE001",
+  # Existing enums intentionally use (str, Enum) for cross-version behavior.
+  # Migrating to enum.StrEnum is a separate modernization beyond this task.
+  "UP042",
 ]
+
+[lint.pyupgrade]
+# Preserve typing.Optional/Union import in non-annotation contexts: ruff only
+# rewrites annotation syntax when `from __future__ import annotations` is present,
+# which this project requires in every module (see AGENTS.md).
+keep-runtime-typing = true

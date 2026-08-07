@@ -1,5 +1,7 @@
 """Expose the stable evaluation API from focused execution, scoring, and persistence modules."""
 
+from __future__ import annotations
+
 from researchmate_worker.evaluation_executor import QdrantCaseExecutor
 from researchmate_worker.evaluation_models import (
     CaseExecutor,

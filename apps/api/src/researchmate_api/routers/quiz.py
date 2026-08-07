@@ -1,5 +1,7 @@
 """Map HTTP Quiz requests to the shared Quiz application service."""
 
+from __future__ import annotations
+
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header
@@ -31,9 +33,7 @@ def create_quiz(
     ),
 ) -> QuizResponse:
     """Generate one source-backed Quiz through the application service."""
-    coordinator = IdempotencyCoordinator(
-        repository, user, "quiz", idempotency_key, payload
-    )
+    coordinator = IdempotencyCoordinator(repository, user, "quiz", idempotency_key, payload)
     try:
         replay = coordinator.begin()
         if replay is not None:

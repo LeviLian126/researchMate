@@ -36,10 +36,7 @@ def test_render_blueprint_uses_one_shared_free_service_and_secret_prompts() -> N
         "OTEL_EXPORTER_OTLP_TRACES_HEADERS",
     ):
         assert f"key: {secret}\n        sync: false" in source
-    assert (
-        "value: https://cloud.langfuse.com/api/public/otel/v1/traces"
-        in source
-    )
+    assert "value: https://cloud.langfuse.com/api/public/otel/v1/traces" in source
     assert "NVIDIA_INPUT_COST_PER_MILLION_USD" not in source
     assert "NVIDIA_OUTPUT_COST_PER_MILLION_USD" not in source
 
@@ -50,12 +47,7 @@ def test_nvidia_free_endpoint_has_no_runtime_price_fields() -> None:
         ROOT / "workers" / "ai-worker" / "src" / "researchmate_worker" / "config.py"
     ).read_text(encoding="utf-8")
     tasks_source = (
-        ROOT
-        / "workers"
-        / "ai-worker"
-        / "src"
-        / "researchmate_worker"
-        / "task_builders.py"
+        ROOT / "workers" / "ai-worker" / "src" / "researchmate_worker" / "task_builders.py"
     ).read_text(encoding="utf-8")
     assert "nvidia_input_cost_per_million_usd" not in config_source
     assert "nvidia_output_cost_per_million_usd" not in config_source
@@ -76,6 +68,7 @@ def test_render_runtime_starts_api_worker_and_dispatcher() -> None:
 
 def test_combined_runtime_waits_for_api_health_before_heavy_workers(monkeypatch) -> None:
     """Start heavy workers only after the API answers its HTTP health endpoint."""
+
     class FakeProcess:
         def poll(self):
             return None
@@ -109,9 +102,7 @@ def test_combined_runtime_waits_for_api_health_before_heavy_workers(monkeypatch)
 def test_render_image_uses_cpu_only_pytorch() -> None:
     """Prevent CUDA wheels from exhausting free-tier build and runtime resources."""
     source = (ROOT / "workers" / "ai-worker" / "Dockerfile").read_text(encoding="utf-8")
-    worker_project = (ROOT / "workers" / "ai-worker" / "pyproject.toml").read_text(
-        encoding="utf-8"
-    )
+    worker_project = (ROOT / "workers" / "ai-worker" / "pyproject.toml").read_text(encoding="utf-8")
     workspace = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
     assert "pytorch-cpu" in workspace
     assert "https://download.pytorch.org/whl/cpu" in workspace

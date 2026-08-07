@@ -1,4 +1,5 @@
 """Verify worker task routing, deletion serialization, and retry policy."""
+
 from __future__ import annotations
 
 from inspect import getsource
@@ -15,6 +16,7 @@ JOB_ID = UUID("00000000-0000-4000-8000-000000000201")
 USER_ID = UUID("00000000-0000-4000-8000-000000000202")
 PROJECT_ID = UUID("00000000-0000-4000-8000-000000000203")
 DOCUMENT_ID = UUID("00000000-0000-4000-8000-000000000204")
+
 
 def ingestion_event() -> dict[str, str]:
     """Build a valid ingestion task payload."""
@@ -34,6 +36,7 @@ def deletion_event() -> dict[str, str]:
         "project_id": str(PROJECT_ID),
         "document_id": str(DOCUMENT_ID),
     }
+
 
 def test_ingestion_and_deletion_serialize_document_removal() -> None:
     """Prevent an already-claimed ingestion from reviving a deleted document."""
@@ -112,24 +115,24 @@ def test_evaluation_and_fault_tasks_forward_worker_identity(monkeypatch) -> None
         tasks,
         "build_evaluation_runner",
         lambda _settings: SimpleNamespace(
-            run=lambda run_id, worker_id: evaluation_calls.append((run_id, worker_id))
-            or "evaluated"
+            run=lambda run_id, worker_id: (
+                evaluation_calls.append((run_id, worker_id)) or "evaluated"
+            )
         ),
     )
     monkeypatch.setattr(
         tasks,
         "build_fault_simulation_service",
         lambda _settings: SimpleNamespace(
-            run=lambda exercise_id, worker_id: fault_calls.append((exercise_id, worker_id))
-            or "simulated"
+            run=lambda exercise_id, worker_id: (
+                fault_calls.append((exercise_id, worker_id)) or "simulated"
+            )
         ),
     )
 
     assert tasks.run_evaluation.run({"evaluation_run_id": str(JOB_ID)}) == "evaluated"
     assert (
-        tasks.run_fault_simulation.run(
-            {"exercise_id": str(JOB_ID), "requested_by": str(USER_ID)}
-        )
+        tasks.run_fault_simulation.run({"exercise_id": str(JOB_ID), "requested_by": str(USER_ID)})
         == "simulated"
     )
     assert evaluation_calls == [(JOB_ID, "worker")]

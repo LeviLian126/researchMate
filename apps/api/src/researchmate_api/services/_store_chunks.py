@@ -46,7 +46,8 @@ class ChunkStoreMixin:
             return [
                 chunk
                 for chunk in self.chunks.values()
-                if chunk.user_id == user.id and chunk.project_id == project_id
+                if chunk.user_id == user.id
+                and chunk.project_id == project_id
                 and (
                     chunk.source_type != SourceType.LOCAL_DOC
                     or (
@@ -63,11 +64,7 @@ class ChunkStoreMixin:
         """Return retrievable ready-document chunks for an owned conversation."""
         documents = self.list_conversation_documents(user, conversation_id)
         conversation = self.conversations.get(conversation_id)
-        if (
-            documents is None
-            or conversation is None
-            or conversation.project_id != project_id
-        ):
+        if documents is None or conversation is None or conversation.project_id != project_id:
             return None
         document_ids = {document.id for document in documents}
         return [

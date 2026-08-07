@@ -1,5 +1,7 @@
 """Provide authentication, authorization, adapter, and error dependencies for API routes."""
 
+from __future__ import annotations
+
 from functools import lru_cache
 from typing import NoReturn
 from uuid import UUID

@@ -84,9 +84,9 @@ def test_build_dispatcher_requires_database_and_uses_configured_limits(monkeypat
     monkeypatch.setattr(
         dispatch_outbox,
         "CeleryTaskPublisher",
-        lambda app, queue: publisher
-        if app is dispatch_outbox.celery_app and queue == "ingestion"
-        else None,
+        lambda app, queue: (
+            publisher if app is dispatch_outbox.celery_app and queue == "ingestion" else None
+        ),
     )
 
     def build(store_value, publisher_value, **kwargs):

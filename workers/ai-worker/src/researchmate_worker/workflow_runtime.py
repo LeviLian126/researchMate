@@ -1,5 +1,7 @@
 """Expose the workflow runtime contract while focused mixins own distinct responsibilities."""
 
+from __future__ import annotations
+
 from typing import Any
 from uuid import UUID
 

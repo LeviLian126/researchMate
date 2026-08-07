@@ -9,7 +9,7 @@ from uuid import UUID
 
 from researchmate_api.config import Settings
 from researchmate_api.schemas.ask import AskRequest, AskResponse
-from researchmate_api.schemas.common import CurrentUser
+from researchmate_api.schemas.common import MAX_TEXT_LENGTH, CurrentUser
 from researchmate_api.schemas.evidence import EvaluationRunCreate
 from researchmate_api.services.access_policy import TraceAccessError, TraceQueryService
 from researchmate_api.services.evidence_store import EvidenceRepository, EvidenceStoreError
@@ -121,7 +121,7 @@ def build_mcp_server() -> tuple[Any, Any]:
                 "page_no": chunk.page_no,
                 "slide_no": chunk.slide_no,
                 "url": chunk.url,
-                "text": chunk.text[:1200],
+                "text": chunk.text[:MAX_TEXT_LENGTH],
             }
             for chunk in chunks
         ]
@@ -205,9 +205,7 @@ def build_mcp_server() -> tuple[Any, Any]:
                 metrics=metrics,
                 max_parallelism=max_parallelism,
             )
-            accepted = ctx.evidence.create_evaluation_run(
-                ctx.user, payload, idempotency_key
-            )
+            accepted = ctx.evidence.create_evaluation_run(ctx.user, payload, idempotency_key)
         except EvidenceStoreError as exc:
             raise ValueError(exc.code) from exc
         except ValueError as exc:
@@ -243,9 +241,7 @@ def build_mcp_server() -> tuple[Any, Any]:
 
         ctx = _identity()
         try:
-            documents = ctx.repository.list_conversation_documents(
-                ctx.user, UUID(conversation_id)
-            )
+            documents = ctx.repository.list_conversation_documents(ctx.user, UUID(conversation_id))
         except ValueError as exc:
             raise ValueError("INVALID_CONVERSATION_ID") from exc
         if documents is None:

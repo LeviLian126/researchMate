@@ -19,6 +19,7 @@ from researchmate_api.services.store import ChunkEntry
 
 class FakeProvider:
     """Return deterministic structured outputs to generation services."""
+
     def __init__(self, outputs):
         self.outputs = iter(outputs)
 

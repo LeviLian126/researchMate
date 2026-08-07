@@ -90,6 +90,7 @@ def test_local_readiness_is_explicit_and_non_charging() -> None:
 
 def test_managed_readiness_requires_live_background_delivery(monkeypatch) -> None:
     """Require fresh worker and dispatcher delivery signals when managed."""
+
     class Result:
         def __init__(self, kind: str) -> None:
             self.kind = kind

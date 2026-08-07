@@ -24,6 +24,7 @@ from researchmate_worker.ingestion_projections import build_projections
 
 class DocumentIngestionService:
     """Coordinate download, parse, project, and index transitions for one document."""
+
     def __init__(
         self,
         *,

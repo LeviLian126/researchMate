@@ -14,6 +14,7 @@ SUPPORTED_METRICS = {"schema_valid", "citation_precision", "evidence_recall", "f
 
 class PipelineRuntimeConfig(BaseModel):
     """Validate the accepted model, prompt, and retrieval configuration."""
+
     retrieval_limit: int = Field(default=12, ge=1, le=50)
     model: str = Field(min_length=1, max_length=200)
     evaluation_prompt_version: str = Field(pattern=r"^grounded-answer-v[0-9]+$")
@@ -23,6 +24,7 @@ class PipelineRuntimeConfig(BaseModel):
 @dataclass(frozen=True)
 class EvaluationCase:
     """Carry one immutable dataset case and its expected evidence."""
+
     id: UUID
     case_key: str
     input: dict[str, Any]
@@ -33,6 +35,7 @@ class EvaluationCase:
 @dataclass(frozen=True)
 class PipelineResult:
     """Carry the generated answer and evidence selected by a pipeline."""
+
     response: str
     contexts: list[str]
     retrieved_chunk_ids: list[str]
@@ -42,6 +45,7 @@ class PipelineResult:
 @dataclass(frozen=True)
 class MetricScore:
     """Carry one normalized metric outcome and optional judge provenance."""
+
     name: str
     version: str
     value: float | None
@@ -53,6 +57,7 @@ class MetricScore:
 @dataclass(frozen=True)
 class ClaimedEvaluation:
     """Carry the lease-protected run policy needed by case workers."""
+
     id: UUID
     user_id: UUID
     project_id: UUID
@@ -67,6 +72,7 @@ class ClaimedEvaluation:
 
 class EvaluationRuntimeError(RuntimeError):
     """Expose a stable evaluation failure code and retry classification."""
+
     def __init__(self, code: str, *, retryable: bool = False) -> None:
         super().__init__(code)
         self.code = code
@@ -75,9 +81,11 @@ class EvaluationRuntimeError(RuntimeError):
 
 class CaseExecutor(Protocol):
     """Define the replaceable boundary for executing one evaluation case."""
+
     def execute(self, run: ClaimedEvaluation, case: EvaluationCase) -> PipelineResult: ...
 
 
 class FaithfulnessScorer(Protocol):
     """Define the optional model-judged faithfulness boundary."""
+
     def score(self, case: EvaluationCase, result: PipelineResult) -> MetricScore: ...

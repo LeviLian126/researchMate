@@ -67,7 +67,8 @@ def bm25_candidates(
             if not frequency:
                 continue
             inverse_frequency = log(
-                1 + (len(chunks) - document_frequency[token] + 0.5)
+                1
+                + (len(chunks) - document_frequency[token] + 0.5)
                 / (document_frequency[token] + 0.5)
             )
             denominator = frequency + 1.2 * (1 - 0.75 + 0.75 * length / average_length)
@@ -138,9 +139,7 @@ def pack_chunks(chunks: list[ChunkEntry], token_budget: int) -> list[ChunkEntry]
     return packed
 
 
-def retrieve_local_chunks(
-    chunks: list[ChunkEntry], query: str, limit: int = 5
-) -> list[ChunkEntry]:
+def retrieve_local_chunks(chunks: list[ChunkEntry], query: str, limit: int = 5) -> list[ChunkEntry]:
     """Preserve the local fallback boundary with BM25 rather than token overlap."""
     return [candidate.chunk for candidate in bm25_candidates(chunks, query, limit=limit)]
 

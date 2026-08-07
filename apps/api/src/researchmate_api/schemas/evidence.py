@@ -14,6 +14,7 @@ RunStatus = Literal["pending", "running", "waiting_human", "succeeded", "failed"
 
 class SourceScope(BaseModel):
     """Constrain the documents and web access available to a research run."""
+
     document_ids: list[UUID] = Field(default_factory=list, max_length=200)
     allow_web: bool = False
 
@@ -27,6 +28,7 @@ class SourceScope(BaseModel):
 
 class ResearchRunCreate(BaseModel):
     """Validate a request to start a bounded research workflow."""
+
     project_id: UUID
     research_goal: str = Field(min_length=20, max_length=12_000)
     source_scope: SourceScope = Field(default_factory=SourceScope)
@@ -37,6 +39,7 @@ class ResearchRunCreate(BaseModel):
 
 class ResearchRunAccepted(BaseModel):
     """Acknowledge creation of an asynchronous research run."""
+
     run_id: UUID
     status: Literal["pending"] = "pending"
     status_url: str
@@ -46,6 +49,7 @@ class ResearchRunAccepted(BaseModel):
 
 class WorkflowRunRecord(BaseModel):
     """Expose durable workflow state and safe output to its owner."""
+
     run_id: UUID
     project_id: UUID
     pipeline_version_id: UUID
@@ -63,6 +67,7 @@ class WorkflowRunRecord(BaseModel):
 
 class RunEventRecord(BaseModel):
     """Represent one resumable privacy-safe workflow event."""
+
     event_id: int
     sequence: int = Field(ge=0)
     node_key: str
@@ -76,6 +81,7 @@ class RunEventRecord(BaseModel):
 
 class HumanDecisionCreate(BaseModel):
     """Validate a human decision used to resume a paused workflow."""
+
     interrupt_key: str = Field(min_length=1, max_length=160)
     decision: Literal["approve", "edit", "reject"]
     edited_payload: dict[str, Any] | None = None
@@ -93,6 +99,7 @@ class HumanDecisionCreate(BaseModel):
 
 class HumanDecisionAccepted(BaseModel):
     """Acknowledge persistence of a human workflow decision."""
+
     decision_id: UUID
     run_id: UUID
     status: Literal["accepted"] = "accepted"
@@ -101,6 +108,7 @@ class HumanDecisionAccepted(BaseModel):
 
 class ClaimSummary(BaseModel):
     """Summarize one evidence-backed claim and its review state."""
+
     claim_id: UUID
     text: str
     stance: Literal["supports", "opposes", "neutral"]
@@ -115,12 +123,14 @@ class ClaimSummary(BaseModel):
 
 class ClaimListResponse(BaseModel):
     """Wrap a cursor-compatible claim listing."""
+
     items: list[ClaimSummary]
     next_cursor: str | None = None
 
 
 class ClaimRelationSummary(BaseModel):
     """Describe a validated relationship between two claims."""
+
     source_claim_id: UUID
     target_claim_id: UUID
     relation: Literal["supports", "contradicts", "duplicates"]
@@ -132,12 +142,14 @@ class ClaimRelationSummary(BaseModel):
 
 class ClaimRelationListResponse(BaseModel):
     """Wrap a cursor-compatible claim-relation listing."""
+
     items: list[ClaimRelationSummary]
     next_cursor: str | None = None
 
 
 class ReportSummary(BaseModel):
     """Summarize report revision and validation state."""
+
     report_id: UUID
     source_run_id: UUID
     title: str
@@ -150,12 +162,14 @@ class ReportSummary(BaseModel):
 
 class ReportListResponse(BaseModel):
     """Wrap a cursor-compatible report listing."""
+
     items: list[ReportSummary]
     next_cursor: str | None = None
 
 
 class ReportSectionRecord(BaseModel):
     """Represent one evidence-snapshotted report section."""
+
     section_id: UUID
     section_key: str
     position: int = Field(ge=0)
@@ -167,11 +181,13 @@ class ReportSectionRecord(BaseModel):
 
 class ReportDetail(ReportSummary):
     """Extend report metadata with ordered section records."""
+
     sections: list[ReportSectionRecord]
 
 
 class PipelineVersionSummary(BaseModel):
     """Describe an immutable accepted evidence-pipeline version."""
+
     pipeline_version_id: UUID
     name: str
     version: int = Field(ge=1)
@@ -182,11 +198,13 @@ class PipelineVersionSummary(BaseModel):
 
 class PipelineVersionListResponse(BaseModel):
     """Wrap pipeline versions visible to the caller."""
+
     items: list[PipelineVersionSummary]
 
 
 class EvaluationDatasetSummary(BaseModel):
     """Summarize a versioned evaluation dataset."""
+
     dataset_id: UUID
     project_id: UUID | None = None
     name: str
@@ -197,11 +215,13 @@ class EvaluationDatasetSummary(BaseModel):
 
 class EvaluationDatasetListResponse(BaseModel):
     """Wrap evaluation datasets visible to an administrator."""
+
     items: list[EvaluationDatasetSummary]
 
 
 class ReportRefreshCreate(BaseModel):
     """Validate the evidence changes that require report regeneration."""
+
     changed_document_ids: list[UUID] = Field(default_factory=list, max_length=200)
     force_sections: list[str] = Field(default_factory=list, max_length=100)
     pipeline_version_id: UUID
@@ -216,6 +236,7 @@ class ReportRefreshCreate(BaseModel):
 
 class ReportRefreshAccepted(BaseModel):
     """Acknowledge the planned incremental report revision."""
+
     run_id: UUID
     base_revision: int
     planned_revision: int
@@ -225,6 +246,7 @@ class ReportRefreshAccepted(BaseModel):
 
 class EvaluationRunCreate(BaseModel):
     """Validate a bounded evaluation run request."""
+
     dataset_id: UUID
     pipeline_version_id: UUID
     metrics: list[
@@ -237,6 +259,7 @@ class EvaluationRunCreate(BaseModel):
 
 class EvaluationRunAccepted(BaseModel):
     """Acknowledge creation and budget boundary of an evaluation run."""
+
     evaluation_run_id: UUID
     case_count: int = Field(ge=0)
     status_url: str
@@ -245,6 +268,7 @@ class EvaluationRunAccepted(BaseModel):
 
 class EvaluationRunRecord(BaseModel):
     """Expose evaluation progress and safe aggregate results."""
+
     evaluation_run_id: UUID
     dataset_id: UUID
     pipeline_version_id: UUID
@@ -259,6 +283,7 @@ class EvaluationRunRecord(BaseModel):
 
 class ReliabilityResponse(BaseModel):
     """Return bounded operational aggregates without raw trace payloads."""
+
     window_hours: int
     run_count: int
     success_rate: float = Field(ge=0, le=1)
@@ -274,6 +299,7 @@ class ReliabilityResponse(BaseModel):
 
 class FaultScenarioCreate(BaseModel):
     """Validate a bounded non-production reliability exercise."""
+
     scenario: Literal["llm_timeout", "qdrant_unavailable", "worker_interrupt", "r2_failure"]
     target_run_id: UUID | None = None
     duration_seconds: int = Field(ge=1, le=60)
@@ -281,6 +307,7 @@ class FaultScenarioCreate(BaseModel):
 
 class FaultScenarioAccepted(BaseModel):
     """Acknowledge scheduling of a bounded reliability exercise."""
+
     exercise_id: UUID
     target_run_id: UUID | None = None
     expected_recovery_state: str
@@ -290,6 +317,7 @@ class FaultScenarioAccepted(BaseModel):
 
 class FaultScenarioRecord(BaseModel):
     """Expose the lifecycle and safe result of a fault exercise."""
+
     exercise_id: UUID
     scenario: Literal["llm_timeout", "qdrant_unavailable", "worker_interrupt", "r2_failure"]
     target_run_id: UUID | None = None

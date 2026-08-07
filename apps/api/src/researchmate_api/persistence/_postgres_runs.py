@@ -49,9 +49,7 @@ ObjectMetadataReader = Callable[[str], StoredObjectMetadata]
 class RunPersistenceMixin:
     """Own persisted run sources and developer execution traces."""
 
-    def get_run_sources(
-        self, user: CurrentUser, run_id: UUID
-    ) -> RunSourcesResponse | None:
+    def get_run_sources(self, user: CurrentUser, run_id: UUID) -> RunSourcesResponse | None:
         """Return the citation panel for an authorized run."""
         with self._transaction(user) as connection:
             run = connection.execute(
@@ -74,21 +72,25 @@ class RunPersistenceMixin:
         """Return a developer trace when the caller is authorized."""
         privileged = user.role in {"developer", "admin"}
         with self._transaction(user) as connection:
-            row = connection.execute(
-                text(
-                    """
+            row = (
+                connection.execute(
+                    text(
+                        """
                     select token_usage -> 'researchmate_trace' as trace
                     from ask_runs
                     where token_usage -> 'researchmate_trace' ->> 'trace_id' = :trace_id
                       and (user_id = :user_id or :privileged)
                     """
-                ),
-                {
-                    "trace_id": str(trace_id),
-                    "user_id": user.id,
-                    "privileged": privileged,
-                },
-            ).mappings().one_or_none()
+                    ),
+                    {
+                        "trace_id": str(trace_id),
+                        "user_id": user.id,
+                        "privileged": privileged,
+                    },
+                )
+                .mappings()
+                .one_or_none()
+            )
         if row is None or not isinstance(row["trace"], dict):
             return None
         return DeveloperTrace.model_validate(row["trace"])
@@ -168,12 +170,8 @@ class RunPersistenceMixin:
                     "web_enabled": bool((runtime_metadata or {}).get("web_enabled", False)),
                     "context_strategy": plan.context_strategy,
                     "rerank_provider": (runtime_metadata or {}).get("rerank_provider"),
-                    "rerank_config_version": (runtime_metadata or {}).get(
-                        "rerank_config_version"
-                    ),
-                    "rerank_degraded": bool(
-                        (runtime_metadata or {}).get("rerank_degraded", False)
-                    ),
+                    "rerank_config_version": (runtime_metadata or {}).get("rerank_config_version"),
+                    "rerank_degraded": bool((runtime_metadata or {}).get("rerank_degraded", False)),
                     "fallback_reason": (runtime_metadata or {}).get("fallback_reason"),
                     "validation_status": "passed" if passed else "failed",
                     "latency_ms": total_latency_ms,
@@ -205,7 +203,9 @@ class RunPersistenceMixin:
                         "run_id": run_id,
                         "tool_name": call.tool_name,
                         "input": _json(call.input_summary),
-                        "output": _json(call.output_summary) if call.output_summary is not None else "null",
+                        "output": _json(call.output_summary)
+                        if call.output_summary is not None
+                        else "null",
                         "status": call.status,
                         "latency_ms": call.latency_ms,
                         "error_message": call.error_message,
@@ -238,9 +238,10 @@ class RunPersistenceMixin:
                     },
                 )
             if conversation_id is not None and assistant_answer is not None:
-                conversation = connection.execute(
-                    text(
-                        """
+                conversation = (
+                    connection.execute(
+                        text(
+                            """
                         select c.project_id
                         from conversations c
                         join projects p on p.id=c.project_id
@@ -250,13 +251,16 @@ class RunPersistenceMixin:
                           and p.deleted_at is null
                         for update of c,p
                         """
-                    ),
-                    {
-                        "id": conversation_id,
-                        "project_id": project_id,
-                        "user_id": user.id,
-                    },
-                ).mappings().one_or_none()
+                        ),
+                        {
+                            "id": conversation_id,
+                            "project_id": project_id,
+                            "user_id": user.id,
+                        },
+                    )
+                    .mappings()
+                    .one_or_none()
+                )
                 if conversation is None:
                     raise ValueError("conversation is not owned by the current user")
                 user_message_id = uuid4()

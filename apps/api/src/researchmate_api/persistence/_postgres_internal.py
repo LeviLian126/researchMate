@@ -156,16 +156,12 @@ class PostgresInternalMixin:
                         "document_id": str(document_id),
                     }
                 ),
-                "idempotency_key": (
-                    f"document:{document_id}:{action}:{job_id}:{delivery_id}"
-                ),
+                "idempotency_key": (f"document:{document_id}:{action}:{job_id}:{delivery_id}"),
             },
         )
 
     @staticmethod
-    def _lock_active_project(
-        connection: Connection, user_id: UUID, project_id: UUID
-    ) -> bool:
+    def _lock_active_project(connection: Connection, user_id: UUID, project_id: UUID) -> bool:
         """Serialize project-scoped writes against the active-to-deleting transition."""
         row = connection.execute(
             text(
@@ -213,9 +209,10 @@ class PostgresInternalMixin:
         payload: dict | None = None,
     ) -> JobRecord:
         """Insert and map one durable background job."""
-        row = connection.execute(
-            text(
-                """
+        row = (
+            connection.execute(
+                text(
+                    """
                 insert into jobs (
                   id, user_id, project_id, document_id, type, status, progress, payload, error_message
                 ) values (
@@ -225,17 +222,20 @@ class PostgresInternalMixin:
                 returning id, user_id, project_id, document_id, type, status, progress,
                           error_message, created_at, updated_at
                 """
-            ),
-            {
-                "id": uuid4(),
-                "user_id": user.id,
-                "project_id": project_id,
-                "document_id": document_id,
-                "type": job_type,
-                "status": _enum_value(status),
-                "progress": progress,
-                "payload": _json(payload or {}),
-                "error": error_message,
-            },
-        ).mappings().one()
+                ),
+                {
+                    "id": uuid4(),
+                    "user_id": user.id,
+                    "project_id": project_id,
+                    "document_id": document_id,
+                    "type": job_type,
+                    "status": _enum_value(status),
+                    "progress": progress,
+                    "payload": _json(payload or {}),
+                    "error": error_message,
+                },
+            )
+            .mappings()
+            .one()
+        )
         return JobRecord.model_validate(dict(row))

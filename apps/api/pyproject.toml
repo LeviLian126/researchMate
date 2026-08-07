@@ -16,9 +16,11 @@ dependencies = [
   "opentelemetry-sdk>=1.38,<2",
   "pydantic-settings>=2.12.0",
   "pydantic>=2.12.0",
+  "python-magic>=0.4.27",
   "PyJWT[crypto]>=2.10.0",
   "qdrant-client>=1.18.0,<1.19",
   "redis>=6,<7",
+  "slowapi>=0.1.9",
   "psycopg[binary]>=3.2.0",
   "sqlalchemy>=2.0.46",
   "uvicorn>=0.40.0",
@@ -35,9 +37,29 @@ packages = ["src/researchmate_api"]
 line-length = 100
 
 [tool.ruff.lint]
+# Mirror root ruff.toml select set: defaults plus import sorting (I) and
+# pyupgrade (UP), which encourages PEP 604 annotations once
+# `from __future__ import annotations` is present (required project-wide).
+select = [
+  "E4",
+  "E7",
+  "E9",
+  "F",
+  "I",
+  "UP",
+]
 ignore = [
   # FastAPI dependency injection is expressed through Depends(...) defaults.
   "B008",
   # Readiness and provider boundaries fail closed for unknown SDK exceptions.
   "BLE001",
+  # Existing enums intentionally use (str, Enum) for cross-version behavior.
+  # Migrating to enum.StrEnum is a separate modernization beyond this task.
+  "UP042",
 ]
+
+[tool.ruff.lint.pyupgrade]
+# Project policy (see AGENTS.md): every module starts with
+# `from __future__ import annotations`. Keep runtime typing helpers intact so
+# ruff only rewrites annotation syntax, never runtime isinstance/TypeGuard uses.
+keep-runtime-typing = true

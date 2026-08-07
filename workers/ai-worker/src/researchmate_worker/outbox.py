@@ -13,6 +13,7 @@ from sqlalchemy import Engine, text
 @dataclass(frozen=True)
 class ClaimedOutboxEvent:
     """Carry one leased outbox event and its validated publication payload."""
+
     id: UUID
     event_type: str
     payload: dict[str, Any]
@@ -22,6 +23,7 @@ class ClaimedOutboxEvent:
 
 class OutboxStore(Protocol):
     """Define durable claim and publication transitions for outbox events."""
+
     def claim(self, limit: int, max_attempts: int) -> list[ClaimedOutboxEvent]: ...
 
     def mark_published(self, event_id: UUID) -> None: ...
@@ -33,11 +35,13 @@ class OutboxStore(Protocol):
 
 class TaskPublisher(Protocol):
     """Define stable task publication independent of the Celery client."""
+
     def publish(self, event: ClaimedOutboxEvent) -> None: ...
 
 
 class OutboxDispatcher:
     """Publish bounded batches while preserving at-least-once delivery semantics."""
+
     def __init__(
         self,
         store: OutboxStore,
@@ -71,6 +75,7 @@ class OutboxDispatcher:
 
 class SqlOutboxStore:
     """Persist outbox leases, attempts, and publication outcomes."""
+
     def __init__(self, engine: Engine) -> None:
         self.engine = engine
 
@@ -167,6 +172,7 @@ class SqlOutboxStore:
 
 class CeleryTaskPublisher:
     """Map durable event types to stable Celery task names."""
+
     TASK_BY_EVENT: ClassVar[dict[str, str]] = {
         "document.ingest.requested": "researchmate.ingest_document",
         "document.delete.requested": "researchmate.delete_document",

@@ -109,7 +109,10 @@ class QuizPersistenceMixin:
                         "explanation": question.explanation,
                         "difficulty": _enum_value(question.difficulty),
                         "citations": _json(
-                            [citation.model_dump(mode="json") for citation in question.source_citations]
+                            [
+                                citation.model_dump(mode="json")
+                                for citation in question.source_citations
+                            ]
                         ),
                     },
                 )
@@ -144,9 +147,7 @@ class QuizPersistenceMixin:
             self.save_quiz_set(user, project_id, run_id, quiz_set)
             return run_id, trace_id
 
-    def list_quiz_sets(
-        self, user: CurrentUser, project_id: UUID
-    ) -> list[QuizSet] | None:
+    def list_quiz_sets(self, user: CurrentUser, project_id: UUID) -> list[QuizSet] | None:
         """List Quiz aggregates belonging to an owned project."""
         if self.get_project(user, project_id) is None:
             return None

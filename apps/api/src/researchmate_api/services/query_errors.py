@@ -1,5 +1,7 @@
 """Define stable application errors shared by Ask interface adapters."""
 
+from __future__ import annotations
+
 
 class GroundedQueryError(RuntimeError):
     """Carry a stable application error across HTTP and MCP transports."""

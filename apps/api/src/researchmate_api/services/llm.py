@@ -12,6 +12,7 @@ from researchmate_api.observability import provider_observation
 
 class ChatCompletionClient(Protocol):
     """Describe the OpenAI-compatible client surface used by the adapter."""
+
     chat: Any
 
 
@@ -24,6 +25,7 @@ class ChatProvider(Protocol):
 @dataclass(frozen=True)
 class LLMChunk:
     """Represent one classified streaming model fragment."""
+
     kind: Literal["reasoning", "content"]
     text: str
 
@@ -31,6 +33,7 @@ class LLMChunk:
 @dataclass(frozen=True)
 class LLMResult:
     """Normalize provider content, reasoning, model, and token usage."""
+
     content: str
     reasoning: str | None
     model: str
@@ -44,6 +47,7 @@ class ProviderConfigurationError(RuntimeError):
 
 class ProviderRequestError(RuntimeError):
     """Normalize provider failures while preserving retryability only."""
+
     def __init__(self, *, retryable: bool) -> None:
         super().__init__("LLM provider request failed")
         self.retryable = retryable

@@ -109,9 +109,7 @@ def _mcp_headers(token: str) -> dict[str, str]:
     }
 
 
-def _mcp_call(
-    client: TestClient, token: str, name: str, arguments: dict, request_id: int
-):
+def _mcp_call(client: TestClient, token: str, name: str, arguments: dict, request_id: int):
     """Invoke one MCP tool through the real Streamable HTTP boundary."""
     return client.post(
         "/mcp/",
@@ -158,9 +156,7 @@ def test_mcp_trace_access_matches_rest_admin_policy() -> None:
         assert ask.status_code == 200
         trace_id = ask.json()["trace_id"]
         rest = client.get(f"/api/v1/dev/traces/{trace_id}", headers=user_headers)
-        mcp = _mcp_call(
-            client, "dev-user-a", "get_run_trace", {"trace_id": trace_id}, 12
-        )
+        mcp = _mcp_call(client, "dev-user-a", "get_run_trace", {"trace_id": trace_id}, 12)
     assert rest.status_code == 403
     assert mcp.status_code == 200
     assert "ADMIN_REQUIRED" in mcp.text

@@ -1,22 +1,31 @@
 """Define shared API enums, identity models, citations, and execution plans."""
 
+from __future__ import annotations
+
 from enum import Enum
 from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
+# Maximum length for any user-visible text snippet (citations, claims, quiz
+# questions, rerank/query inputs truncated to this size). Centralizing this
+# avoids magic-number drift across schema validation and storage layers.
+MAX_TEXT_LENGTH = 1200
 
-# 定义任务类型，Task 只控制执行目标。
+
+# Define task types. Task only controls the execution goal.
 class TaskType(str, Enum):
     """Select the high-level operation requested from the query pipeline."""
+
     ANSWER = "answer"
     QUIZ = "quiz"
 
 
-# 定义文件状态，后续 worker 只允许沿此状态机推进。
+# Define document status. Subsequent workers may only advance along this state machine.
 class DocumentStatus(str, Enum):
     """Enumerate durable document-ingestion lifecycle states."""
+
     UPLOADED = "uploaded"
     PARSING = "parsing"
     PARSED = "parsed"
@@ -27,9 +36,10 @@ class DocumentStatus(str, Enum):
     DELETED = "deleted"
 
 
-# 定义异步任务状态。
+# Define asynchronous job status.
 class JobStatus(str, Enum):
     """Enumerate asynchronous job lifecycle states."""
+
     PENDING = "pending"
     RUNNING = "running"
     SUCCEEDED = "succeeded"
@@ -37,53 +47,60 @@ class JobStatus(str, Enum):
     CANCELLED = "cancelled"
 
 
-# 定义引用来源类型。
+# Define citation source types.
 class SourceType(str, Enum):
     """Identify whether cited evidence is local or web-derived."""
+
     LOCAL_DOC = "local_doc"
     WEB_PAGE = "web_page"
 
 
-# 定义题目难度。
+# Define quiz difficulty.
 class Difficulty(str, Enum):
     """Constrain quiz difficulty to supported levels."""
+
     EASY = "easy"
     MEDIUM = "medium"
     HARD = "hard"
 
 
-# 定义统一错误体。
+# Define the unified error body.
 class ErrorDetail(BaseModel):
     """Represent the stable machine and human fields of an API error."""
+
     code: str = Field(min_length=2, max_length=80)
     message: str = Field(min_length=1, max_length=300)
     request_id: str = Field(min_length=4, max_length=120)
 
 
-# 定义统一错误响应。
+# Define the unified error response.
 class ErrorResponse(BaseModel):
     """Wrap API error details in the public response envelope."""
+
     error: ErrorDetail
 
 
-# 定义当前认证用户。
+# Define the current authenticated user.
 class CurrentUser(BaseModel):
     """Represent the authenticated identity passed across API boundaries."""
+
     id: UUID
     email: str | None = Field(default=None, max_length=320)
     role: Literal["user", "developer", "admin"] = "user"
 
 
-# 定义回答顶部来源统计。
+# Define the top-of-answer source summary.
 class SourceSummary(BaseModel):
     """Summarize the evidence mix returned with an answer."""
+
     local_chunks: int = Field(default=0, ge=0, le=50)
     web_pages: int = Field(default=0, ge=0, le=20)
 
 
-# 定义回答和测验共用引用结构。
+# Define the shared citation structure for answers and quizzes.
 class Citation(BaseModel):
     """Represent a server-validated evidence reference exposed to clients."""
+
     id: UUID
     source_type: SourceType
     document_id: UUID | None = None
@@ -91,15 +108,16 @@ class Citation(BaseModel):
     page_no: int | None = Field(default=None, ge=1)
     slide_no: int | None = Field(default=None, ge=1)
     url: str | None = Field(default=None, max_length=2048)
-    quote: str = Field(min_length=1, max_length=1200)
+    quote: str = Field(min_length=1, max_length=MAX_TEXT_LENGTH)
     claim_id: str | None = Field(default=None, max_length=120)
 
     model_config = ConfigDict(use_enum_values=True)
 
 
-# 定义统一聊天入口在服务端解析出的执行计划。
+# Define the execution plan resolved on the server for the unified chat entry point.
 class ExecutionPlan(BaseModel):
     """Describe the bounded server-side plan selected for a query."""
+
     task_type: TaskType
     allowed_tools: list[str] = Field(min_length=1, max_length=12)
     requires_local_docs: bool

@@ -63,7 +63,10 @@ def test_idempotency_key_reuse_with_different_body_is_rejected() -> None:
     project_id = create_project(api)
     headers = {**HEADERS, "Idempotency-Key": "research-run-0002"}
     first = research_payload(project_id)
-    second = {**first, "research_goal": "A different sufficiently long research objective for conflict proof."}
+    second = {
+        **first,
+        "research_goal": "A different sufficiently long research objective for conflict proof.",
+    }
 
     assert api.post("/api/v1/research-runs", headers=headers, json=first).status_code == 202
     conflict = api.post("/api/v1/research-runs", headers=headers, json=second)

@@ -43,7 +43,7 @@ from researchmate_api.services.object_storage import (
 from researchmate_api.services.store import ChunkEntry, IdempotencyDecision
 
 UploadUrlFactory = Callable[[UUID, str, UploadUrlRequest], str]
-ObjectMetadataReader = Callable[[str], StoredObjectMetadata]
+ObjectMetadataReader = Callable[..., StoredObjectMetadata]
 
 
 class DocumentLifecycleMixin:
@@ -60,9 +60,10 @@ class DocumentLifecycleMixin:
         if self.object_metadata_reader is None:
             raise ObjectStorageConfigurationError("R2 metadata verification is not configured")
         with self._transaction(user) as connection:
-            reserved = connection.execute(
-                text(
-                    """
+            reserved = (
+                connection.execute(
+                    text(
+                        """
                     select d.r2_object_key, d.size_bytes, d.mime_type
                     from documents d
                     join projects p on p.id = d.project_id and p.user_id = d.user_id
@@ -70,12 +71,17 @@ class DocumentLifecycleMixin:
                       and d.deleted_at is null and p.status = 'active'
                       and p.deleted_at is null
                     """
-                ),
-                {"document_id": document_id, "user_id": user.id},
-            ).mappings().one_or_none()
+                    ),
+                    {"document_id": document_id, "user_id": user.id},
+                )
+                .mappings()
+                .one_or_none()
+            )
         if reserved is None:
             return None
-        metadata = self.object_metadata_reader(reserved["r2_object_key"])
+        metadata = self.object_metadata_reader(
+            reserved["r2_object_key"], declared_mime_type=reserved["mime_type"]
+        )
         if metadata.size_bytes != reserved["size_bytes"]:
             raise UploadVerificationError(
                 "UPLOAD_SIZE_MISMATCH",
@@ -87,22 +93,27 @@ class DocumentLifecycleMixin:
                 "Uploaded object content type does not match the reservation.",
             )
         with self._transaction(user) as connection:
-            owner = connection.execute(
-                text(
-                    """
+            owner = (
+                connection.execute(
+                    text(
+                        """
                     select project_id from documents
                     where id = :document_id and user_id = :user_id and deleted_at is null
                     """
-                ),
-                {"document_id": document_id, "user_id": user.id},
-            ).mappings().one_or_none()
+                    ),
+                    {"document_id": document_id, "user_id": user.id},
+                )
+                .mappings()
+                .one_or_none()
+            )
             if owner is None or not self._lock_active_project(
                 connection, user.id, owner["project_id"]
             ):
                 return None
-            document = connection.execute(
-                text(
-                    """
+            document = (
+                connection.execute(
+                    text(
+                        """
                     update documents d
                     set status = 'parsing', error_message = null, updated_at = now()
                     from projects p
@@ -112,16 +123,20 @@ class DocumentLifecycleMixin:
                       and p.deleted_at is null and d.status in ('uploaded', 'failed')
                     returning d.project_id, d.r2_object_key
                     """
-                ),
-                {
-                    "document_id": document_id,
-                    "user_id": user.id,
-                },
-            ).mappings().one_or_none()
+                    ),
+                    {
+                        "document_id": document_id,
+                        "user_id": user.id,
+                    },
+                )
+                .mappings()
+                .one_or_none()
+            )
             if document is None:
-                existing = connection.execute(
-                    text(
-                        """
+                existing = (
+                    connection.execute(
+                        text(
+                            """
                         select id, user_id, project_id, document_id, type, status, progress,
                                error_message, created_at, updated_at
                         from jobs
@@ -134,9 +149,12 @@ class DocumentLifecycleMixin:
                           )
                         order by created_at desc limit 1
                         """
-                    ),
-                    {"document_id": document_id, "user_id": user.id},
-                ).mappings().one_or_none()
+                        ),
+                        {"document_id": document_id, "user_id": user.id},
+                    )
+                    .mappings()
+                    .one_or_none()
+                )
                 if existing is not None and existing["status"] == "pending":
                     self._enqueue_document_event(
                         connection,
@@ -175,9 +193,10 @@ class DocumentLifecycleMixin:
     def delete_document(self, user: CurrentUser, document_id: UUID) -> JobRecord | None:
         """Transition an owned document into its deletion lifecycle."""
         with self._transaction(user) as connection:
-            document = connection.execute(
-                text(
-                    """
+            document = (
+                connection.execute(
+                    text(
+                        """
                     select d.project_id, d.r2_object_key, d.deleted_at
                     from documents d
                     join projects p on p.id = d.project_id and p.user_id = d.user_id
@@ -185,9 +204,12 @@ class DocumentLifecycleMixin:
                       and p.status = 'active' and p.deleted_at is null
                     for update of d, p
                     """
-                ),
-                {"document_id": document_id, "user_id": user.id},
-            ).mappings().one_or_none()
+                    ),
+                    {"document_id": document_id, "user_id": user.id},
+                )
+                .mappings()
+                .one_or_none()
+            )
             if document is None:
                 return None
             connection.execute(
@@ -202,9 +224,10 @@ class DocumentLifecycleMixin:
                 ),
                 {"document_id": document_id, "user_id": user.id},
             )
-            existing = connection.execute(
-                text(
-                    """
+            existing = (
+                connection.execute(
+                    text(
+                        """
                     select id, user_id, project_id, document_id, type, status, progress,
                            error_message, created_at, updated_at
                     from jobs
@@ -212,9 +235,12 @@ class DocumentLifecycleMixin:
                       and type = 'delete_document'
                     order by created_at desc, id desc limit 1
                     """
-                ),
-                {"document_id": document_id, "user_id": user.id},
-            ).mappings().one_or_none()
+                    ),
+                    {"document_id": document_id, "user_id": user.id},
+                )
+                .mappings()
+                .one_or_none()
+            )
             if document["deleted_at"] is not None and existing is not None:
                 if existing["status"] == "pending":
                     self._enqueue_document_event(
@@ -242,15 +268,19 @@ class DocumentLifecycleMixin:
                     ),
                     {"document_id": document_id, "user_id": user.id},
                 )
-            point_ids = connection.execute(
-                text(
-                    """
+            point_ids = (
+                connection.execute(
+                    text(
+                        """
                     select qdrant_point_id from chunks
                     where document_id = :document_id and user_id = :user_id
                     """
-                ),
-                {"document_id": document_id, "user_id": user.id},
-            ).scalars().all()
+                    ),
+                    {"document_id": document_id, "user_id": user.id},
+                )
+                .scalars()
+                .all()
+            )
             job = self._insert_job(
                 connection,
                 user=user,
@@ -292,14 +322,18 @@ class DocumentLifecycleMixin:
     def get_job(self, user: CurrentUser, job_id: UUID) -> JobRecord | None:
         """Return one background job visible to the caller."""
         with self._transaction(user) as connection:
-            row = connection.execute(
-                text(
-                    """
+            row = (
+                connection.execute(
+                    text(
+                        """
                     select id, user_id, project_id, document_id, type, status, progress,
                            error_message, created_at, updated_at
                     from jobs where id = :job_id and user_id = :user_id
                     """
-                ),
-                {"job_id": job_id, "user_id": user.id},
-            ).mappings().one_or_none()
+                    ),
+                    {"job_id": job_id, "user_id": user.id},
+                )
+                .mappings()
+                .one_or_none()
+            )
         return None if row is None else JobRecord.model_validate(dict(row))

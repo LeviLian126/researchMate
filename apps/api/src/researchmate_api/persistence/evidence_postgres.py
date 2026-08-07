@@ -1,5 +1,7 @@
 """Public PostgreSQL evidence repository assembled from aggregate-focused mixins."""
 
+from __future__ import annotations
+
 from researchmate_api.persistence.evidence_base import (
     PostgresEvidenceRepositoryBase,
     _json,

@@ -14,6 +14,7 @@ from researchmate_api.services.llm import (
 
 class FakeCompletions:
     """Record completion parameters and return configured provider data."""
+
     def __init__(self, response: object) -> None:
         self.response = response
         self.calls: list[dict] = []
@@ -27,6 +28,7 @@ class FakeCompletions:
 
 class FakeClient:
     """Expose the minimal OpenAI-compatible chat client surface."""
+
     def __init__(self, response: object) -> None:
         self.completions = FakeCompletions(response)
         self.chat = SimpleNamespace(completions=self.completions)
@@ -46,7 +48,9 @@ def test_non_streaming_completion_uses_approved_model_parameters() -> None:
     response = SimpleNamespace(
         choices=[
             SimpleNamespace(
-                message=SimpleNamespace(content="Grounded result", reasoning_content="Checked evidence")
+                message=SimpleNamespace(
+                    content="Grounded result", reasoning_content="Checked evidence"
+                )
             )
         ],
         model="z-ai/glm-5.2",
@@ -78,10 +82,14 @@ def test_stream_skips_empty_chunks_and_separates_reasoning_from_content() -> Non
     chunks = [
         SimpleNamespace(choices=[]),
         SimpleNamespace(
-            choices=[SimpleNamespace(delta=SimpleNamespace(reasoning_content="Reason", content=None))]
+            choices=[
+                SimpleNamespace(delta=SimpleNamespace(reasoning_content="Reason", content=None))
+            ]
         ),
         SimpleNamespace(
-            choices=[SimpleNamespace(delta=SimpleNamespace(reasoning_content=None, content="Answer"))]
+            choices=[
+                SimpleNamespace(delta=SimpleNamespace(reasoning_content=None, content="Answer"))
+            ]
         ),
     ]
     provider = NvidiaChatProvider(nvidia_settings(), client=FakeClient(chunks))

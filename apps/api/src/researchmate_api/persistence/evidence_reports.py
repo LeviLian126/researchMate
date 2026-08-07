@@ -27,29 +27,37 @@ class PostgresEvidenceReportMixin:
         request_hash = evidence_fingerprint(payload)
         with self._transaction(user) as connection:
             self._lock_idempotency(connection, user.id, idempotency_key)
-            report = connection.execute(
-                text(
-                    """
+            report = (
+                connection.execute(
+                    text(
+                        """
                     select r.id, r.project_id, r.revision from reports r
                     join projects p on p.id = r.project_id and p.user_id = r.user_id
                     where r.id = :id and r.user_id = :user_id
                       and p.status = 'active' and p.deleted_at is null
                     for update of r, p
                     """
-                ),
-                {"id": report_id, "user_id": user.id},
-            ).mappings().one_or_none()
+                    ),
+                    {"id": report_id, "user_id": user.id},
+                )
+                .mappings()
+                .one_or_none()
+            )
             if report is None:
                 return None
-            existing = connection.execute(
-                text(
-                    """
+            existing = (
+                connection.execute(
+                    text(
+                        """
                     select id, input from workflow_runs
                     where user_id = :user_id and idempotency_key = :key
                     """
-                ),
-                {"user_id": user.id, "key": idempotency_key},
-            ).mappings().one_or_none()
+                    ),
+                    {"user_id": user.id, "key": idempotency_key},
+                )
+                .mappings()
+                .one_or_none()
+            )
             if existing is not None:
                 if existing["input"].get("request_hash") != request_hash:
                     raise EvidenceStoreError("IDEMPOTENCY_KEY_REUSED")
@@ -132,9 +140,7 @@ class PostgresEvidenceReportMixin:
                 # A newly added document has no old citation edge. Re-evaluate every existing
                 # section against only the changed-document vector filter, then preserve every
                 # section that the refresh does not replace.
-                impacted = [
-                    key for key in all_sections if key in directly_affected
-                ] or all_sections
+                impacted = [key for key in all_sections if key in directly_affected] or all_sections
             run_id = uuid4()
             run_input = {
                 **payload.model_dump(mode="json"),

@@ -13,6 +13,7 @@ from researchmate_api.services.web_search import (
 
 class FakeResponse:
     """Return deterministic search payloads or configured HTTP failures."""
+
     def __init__(self, payload, status_code: int = 200) -> None:
         self.payload = payload
         self.status_code = status_code
@@ -29,6 +30,7 @@ class FakeResponse:
 
 class FakeClient:
     """Record outbound Tavily requests and return a fake response."""
+
     def __init__(self, response: FakeResponse) -> None:
         self.response = response
         self.calls = []

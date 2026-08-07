@@ -1,5 +1,7 @@
 """Validate worker-only environment settings and managed-service requirements."""
 
+from __future__ import annotations
+
 from decimal import Decimal
 from pathlib import Path
 from typing import Literal
@@ -153,7 +155,7 @@ class WorkerSettings(BaseSettings):
         )
 
     @model_validator(mode="after")
-    def validate_remote_runtime(self) -> "WorkerSettings":
+    def validate_remote_runtime(self) -> WorkerSettings:
         if self.app_env in {"preview", "production"}:
             if not self.database_url:
                 raise ValueError("preview and production workers require DATABASE_URL")

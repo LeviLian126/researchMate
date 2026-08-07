@@ -1,5 +1,7 @@
 """Assemble the FastAPI application, adapters, middleware, and error boundaries."""
 
+from __future__ import annotations
+
 import re
 from contextlib import asynccontextmanager
 from time import monotonic
@@ -37,13 +39,45 @@ from researchmate_api.services.rerank import RerankCoordinator
 from researchmate_api.services.store import InMemoryResearchMateStore, ResearchMateRepository
 from researchmate_api.services.web_search import TavilyWebSearchProvider
 
+# Rate limiting is an optional dependency: environments without slowapi still start, they just
+# skip the in-process limiter. This mirrors the optional MCP SDK import pattern below.
+try:
+    from slowapi import Limiter, _rate_limit_exceeded_handler
+    from slowapi.errors import RateLimitExceeded
+    from slowapi.util import get_remote_address
+except ModuleNotFoundError as exc:  # pragma: no cover - optional adapter surface.
+    if exc.name is None or not exc.name.startswith("slowapi"):
+        raise
+    Limiter = None  # type: ignore[assignment]
+    _rate_limit_exceeded_handler = None  # type: ignore[assignment]
+    RateLimitExceeded = None  # type: ignore[assignment]
+    get_remote_address = None  # type: ignore[assignment]
+
 REQUEST_ID_PATTERN = re.compile(r"^[A-Za-z0-9._:-]{4,120}$")
 SECURITY_HEADERS = {
     "Cache-Control": "no-store",
     "Referrer-Policy": "no-referrer",
     "X-Content-Type-Options": "nosniff",
     "X-Frame-Options": "DENY",
+    # Lock down content sources and require HTTPS for a year on every subdomain.
+    "Content-Security-Policy": "default-src 'none'; frame-ancestors 'none'",
+    "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
 }
+
+# Public, low-cost endpoints (health probes and authentication) are bounded to a generous
+# per-IP ceiling to blunt brute-force and abuse while leaving normal interactive traffic alone.
+RATE_LIMIT_PER_MINUTE = "60/minute"
+# Paths that share the IP-based rate-limit bucket. Auth paths are included because they are
+# the primary brute-force surface; health probes because they are unauthenticated and cheap.
+RATE_LIMITED_PATHS = frozenset(
+    {
+        "/api/v1/healthz",
+        "/api/v1/readyz",
+        # Authentication edge endpoints.
+        "/api/v1/me",
+        "/mcp",
+    }
+)
 
 
 def create_app(
@@ -118,6 +152,22 @@ def create_app(
     if runtime_settings.web_search_provider == "tavily":
         app.state.web_search = TavilyWebSearchProvider(runtime_settings)
     observability = configure_observability(app, runtime_settings)
+    # Configure IP-based rate limiting for the cheap public endpoints and the auth edge.
+    # When the optional slowapi dependency is not installed the limiter is absent so that
+    # local development and worker environments can still bootstrap the API surface.
+    if Limiter is not None:
+        from limits import parse as _parse_rate_limit
+
+        limiter = Limiter(
+            key_func=get_remote_address,
+            default_limits=[],
+            headers_enabled=True,
+        )
+        app.state.limiter = limiter
+        # Pre-parse the rate limit once so every request shares the same RateLimitItem and the
+        # per-IP window is a single fixed-window bucket across all RATE_LIMITED_PATHS.
+        app.state.rate_limit_item = _parse_rate_limit(RATE_LIMIT_PER_MINUTE)
+        app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=runtime_settings.cors_origins,
@@ -142,6 +192,48 @@ def create_app(
         candidate = request.headers.get(runtime_settings.request_id_header, "")
         request_id = candidate if REQUEST_ID_PATTERN.fullmatch(candidate) else f"req_{uuid4().hex}"
         request.state.request_id = request_id
+
+        # IP-based rate limit check for cheap public endpoints and the auth edge. The bucket
+        # is shared per source IP across the configured protected paths. When slowapi is not
+        # installed this branch is skipped entirely and the API still serves requests.
+        limiter = getattr(request.app.state, "limiter", None)
+        rate_limit_item = getattr(request.app.state, "rate_limit_item", None)
+        if (
+            limiter is not None
+            and rate_limit_item is not None
+            and request.url.path in RATE_LIMITED_PATHS
+        ):
+            client_ip = get_remote_address(request) or "unknown"
+            bucket_scope = "researchmate-api:protected"
+            allowed = limiter._limiter.hit(  # type: ignore[attr-defined]
+                rate_limit_item, client_ip, bucket_scope, cost=1
+            )
+            if not allowed:
+                response_status = 429
+                response = JSONResponse(
+                    status_code=429,
+                    content={
+                        "error": {
+                            "code": "RATE_LIMITED",
+                            "message": "Rate limit exceeded. Try again later.",
+                            "request_id": request_id,
+                        }
+                    },
+                )
+                response.headers["X-Request-ID"] = request_id
+                for name, value in SECURITY_HEADERS.items():
+                    response.headers[name] = value
+                log_event(
+                    "http_request_completed",
+                    request_id=request_id,
+                    method=request.method,
+                    route=request.url.path,
+                    status_code=response_status,
+                    latency_ms=round((monotonic() - started) * 1000),
+                    environment=runtime_settings.app_env,
+                )
+                return response
+
         context_token = None
         if request.url.path == "/mcp" or request.url.path.startswith("/mcp/"):
             authorization = request.headers.get("Authorization", "")
@@ -249,6 +341,7 @@ def create_app(
     if mcp_asgi is not None:
         app.mount("/mcp", mcp_asgi)
     else:
+
         @app.api_route("/mcp", methods=["GET", "POST", "DELETE"], include_in_schema=False)
         async def mcp_dependency_unavailable(request: Request):
             """Return an authenticated, explicit error when the optional MCP SDK is absent."""
@@ -262,6 +355,7 @@ def create_app(
                     }
                 },
             )
+
     return app
 
 
@@ -283,7 +377,19 @@ def build_repository(settings: Settings) -> ResearchMateRepository:
             """Map a validated upload reservation to the configured object-store signer."""
             return storage.presign_upload(object_key, content_type=payload.mime_type)
 
-        object_metadata_reader = storage.head
+        def object_metadata_reader(object_key: str, *, declared_mime_type: str | None = None):
+            """Read object metadata and verify uploaded magic bytes match the declared MIME.
+
+            When the caller supplies the declared MIME type (set by the upload reservation),
+            the server downloads the first chunk of the stored object and runs libmagic to
+            confirm the bytes really are the declared type. The upload is rejected (and the
+            object deleted) on a mismatch so private storage never retains disguised content.
+            """
+            metadata = storage.head(object_key)
+            if declared_mime_type is not None:
+                storage.verify_uploaded_content(object_key, declared_mime_type=declared_mime_type)
+            return metadata
+
     return PostgresResearchMateRepository.from_database_url(
         settings.database_url,
         default_project_ttl_days=settings.default_project_ttl_days,
@@ -316,7 +422,9 @@ async def http_exception_handler(request: Request, exc: HTTPException) -> JSONRe
     return JSONResponse(status_code=exc.status_code, content={"error": payload})
 
 
-async def validation_exception_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
+async def validation_exception_handler(
+    request: Request, exc: RequestValidationError
+) -> JSONResponse:
     """Expose only safe field paths and error types for validation failures."""
     errors = [
         {"loc": [str(part) for part in error.get("loc", [])], "type": error.get("type")}

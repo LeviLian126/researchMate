@@ -11,6 +11,7 @@ from researchmate_worker.outbox import (
 
 class FakeStore:
     """Record outbox claim and delivery-state transitions."""
+
     def __init__(self, events):
         self.events = events
         self.published = []
@@ -32,6 +33,7 @@ class FakeStore:
 
 class FakePublisher:
     """Record published events and inject selected failures."""
+
     def __init__(self, failing_id=None):
         self.failing_id = failing_id
         self.events = []
@@ -68,6 +70,7 @@ def test_dispatcher_marks_each_publish_outcome_without_losing_the_batch() -> Non
 
 def test_fault_exercise_is_routed_to_bounded_reliability_worker() -> None:
     """Route fault exercises to the bounded reliability task."""
+
     class FakeCelery:
         def __init__(self):
             self.calls = []
@@ -95,6 +98,7 @@ def test_fault_exercise_is_routed_to_bounded_reliability_worker() -> None:
 
 def test_project_deletion_is_routed_to_the_deletion_queue() -> None:
     """Route project deletion events to the deletion queue."""
+
     class FakeCelery:
         def __init__(self):
             self.calls = []

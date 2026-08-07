@@ -1,5 +1,7 @@
 """Expose owner-scoped asynchronous job status lookup."""
 
+from __future__ import annotations
+
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, status
@@ -12,7 +14,7 @@ from researchmate_api.services.store import ResearchMateRepository
 router = APIRouter()
 
 
-# 查询异步任务状态。
+# Query asynchronous job status.
 @router.get("/jobs/{job_id}", response_model=JobRecord)
 def get_job(
     job_id: UUID,

@@ -16,6 +16,7 @@ from researchmate_api.services.store import ChunkEntry
 
 class FakeProvider:
     """Return one deterministic model completion and record its prompt."""
+
     def __init__(self, payload: dict) -> None:
         self.payload = payload
         self.messages: list[dict[str, str]] = []
@@ -33,6 +34,7 @@ class FakeProvider:
 
 class SequenceFakeProvider:
     """Return ordered completions for repair-path scenarios."""
+
     def __init__(self, payloads: list[dict]) -> None:
         self.payloads = list(payloads)
         self.calls: list[list[dict[str, str]]] = []
@@ -79,9 +81,10 @@ def web_evidence_chunk(text: str) -> ChunkEntry:
 def test_model_can_only_select_server_supplied_evidence() -> None:
     """Allow citations only to server-supplied evidence identifiers."""
     provider = FakeProvider(
-        {"answer": "RAG retrieves evidence before generation.", "claims": [
-            {"text": "Retrieval precedes generation.", "evidence_ids": [1]}
-        ]}
+        {
+            "answer": "RAG retrieves evidence before generation.",
+            "claims": [{"text": "Retrieval precedes generation.", "evidence_ids": [1]}],
+        }
     )
 
     answer, citations, summary, _result = build_llm_grounded_answer(
@@ -171,13 +174,15 @@ def test_out_of_range_evidence_reference_is_rejected() -> None:
 
 def test_invalid_grounded_output_gets_one_bounded_repair_attempt() -> None:
     """Permit exactly one schema-focused repair for invalid output."""
-    provider = SequenceFakeProvider([
-        {"answer": "Missing claims"},
-        {
-            "answer": "The supplied evidence supports the answer.",
-            "claims": [{"text": "Evidence supports it.", "evidence_ids": [1]}],
-        },
-    ])
+    provider = SequenceFakeProvider(
+        [
+            {"answer": "Missing claims"},
+            {
+                "answer": "The supplied evidence supports the answer.",
+                "claims": [{"text": "Evidence supports it.", "evidence_ids": [1]}],
+            },
+        ]
+    )
 
     answer, citations, _summary, result = build_llm_grounded_answer(
         provider,

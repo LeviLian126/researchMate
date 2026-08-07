@@ -1,5 +1,7 @@
 """Assemble the public Postgres repository from aggregate-focused persistence mixins."""
 
+from __future__ import annotations
+
 from researchmate_api.persistence._postgres_chunks import ChunkPersistenceMixin
 from researchmate_api.persistence._postgres_conversations import ConversationPersistenceMixin
 from researchmate_api.persistence._postgres_core import (

@@ -1,4 +1,5 @@
 """Exercise evidence-workflow planning and owned-evidence retrieval decisions."""
+
 from __future__ import annotations
 
 from collections import deque
@@ -261,5 +262,3 @@ def test_retrieve_fails_closed_for_missing_evidence_or_web_provider(monkeypatch)
         domain.retrieve_and_extract(
             base_state(question="Search?", question_index=0, allow_web=True)
         )
-
-

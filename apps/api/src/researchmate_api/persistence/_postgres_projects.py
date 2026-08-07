@@ -72,23 +72,27 @@ class ProjectPersistenceMixin:
         project_id = uuid4()
         expires_at = datetime.now(UTC) + timedelta(days=self.default_project_ttl_days)
         with self._transaction(user) as connection:
-            row = connection.execute(
-                text(
-                    """
+            row = (
+                connection.execute(
+                    text(
+                        """
                     insert into projects (id, user_id, name, kind, expires_at)
                     select :id, :user_id, :name, 'workspace', :expires_at
                     where exists (select 1 from profiles where id = :user_id)
                     returning id, user_id, name, kind, status, expires_at,
                               created_at, updated_at, deleted_at
                     """
-                ),
-                {
-                    "id": project_id,
-                    "user_id": user.id,
-                    "name": payload.name,
-                    "expires_at": expires_at,
-                },
-            ).mappings().one()
+                    ),
+                    {
+                        "id": project_id,
+                        "user_id": user.id,
+                        "name": payload.name,
+                        "expires_at": expires_at,
+                    },
+                )
+                .mappings()
+                .one()
+            )
         return ProjectRecord.model_validate(dict(row))
 
     def ensure_personal_project(self, user: CurrentUser) -> ProjectRecord:
@@ -96,9 +100,10 @@ class ProjectPersistenceMixin:
         self.ensure_user(user)
         project_id = uuid4()
         with self._transaction(user) as connection:
-            row = connection.execute(
-                text(
-                    """
+            row = (
+                connection.execute(
+                    text(
+                        """
                     insert into projects (id,user_id,name,kind,expires_at)
                     values (:id,:user_id,'Personal chat','personal',null)
                     on conflict (user_id) where kind='personal' and deleted_at is null
@@ -106,9 +111,12 @@ class ProjectPersistenceMixin:
                     returning id,user_id,name,kind,status,expires_at,
                               created_at,updated_at,deleted_at
                     """
-                ),
-                {"id": project_id, "user_id": user.id},
-            ).mappings().one()
+                    ),
+                    {"id": project_id, "user_id": user.id},
+                )
+                .mappings()
+                .one()
+            )
         return ProjectRecord.model_validate(dict(row))
 
     def list_projects(self, user: CurrentUser) -> list[ProjectRecord]:
@@ -132,41 +140,50 @@ class ProjectPersistenceMixin:
     def get_project(self, user: CurrentUser, project_id: UUID) -> ProjectRecord | None:
         """Return one caller-owned, non-deleted project."""
         with self._transaction(user) as connection:
-            row = connection.execute(
-                text(
-                    """
+            row = (
+                connection.execute(
+                    text(
+                        """
                     select id, user_id, name, kind, status, expires_at,
                            created_at, updated_at, deleted_at
                     from projects
                     where id = :project_id and user_id = :user_id and deleted_at is null
                     """
-                ),
-                {"project_id": project_id, "user_id": user.id},
-            ).mappings().one_or_none()
+                    ),
+                    {"project_id": project_id, "user_id": user.id},
+                )
+                .mappings()
+                .one_or_none()
+            )
         return None if row is None else ProjectRecord.model_validate(dict(row))
 
     def delete_project(self, user: CurrentUser, project_id: UUID) -> JobRecord | None:
         """Transition an owned project into its recoverable deletion workflow."""
         with self._transaction(user) as connection:
-            project = connection.execute(
-                text(
-                    """
+            project = (
+                connection.execute(
+                    text(
+                        """
                     select status,kind from projects
                     where id = :project_id and user_id = :user_id
                       and status in ('active', 'deleting') and deleted_at is null
                     for update
                     """
-                ),
-                {"project_id": project_id, "user_id": user.id},
-            ).mappings().one_or_none()
+                    ),
+                    {"project_id": project_id, "user_id": user.id},
+                )
+                .mappings()
+                .one_or_none()
+            )
             if project is None:
                 return None
             if project["kind"] == "personal":
                 return None
             if project["status"] == "deleting":
-                existing = connection.execute(
-                    text(
-                        """
+                existing = (
+                    connection.execute(
+                        text(
+                            """
                         select id, user_id, project_id, document_id, type, status, progress,
                                error_message, created_at, updated_at
                         from jobs
@@ -174,9 +191,12 @@ class ProjectPersistenceMixin:
                           and type = 'delete_project'
                         order by created_at desc, id desc limit 1
                         """
-                    ),
-                    {"project_id": project_id, "user_id": user.id},
-                ).mappings().one_or_none()
+                        ),
+                        {"project_id": project_id, "user_id": user.id},
+                    )
+                    .mappings()
+                    .one_or_none()
+                )
                 if existing is not None and existing["status"] in {"pending", "running"}:
                     if existing["status"] == "pending":
                         self._enqueue_project_deletion(
@@ -219,26 +239,34 @@ class ProjectPersistenceMixin:
                 ),
                 {"project_id": project_id, "user_id": user.id},
             )
-            object_keys = connection.execute(
-                text(
-                    """
+            object_keys = (
+                connection.execute(
+                    text(
+                        """
                     select r2_object_key from documents
                     where project_id = :project_id and user_id = :user_id
                       and r2_object_key is not null
                     """
-                ),
-                {"project_id": project_id, "user_id": user.id},
-            ).scalars().all()
-            point_ids = connection.execute(
-                text(
-                    """
+                    ),
+                    {"project_id": project_id, "user_id": user.id},
+                )
+                .scalars()
+                .all()
+            )
+            point_ids = (
+                connection.execute(
+                    text(
+                        """
                     select qdrant_point_id from chunks
                     where project_id = :project_id and user_id = :user_id
                       and qdrant_point_id is not null
                     """
-                ),
-                {"project_id": project_id, "user_id": user.id},
-            ).scalars().all()
+                    ),
+                    {"project_id": project_id, "user_id": user.id},
+                )
+                .scalars()
+                .all()
+            )
             job = self._insert_job(
                 connection,
                 user=user,

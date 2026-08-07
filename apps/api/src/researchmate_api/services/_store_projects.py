@@ -126,7 +126,11 @@ class ProjectStoreMixin:
             for document in list(self.documents.values()):
                 if document.project_id == project_id and document.user_id == user.id:
                     self.documents[document.id] = document.model_copy(
-                        update={"status": DocumentStatus.DELETED, "deleted_at": now, "updated_at": now}
+                        update={
+                            "status": DocumentStatus.DELETED,
+                            "deleted_at": now,
+                            "updated_at": now,
+                        }
                     )
             for chunk_id, chunk in list(self.chunks.items()):
                 if chunk.project_id == project_id and chunk.user_id == user.id:

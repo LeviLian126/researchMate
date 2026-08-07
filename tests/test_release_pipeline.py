@@ -36,7 +36,7 @@ def test_python_dependency_graph_is_locked_for_ci_and_images() -> None:
     api_image = (ROOT / "apps/api/Dockerfile").read_text(encoding="utf-8")
     worker_image = (ROOT / "workers/ai-worker/Dockerfile").read_text(encoding="utf-8")
 
-    assert '[tool.uv.workspace]' in workspace
+    assert "[tool.uv.workspace]" in workspace
     assert 'members = ["apps/api", "workers/ai-worker"]' in workspace
     assert 'name = "researchmate-api"' in lock
     assert 'name = "researchmate-ai-worker"' in lock
@@ -48,8 +48,7 @@ def test_python_dependency_graph_is_locked_for_ci_and_images() -> None:
 def test_retired_delivery_paths_are_inert_and_cloudflare_sources_are_archived() -> None:
     """Keep retired release paths inert and archived."""
     active_workflows = "\n".join(
-        path.read_text(encoding="utf-8")
-        for path in (ROOT / ".github/workflows").glob("*.yml")
+        path.read_text(encoding="utf-8") for path in (ROOT / ".github/workflows").glob("*.yml")
     )
     web_package = (ROOT / "apps/web/package.json").read_text(encoding="utf-8")
     package_lock = (ROOT / "package-lock.json").read_text(encoding="utf-8")
@@ -65,8 +64,8 @@ def test_retired_delivery_paths_are_inert_and_cloudflare_sources_are_archived() 
     assert not (ROOT / "apps/web/wrangler.jsonc").exists()
     assert "opennextjs-cloudflare" not in web_package
     assert "wrangler" not in web_package.lower()
-    assert 'node_modules/@opennextjs/cloudflare' not in package_lock
-    assert 'node_modules/wrangler' not in package_lock
+    assert "node_modules/@opennextjs/cloudflare" not in package_lock
+    assert "node_modules/wrangler" not in package_lock
 
     release_snapshot = (archive / "release-workflow.yml").read_text(encoding="utf-8")
     assert "workflow_dispatch:" in release_snapshot
@@ -112,9 +111,21 @@ def test_repository_sources_do_not_contain_provider_secrets() -> None:
     suspicious: list[str] = []
     for base in roots:
         for path in base.rglob("*"):
-            if not path.is_file() or any(part in {".next", "build", "__pycache__"} for part in path.parts):
+            if not path.is_file() or any(
+                part in {".next", "build", "__pycache__"} for part in path.parts
+            ):
                 continue
-            if path.suffix.lower() not in {".py", ".ts", ".tsx", ".js", ".json", ".yml", ".yaml", ".html", ".css"}:
+            if path.suffix.lower() not in {
+                ".py",
+                ".ts",
+                ".tsx",
+                ".js",
+                ".json",
+                ".yml",
+                ".yaml",
+                ".html",
+                ".css",
+            }:
                 continue
             source = path.read_text(encoding="utf-8", errors="ignore")
             if "nvapi-" in source or "-----BEGIN PRIVATE KEY-----" in source:

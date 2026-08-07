@@ -1,5 +1,7 @@
 """Validate and expose API runtime configuration at environment boundaries."""
 
+from __future__ import annotations
+
 from functools import lru_cache
 from typing import Literal
 
@@ -135,17 +137,29 @@ class Settings(BaseSettings):
     @property
     def object_storage_endpoint_url_resolved(self) -> str | None:
         """Resolve the active generic S3 or R2 endpoint."""
-        return self.object_storage_endpoint_url if self.uses_generic_object_storage else self.r2_endpoint_url
+        return (
+            self.object_storage_endpoint_url
+            if self.uses_generic_object_storage
+            else self.r2_endpoint_url
+        )
 
     @property
     def object_storage_access_key_id_resolved(self) -> SecretStr | None:
         """Resolve the access-key identifier for the selected storage backend."""
-        return self.object_storage_access_key_id if self.uses_generic_object_storage else self.r2_access_key_id
+        return (
+            self.object_storage_access_key_id
+            if self.uses_generic_object_storage
+            else self.r2_access_key_id
+        )
 
     @property
     def object_storage_secret_access_key_resolved(self) -> SecretStr | None:
         """Resolve the secret access key for the selected storage backend."""
-        return self.object_storage_secret_access_key if self.uses_generic_object_storage else self.r2_secret_access_key
+        return (
+            self.object_storage_secret_access_key
+            if self.uses_generic_object_storage
+            else self.r2_secret_access_key
+        )
 
     @property
     def object_storage_bucket_resolved(self) -> str | None:
@@ -165,7 +179,7 @@ class Settings(BaseSettings):
         )
 
     @model_validator(mode="after")
-    def validate_security_boundary(self) -> "Settings":
+    def validate_security_boundary(self) -> Settings:
         """Reject unsafe or incomplete combinations before the API starts."""
         if (
             self.chat_recent_token_budget + self.chat_summary_token_budget
@@ -189,7 +203,9 @@ class Settings(BaseSettings):
         if self.web_search_provider == "tavily" and self.tavily_api_key is None:
             raise ValueError("TAVILY_API_KEY is required when WEB_SEARCH_PROVIDER=tavily")
         if self.otel_enabled and not self.otel_exporter_otlp_traces_endpoint:
-            raise ValueError("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT is required when OTEL_ENABLED=true")
+            raise ValueError(
+                "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT is required when OTEL_ENABLED=true"
+            )
         if self.langfuse_enabled and (
             self.langfuse_public_key is None or self.langfuse_secret_key is None
         ):
@@ -204,11 +220,17 @@ class Settings(BaseSettings):
             if not self.redis_url:
                 raise ValueError("preview and production require REDIS_URL")
             if not self.object_storage_configured:
-                raise ValueError("preview and production require complete S3-compatible object storage configuration")
+                raise ValueError(
+                    "preview and production require complete S3-compatible object storage configuration"
+                )
             if self.llm_provider != "nvidia" or self.nvidia_api_key is None:
-                raise ValueError("preview and production require the configured NVIDIA LLM provider")
+                raise ValueError(
+                    "preview and production require the configured NVIDIA LLM provider"
+                )
             if self.embedding_provider != "nvidia" or self.embedding_dimension != 4096:
-                raise ValueError("preview and production require the 4096-dimension NVIDIA embedding provider")
+                raise ValueError(
+                    "preview and production require the 4096-dimension NVIDIA embedding provider"
+                )
             if not self.qdrant_url or self.qdrant_api_key is None:
                 raise ValueError("preview and production require Qdrant Cloud configuration")
             if self.web_search_provider != "tavily" or self.tavily_api_key is None:

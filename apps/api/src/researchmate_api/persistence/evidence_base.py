@@ -64,9 +64,7 @@ class PostgresEvidenceRepositoryBase:
             yield connection
 
     @staticmethod
-    def _lock_active_project(
-        connection: Connection, user_id: UUID, project_id: UUID
-    ) -> bool:
+    def _lock_active_project(connection: Connection, user_id: UUID, project_id: UUID) -> bool:
         """Serialize evidence writes against the project deletion transition."""
         row = connection.execute(
             text(
@@ -82,9 +80,7 @@ class PostgresEvidenceRepositoryBase:
         return row is not None
 
     @staticmethod
-    def _lock_idempotency(
-        connection: Connection, user_id: UUID, idempotency_key: str
-    ) -> None:
+    def _lock_idempotency(connection: Connection, user_id: UUID, idempotency_key: str) -> None:
         """Serialize writes sharing one owner-scoped idempotency key."""
         connection.execute(
             text("select pg_advisory_xact_lock(hashtextextended(:key,2))"),
@@ -154,4 +150,3 @@ class PostgresEvidenceRepositoryBase:
                 "key": idempotency_key,
             },
         )
-

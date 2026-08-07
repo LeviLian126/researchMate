@@ -9,6 +9,7 @@ from researchmate_worker.fault_simulation import FaultSimulationService
 
 class FakeResult:
     """Expose the minimal result mapping used by fault persistence."""
+
     def __init__(self, row=None):
         self.row = row
 
@@ -21,6 +22,7 @@ class FakeResult:
 
 class FakeConnection:
     """Record SQL calls and return deterministic fault records."""
+
     def __init__(self):
         self.finished = None
 
@@ -45,6 +47,7 @@ class FakeConnection:
 
 class FakeEngine:
     """Provide an isolated transaction context for fault simulation."""
+
     def __init__(self):
         self.connection = FakeConnection()
 

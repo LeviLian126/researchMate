@@ -29,9 +29,10 @@ class PostgresEvidenceCatalogMixin:
     def list_claims(self, user: CurrentUser, project_id: UUID) -> ClaimListResponse:
         """List bounded claim summaries and aggregate evidence counts for one owner project."""
         with self._transaction(user) as connection:
-            rows = connection.execute(
-                text(
-                    """
+            rows = (
+                connection.execute(
+                    text(
+                        """
                     select c.id, c.text, c.stance, c.confidence, c.review_status,
                       c.source_version,
                       count(distinct ce.citation_id) as evidence_count,
@@ -54,9 +55,12 @@ class PostgresEvidenceCatalogMixin:
   )
                     group by c.id order by c.created_at desc limit 200
                     """
-                ),
-                {"project_id": project_id, "user_id": user.id},
-            ).mappings().all()
+                    ),
+                    {"project_id": project_id, "user_id": user.id},
+                )
+                .mappings()
+                .all()
+            )
         return ClaimListResponse(
             items=[
                 ClaimSummary(
@@ -80,9 +84,10 @@ class PostgresEvidenceCatalogMixin:
     ) -> ClaimRelationListResponse:
         """List bounded claim relations whose endpoints belong to one owner project."""
         with self._transaction(user) as connection:
-            rows = connection.execute(
-                text(
-                    """
+            rows = (
+                connection.execute(
+                    text(
+                        """
                     select r.source_claim_id, r.target_claim_id, r.relation, r.confidence,
                       r.rationale_summary, source.text as source_text, target.text as target_text
                     from claim_relations r
@@ -97,9 +102,12 @@ class PostgresEvidenceCatalogMixin:
   )
                     order by r.created_at desc limit 300
                     """
-                ),
-                {"project_id": project_id, "user_id": user.id},
-            ).mappings().all()
+                    ),
+                    {"project_id": project_id, "user_id": user.id},
+                )
+                .mappings()
+                .all()
+            )
         return ClaimRelationListResponse(
             items=[
                 ClaimRelationSummary(
@@ -118,9 +126,10 @@ class PostgresEvidenceCatalogMixin:
     def list_reports(self, user: CurrentUser, project_id: UUID) -> ReportListResponse:
         """List bounded report summaries for one owner project."""
         with self._transaction(user) as connection:
-            rows = connection.execute(
-                text(
-                    """
+            rows = (
+                connection.execute(
+                    text(
+                        """
                     select r.id, r.source_run_id, r.title, r.status, r.revision,
                       r.validation_status, r.generated_at,
                       count(s.id) filter (where s.validation_status <> 'passed')
@@ -134,9 +143,12 @@ class PostgresEvidenceCatalogMixin:
   )
                     group by r.id order by r.revision desc limit 100
                     """
-                ),
-                {"project_id": project_id, "user_id": user.id},
-            ).mappings().all()
+                    ),
+                    {"project_id": project_id, "user_id": user.id},
+                )
+                .mappings()
+                .all()
+            )
         return ReportListResponse(
             items=[
                 ReportSummary(
@@ -156,27 +168,35 @@ class PostgresEvidenceCatalogMixin:
     def get_report(self, user: CurrentUser, report_id: UUID) -> ReportDetail | None:
         """Read one owner-scoped report with its ordered sections."""
         with self._transaction(user) as connection:
-            row = connection.execute(
-                text(
-                    """
+            row = (
+                connection.execute(
+                    text(
+                        """
                     select id,source_run_id,title,status,revision,validation_status,generated_at
                     from reports where id=:report_id and user_id=:user_id
                     """
-                ),
-                {"report_id": report_id, "user_id": user.id},
-            ).mappings().one_or_none()
+                    ),
+                    {"report_id": report_id, "user_id": user.id},
+                )
+                .mappings()
+                .one_or_none()
+            )
             if row is None:
                 return None
-            sections = connection.execute(
-                text(
-                    """
+            sections = (
+                connection.execute(
+                    text(
+                        """
                     select id,section_key,position,heading,body_markdown,evidence_snapshot,
                       validation_status
                     from report_sections where report_id=:report_id order by position
                     """
-                ),
-                {"report_id": report_id},
-            ).mappings().all()
+                    ),
+                    {"report_id": report_id},
+                )
+                .mappings()
+                .all()
+            )
         affected = sum(section["validation_status"] != "passed" for section in sections)
         return ReportDetail(
             report_id=row["id"],
@@ -204,17 +224,21 @@ class PostgresEvidenceCatalogMixin:
     def list_pipeline_versions(self, user: CurrentUser) -> PipelineVersionListResponse:
         """List the pipeline versions visible to the current user."""
         with self._transaction(user) as connection:
-            rows = connection.execute(
-                text(
-                    """
+            rows = (
+                connection.execute(
+                    text(
+                        """
                     select id,name,version,configuration,code_sha,accepted_at
                     from pipeline_versions
                     where status='accepted'
                     order by accepted_at desc nulls last,name,version desc
                     """
-                ),
-                {},
-            ).mappings().all()
+                    ),
+                    {},
+                )
+                .mappings()
+                .all()
+            )
         return PipelineVersionListResponse(
             items=[
                 PipelineVersionSummary(
@@ -234,9 +258,10 @@ class PostgresEvidenceCatalogMixin:
     ) -> EvaluationDatasetListResponse:
         """List evaluation datasets visible under the user role boundary."""
         with self._transaction(user) as connection:
-            rows = connection.execute(
-                text(
-                    """
+            rows = (
+                connection.execute(
+                    text(
+                        """
                     select d.id,d.project_id,d.name,d.version,d.description,count(c.id) case_count
                     from evaluation_datasets d
                     left join evaluation_cases c on c.dataset_id=d.id
@@ -249,9 +274,12 @@ class PostgresEvidenceCatalogMixin:
   ))
                     group by d.id order by d.name,d.version desc
                     """
-                ),
-                {"user_id": user.id, "project_id": project_id},
-            ).mappings().all()
+                    ),
+                    {"user_id": user.id, "project_id": project_id},
+                )
+                .mappings()
+                .all()
+            )
         return EvaluationDatasetListResponse(
             items=[
                 EvaluationDatasetSummary(
@@ -265,4 +293,3 @@ class PostgresEvidenceCatalogMixin:
                 for row in rows
             ]
         )
-

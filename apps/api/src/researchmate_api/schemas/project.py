@@ -1,5 +1,7 @@
 """Define validated project creation and project response contracts."""
 
+from __future__ import annotations
+
 from datetime import datetime
 from typing import Literal
 from uuid import UUID
@@ -7,9 +9,10 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
-# 定义创建项目请求。
+# Define the create-project request.
 class ProjectCreate(BaseModel):
     """Validate the caller-provided name for a new project."""
+
     name: str = Field(min_length=1, max_length=120)
 
     model_config = ConfigDict(extra="forbid")
@@ -24,9 +27,10 @@ class ProjectCreate(BaseModel):
         return name
 
 
-# 定义项目记录响应。
+# Define the project record response.
 class ProjectRecord(BaseModel):
     """Represent owner-scoped project metadata returned by the API."""
+
     id: UUID
     user_id: UUID
     name: str

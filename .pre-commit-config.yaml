@@ -1,0 +1,59 @@
+# Pre-commit hooks for the ResearchMate monorepo.
+# These hooks run through the locked uv environment so they exercise the same
+# pinned versions as `npm run check:lint` and `npm run check:types`.
+#
+# Install once (requires uv and Python 3.13):
+#   uv run pre-commit install
+# Run on all files manually:
+#   uv run pre-commit run --all-files
+#
+# Configuration notes:
+# - ruff and pyright are pinned via uv.lock (ruff==0.16.0, pyright==1.1.390).
+#   Hooks use `language: system` so they reuse the uv-managed environment
+#   instead of pre-commit building a separate virtualenv.
+# - pyright reads configuration from root `pyproject.toml` ([tool.pyright]).
+# - ruff config lives in `ruff.toml` (root) and `apps/api/pyproject.toml`.
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: check-merge-conflict
+        name: Check for unresolved merge conflicts
+        description: Stop commits that still contain merge conflict markers.
+        args: [--assume-in-merge]
+      - id: end-of-file-fixer
+        name: End-of-file fixer (single trailing newline)
+        description: Ensure files end with exactly one newline.
+      - id: check-yaml
+        name: Validate YAML files
+        args: [--allow-multiple-documents]
+      - id: check-toml
+        name: Validate TOML files
+      - id: trailing-whitespace
+        name: Trim trailing whitespace
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.0
+    hooks:
+      - id: ruff
+        name: ruff (lint + autofix)
+        language: system
+        entry: uv run ruff check --force-exclude --fix apps/api/src workers/ai-worker/src tests
+        pass_filenames: false
+        files: \.py$
+      - id: ruff-format
+        name: ruff-format (format check)
+        language: system
+        entry: uv run ruff format --force-exclude --check apps/api/src workers/ai-worker/src tests
+        pass_filenames: false
+        files: \.py$
+
+  - repo: local
+    hooks:
+      - id: pyright
+        name: pyright (type check)
+        language: system
+        entry: uv run pyright
+        pass_filenames: false
+        files: \.py$

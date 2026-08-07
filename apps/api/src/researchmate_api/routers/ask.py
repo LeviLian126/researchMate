@@ -1,5 +1,7 @@
 """Map the HTTP Ask endpoint to idempotent grounded-query application services."""
 
+from __future__ import annotations
+
 from fastapi import APIRouter, Depends, Header, Request
 
 from researchmate_api.dependencies import (
@@ -39,9 +41,7 @@ def ask(
     ),
 ) -> AskResponse:
     """Execute or replay one Ask request without duplicate provider calls or messages."""
-    coordinator = IdempotencyCoordinator(
-        repository, user, "ask", idempotency_key, payload
-    )
+    coordinator = IdempotencyCoordinator(repository, user, "ask", idempotency_key, payload)
     try:
         replay = coordinator.begin()
         if replay is not None:

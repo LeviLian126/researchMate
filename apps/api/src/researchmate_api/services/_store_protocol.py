@@ -1,5 +1,7 @@
 """Define the application-facing ResearchMate persistence protocol."""
 
+from __future__ import annotations
+
 from typing import Any, Protocol
 from uuid import UUID
 
@@ -63,9 +65,7 @@ class ResearchMateRepository(Protocol):
 
     def get_job(self, user: CurrentUser, job_id: UUID) -> JobRecord | None: ...
 
-    def get_run_sources(
-        self, user: CurrentUser, run_id: UUID
-    ) -> RunSourcesResponse | None: ...
+    def get_run_sources(self, user: CurrentUser, run_id: UUID) -> RunSourcesResponse | None: ...
 
     def get_trace(self, user: CurrentUser, trace_id: UUID) -> DeveloperTrace | None: ...
 
@@ -103,9 +103,7 @@ class ResearchMateRepository(Protocol):
         quiz_set: QuizSet,
     ) -> tuple[UUID, UUID]: ...
 
-    def list_quiz_sets(
-        self, user: CurrentUser, project_id: UUID
-    ) -> list[QuizSet] | None: ...
+    def list_quiz_sets(self, user: CurrentUser, project_id: UUID) -> list[QuizSet] | None: ...
 
     def increment_usage(self, user: CurrentUser, kind: str, limit: int) -> bool: ...
 
@@ -125,9 +123,7 @@ class ResearchMateRepository(Protocol):
         self, user: CurrentUser, operation: str, key: str, request_hash: str
     ) -> None: ...
 
-    def project_chunks(
-        self, user: CurrentUser, project_id: UUID
-    ) -> list[ChunkEntry] | None: ...
+    def project_chunks(self, user: CurrentUser, project_id: UUID) -> list[ChunkEntry] | None: ...
 
     def get_chunks_by_ids(
         self, user: CurrentUser, project_id: UUID, chunk_ids: list[UUID]

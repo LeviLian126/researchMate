@@ -1,5 +1,7 @@
 """Configure the worker process, task discovery, and bounded runtime heartbeats."""
 
+from __future__ import annotations
+
 import logging
 from functools import lru_cache
 from time import monotonic

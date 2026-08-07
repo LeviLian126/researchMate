@@ -53,9 +53,8 @@ class ConversationStoreMixin:
                 conversation = self.conversations.get(conversation_id)
                 if conversation is None or conversation.project_id != project_id:
                     return None
-                if (
-                    conversation.title == "New chat"
-                    and not self.conversation_items.get(conversation_id)
+                if conversation.title == "New chat" and not self.conversation_items.get(
+                    conversation_id
                 ):
                     conversation = conversation.model_copy(
                         update={
@@ -92,11 +91,7 @@ class ConversationStoreMixin:
             if self.get_project(user, project_id) is None:
                 return None
             return sorted(
-                (
-                    item
-                    for item in self.conversations.values()
-                    if item.project_id == project_id
-                ),
+                (item for item in self.conversations.values() if item.project_id == project_id),
                 key=lambda item: item.updated_at,
                 reverse=True,
             )[:100]

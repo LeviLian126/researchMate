@@ -39,7 +39,9 @@ from researchmate_api.services._store_text import chunk_text
 class DocumentStoreMixin:
     """Own in-memory upload, document, and ingestion job state."""
 
-    def create_upload_url(self, user: CurrentUser, payload: UploadUrlRequest) -> UploadUrlResponse | None:
+    def create_upload_url(
+        self, user: CurrentUser, payload: UploadUrlRequest
+    ) -> UploadUrlResponse | None:
         """Reserve an owned document and return its upload destination."""
         with self._lock:
             project = self.get_project(user, payload.project_id)
@@ -85,7 +87,9 @@ class DocumentStoreMixin:
                 expires_in_seconds=600,
             )
 
-    def create_document(self, user: CurrentUser, payload: UploadUrlRequest) -> DocumentRecord | None:
+    def create_document(
+        self, user: CurrentUser, payload: UploadUrlRequest
+    ) -> DocumentRecord | None:
         """Resolve the latest matching uploaded document reservation."""
         with self._lock:
             project = self.get_project(user, payload.project_id)
@@ -104,7 +108,9 @@ class DocumentStoreMixin:
             response = self.create_upload_url(user, payload)
             return None if response is None else self.documents[response.document_id]
 
-    def list_project_documents(self, user: CurrentUser, project_id: UUID) -> list[DocumentRecord] | None:
+    def list_project_documents(
+        self, user: CurrentUser, project_id: UUID
+    ) -> list[DocumentRecord] | None:
         """List visible documents belonging to an owned project."""
         with self._lock:
             if self.get_project(user, project_id) is None:
@@ -157,8 +163,14 @@ class DocumentStoreMixin:
             if project is None or project.status != "active":
                 return None
             now = datetime.now(UTC)
-            status = DocumentStatus.READY if extracted_text and extracted_text.strip() else DocumentStatus.FAILED
-            error_message = None if status == DocumentStatus.READY else "No extractable text was provided."
+            status = (
+                DocumentStatus.READY
+                if extracted_text and extracted_text.strip()
+                else DocumentStatus.FAILED
+            )
+            error_message = (
+                None if status == DocumentStatus.READY else "No extractable text was provided."
+            )
             self.documents[document_id] = document.model_copy(
                 update={"status": status, "error_message": error_message, "updated_at": now}
             )

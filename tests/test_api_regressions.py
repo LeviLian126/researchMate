@@ -24,9 +24,7 @@ def client() -> TestClient:
 
 def _ready_project(client: TestClient, text: str) -> str:
     """Create one workspace and complete a small local document."""
-    project = client.post(
-        "/api/v1/projects", json={"name": "Regression"}, headers=HEADERS
-    )
+    project = client.post("/api/v1/projects", json={"name": "Regression"}, headers=HEADERS)
     assert project.status_code == 201
     project_id = project.json()["id"]
     upload = client.post(
@@ -134,7 +132,5 @@ def test_quiz_idempotency_replays_the_same_aggregate(client: TestClient) -> None
     second = client.post("/api/v1/quiz", json=payload, headers=headers)
     assert first.status_code == second.status_code == 200
     assert second.json() == first.json()
-    history = client.get(
-        f"/api/v1/projects/{project_id}/quiz", headers=HEADERS
-    ).json()["quiz_sets"]
+    history = client.get(f"/api/v1/projects/{project_id}/quiz", headers=HEADERS).json()["quiz_sets"]
     assert len(history) == 1

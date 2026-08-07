@@ -96,17 +96,21 @@ class IdempotencyPersistenceMixin:
             ).one_or_none()
             if inserted is not None:
                 return IdempotencyDecision("execute")
-            row = connection.execute(
-                text(
-                    """
+            row = (
+                connection.execute(
+                    text(
+                        """
                     select request_hash, state, response
                     from api_idempotency
                     where user_id=:user_id and operation=:operation
                       and idempotency_key=:key
                     """
-                ),
-                {"user_id": user.id, "operation": operation, "key": key},
-            ).mappings().one()
+                    ),
+                    {"user_id": user.id, "operation": operation, "key": key},
+                )
+                .mappings()
+                .one()
+            )
         if row["request_hash"] != request_hash:
             return IdempotencyDecision("mismatch")
         if row["state"] == "succeeded":

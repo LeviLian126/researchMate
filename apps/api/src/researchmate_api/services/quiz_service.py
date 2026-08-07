@@ -140,9 +140,7 @@ class QuizService:
                 first_by_document.setdefault(chunk.document_id or chunk.id, chunk)
             retrieved = list(first_by_document.values())[:50]
             selected_ids = {chunk.id for chunk in retrieved}
-            retrieved.extend(
-                chunk for chunk in chunks if chunk.id not in selected_ids
-            )
+            retrieved.extend(chunk for chunk in chunks if chunk.id not in selected_ids)
             retrieved = retrieved[:50]
         covered = {chunk.document_id or chunk.id for chunk in retrieved}
         coverage = QuizCoverage(

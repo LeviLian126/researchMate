@@ -18,8 +18,8 @@ export default defineConfig({
       exclude: ["app/**/*.test.{ts,tsx}"],
       reporter: ["text", "json-summary"],
       thresholds: {
-        lines: 40,
-        statements: 40,
+        lines: 60,
+        statements: 60,
       },
     },
   },

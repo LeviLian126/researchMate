@@ -25,6 +25,7 @@ SUPPORTED_METRICS = {"schema_valid", "citation_precision", "evidence_recall", "f
 
 class EvaluationRunner(EvaluationPersistenceMixin):
     """Coordinate bounded case evaluation under one durable run lease."""
+
     def __init__(
         self,
         *,

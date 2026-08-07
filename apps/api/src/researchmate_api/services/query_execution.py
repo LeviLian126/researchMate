@@ -55,9 +55,7 @@ def retrieve_web(
             503,
         ) from exc
     if not results:
-        raise WebEvidenceError(
-            "WEB_EVIDENCE_NOT_FOUND", "No usable web evidence was found.", 409
-        )
+        raise WebEvidenceError("WEB_EVIDENCE_NOT_FOUND", "No usable web evidence was found.", 409)
     return results
 
 
@@ -66,14 +64,10 @@ def limit_rerank_candidates(
 ) -> list[RetrievalCandidate]:
     """Bound provider payloads while preserving Web and document diversity."""
     web = [
-        candidate
-        for candidate in candidates
-        if candidate.chunk.source_type == SourceType.WEB_PAGE
+        candidate for candidate in candidates if candidate.chunk.source_type == SourceType.WEB_PAGE
     ]
     local = [
-        candidate
-        for candidate in candidates
-        if candidate.chunk.source_type != SourceType.WEB_PAGE
+        candidate for candidate in candidates if candidate.chunk.source_type != SourceType.WEB_PAGE
     ]
     local_limit = max(0, limit - min(len(web), limit))
     diversified: list[RetrievalCandidate] = []
@@ -87,9 +81,7 @@ def limit_rerank_candidates(
         if len(diversified) >= local_limit:
             break
     selected_ids = {candidate.chunk.id for candidate in diversified}
-    diversified.extend(
-        candidate for candidate in local if candidate.chunk.id not in selected_ids
-    )
+    diversified.extend(candidate for candidate in local if candidate.chunk.id not in selected_ids)
     return [*diversified[:local_limit], *web[:limit]][:limit]
 
 

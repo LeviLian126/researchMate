@@ -49,9 +49,7 @@ ObjectMetadataReader = Callable[[str], StoredObjectMetadata]
 class ChunkPersistenceMixin:
     """Own authorized chunk retrieval for project and conversation contexts."""
 
-    def project_chunks(
-        self, user: CurrentUser, project_id: UUID
-    ) -> list[ChunkEntry] | None:
+    def project_chunks(self, user: CurrentUser, project_id: UUID) -> list[ChunkEntry] | None:
         """Return retrievable chunks from ready sources in an owned project."""
         if self.get_project(user, project_id) is None:
             return None

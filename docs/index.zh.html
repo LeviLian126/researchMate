@@ -1,4 +1,4 @@
-﻿<!-- 定义 ResearchMate 项目文档的证据支撑落地页。 -->
+<!-- 定义 ResearchMate 项目文档的证据支撑落地页。 -->
 <!DOCTYPE html>
 <html lang="zh">
 <head>
@@ -13,7 +13,7 @@
     <div class="shell mast-row">
      <a class="brand" href="index.zh.html">ResearchMate 文档</a>
       <div class="mast-right">
-        <span class="stamp">证据快照 · 2026 年 7 月 27 日</span>
+        <span class="stamp">证据快照 · 2026 年 8 月 7 日</span>
         <a class="lang-toggle" href="index.html" hreflang="en" lang="en">English</a>
       </div>
     </div>
@@ -136,6 +136,90 @@
       </div>
     </section>
 
+    <section id="improvements">
+      <div class="shell">
+        <p class="eyebrow">进行中的改进轨道</p>
+        <h2>安全加固、代码质量与测试覆盖进行中</h2>
+        <p class="sub">这些轨道仍在交付中，尚未成为已发布的合约证据。状态遵循 Node08 规则：<code>partial</code> 项声明了关闭它所缺的证明；<code>planned</code> 项声明了解锁工作所依赖的条件。</p>
+
+        <div class="snapshot-grid" aria-label="安全加固轨道">
+          <article class="state-card">
+            <span class="status partial">HTTP 速率限制 · 进行中</span>
+            <b>安全加固 · API 速率限制</b>
+            <p>正在将 Slowapi 集成接入 <code>apps/api/.../main.py</code> 的 FastAPI 入口，为未认证的聊天、文件上传和 Quiz 生成路径配置可按 IP 调整的上限。线上证明待完成；该上限不得回退热对话延迟，也不得阻断 Playwright 的无凭据流程。</p>
+          </article>
+          <article class="state-card">
+            <span class="status partial">CSP 与 HSTS 头 · 进行中</span>
+            <b>安全加固 · 响应头</b>
+            <p>正在向 FastAPI 响应链添加 Content-Security-Policy 和 Strict-Transport-Security 中间件，使已部署站点以严格的仅 TLS 姿态运行，并明确 script/style/connect 来源。验证待在生产流量中可观察到该头表面后，针对公开 Vercel + Render 主机进行。</p>
+          </article>
+          <article class="state-card">
+            <span class="status planned">Prompt 注入防护 · 已计划</span>
+            <b>安全加固 · LLM 输入安全</b>
+            <p>正在围绕 <code>build_llm_chat_answer</code> 路径设计服务端 prompt 注入检测器，使不可信的文件和对话内容无法覆盖系统指令。该防护将在有界模型调用前拒绝、脱敏或上报被注入的载荷。实现和红队测试集仍待完成。</p>
+          </article>
+          <article class="state-card">
+            <span class="status planned">文件内容校验 · 已计划</span>
+            <b>安全加固 · 上传安全</b>
+            <p>计划引入服务端 <code>python-magic</code> 内容嗅探，加强私有 Supabase 存储桶已执行的 25 MB PDF/DOCX/PPTX 允许列表，使攻击者无法以错误标记的扩展名到达解析器。可部署的预留 → 签名 PUT → HEAD → 提交路径仍是集成证明。</p>
+          </article>
+        </div>
+
+        <div class="snapshot-grid" aria-label="代码质量轨道">
+          <article class="state-card">
+            <span class="status partial">Pyright · basic 模式已配置</span>
+            <b>代码质量 · 类型检查器</b>
+            <p>项目级 pyright 配置已提交至 <code>pyproject.toml</code>，<code>typeCheckingMode = "basic"</code>、<code>pythonVersion = "3.13"</code>，包含 <code>apps/api</code>、<code>workers/ai-worker</code> 和 <code>tests</code> 路径。CI 现在在 Python 测试步骤之后运行 <code>npm run check:types</code>。严格模式有意关闭，以便现有代码库增量迁移；后续按文件收紧到严格规则是可选的下一步。</p>
+          </article>
+          <article class="state-card">
+            <span class="status planned">Pre-commit hooks · 已计划</span>
+            <b>代码质量 · 本地关卡</b>
+            <p>计划引入共享的 <code>.pre-commit-config.yaml</code>，在创建提交前运行 Ruff、pyright（basic）、OpenAPI 漂移、迁移和文档检查，使本地关卡镜像 CI 合约，而非仅在推送时才捕获问题。Hook 安装指南和可选强制方案仍待完成。</p>
+          </article>
+          <article class="state-card">
+            <span class="status planned">项目级 AGENTS.md · 已计划</span>
+            <b>代码质量 · AI 指南</b>
+            <p>计划在根目录 <code>AGENTS.md</code> 中记录绑定执行策略（本地封闭检查、不在本地启动应用或基础设施服务）、双语文档看板约定，以及任何 AI agent 在编辑仓库前必须尊重的安全和代码质量基线。内容和批准仍待完成。</p>
+          </article>
+          <article class="state-card">
+            <span class="status partial">统一英文注释 · 进行中</span>
+            <b>代码质量 · 注释策略</b>
+            <p>正在对 API 和 worker 源码应用仅英文注释策略，使评审者和 AI agent 在代码中读到同一种语言，与以英文为规范技术表面、中文为并行翻译的双语 HTML 文档保持一致。剩余中文内联注释和 docstring 的转换仍在进行中。</p>
+          </article>
+        </div>
+
+        <div class="snapshot-grid" aria-label="测试覆盖轨道">
+          <article class="state-card">
+            <span class="status partial">grounded_query.py 测试 · 进行中</span>
+            <b>测试覆盖 · 接地查询</b>
+            <p>正在为 <code>apps/api/.../services/grounded_query.py</code> 添加新的单元测试，覆盖引用回答、拒绝、页面锚点输出和完整上下文短路分支。它们以进程内假对象封闭运行；托管提供商路径仍是已部署集成证明。</p>
+          </article>
+          <article class="state-card">
+            <span class="status partial">quiz_service.py 测试 · 进行中</span>
+            <b>测试覆盖 · Quiz 生成</b>
+            <p>正在为 <code>apps/api/.../services/quiz_service.py</code> 添加新的单元测试，覆盖问题生成、校验和刷新恢复。它们在不调用托管 NVIDIA 的情况下演练服务路径；延迟和七题验收观察仍是已部署证据。</p>
+          </article>
+          <article class="state-card">
+            <span class="status partial">PostgreSQL 持久化测试 · 进行中</span>
+            <b>测试覆盖 · 持久化</b>
+            <p>正在扩展已有的 <code>tests/test_evidence_postgres_unit.py</code> 和 <code>tests/test_postgres_repository_contract.py</code>，覆盖证据和仓库写入、租户谓词和租约恢复。直接跨用户 RLS 仍是外部已部署关卡，不是本地断言。</p>
+          </article>
+          <article class="state-card">
+            <span class="status partial">Worker 评估测试 · 进行中</span>
+            <b>测试覆盖 · Worker 流水线</b>
+            <p>正在扩展已有的 <code>tests/test_worker_*.py</code> 套件（配置、解析、运行时引导、任务执行和 tasks），补充面向评估流水线的断言，覆盖预算预留、租约保护执行和确定性指标记录。代理支持的故障运行仍是已部署关卡。</p>
+          </article>
+          <article class="state-card">
+            <span class="status planned">前端组件测试 · 已计划</span>
+            <b>测试覆盖 · Web</b>
+            <p>计划为统一聊天工作区、项目栏、来源抽屉和内联 Quiz 抽屉添加组件级 Vitest 覆盖，以提升 8 月 4 日记录的 51.6% 行覆盖率基线。扩展范围的端到端 Playwright 流程仍是主要行为证明。</p>
+          </article>
+        </div>
+
+        <p class="source">证据：<code>pyproject.toml</code> 现声明 <code>[tool.pyright]</code> 块，<code>typeCheckingMode = "basic"</code>、<code>pythonVersion = "3.13"</code>，包含 <code>apps/api/src/researchmate_api</code>、<code>workers/ai-worker/src/researchmate_worker</code> 和 <code>tests</code> 路径；<code>.github/workflows/ci.yml</code> 现在 <code>npm run test:python</code> 之后运行 <code>npm run check:types</code>；开发依赖 <code>pyright==1.1.390</code> 已锁定。测试证据：<code>tests/</code> 下既有的 PostgreSQL 和 worker 单元套件是进行中扩展的种子。剩余已计划轨道在发布工作时将引用其实现提交和 CI 运行。</p>
+      </div>
+    </section>
+
     <section id="contracts">
       <div class="shell">
         <p class="eyebrow">合约清单</p>
@@ -164,7 +248,7 @@
       </div>
     </section>
   </main>
-  <footer class="shell footer">ResearchMate 概览 · 证据检查于 2026 年 7 月 27 日</footer>
+  <footer class="shell footer">ResearchMate 概览 · 证据检查于 2026 年 8 月 7 日</footer>
   <script src="assets/site.js"></script>
 </body>
 </html>

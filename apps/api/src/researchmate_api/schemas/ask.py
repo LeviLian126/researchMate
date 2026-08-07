@@ -1,16 +1,18 @@
 """Define the unified Ask request, grounded proposal, and response contracts."""
 
+from __future__ import annotations
+
 from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
+from researchmate_api.schemas.common import MAX_TEXT_LENGTH, Citation, SourceSummary
 
-from researchmate_api.schemas.common import Citation, SourceSummary
 
-
-# 定义 Ask API 请求体。
+# Define the Ask API request body.
 class AskRequest(BaseModel):
     """Accept one bounded chat intent and optional evidence boundaries."""
+
     project_id: UUID
     conversation_id: UUID | None = None
     message: str = Field(min_length=1, max_length=8000)
@@ -19,17 +21,19 @@ class AskRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
-# 定义结构化回答中的单条 claim。
+# Define a single claim inside a structured answer.
 class Claim(BaseModel):
     """Represent one answer claim and its server-issued citation identifiers."""
+
     id: str = Field(min_length=1, max_length=120)
-    text: str = Field(min_length=1, max_length=1200)
+    text: str = Field(min_length=1, max_length=MAX_TEXT_LENGTH)
     citation_ids: list[UUID] = Field(default_factory=list, max_length=12)
 
 
-# 定义 LLM 必须输出的可溯源回答结构。
+# Define the traceable grounded-answer structure that the LLM must output.
 class GroundedAnswer(BaseModel):
     """Validate a provider answer against the grounded response contract."""
+
     sources: SourceSummary
     answer: str = Field(min_length=1, max_length=16000)
     claims: list[Claim] = Field(default_factory=list, max_length=80)
@@ -38,9 +42,10 @@ class GroundedAnswer(BaseModel):
     model_config = ConfigDict(use_enum_values=True)
 
 
-# 定义 Ask API 响应体。
+# Define the Ask API response body.
 class AskResponse(BaseModel):
     """Return persisted Ask identifiers, evidence, and explicit degradation state."""
+
     run_id: UUID
     conversation_id: UUID
     answer: str = Field(min_length=1, max_length=16000)

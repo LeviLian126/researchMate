@@ -1,5 +1,7 @@
 """Expose owner-scoped source summaries for completed query runs."""
 
+from __future__ import annotations
+
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, status
@@ -12,7 +14,7 @@ from researchmate_api.services.store import ResearchMateRepository
 router = APIRouter()
 
 
-# 返回一次运行的 Sources panel 数据。
+# Return the Sources panel data for a single run.
 @router.get("/runs/{run_id}/sources", response_model=RunSourcesResponse)
 def get_run_sources(
     run_id: UUID,

@@ -1,4 +1,4 @@
-﻿<!-- Defines the evidence-backed landing page for the ResearchMate project documentation. -->
+<!-- Defines the evidence-backed landing page for the ResearchMate project documentation. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -13,7 +13,7 @@
     <div class="shell mast-row">
      <a class="brand" href="index.html">ResearchMate documentation</a>
       <div class="mast-right">
-        <span class="stamp">Evidence snapshot · 27 July 2026</span>
+        <span class="stamp">Evidence snapshot · 7 August 2026</span>
         <a class="lang-toggle" href="index.zh.html" hreflang="zh" lang="zh">中文</a>
       </div>
     </div>
@@ -136,6 +136,90 @@
       </div>
     </section>
 
+    <section id="improvements">
+      <div class="shell">
+        <p class="eyebrow">Active improvement tracks</p>
+        <h2>Security, code quality, and test coverage in flight</h2>
+        <p class="sub">These tracks are in active delivery, not yet shipped contract evidence. Status follows the Node08 rule: <code>partial</code> items name the missing proof that closes them; <code>planned</code> items name the dependency that unblocks the work.</p>
+
+        <div class="snapshot-grid" aria-label="Security hardening track">
+          <article class="state-card">
+            <span class="status partial">HTTP rate limiting · in progress</span>
+            <b>Security Hardening · API rate limiting</b>
+            <p>Slowapi integration against <code>apps/api/.../main.py</code> is being wired onto the FastAPI entrypoint with a configurable per-IP ceiling for the unauthenticated chat, file upload, and Quiz generation paths. Live proof is pending; the bounded ceiling must not regress warm chat latency or block the Playwright credential-free journey.</p>
+          </article>
+          <article class="state-card">
+            <span class="status partial">CSP and HSTS headers · in progress</span>
+            <b>Security Hardening · Response headers</b>
+            <p>Content-Security-Policy and Strict-Transport-Security middleware is being added to the FastAPI response chain so the deployed site serves a strict TLS-only posture with explicit script/style/connect origins. Validation is pending against the public Vercel + Render hosts once the header surface is observable in production traffic.</p>
+          </article>
+          <article class="state-card">
+            <span class="status planned">Prompt injection guard · planned</span>
+            <b>Security Hardening · LLM input safety</b>
+            <p>A server-side prompt-injection detector is being designed around the <code>build_llm_chat_answer</code> path so untrusted file and chat content cannot override system instructions. The guard will reject, redact, or escalate injected payloads before the bounded model call. Implementation and a red-team test set remain pending.</p>
+          </article>
+          <article class="state-card">
+            <span class="status planned">File content validation · planned</span>
+            <b>Security Hardening · Upload safety</b>
+            <p>Server-side <code>python-magic</code> content sniffing is planned to reinforce the existing 25 MB PDF/DOCX/PPTX allowlist enforced by the private Supabase bucket, so an attacker cannot reach the parser with a mislabeled extension. The deployable reserve → signed PUT → HEAD → commit path remains the integration proof.</p>
+          </article>
+        </div>
+
+        <div class="snapshot-grid" aria-label="Code quality track">
+          <article class="state-card">
+            <span class="status partial">Pyright · basic mode configured</span>
+            <b>Code Quality · Type checker</b>
+            <p>Project-wide pyright configuration is committed in <code>pyproject.toml</code> with <code>typeCheckingMode = "basic"</code>, <code>pythonVersion = "3.13"</code>, and include paths for <code>apps/api</code>, <code>workers/ai-worker</code>, and <code>tests</code>. CI now runs <code>npm run check:types</code> after the Python test step. Strict mode is intentionally off so the existing codebase migrates incrementally; tightening to per-file strict rules is an opt-in next step.</p>
+          </article>
+          <article class="state-card">
+            <span class="status planned">Pre-commit hooks · planned</span>
+            <b>Code Quality · Local gate</b>
+            <p>A shared <code>.pre-commit-config.yaml</code> is planned to run Ruff, pyright (basic), OpenAPI drift, migration, and documentation checks before a commit is created, so the local gate mirrors the CI contract rather than catching issues only on push. Hook installation guidance and an opt-in enforcement plan remain pending.</p>
+          </article>
+          <article class="state-card">
+            <span class="status planned">Project AGENTS.md · planned</span>
+            <b>Code Quality · AI guidance</b>
+            <p>A root <code>AGENTS.md</code> is planned to record the binding execution policy (hermetic local checks, no application or infrastructure services started locally), the bilingual documentation kanban convention, and the security and code-quality baselines that any AI agent must respect before editing the repository. Content and approval remain pending.</p>
+          </article>
+          <article class="state-card">
+            <span class="status partial">Unified English comments · in progress</span>
+            <b>Code Quality · Comment policy</b>
+            <p>An English-only comment policy is being applied across the API and worker source so reviewers and AI agents read one language in code, matching the bilingual HTML documentation that keeps English as the canonical technical surface and Chinese as a parallel translation. Conversion of remaining Chinese inline comments and docstrings is in progress.</p>
+          </article>
+        </div>
+
+        <div class="snapshot-grid" aria-label="Test coverage track">
+          <article class="state-card">
+            <span class="status partial">grounded_query.py tests · in progress</span>
+            <b>Test Coverage · Grounded query</b>
+            <p>New unit tests against <code>apps/api/.../services/grounded_query.py</code> are being added to cover the cited answer, refusal, page-anchor emission, and complete-context short-circuit branches. They run hermetically with in-process fakes; the managed provider path remains a deployed integration proof.</p>
+          </article>
+          <article class="state-card">
+            <span class="status partial">quiz_service.py tests · in progress</span>
+            <b>Test Coverage · Quiz generation</b>
+            <p>New unit tests for <code>apps/api/.../services/quiz_service.py</code> are being added to cover question generation, validation, and refresh recovery. They exercise the service path without the managed NVIDIA call; latency and the seven-question acceptance observation remain deployed evidence.</p>
+          </article>
+          <article class="state-card">
+            <span class="status partial">PostgreSQL persistence tests · in progress</span>
+            <b>Test Coverage · Persistence</b>
+            <p>The existing <code>tests/test_evidence_postgres_unit.py</code> and <code>tests/test_postgres_repository_contract.py</code> are being expanded to cover evidence and repository writes, tenant predicates, and lease recovery. Direct cross-user RLS remains an external deployed gate, not a local assertion.</p>
+          </article>
+          <article class="state-card">
+            <span class="status partial">Worker evaluation tests · in progress</span>
+            <b>Test Coverage · Worker pipeline</b>
+            <p>The existing <code>tests/test_worker_*.py</code> suite (config, parsing, runtime bootstrap, task execution, and tasks) is being expanded with evaluation-pipeline-focused assertions covering budget reservation, lease-protected execution, and deterministic metric recording. The broker-backed fault run remains a deployed gate.</p>
+          </article>
+          <article class="state-card">
+            <span class="status planned">Frontend component tests · planned</span>
+            <b>Test Coverage · Web</b>
+            <p>Component-level Vitest coverage for the unified chat workspace, project rail, source drawer, and inline Quiz drawer is planned to raise the 51.6% line coverage baseline recorded on 4 August. The expanded-scope end-to-end Playwright journey remains the primary behavior proof.</p>
+          </article>
+        </div>
+
+        <p class="source">Evidence: <code>pyproject.toml</code> now declares the <code>[tool.pyright]</code> block with <code>typeCheckingMode = "basic"</code>, <code>pythonVersion = "3.13"</code>, include paths for <code>apps/api/src/researchmate_api</code>, <code>workers/ai-worker/src/researchmate_worker</code>, and <code>tests</code>; <code>.github/workflows/ci.yml</code> now runs <code>npm run check:types</code> after <code>npm run test:python</code>; dev dependency <code>pyright==1.1.390</code> is pinned. Test evidence: existing PostgreSQL and worker unit suites under <code>tests/</code> form the seed for the in-progress expansion. Remaining planned tracks will cite their implementation commit and CI run when the work is shipped.</p>
+      </div>
+    </section>
+
     <section id="contracts">
       <div class="shell">
         <p class="eyebrow">Contract inventory</p>
@@ -164,7 +248,7 @@
       </div>
     </section>
   </main>
-  <footer class="shell footer">ResearchMate overview · evidence inspected 27 July 2026</footer>
+  <footer class="shell footer">ResearchMate overview · evidence inspected 7 August 2026</footer>
   <script src="assets/site.js"></script>
 </body>
 </html>

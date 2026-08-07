@@ -1,5 +1,7 @@
 """Expose owner-scoped project creation, lookup, listing, and deletion routes."""
 
+from __future__ import annotations
+
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, status
@@ -21,7 +23,7 @@ def bootstrap_personal_chat(
     return repository.ensure_personal_project(user)
 
 
-# 创建项目记录。
+# Create a project record.
 @router.post("/projects", response_model=ProjectRecord, status_code=status.HTTP_201_CREATED)
 def create_project(
     payload: ProjectCreate,
@@ -32,7 +34,7 @@ def create_project(
     return repository.create_project(user, payload)
 
 
-# 列出当前用户项目。
+# List projects owned by the current user.
 @router.get("/projects", response_model=list[ProjectRecord])
 def list_projects(
     user: CurrentUser = Depends(get_current_user),
@@ -42,7 +44,7 @@ def list_projects(
     return repository.list_projects(user)
 
 
-# 读取单个项目，必须校验 owner user_id。
+# Read a single project; must validate owner user_id.
 @router.get("/projects/{project_id}", response_model=ProjectRecord)
 def get_project(
     project_id: UUID,
@@ -56,7 +58,7 @@ def get_project(
     return project
 
 
-# 删除项目并创建本地 deletion job。
+# Delete a project and create a local deletion job.
 @router.delete("/projects/{project_id}", status_code=status.HTTP_202_ACCEPTED)
 def delete_project(
     project_id: UUID,

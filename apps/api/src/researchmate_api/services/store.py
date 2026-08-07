@@ -1,5 +1,7 @@
 """Assemble the public in-memory repository from aggregate-focused store mixins."""
 
+from __future__ import annotations
+
 from researchmate_api.services._store_chunks import ChunkStoreMixin
 from researchmate_api.services._store_conversations import ConversationStoreMixin
 from researchmate_api.services._store_core import InMemoryStoreCore

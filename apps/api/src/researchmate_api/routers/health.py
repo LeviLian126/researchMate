@@ -1,15 +1,17 @@
 """Expose liveness and non-charging dependency-readiness probes."""
 
+from __future__ import annotations
+
 from typing import Any
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Query, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
 router = APIRouter()
 
 
-# 返回服务健康状态。
+# Return the service health status.
 @router.get("/healthz")
 async def healthz() -> dict[str, str]:
     """Answer liveness probes without waiting for the shared sync thread pool."""
@@ -18,10 +20,27 @@ async def healthz() -> dict[str, str]:
 
 
 @router.get("/readyz")
-def readyz(request: Request) -> JSONResponse:
-    """Probe non-charging dependencies required to safely accept production work."""
+def readyz(
+    request: Request,
+    verbose: bool = Query(  # noqa: B008 - FastAPI dependency injection via default.
+        default=None,
+        description="Return full component details. Defaults to False in production.",
+    ),
+) -> JSONResponse:
+    """Probe non-charging dependencies required to safely accept production work.
+
+    By default in production and preview environments only a minimal status payload is
+    returned so that internal component states and failure lists are not exposed at the
+    public entrypoint. Operators and tests can pass ``?verbose=true`` to receive the full
+    detail payload for debugging.
+    """
 
     settings = request.app.state.settings
+    # Verbose defaults to False for production/preview to avoid leaking component state and
+    # failure lists. For local/test environments detailed output is the default so that
+    # operators can iterate quickly without remembering the flag.
+    if verbose is None:
+        verbose = settings.app_env in {"local", "test"}
     components: dict[str, Any] = {
         "database": "not_required",
         "redis": "not_required",
@@ -60,31 +79,34 @@ def readyz(request: Request) -> JSONResponse:
                     )
                     if int(checkpoint_tables) != 4:
                         failures.append("checkpoint")
-                    heartbeat_rows = connection.execute(
-                        text(
-                            """
+                    heartbeat_rows = (
+                        connection.execute(
+                            text(
+                                """
                             select component,status,
                               updated_at >= now() - make_interval(secs => :max_age) as fresh
                             from runtime_heartbeats
                             where component in ('worker','dispatcher')
                             """
-                        ),
-                        {"max_age": settings.runtime_heartbeat_max_age_seconds},
-                    ).mappings().all()
+                            ),
+                            {"max_age": settings.runtime_heartbeat_max_age_seconds},
+                        )
+                        .mappings()
+                        .all()
+                    )
                     heartbeats = {row["component"]: row for row in heartbeat_rows}
                     for component in ("worker", "dispatcher"):
                         heartbeat = heartbeats.get(component)
                         ready = bool(
-                            heartbeat
-                            and heartbeat["status"] == "ready"
-                            and heartbeat["fresh"]
+                            heartbeat and heartbeat["status"] == "ready" and heartbeat["fresh"]
                         )
                         components[component] = "ready" if ready else "unavailable"
                         if not ready:
                             failures.append(component)
-                    outbox = connection.execute(
-                        text(
-                            """
+                    outbox = (
+                        connection.execute(
+                            text(
+                                """
                             select
                               count(*) filter (
                                 where status in ('pending','publishing','failed')
@@ -95,12 +117,15 @@ def readyz(request: Request) -> JSONResponse:
                               ) as exhausted_count
                             from outbox_events
                             """
-                        ),
-                        {
-                            "max_age": settings.outbox_pending_max_age_seconds,
-                            "max_attempts": 8,
-                        },
-                    ).mappings().one()
+                            ),
+                            {
+                                "max_age": settings.outbox_pending_max_age_seconds,
+                                "max_attempts": 8,
+                            },
+                        )
+                        .mappings()
+                        .one()
+                    )
                     outbox_ready = not int(outbox["stale_count"]) and not int(
                         outbox["exhausted_count"]
                     )
@@ -152,10 +177,21 @@ def readyz(request: Request) -> JSONResponse:
     elif settings.app_env in {"preview", "production"}:
         components["web_search"] = "unavailable"
         failures.append("web_search")
-    payload = {
-        "status": "ready" if not failures else "not_ready",
-        "environment": settings.app_env,
-        "components": components,
-        "failed_components": failures,
-    }
-    return JSONResponse(status_code=200 if not failures else 503, content=payload)
+    ready = not failures
+    status_text = "ready" if ready else "not_ready"
+    status_code = 200 if ready else 503
+    if verbose:
+        payload: dict[str, Any] = {
+            "status": status_text,
+            "environment": settings.app_env,
+            "components": components,
+            "failed_components": failures,
+        }
+    else:
+        # Non-verbose mode: only return status and whether failures exist, never the
+        # specific failing components (avoid leaking dependency topology or config state).
+        payload = {
+            "status": status_text,
+            "environment": settings.app_env,
+        }
+    return JSONResponse(status_code=status_code, content=payload)

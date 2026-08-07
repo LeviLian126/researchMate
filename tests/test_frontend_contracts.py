@@ -5,7 +5,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 
-# 验证前端 MVP 页面已经覆盖项目、问答、资料库、测验和开发者 Trace。
+# Verify that frontend MVP pages cover projects, Q&A, library, quiz, and developer trace.
 def test_frontend_mvp_pages_exist() -> None:
     """Require every approved MVP page to exist in the app tree."""
     required_pages = [
@@ -32,7 +32,7 @@ def test_frontend_mvp_pages_exist() -> None:
     assert missing == []
 
 
-# 验证前端页面连接当前 API 契约中的核心路由。
+# Verify that frontend pages connect to the core routes in the current API contract.
 def test_frontend_calls_mvp_api_contracts() -> None:
     """Require frontend data flows to use the approved API routes."""
     source = "\n".join(
@@ -71,7 +71,7 @@ def test_frontend_calls_mvp_api_contracts() -> None:
         assert token in source
 
 
-# 验证普通应用导航不暴露 Developer Trace 入口。
+# Verify that normal application navigation does not expose the Developer Trace entry.
 def test_regular_project_pages_do_not_nav_to_dev_trace() -> None:
     """Keep developer traces out of regular project navigation."""
     regular_pages = [
@@ -85,10 +85,12 @@ def test_regular_project_pages_do_not_nav_to_dev_trace() -> None:
     assert "/dev/traces/" not in combined
 
 
-# 验证前端代码不引用后端 secret 名称，避免误导部署到浏览器环境。
+# Verify that frontend code does not reference backend secret names to avoid misleading browser deployments.
 def test_frontend_does_not_reference_backend_secret_names() -> None:
     """Prevent backend credential names from entering browser source."""
-    frontend_files = list((ROOT / "apps/web/app").rglob("*.tsx")) + list((ROOT / "apps/web/app").rglob("*.ts"))
+    frontend_files = list((ROOT / "apps/web/app").rglob("*.tsx")) + list(
+        (ROOT / "apps/web/app").rglob("*.ts")
+    )
     combined = "\n".join(path.read_text(encoding="utf-8") for path in frontend_files)
     forbidden_tokens = [
         "SUPABASE_SERVICE_ROLE_KEY",
@@ -107,7 +109,9 @@ def test_frontend_does_not_reference_backend_secret_names() -> None:
 # Evidence review uses the authenticated API boundary and visibly covers recovery states.
 def test_evidence_frontend_covers_async_and_recovery_states() -> None:
     """Require evidence UI coverage for asynchronous and recovery states."""
-    source = (ROOT / "apps/web/app/app/projects/[projectId]/labs/page.tsx").read_text(encoding="utf-8")
+    source = (ROOT / "apps/web/app/app/projects/[projectId]/labs/page.tsx").read_text(
+        encoding="utf-8"
+    )
     api_source = (ROOT / "apps/web/app/lib/api.ts").read_text(encoding="utf-8")
 
     required_state_tokens = [
@@ -126,7 +130,9 @@ def test_evidence_frontend_covers_async_and_recovery_states() -> None:
 # Provider credentials and direct LLM calls remain outside the browser bundle.
 def test_frontend_does_not_call_model_provider_directly() -> None:
     """Prevent browser code from bypassing the server provider boundary."""
-    frontend_files = list((ROOT / "apps/web/app").rglob("*.tsx")) + list((ROOT / "apps/web/app").rglob("*.ts"))
+    frontend_files = list((ROOT / "apps/web/app").rglob("*.tsx")) + list(
+        (ROOT / "apps/web/app").rglob("*.ts")
+    )
     combined = "\n".join(path.read_text(encoding="utf-8") for path in frontend_files)
     forbidden_provider_calls = [
         "integrate.api.nvidia.com",
@@ -174,7 +180,7 @@ def test_frontend_uses_supabase_session_outside_local_development() -> None:
     assert "if (isLocalDevelopment()) return getDevToken()" in api
     assert "if (!session?.access_token)" in api
     assert 'return window.localStorage.getItem("researchmate_token") || "dev"' in api
-    assert 'if (!isLocalDevelopment()) throw new ApiError' in api
+    assert "if (!isLocalDevelopment()) throw new ApiError" in api
 
 
 def test_sidebar_and_chat_match_unified_product_boundaries() -> None:
@@ -190,9 +196,7 @@ def test_sidebar_and_chat_match_unified_product_boundaries() -> None:
             "apps/web/app/components/use-chat-workspace.ts",
         )
     )
-    project_nav = (ROOT / "apps/web/app/components/project-nav.tsx").read_text(
-        encoding="utf-8"
-    )
+    project_nav = (ROOT / "apps/web/app/components/project-nav.tsx").read_text(encoding="utf-8")
 
     for token in [
         "researchmate_sidebar_collapsed",

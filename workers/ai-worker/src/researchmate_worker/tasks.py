@@ -107,11 +107,13 @@ def _mark_job_bootstrap_failed(settings: WorkerSettings | None, job_id: UUID, co
                     where id=:job_id and status in ('pending','running')
                     """
                 ),
-               {"job_id": job_id, "code": code[:120]},
-           )
+                {"job_id": job_id, "code": code[:120]},
+            )
 
 
-def _mark_fault_exercise_failed(settings: WorkerSettings | None, exercise_id: UUID, code: str) -> None:
+def _mark_fault_exercise_failed(
+    settings: WorkerSettings | None, exercise_id: UUID, code: str
+) -> None:
     """Make a fault-simulation failure terminal so an explicit retry can recover it."""
     database_url = settings.database_url if settings is not None else os.getenv("DATABASE_URL")
     if not database_url:
@@ -339,5 +341,7 @@ def run_fault_simulation(self, event: dict[str, str]) -> str:
             worker_id=worker_id,
         )
     except Exception:
-        _mark_fault_exercise_failed(settings, payload.exercise_id, "FAULT_SIMULATION_INTERNAL_ERROR")
+        _mark_fault_exercise_failed(
+            settings, payload.exercise_id, "FAULT_SIMULATION_INTERNAL_ERROR"
+        )
         raise

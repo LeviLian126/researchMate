@@ -1,7 +1,9 @@
 """Provide deterministic text chunking used by indexing jobs."""
 
+from __future__ import annotations
 
-# 纯函数 chunker，供本地 worker 与 API adapter 复用测试。
+
+# Pure-function chunker for reuse in tests by the local worker and API adapter.
 def chunk_text_for_index(text: str, target_size: int = 900) -> list[str]:
     """Split normalized text into bounded chunks without dropping content."""
     normalized = "\n".join(line.strip() for line in text.splitlines() if line.strip())

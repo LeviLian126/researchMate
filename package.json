@@ -13,16 +13,17 @@
     "api:dev": "uv run --frozen uvicorn researchmate_api.main:app --reload --host 127.0.0.1 --port 8000",
     "web:dev": "npm --workspace @researchmate/web run dev",
     "test": "npm run test:python && npm run test:web",
-    "test:python": "uv run --frozen coverage run --branch --source=apps/api/src/researchmate_api,workers/ai-worker/src/researchmate_worker -m pytest -q && uv run --frozen coverage report --fail-under=50",
+    "test:python": "uv run --frozen coverage run --branch --source=apps/api/src/researchmate_api,workers/ai-worker/src/researchmate_worker -m pytest -q && uv run --frozen coverage report --fail-under=70",
     "test:web": "npm --workspace @researchmate/web run test",
     "test:e2e": "npm --workspace @researchmate/web run test:e2e",
     "check:api": "uv run --frozen pytest tests/test_api_workflow.py -q",
     "check:frontend-contracts": "uv run --frozen pytest tests/test_frontend_contracts.py -q",
     "check:lint": "uv run --frozen ruff check apps/api/src workers/ai-worker/src tests",
+    "check:types": "uv run --frozen pyright",
     "check:web": "npm --workspace @researchmate/web run build",
     "check:audit": "npm audit --omit=dev --audit-level=moderate",
     "check:openapi": "uv run --frozen python scripts/export_openapi.py --check",
     "check:migrations": "uv run --frozen python scripts/apply_migrations.py --check-files",
-    "check:all": "npm run test && npm run check:lint && npm run check:openapi && npm run check:migrations && npm run check:web && npm run check:audit"
+    "check:all": "npm run test && npm run check:lint && npm run check:types && npm run check:openapi && npm run check:migrations && npm run check:web && npm run check:audit"
   }
 }

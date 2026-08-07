@@ -41,6 +41,7 @@ from researchmate_api.services.evidence_faults import (
 
 class EvidenceRepository(Protocol):
     """Define owner-scoped persistence operations for evidence workflows."""
+
     def create_research_run(
         self, user: CurrentUser, payload: ResearchRunCreate, idempotency_key: str
     ) -> ResearchRunAccepted: ...
@@ -298,7 +299,8 @@ class InMemoryEvidenceRepository(FaultScenarioStoreMixin):
         cutoff = datetime.now(UTC) - timedelta(hours=window_hours)
         with self.lock:
             records = [
-                record for owner, record in self.runs.values()
+                record
+                for owner, record in self.runs.values()
                 if owner == user.id and record.created_at >= cutoff
             ]
         terminal = [record for record in records if record.status in {"succeeded", "failed"}]

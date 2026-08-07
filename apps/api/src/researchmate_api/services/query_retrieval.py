@@ -64,7 +64,9 @@ class LocalEvidenceRetriever:
             limit=self.settings.rerank_candidate_limit,
         )
         selected_tokens = sum(estimate_tokens(item.chunk.text) for item in candidates)
-        full_context = bool(candidates) and selected_tokens <= self.settings.full_context_token_limit
+        full_context = (
+            bool(candidates) and selected_tokens <= self.settings.full_context_token_limit
+        )
         return RetrievalOutcome(
             candidates=candidates,
             strategy="full_context" if full_context else "hybrid_retrieval",

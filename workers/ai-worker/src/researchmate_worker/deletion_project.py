@@ -18,6 +18,7 @@ from researchmate_worker.ingestion import IngestionFailure
 
 class SqlProjectDeletionStore:
     """Persist recoverable project-deletion transitions and artifact inventory."""
+
     def __init__(self, engine: Engine) -> None:
         self.engine = engine
 
@@ -217,6 +218,7 @@ class SqlProjectDeletionStore:
 
 class ProjectDeletionService:
     """Coordinate remote cleanup before finalizing a deleted project."""
+
     def __init__(
         self,
         *,

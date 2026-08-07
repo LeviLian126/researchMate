@@ -26,9 +26,10 @@ class PostgresEvidenceOperationsMixin:
         if user.role not in {"developer", "admin"}:
             raise EvidenceStoreError("ADMIN_REQUIRED", status_code=403)
         with self._transaction(user) as connection:
-            aggregate = connection.execute(
-                text(
-                    """
+            aggregate = (
+                connection.execute(
+                    text(
+                        """
                     select count(distinct r.id) as run_count,
                       count(distinct r.id) filter (where r.status = 'succeeded') as succeeded,
                       count(distinct r.id) filter (where r.status = 'failed') as failed,
@@ -43,19 +44,26 @@ class PostgresEvidenceOperationsMixin:
                     from workflow_runs r left join run_events e on e.run_id = r.id
                     where r.created_at >= now() - make_interval(hours => :hours)
                     """
-                ),
-                {"hours": window_hours},
-            ).mappings().one()
-            trace_ids = connection.execute(
-                text(
-                    """
+                    ),
+                    {"hours": window_hours},
+                )
+                .mappings()
+                .one()
+            )
+            trace_ids = (
+                connection.execute(
+                    text(
+                        """
                     select id from workflow_runs
                     where created_at >= now() - make_interval(hours => :hours)
                     order by created_at desc limit 10
                     """
-                ),
-                {"hours": window_hours},
-            ).scalars().all()
+                    ),
+                    {"hours": window_hours},
+                )
+                .scalars()
+                .all()
+            )
         terminal = int(aggregate["succeeded"]) + int(aggregate["failed"])
         denominator = max(1, terminal)
         return ReliabilityResponse(
@@ -83,15 +91,19 @@ class PostgresEvidenceOperationsMixin:
         expires_at = now + timedelta(seconds=payload.duration_seconds)
         with self._transaction(user) as connection:
             self._lock_idempotency(connection, user.id, idempotency_key)
-            existing = connection.execute(
-                text(
-                    """
+            existing = (
+                connection.execute(
+                    text(
+                        """
                     select id,target_run_id,expires_at,request_hash from fault_exercises
                     where requested_by=:user_id and idempotency_key=:key for update
                     """
-                ),
-                {"user_id": user.id, "key": idempotency_key},
-            ).mappings().one_or_none()
+                    ),
+                    {"user_id": user.id, "key": idempotency_key},
+                )
+                .mappings()
+                .one_or_none()
+            )
             if existing is not None:
                 if existing["request_hash"] != request_hash:
                     raise EvidenceStoreError("IDEMPOTENCY_KEY_REUSED")
@@ -161,16 +173,20 @@ class PostgresEvidenceOperationsMixin:
         if user.role not in {"developer", "admin"}:
             raise EvidenceStoreError("ADMIN_REQUIRED", status_code=403)
         with self._transaction(user) as connection:
-            row = connection.execute(
-                text(
-                    """
+            row = (
+                connection.execute(
+                    text(
+                        """
                     select id,scenario,target_run_id,status,attempts,expires_at,safe_result,
                       last_error_code,created_at,started_at,completed_at
                     from fault_exercises where id=:id and requested_by=:user_id
                     """
-                ),
-                {"id": exercise_id, "user_id": user.id},
-            ).mappings().one_or_none()
+                    ),
+                    {"id": exercise_id, "user_id": user.id},
+                )
+                .mappings()
+                .one_or_none()
+            )
         if row is None:
             return None
         return FaultScenarioRecord(

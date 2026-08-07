@@ -13,6 +13,7 @@ from researchmate_api.services.store import ChunkEntry
 
 class IngestionEvent(BaseModel):
     """Validate identifiers for one durable ingestion delivery."""
+
     job_id: UUID
     user_id: UUID
     project_id: UUID
@@ -22,6 +23,7 @@ class IngestionEvent(BaseModel):
 @dataclass(frozen=True)
 class IngestionRecord:
     """Carry the claimed document and object metadata needed for ingestion."""
+
     job_id: UUID
     user_id: UUID
     project_id: UUID
@@ -36,6 +38,7 @@ class IngestionRecord:
 @dataclass(frozen=True)
 class ParsedBlock:
     """Carry normalized text with stable structural provenance."""
+
     text: str
     page_no: int | None = None
     slide_no: int | None = None
@@ -46,6 +49,7 @@ class ParsedBlock:
 @dataclass(frozen=True)
 class PageProjection:
     """Carry page-level text assembled for durable source display."""
+
     id: UUID
     page_no: int | None
     slide_no: int | None
@@ -56,6 +60,7 @@ class PageProjection:
 
 class ParserAdapterError(RuntimeError):
     """Normalize parser failures without leaking library-specific errors."""
+
     def __init__(self, code: str, *, retryable: bool = False) -> None:
         super().__init__(code)
         self.code = code
@@ -64,6 +69,7 @@ class ParserAdapterError(RuntimeError):
 
 class IngestionFailure(RuntimeError):
     """Expose a stable ingestion failure code and retry classification."""
+
     def __init__(self, code: str, *, retryable: bool) -> None:
         super().__init__(code)
         self.code = code
@@ -72,21 +78,25 @@ class IngestionFailure(RuntimeError):
 
 class DocumentParser(Protocol):
     """Define bounded document parsing independent of a conversion library."""
+
     def parse(self, source: Path, *, file_type: str) -> list[ParsedBlock]: ...
 
 
 class ObjectReader(Protocol):
     """Define scoped object download independent of a storage SDK."""
+
     def download_to_file(self, object_key: str, destination: Path) -> None: ...
 
 
 class VectorProjection(Protocol):
     """Define chunk projection independent of a vector database SDK."""
+
     def upsert_chunks(self, chunks: list[ChunkEntry], *, pipeline_version: str) -> None: ...
 
 
 class IngestionStore(Protocol):
     """Define lease-safe ingestion persistence and terminal transitions."""
+
     def claim(
         self, event: IngestionEvent, *, worker_id: str, lease_seconds: int
     ) -> IngestionRecord | None: ...

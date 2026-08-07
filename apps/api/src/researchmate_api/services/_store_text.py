@@ -1,5 +1,8 @@
 """Provide deterministic text chunking for local ingestion and tests."""
 
+from __future__ import annotations
+
+
 def chunk_text(text: str, target_size: int = 900) -> list[str]:
     """Split normalized text into bounded, traceable chunks."""
     normalized = "\n".join(line.strip() for line in text.splitlines() if line.strip())

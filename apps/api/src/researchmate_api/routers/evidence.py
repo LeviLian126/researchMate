@@ -157,9 +157,7 @@ def create_human_decision(
 ) -> HumanDecisionAccepted:
     """Record an idempotent human review decision for a workflow run."""
     decision = _store_call(
-        lambda: evidence.create_decision(
-            user, run_id, payload, _idempotency(idempotency_key)
-        )
+        lambda: evidence.create_decision(user, run_id, payload, _idempotency(idempotency_key))
     )
     if decision is None:
         raise_api_error(404, "RUN_NOT_FOUND", "Run was not found.")
@@ -178,9 +176,7 @@ def list_claims(
     return evidence.list_claims(user, project_id)
 
 
-@router.get(
-    "/projects/{project_id}/claim-relations", response_model=ClaimRelationListResponse
-)
+@router.get("/projects/{project_id}/claim-relations", response_model=ClaimRelationListResponse)
 def list_claim_relations(
     project_id: UUID,
     user: CurrentUser = Depends(get_current_user),
@@ -246,9 +242,7 @@ def refresh_report(
 ) -> ReportRefreshAccepted:
     """Enqueue an idempotent refresh of an owner-visible report."""
     response = _store_call(
-        lambda: evidence.refresh_report(
-            user, report_id, payload, _idempotency(idempotency_key)
-        )
+        lambda: evidence.refresh_report(user, report_id, payload, _idempotency(idempotency_key))
     )
     if response is None:
         raise_api_error(404, "REPORT_NOT_FOUND", "Report was not found.")

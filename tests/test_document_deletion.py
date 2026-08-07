@@ -29,6 +29,7 @@ PROJECT_EVENT = ProjectDeletionEvent(
 
 class FakeStore:
     """Record deletion state transitions made by the service."""
+
     def __init__(self, attempts=1):
         self.record = DeletionRecord(
             **EVENT.model_dump(),
@@ -55,6 +56,7 @@ class FakeStore:
 
 class FakeObjects:
     """Record object-storage deletions and inject configured failures."""
+
     def __init__(self, error=None):
         self.error = error
         self.deleted = None
@@ -67,6 +69,7 @@ class FakeObjects:
 
 class FakeVectors:
     """Record vector-projection deletion requests."""
+
     def __init__(self):
         self.deleted = None
         self.deleted_project = None
@@ -121,6 +124,7 @@ def test_retryable_object_delete_keeps_database_cleanup_pending() -> None:
 
 def test_project_deletion_removes_all_external_objects_before_database_cascade() -> None:
     """Require project objects to disappear before the database cascade."""
+
     class ProjectStore(FakeStore):
         def __init__(self):
             super().__init__()

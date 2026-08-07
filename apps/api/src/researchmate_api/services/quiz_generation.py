@@ -1,12 +1,13 @@
 """Build deterministic or provider-backed quizzes from allowlisted evidence."""
 
+from __future__ import annotations
+
 import json
 from typing import Literal
 from uuid import uuid4
 
 from pydantic import BaseModel, Field, ValidationError
-
-from researchmate_api.schemas.common import Citation, Difficulty, SourceSummary
+from researchmate_api.schemas.common import MAX_TEXT_LENGTH, Citation, Difficulty, SourceSummary
 from researchmate_api.schemas.quiz import QuizQuestion, QuizSet
 from researchmate_api.services.llm import ChatProvider, LLMResult
 from researchmate_api.services.retrieval import snippet
@@ -19,10 +20,11 @@ class QuizGenerationError(ValueError):
 
 class _QuizProposalQuestion(BaseModel):
     """Validate one provider-proposed quiz question."""
+
     type: Literal["single_choice", "fill_blank", "subjective"]
-    question: str = Field(min_length=1, max_length=1200)
+    question: str = Field(min_length=1, max_length=MAX_TEXT_LENGTH)
     options: list[str] | None = Field(default=None, max_length=4)
-    answer: str = Field(min_length=1, max_length=1200)
+    answer: str = Field(min_length=1, max_length=MAX_TEXT_LENGTH)
     explanation: str = Field(min_length=1, max_length=2000)
     difficulty: Difficulty = Difficulty.MEDIUM
     evidence_ids: list[int] = Field(min_length=1, max_length=3)
@@ -30,6 +32,7 @@ class _QuizProposalQuestion(BaseModel):
 
 class _QuizProposal(BaseModel):
     """Validate the bounded set of provider-proposed quiz questions."""
+
     questions: list[_QuizProposalQuestion] = Field(min_length=1, max_length=40)
 
 
@@ -68,10 +71,10 @@ def generate_llm_quiz_set(
                 "focus and difficulty when evidence supports it. Return exactly the "
                 "requested counts. Every question needs 1-3 evidence_ids from the supplied "
                 "allowlist. single_choice requires exactly four options; other types must "
-                "use null options. Schema: {\"questions\":[{\"type\":\"single_choice|"
-                "fill_blank|subjective\",\"question\":\"...\",\"options\":[\"...\"],"
-                "\"answer\":\"...\",\"explanation\":\"...\",\"difficulty\":\"easy|medium|"
-                "hard\",\"evidence_ids\":[1]}]}."
+                'use null options. Schema: {"questions":[{"type":"single_choice|'
+                'fill_blank|subjective","question":"...","options":["..."],'
+                '"answer":"...","explanation":"...","difficulty":"easy|medium|'
+                'hard","evidence_ids":[1]}]}.'
             ),
         },
         {
@@ -101,19 +104,17 @@ def generate_llm_quiz_set(
         "subjective": subjective_count,
     }
     actual = {
-        question_type: sum(
-            question.type == question_type for question in proposal.questions
-        )
+        question_type: sum(question.type == question_type for question in proposal.questions)
         for question_type in expected
     }
     if actual != expected:
         raise QuizGenerationError("Quiz provider returned the wrong question counts.")
-    citation_by_chunk = {
-        citation.chunk_id: citation for citation in citations if citation.chunk_id
-    }
+    citation_by_chunk = {citation.chunk_id: citation for citation in citations if citation.chunk_id}
     questions = []
     for proposed in proposal.questions:
-        if any(evidence_id < 1 or evidence_id > len(chunks) for evidence_id in proposed.evidence_ids):
+        if any(
+            evidence_id < 1 or evidence_id > len(chunks) for evidence_id in proposed.evidence_ids
+        ):
             raise QuizGenerationError("Quiz provider referenced evidence outside the allowlist.")
         if proposed.type == "single_choice" and (
             proposed.options is None or len(proposed.options) != 4
@@ -146,7 +147,7 @@ def generate_llm_quiz_set(
     )
 
 
-# 基于本地 chunk 生成可溯源测验。
+# Build a traceable quiz from local chunks.
 def generate_quiz_set(
     chunks: list[ChunkEntry],
     citations: list[Citation],

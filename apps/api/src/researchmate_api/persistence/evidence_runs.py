@@ -31,23 +31,25 @@ class PostgresEvidenceRunMixin:
         request_hash = evidence_fingerprint(payload)
         with self._transaction(user) as connection:
             self._lock_idempotency(connection, user.id, idempotency_key)
-            existing = connection.execute(
-                text(
-                    """
+            existing = (
+                connection.execute(
+                    text(
+                        """
                     select id, input, created_at from workflow_runs
                     where user_id = :user_id and idempotency_key = :idempotency_key
                     for update
                     """
-                ),
-                {"user_id": user.id, "idempotency_key": idempotency_key},
-            ).mappings().one_or_none()
+                    ),
+                    {"user_id": user.id, "idempotency_key": idempotency_key},
+                )
+                .mappings()
+                .one_or_none()
+            )
             if existing is not None:
                 if existing["input"].get("request_hash") != request_hash:
                     raise EvidenceStoreError("IDEMPOTENCY_KEY_REUSED")
                 return self._accepted_run(existing["id"], existing["created_at"])
-            if not self._lock_active_project(
-                connection, user.id, payload.project_id
-            ):
+            if not self._lock_active_project(connection, user.id, payload.project_id):
                 raise EvidenceStoreError("PROJECT_NOT_FOUND", status_code=404)
             allowed = connection.execute(
                 text(
@@ -154,9 +156,10 @@ class PostgresEvidenceRunMixin:
     def get_run(self, user: CurrentUser, run_id: UUID) -> WorkflowRunRecord | None:
         """Read one owner-scoped workflow with its latest safe progress event."""
         with self._transaction(user) as connection:
-            row = connection.execute(
-                text(
-                    """
+            row = (
+                connection.execute(
+                    text(
+                        """
                     select r.id, r.project_id, r.pipeline_version_id, r.kind, r.status,
                       r.output, r.error_code, r.created_at, r.started_at, r.completed_at,
                       e.node_key as current_node, e.safe_payload
@@ -167,9 +170,12 @@ class PostgresEvidenceRunMixin:
                     ) e on true
                     where r.id = :run_id and r.user_id = :user_id
                     """
-                ),
-                {"run_id": run_id, "user_id": user.id},
-            ).mappings().one_or_none()
+                    ),
+                    {"run_id": run_id, "user_id": user.id},
+                )
+                .mappings()
+                .one_or_none()
+            )
         if row is None:
             return None
         return WorkflowRunRecord(
@@ -199,17 +205,21 @@ class PostgresEvidenceRunMixin:
             ).one_or_none()
             if owned is None:
                 return None
-            rows = connection.execute(
-                text(
-                    """
+            rows = (
+                connection.execute(
+                    text(
+                        """
                     select id as event_id, sequence, node_key, event_type, attempt, status,
                       safe_payload, latency_ms, created_at
                     from run_events where run_id = :run_id and sequence > :after_sequence
                     order by sequence limit 500
                     """
-                ),
-                {"run_id": run_id, "after_sequence": after_sequence},
-            ).mappings().all()
+                    ),
+                    {"run_id": run_id, "after_sequence": after_sequence},
+                )
+                .mappings()
+                .all()
+            )
         return [RunEventRecord.model_validate(dict(row)) for row in rows]
 
     def create_decision(
@@ -222,47 +232,62 @@ class PostgresEvidenceRunMixin:
         """Resolve one human-review interrupt and enqueue resume in one transaction."""
         with self._transaction(user) as connection:
             self._lock_idempotency(connection, user.id, idempotency_key)
-            run = connection.execute(
-                text(
-                    """
+            run = (
+                connection.execute(
+                    text(
+                        """
                     select wr.id, wr.status from workflow_runs wr
                     join projects p on p.id = wr.project_id and p.user_id = wr.user_id
                     where wr.id = :id and wr.user_id = :user_id
                       and p.status = 'active' and p.deleted_at is null
                     for update of wr, p
                     """
-                ),
-                {"id": run_id, "user_id": user.id},
-            ).mappings().one_or_none()
+                    ),
+                    {"id": run_id, "user_id": user.id},
+                )
+                .mappings()
+                .one_or_none()
+            )
             if run is None:
                 return None
-            existing = connection.execute(
-                text(
-                    """
+            existing = (
+                connection.execute(
+                    text(
+                        """
                     select id, decision, final_payload from human_decisions
                     where run_id = :run_id and interrupt_key = :interrupt_key
                     """
-                ),
-                {"run_id": run_id, "interrupt_key": payload.interrupt_key},
-            ).mappings().one_or_none()
+                    ),
+                    {"run_id": run_id, "interrupt_key": payload.interrupt_key},
+                )
+                .mappings()
+                .one_or_none()
+            )
             final_payload = payload.edited_payload if payload.decision == "edit" else None
             if existing is not None:
-                if existing["decision"] != payload.decision or existing["final_payload"] != final_payload:
+                if (
+                    existing["decision"] != payload.decision
+                    or existing["final_payload"] != final_payload
+                ):
                     raise EvidenceStoreError("INTERRUPT_ALREADY_RESOLVED")
                 return self._accepted_decision(existing["id"], run_id)
             if run["status"] != "waiting_human":
                 raise EvidenceStoreError("RUN_NOT_WAITING")
-            proposed = connection.execute(
-                text(
-                    """
+            proposed = (
+                connection.execute(
+                    text(
+                        """
                     select id, safe_payload from run_events
                     where run_id = :run_id and event_type = 'human_requested'
                       and safe_payload ->> 'interrupt_key' = :interrupt_key
                     order by sequence desc limit 1
                     """
-                ),
-                {"run_id": run_id, "interrupt_key": payload.interrupt_key},
-            ).mappings().one_or_none()
+                    ),
+                    {"run_id": run_id, "interrupt_key": payload.interrupt_key},
+                )
+                .mappings()
+                .one_or_none()
+            )
             if proposed is None:
                 raise EvidenceStoreError("INTERRUPT_NOT_FOUND")
             decision_id = uuid4()

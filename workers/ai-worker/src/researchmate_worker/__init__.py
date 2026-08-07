@@ -1,3 +1,3 @@
 """Mark the ResearchMate asynchronous worker package."""
 
-"""ResearchMate worker package."""
+from __future__ import annotations

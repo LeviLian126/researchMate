@@ -6,7 +6,6 @@ from dataclasses import dataclass
 from typing import Any, Literal, Protocol
 
 import httpx
-
 from researchmate_api.config import Settings
 from researchmate_api.schemas.common import SourceType
 from researchmate_api.services.qdrant_store import QdrantHybridStore, VectorStoreRequestError
@@ -17,6 +16,7 @@ RerankProviderName = Literal["qdrant", "nvidia", "deterministic"]
 
 class RerankRequestError(RuntimeError):
     """Identify which rerank provider failed."""
+
     def __init__(self, provider: str, message: str) -> None:
         super().__init__(message)
         self.provider = provider
@@ -25,6 +25,7 @@ class RerankRequestError(RuntimeError):
 @dataclass(frozen=True)
 class RerankResult:
     """Return ranked candidates with provider and degradation metadata."""
+
     candidates: list[RetrievalCandidate]
     provider: RerankProviderName
     model: str | None
@@ -34,6 +35,7 @@ class RerankResult:
 
 class Reranker(Protocol):
     """Define the shared owner-aware reranker contract."""
+
     name: RerankProviderName
     model: str | None
 
@@ -50,6 +52,7 @@ class Reranker(Protocol):
 
 class DeterministicReranker:
     """Provide a network-free stable fallback ranking."""
+
     name: RerankProviderName = "deterministic"
     model = None
 
@@ -77,6 +80,7 @@ class DeterministicReranker:
 
 class NvidiaReranker:
     """Adapt NVIDIA's ranking API to retrieval candidates."""
+
     name: RerankProviderName = "nvidia"
 
     def __init__(self, settings: Settings, client: Any | None = None) -> None:
@@ -136,6 +140,7 @@ class NvidiaReranker:
 
 class QdrantNativeReranker:
     """Use the verified Qdrant late-interaction collection for reranking."""
+
     name: RerankProviderName = "qdrant"
 
     def __init__(self, settings: Settings, store: QdrantHybridStore) -> None:
@@ -177,6 +182,7 @@ class QdrantNativeReranker:
 
 class RerankCoordinator:
     """Select providers and degrade safely when optional reranking fails."""
+
     def __init__(
         self,
         settings: Settings,

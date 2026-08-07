@@ -9,7 +9,9 @@ dependencies = []
 dev = [
   "coverage>=7.10.0,<8",
   "httpx2>=2.5.0,<3",
+  "pre-commit>=4.2.0,<5",
   "pytest>=9.0.0,<10",
+  "pyright==1.1.390",
   "pyyaml>=6.0.0,<7",
   "ruff==0.16.0",
 ]
@@ -21,3 +23,32 @@ members = ["apps/api", "workers/ai-worker"]
 name = "pytorch-cpu"
 url = "https://download.pytorch.org/whl/cpu"
 explicit = true
+
+[tool.pyright]
+# Project-wide type checker configuration. Strict mode is intentionally disabled
+# initially so existing codebases can be migrated incrementally; tightening it
+# later (e.g. per-file rules) is an opt-in improvement rather than a baseline.
+include = [
+  "apps/api/src/researchmate_api",
+  "workers/ai-worker/src/researchmate_worker",
+  "tests",
+]
+exclude = [
+  "**/__pycache__",
+  "**/.venv",
+  "**/node_modules",
+  "**/.ruff_cache",
+]
+pythonVersion = "3.13"
+typeCheckingMode = "basic"
+strict = false
+reportMissingImports = "warning"
+reportMissingTypeStubs = "none"
+reportMissingParameterType = "warning"
+reportUnknownArgumentType = "none"
+reportUnknownMemberType = "none"
+reportUnknownParameterType = "none"
+reportUnknownVariableType = "none"
+reportUntypedFunctionDecorator = "none"
+reportUntypedClassDecorator = "none"
+reportImplicitStringConcatenation = "warning"
