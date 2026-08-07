@@ -11,6 +11,18 @@ from researchmate_api.services.object_storage import (
     _mime_matches,
 )
 
+# MIME verification depends on the optional python-magic library. When libmagic is
+# not installed the verifier fails open, so tests that assert a mismatch rejection
+# must be skipped rather than report a false failure.
+try:
+    import magic  # noqa: F401
+
+    _HAS_MAGIC = True
+except ModuleNotFoundError:
+    _HAS_MAGIC = False
+
+_skip_no_magic = pytest.mark.skipif(not _HAS_MAGIC, reason="python-magic not installed")
+
 
 class FakeS3Client:
     """Record private S3 operations and return deterministic metadata."""
@@ -138,6 +150,7 @@ def test_verify_uploaded_content_accepts_matching_magic_bytes() -> None:
     assert client.deleted is None
 
 
+@_skip_no_magic
 def test_verify_uploaded_content_rejects_disguised_upload_and_deletes_object() -> None:
     """Reject and delete an uploaded object whose bytes do not match its declared MIME."""
     client = FakeS3Client()

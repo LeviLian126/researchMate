@@ -12,7 +12,7 @@ def test_ci_runs_the_full_test_build_contract_and_security_gate() -> None:
 
     assert '"test": "npm run test:python && npm run test:web"' in package
     assert '"test:python": "uv run --frozen coverage run --branch' in package
-    assert "coverage report --fail-under=50" in package
+    assert "coverage report --fail-under=70" in package
     assert '"test:web": "npm --workspace @researchmate/web run test"' in package
     assert '"test:e2e": "npm --workspace @researchmate/web run test:e2e"' in package
     assert "scripts/export_openapi.py --check" in package

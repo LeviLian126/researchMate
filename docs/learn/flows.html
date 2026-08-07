@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8"/>
@@ -302,6 +302,10 @@
           <div class="ad-side right"><h4>&#128737; ResearchMate abandon</h4><p>The system chooses <code>abandon</code> (delete the pending idempotency row) instead of rollback: 1) after the pending row is deleted, the client can retry with the same key (execute path); 2) <code>complete()</code> was never called, so no cached "failure response" will be replayed; 3) DB writes in the business logic have already executed before abandon, but since the response is not cached, the retry will re-execute and overwrite.</p><p>There is no <code>failed</code> state &mdash; on failure, it directly abandons (deletes the pending row) instead of marking it as failed and retaining it. This avoids the "failed row blocks retry" problem.</p></div>
         </div>
         <div class="why-effective"><b>Why it works &mdash; End-to-end coordination with the Outbox pattern</b><p>The idempotency coordinator protects cost-bearing operations in the API layer (ask, quiz), ensuring retries do not produce duplicate LLM calls or messages. The Outbox pattern protects async pipelines (document ingestion, workflow execution), ensuring DB state and Celery tasks are atomically committed. The two layers combine: API idempotency &rarr; backend idempotency &rarr; outbox atomic &rarr; worker lease exclusive &rarr; uuid5 dedup, forming an end-to-end exactly-once guarantee chain. Each layer has its own independent idempotency/dedup mechanism, forming defense-in-depth.</p></div>
+      </section>
+      <section id="further-reading">
+        <h2>Further reading</h2>
+        <p>For deeper context on the flows above, see the <a href="architecture/index.html">architecture overview</a>, the <a href="contracts/api/index.html">API contracts</a>, and the <a href="contracts/data/index.html">data contracts</a>.</p>
       </section>
     </div>
     <aside class="toc"><b>On this page</b>
