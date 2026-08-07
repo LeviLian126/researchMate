@@ -9,6 +9,7 @@ from math import log1p
 from typing import Any
 
 from qdrant_client import QdrantClient, models
+
 from researchmate_api.config import Settings
 from researchmate_api.schemas.common import MAX_TEXT_LENGTH, SourceType
 from researchmate_api.services.embedding import NvidiaEmbeddingProvider

@@ -7,6 +7,7 @@ from typing import Literal
 from uuid import uuid4
 
 from pydantic import BaseModel, Field, ValidationError
+
 from researchmate_api.schemas.common import MAX_TEXT_LENGTH, Citation, Difficulty, SourceSummary
 from researchmate_api.schemas.quiz import QuizQuestion, QuizSet
 from researchmate_api.services.llm import ChatProvider, LLMResult

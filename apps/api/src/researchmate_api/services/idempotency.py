@@ -7,6 +7,7 @@ import json
 from typing import Any
 
 from pydantic import BaseModel
+
 from researchmate_api.schemas.common import CurrentUser
 from researchmate_api.services.store import ResearchMateRepository
 

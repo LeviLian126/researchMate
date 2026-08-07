@@ -7,6 +7,7 @@ from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
+
 from researchmate_api.schemas.common import DocumentStatus
 
 MIME_BY_TYPE = {

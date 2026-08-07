@@ -6,6 +6,7 @@ import json
 from typing import Literal
 
 from pydantic import BaseModel, Field, ValidationError
+
 from researchmate_api.services.llm import ChatProvider
 from researchmate_api.services.store import ChunkEntry
 

@@ -5,6 +5,7 @@ from __future__ import annotations
 from uuid import UUID
 
 from pydantic import BaseModel, Field
+
 from researchmate_api.schemas.common import Citation, SourceSummary
 
 

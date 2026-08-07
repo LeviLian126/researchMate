@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import Any, Literal, Protocol
 
 import httpx
+
 from researchmate_api.config import Settings
 from researchmate_api.schemas.common import SourceType
 from researchmate_api.services.qdrant_store import QdrantHybridStore, VectorStoreRequestError

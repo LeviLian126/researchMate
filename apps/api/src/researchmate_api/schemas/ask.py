@@ -6,6 +6,7 @@ from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
+
 from researchmate_api.schemas.common import MAX_TEXT_LENGTH, Citation, SourceSummary
 
 

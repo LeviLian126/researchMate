@@ -6,6 +6,7 @@ import json
 from uuid import uuid4
 
 from pydantic import BaseModel, Field, ValidationError
+
 from researchmate_api.schemas.common import MAX_TEXT_LENGTH, Citation, SourceSummary, SourceType
 from researchmate_api.schemas.conversation import ConversationMessage
 from researchmate_api.services.llm import ChatProvider, LLMResult

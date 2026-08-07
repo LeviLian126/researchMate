@@ -85,3 +85,42 @@ Do not add interactions merely because they are possible. Never hide project sta
 Prefer a self-contained page or a small static site with ordinary HTML, CSS, inline SVG, and minimal JavaScript. The core content, navigation, and evidence must remain usable when scripts fail. Use interaction to reveal detail, filter a dense ledger, highlight a path, or compare states; do not hide essential facts behind hover, animation, or an opaque client application.
 
 Reuse repository design tokens and assets when they exist. When no system exists, choose a restrained document system with a readable text measure, strong hierarchy, clear state encoding, and enough contrast for long sessions. Decorative novelty must not compete with project evidence. Preserve keyboard access, focus visibility, semantic landmarks, table relationships, reduced-motion preferences, mobile reflow, and print or screenshot readability.
+
+## Page table of contents and navigation consistency
+
+Every HTML page — including landing pages, child pages, and archive pages — must contain exactly one `<aside class="toc">` table of contents block, immediately after the page lede/summary and before the first main content section. The TOC is the first navigation anchor for new readers and agents: it lets a reader judge which topics a page covers and where the current evidence sits without scrolling the whole page, and it lets an agent verify every page with a single grep before each commit.
+
+### Required TOC contract
+
+1. **Existence**: every standalone HTML page must have one `<aside class="toc">` element. Landing pages and archive pages are not exempt. If a page is too short to need a TOC, it should live as a section of its parent page, not as a standalone page.
+2. **Unified heading text**:
+   - English (`.html`): `<b>On this page</b>`
+   - Chinese (`.zh.html`): `<b>本页目录</b>`
+   - Variants such as `Contents`, `Table of Contents`, `本页导航`, `本页内容`, `目录` are forbidden. Unified wording lets readers build a stable visual expectation across pages and lets an agent verify deterministically with a regex rather than checking pages by hand.
+3. **Anchor integrity**: every `<a href="#anchor">` in the TOC must correspond to a real `id` in the body. A broken fragment link is a board trust failure.
+4. **Stable position**: the TOC sits right after the lede/summary, before the first main content section; do not place it in the footer or hide it inside a disclosure.
+
+### Why this rule is a hard constraint
+
+TOC wording drift and missing TOCs are the two most common consistency problems on the current board: the English variant mixed `On this page` with `Contents`, the Chinese variant had four writings — `本页导航`, `本页内容`, `本页目录`, `目录` — and some archive and landing pages had no TOC at all. Readers had to re-identify the TOC's location and name on every page, and an agent could not audit the whole site with one command. Unified wording and mandatory existence close both problems at once: every page has a TOC, every page uses the same name, and Chinese/English correspond one-to-one.
+
+### Cross-page navigation sync
+
+When adding a new HTML page, update the navigation bars of all sibling pages at the same time so the new page is reachable from every relevant page:
+
+1. **Nav bar sync**: if the new page belongs to a child-page navigation group (such as sub-pages under learn/), the link to the new page must be added to the sub-page navigation bar of every sibling page. Missing any one page makes the new page undiscoverable.
+2. **Label consistency**: the navigation label for the same child page must be consistent across all pages (Chinese pages use the Chinese label uniformly, English pages use the English label uniformly). For example, if the index uses "切面分析", every sub-page navigation must use "切面分析", not a mix of "Flow analysis".
+3. **Link suffix consistency**: navigation links on Chinese pages use the `.zh.html` suffix uniformly; English pages use `.html` uniformly. Language-switch links are the exception (they point to the other-language version).
+4. **Verification checklist**: after adding a page, check each sibling page's navigation bar one by one for the new page's link, label consistency, and correct link suffix, and confirm every page (including the new page itself) has an `<aside class="toc">` block and unified heading text that satisfy the TOC contract above. This step is not optional.
+
+## Process page visual presentation
+
+When a page needs to present a business process, request flow, or data pipeline, prefer a spatialized flow diagram over a plain-text proof-chain. Reference the `14-research-feature-explainer.html` archetype and pipeline pattern from HTML Effectiveness:
+
+1. **Pipeline timeline**: use a vertical timeline (left-side connector + numbered circular nodes); each step is a color-coded card labeled with its step type (intercept/approve/execute/inspect).
+2. **Color encoding**: red = intercept/failure path, yellow = approve/pause, green = pass/inspect, orange = execute/external call, gray = neutral/no-op.
+3. **Step card**: each step contains a title, a type label, a description, the file/function names it passes through, database read/write markers, and external-call markers.
+4. **Sub-steps**: expand complex steps with a nested sub-step list; each sub-step carries its own type label.
+5. **Panorama preview**: before the detailed flow, use a horizontal chips bar to show the whole pipeline at a glance so readers see the full picture first.
+6. **Comparison view**: for "with/without a mechanism" comparisons, use a side-by-side comparison card layout.
+7. **Effectiveness note**: after each flow, use an orange callout box to explain why the key design decision is effective.

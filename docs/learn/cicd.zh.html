@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh">
 <head>
   <meta charset="utf-8"/>
@@ -343,21 +343,15 @@ uv sync --frozen --no-dev --all-packages</code></div>
       <section id="full-flow">
         <p class="eyebrow">CI/CD 全流程</p>
         <h2>从 commit 到线上服务的六个验证步骤</h2>
-        <p class="sub">每次 push 到 main 或 develop,以及每个 pull request,都遵循此链。任一步骤失败都会阻止部署;Render 的 autoDeployTrigger: checksPass 是最终门控。</p>
+        <p class="sub">每次 push 到 main 或 develop,以及每个 pull request,都遵循此链。每个步骤对应一个明确的状态转换(planned → ready → executed → verified),任一步骤失败都会阻止部署;Render 的 autoDeployTrigger: checksPass 是最终门控。</p>
         <div class="proof-chain">
-          <div class="proof-step"><b>1. 源码变更</b><small>开发者 push 到 main/develop 或发起 PR。GitHub Actions 触发 researchmate-ci 工作流。concurrency group 取消同一 ref 的进行中运行。</small></div>
-          <div class="proof-step"><b>2. 四个并行门控</b><small>python-quality(lint + 测试 + 覆盖率 50% + OpenAPI + migrations)、web-quality(Vitest + 构建 + 审计)、browser-e2e(Playwright)和 container-quality(hadolint + Docker 构建 + Trivy 扫描)在 ubuntu-latest 上并发运行。</small></div>
-          <div class="proof-step"><b>3. ci-success 聚合器</b><small>使用 if: always() 运行,needs 全部四个 Job。断言 PYTHON_RESULT、WEB_RESULT、E2E_RESULT 和 CONTAINER_RESULT 均等于 success。如果任一门控失败或被取消,此步骤失败,工作流标红。</small></div>
-          <div class="proof-step"><b>4. Render checksPass</b><small>Render 观察 main 分支上的 GitHub 检查状态。autoDeployTrigger: checksPass 意味着仅当所有检查报告成功时才开始新部署。buildFilter 确保不相关路径变更不触发重建。</small></div>
-          <div class="proof-step"><b>5. Docker 构建与部署</b><small>Render 从 workers/ai-worker/Dockerfile 构建镜像(dockerContext: .),应用 researchmate-backend 组的 48 个环境变量加 3 个服务级覆盖,并以 dockerCommand: python -m researchmate_worker.render_combined 启动容器。</small></div>
-          <div class="proof-step"><b>6. 健康检查上线</b><small>Render 探测 /api/v1/readyz。端点返回 200 后,服务标记为 live 并开始路由流量。RUN_SCHEMA_MIGRATIONS=1 和 RUN_QDRANT_RERANK_BACKFILL=1 在首次启动就绪前运行。</small></div>
+          <div class="proof-step"><b>1. 源码变更 <small>planned</small></b><small>开发者 push 到 main/develop 或发起 PR。GitHub Actions 触发 researchmate-ci 工作流。concurrency group 取消同一 ref 的进行中运行。</small></div>
+          <div class="proof-step"><b>2. 四个并行门控 <small>ready</small></b><small>python-quality(lint + 测试 + 覆盖率 50% + OpenAPI + migrations)、web-quality(Vitest + 构建 + 审计)、browser-e2e(Playwright)和 container-quality(hadolint + Docker 构建 + Trivy 扫描)在 ubuntu-latest 上并发运行。全部通过才进入 executed 状态。</small></div>
+          <div class="proof-step"><b>3. ci-success 聚合器 <small>verified</small></b><small>使用 if: always() 运行,needs 全部四个 Job。断言 PYTHON_RESULT、WEB_RESULT、E2E_RESULT 和 CONTAINER_RESULT 均等于 success。如果任一门控失败或被取消,此步骤失败,工作流标红,部署被阻止。</small></div>
+          <div class="proof-step"><b>4. Render checksPass <small>executed</small></b><small>Render 观察 main 分支上的 GitHub 检查状态。autoDeployTrigger: checksPass 意味着仅当所有检查报告成功时才开始新部署。buildFilter 确保不相关路径变更不触发重建。</small></div>
+          <div class="proof-step"><b>5. Docker 构建与部署 <small>executed</small></b><small>Render 从 workers/ai-worker/Dockerfile 构建镜像(dockerContext: .),应用 researchmate-backend 组的 48 个环境变量加 3 个服务级覆盖,并以 dockerCommand: python -m researchmate_worker.render_combined 启动容器。</small></div>
+          <div class="proof-step"><b>6. 健康检查上线 <small>verified</small></b><small>Render 探测 /api/v1/readyz。端点返回 200 后,服务标记为 live 并开始路由流量。RUN_SCHEMA_MIGRATIONS=1 和 RUN_QDRANT_RERANK_BACKFILL=1 在首次启动就绪前运行。</small></div>
         </div>
-      </section>
-
-      <section id="deployment-arch">
-        <p class="eyebrow">部署架构</p>
-        <h2>一个 Render 服务,一个 Vercel 前端,五个托管依赖</h2>
-        <p class="sub">生产拓扑在单个 Render Free 容器上运行合并的 API-plus-worker 进程,Next.js 前端部署在 Vercel,数据、向量、缓存、LLM、搜索和可观测性使用托管云服务。</p>
         <div class="visual-panel">
           <div class="visual-head"><h3>服务拓扑</h3><p>Render 托管从 worker Dockerfile 构建的 Docker 容器。Vercel 托管 Next.js 前端。外部托管服务通过环境变量连接。</p></div>
           <div class="architecture-map">
@@ -367,11 +361,11 @@ uv sync --frozen --no-dev --all-packages</code></div>
             </div>
             <div class="arch-column">
               <span>CI</span>
-              <button class="arch-node" data-title="GitHub Actions" data-detail="researchmate-ci 工作流:5 个 Job,concurrency cancel-in-progress,固定 action 版本。"><b>GitHub Actions</b><small>5 个 Job,4 个并行门控</small></button>
+              <button class="arch-node" data-title="GitHub Actions" data-detail="researchmate-ci 工作流:5 个 Job,concurrency cancel-in-progress,固定 action 版本。ci-success 聚合器验证四个门控均返回 success。"><b>GitHub Actions</b><small>5 个 Job,4 个并行门控</small></button>
             </div>
             <div class="arch-column">
               <span>Backend deploy</span>
-              <button class="arch-node" data-title="Render Free service" data-detail="Docker 运行时,Oregon 区域,checksPass 自动部署,healthCheckPath /api/v1/readyz。"><b>Render (Free)</b><small>合并 API + worker</small></button>
+              <button class="arch-node" data-title="Render Free service" data-detail="Docker 运行时,Oregon 区域,checksPass 自动部署,healthCheckPath /api/v1/readyz。dockerCommand 启动合并 API+worker 进程。"><b>Render (Free)</b><small>合并 API + worker</small></button>
             </div>
             <div class="arch-column">
               <span>Frontend deploy</span>
@@ -393,6 +387,7 @@ uv sync --frozen --no-dev --all-packages</code></div>
           <div class="arch-inspector" data-arch-title="选择一个节点" data-arch-body="点击上方任一节点查看其部署详情。"></div>
         </div>
         <div class="notice"><strong>合并运行时:</strong> Render 的 dockerCommand <code>python -m researchmate_worker.render_combined</code> 在单个进程中启动 FastAPI API 服务器和 Celery worker,专为只允许一个服务的 Free 层限制而设计。<code>RESEARCHMATE_PROCESS_ROLE</code> 变量控制是否运行 outbox dispatcher 而非 Celery worker。</div>
+        <div class="notice"><strong>恢复与回滚:</strong> 若部署后健康检查失败,Render 自动回滚到上一个稳定版本。若 CI 门控失败,开发者需修复后重新 push,工作流会从步骤 1 重新开始。所有状态转换(planned/ready/executed/verified)均通过 GitHub Actions 日志和 Render 部署记录留痕,可追溯每次变更的执行结果。</div>
       </section>
 
       <section id="further-reading">
@@ -418,7 +413,6 @@ uv sync --frozen --no-dev --all-packages</code></div>
       <a href="#dependency-mgmt">依赖管理</a>
       <a href="#env-example">.env.example</a>
       <a href="#full-flow">CI/CD 全流程</a>
-      <a href="#deployment-arch">部署架构</a>
       <a href="#further-reading">延伸阅读</a>
     </aside></div>
   </main>
