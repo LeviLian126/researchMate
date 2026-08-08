@@ -74,88 +74,141 @@
       </section>
 
       <section id="ci-pipeline">
-        <p class="eyebrow">CI 流水线</p>
-        <h2>ci.yml . 五个 Job,四个并行门控</h2>
-        <p class="sub">工作流在 push 到 main/develop 以及每个 pull request 时触发。concurrency group 在新 commit 到达时取消进行中的运行。ci-success Job 始终运行(always()),验证四个质量门控均返回 success。</p>
+        <p class="eyebrow">CI/CD 工作流</p>
+        <h2>从 commit 到线上:五个质量流与部署提升链</h2>
+        <p class="sub">每次 push 到 main/develop 以及每个 pull request 都遵循同一条门禁链。状态转换遵循 planned → ready → executed → verified 四态模型:前四个并行门控 Job 在 ready 阶段验证源 artifact，ci-success 聚合门禁在 verified 阶段确认全部成功。只有聚合门禁通过后，Render 的 autoDeployTrigger: checksPass 才触发生产部署提升——在 CI 绿灯与生产部署之间建立硬依赖。</p>
+
+        <div class="proof-chain">
+          <div class="proof-step"><b>1. 源码变更 <small>planned</small></b><small>开发者 push 到 main/develop 或发起 PR。GitHub Actions 触发 researchmate-ci 工作流。concurrency group 取消同一 ref 的进行中运行，确保只有最新 commit 被测试。</small></div>
+          <div class="proof-step"><b>2. 四个并行门控 <small>ready</small></b><small>python-quality、web-quality、browser-e2e 和 container-quality 在 ubuntu-latest 上并发运行。它们相互独立、无依赖关系，仅共享源 artifact。全部通过才进入 executed 状态。</small></div>
+          <div class="proof-step"><b>3. ci-success 聚合门禁 <small>verified</small></b><small>使用 if: always() 运行，needs 全部四个 Job。断言四个环境变量均等于 success。任一门控失败或被取消，此步骤失败，工作流标红，部署被阻止。</small></div>
+          <div class="proof-step"><b>4. Render checksPass 提升 <small>executed</small></b><small>Render 观察 main 分支上的 GitHub 检查状态，仅当所有检查报告成功时才开始新部署。buildFilter 确保不相关路径变更不触发重建。</small></div>
+          <div class="proof-step"><b>5. 健康检查上线 <small>verified</small></b><small>Render 构建镜像、应用环境变量、启动容器。探测 /api/v1/readyz 返回 200 后标记 live 并路由流量。健康检查失败时 Render 自动回滚到上一个稳定版本。</small></div>
+        </div>
+
+        <h3>Flow 1: python-quality — 后端质量门控</h3>
+        <p class="sub">超时 35 分钟。验证 Python 代码的 lint 合规性、测试通过性、覆盖率阈值、OpenAPI 导出一致性和 migration 有效性。</p>
         <div class="scroll">
           <table>
-            <thead><tr><th>Job</th><th>Runner</th><th>超时</th><th>关键步骤</th><th>门控条件</th></tr></thead>
+            <thead><tr><th>步骤</th><th>命令 / 动作</th><th>证据要求</th></tr></thead>
             <tbody>
-              <tr>
-                <td><b>python-quality</b></td>
-                <td>ubuntu-latest</td>
-                <td>35 分钟</td>
-                <td>
-                  <p>setup-uv 0.12.1 (enable-cache) + setup-python 3.13</p>
-                  <p><code>uv sync --frozen --all-packages --group dev</code></p>
-                  <p><code>npm run test:python</code></p>
-                  <p><code>npm run check:types</code>(continue-on-error: true)</p>
-                  <p><code>npm run check:lint &amp;&amp; npm run check:openapi &amp;&amp; npm run check:migrations</code></p>
-                </td>
-                <td>覆盖率阈值 69%,类型检查非阻塞,ruff 无违规,OpenAPI 导出一致,migrations 有效</td>
-              </tr>
-              <tr>
-                <td><b>web-quality</b></td>
-                <td>ubuntu-latest</td>
-                <td>20 分钟</td>
-                <td>
-                  <p>setup-node 22 (cache: npm)</p>
-                  <p><code>npm install --no-audit --no-fund</code></p>
-                  <p><code>npm run test:web</code></p>
-                  <p><code>npm run check:web</code></p>
-                  <p><code>npm run check:audit</code></p>
-                </td>
-                <td>Vitest 套件通过,next build 成功,npm audit 无 moderate+ 漏洞</td>
-              </tr>
-              <tr>
-                <td><b>browser-e2e</b></td>
-                <td>ubuntu-latest</td>
-                <td>20 分钟</td>
-                <td>
-                  <p>setup-node 22 (cache: npm)</p>
-                  <p><code>npm install --no-audit --no-fund</code></p>
-                  <p><code>npx playwright install --with-deps chromium</code></p>
-                  <p><code>npm run test:e2e</code></p>
-                  <p>失败时上传 playwright-report artifact(保留 7 天)</p>
-                </td>
-                <td>Playwright 验收流程通过</td>
-              </tr>
-              <tr>
-                <td><b>container-quality</b></td>
-                <td>ubuntu-latest</td>
-                <td>25 分钟</td>
-                <td>
-                  <p>hadolint v2.15.1 检查两个 Dockerfile (--ignore DL3008)</p>
-                  <p>docker/setup-buildx-action v4</p>
-                  <p>构建 API 镜像: researchmate-api:ci (load, cache gha)</p>
-                  <p>构建 worker deps target: researchmate-worker-dependencies:ci</p>
-                  <p>Trivy 0.73.0 扫描 --exit-code 1 --severity HIGH,CRITICAL 两个镜像</p>
-                </td>
-                <td>Dockerfile lint 通过,两个镜像构建成功,零 HIGH/CRITICAL 未修复 CVE</td>
-              </tr>
-              <tr>
-                <td><b>ci-success</b></td>
-                <td>ubuntu-latest</td>
-                <td>默认</td>
-                <td>
-                  <p><code>if: always()</code> + <code>needs: [python-quality, web-quality, browser-e2e, container-quality]</code></p>
-                  <p>读取四个环境变量 (PYTHON_RESULT, WEB_RESULT, E2E_RESULT, CONTAINER_RESULT)</p>
-                  <p>执行四条 <code>test "$VAR" = success</code> 断言</p>
-                </td>
-                <td>前四个 Job 必须全部等于 success</td>
-              </tr>
+              <tr><td>环境准备</td><td>setup-uv 0.12.1 (enable-cache) + setup-python 3.13</td><td>uv 缓存命中加速后续运行</td></tr>
+              <tr><td>依赖安装</td><td><code>uv sync --frozen --all-packages --group dev</code></td><td><code>--frozen</code> 拒绝锁文件漂移，<code>--all-packages</code> 安装 workspace 全部成员</td></tr>
+              <tr><td>测试 + 覆盖率</td><td><code>npm run test:python</code></td><td><code>coverage run --branch</code> + <code>pytest -q</code>，覆盖率阈值 69% (<code>--fail-under=69</code>)</td></tr>
+              <tr><td>类型检查</td><td><code>npm run check:types</code></td><td>pyright basic 模式，<code>continue-on-error: true</code>（非阻塞，仅报告）</td></tr>
+              <tr><td>Lint + OpenAPI + Migrations</td><td><code>npm run check:lint && npm run check:openapi && npm run check:migrations</code></td><td>ruff 零违规，OpenAPI 导出与源码一致，migrations 有效</td></tr>
             </tbody>
           </table>
         </div>
-        <div class="notice"><strong>并发控制:</strong> 工作流声明 <code>concurrency: group: researchmate-ci-${{ github.workflow }}-${{ github.ref }}</code> 并设置 <code>cancel-in-progress: true</code>。当开发者快速连续 push 两次时,第一次运行会在执行中被取消,只有最新 commit 被测试。</div>
+        <p><b>门控条件:</b> 覆盖率 ≥ 69%，ruff 无违规，OpenAPI 导出一致，migrations 有效。类型检查为观察项，不阻止部署。</p>
+
+        <h3>Flow 2: web-quality — 前端质量门控</h3>
+        <p class="sub">超时 20 分钟。验证前端单元测试、生产构建和依赖安全。</p>
+        <div class="scroll">
+          <table>
+            <thead><tr><th>步骤</th><th>命令 / 动作</th><th>证据要求</th></tr></thead>
+            <tbody>
+              <tr><td>环境准备</td><td>setup-node 22 (cache: npm)</td><td>npm 缓存加速安装</td></tr>
+              <tr><td>依赖安装</td><td><code>npm install --no-audit --no-fund</code></td><td>安装完整 workspace 树，跳过审计和 fund 信息以加速</td></tr>
+              <tr><td>单元测试</td><td><code>npm run test:web</code></td><td>Vitest 4 + coverage-v8 套件全部通过</td></tr>
+              <tr><td>生产构建</td><td><code>npm run check:web</code></td><td><code>next build</code> 成功，确认 TypeScript 编译和生产优化无错误</td></tr>
+              <tr><td>依赖审计</td><td><code>npm run check:audit</code></td><td>npm audit 无 moderate+ 级别漏洞</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p><b>门控条件:</b> Vitest 套件通过，next build 成功，零 moderate+ 安全漏洞。</p>
+
+        <h3>Flow 3: browser-e2e — 端到端验收门控</h3>
+        <p class="sub">超时 20 分钟。使用 Playwright 在真实浏览器中验证关键用户流程。</p>
+        <div class="scroll">
+          <table>
+            <thead><tr><th>步骤</th><th>命令 / 动作</th><th>证据要求</th></tr></thead>
+            <tbody>
+              <tr><td>环境准备</td><td>setup-node 22 (cache: npm)</td><td>npm 缓存加速安装</td></tr>
+              <tr><td>依赖安装</td><td><code>npm install --no-audit --no-fund</code></td><td>安装完整 workspace 树</td></tr>
+              <tr><td>浏览器安装</td><td><code>npx playwright install --with-deps chromium</code></td><td>安装 Chromium 及其系统依赖</td></tr>
+              <tr><td>验收测试</td><td><code>npm run test:e2e</code></td><td>Playwright 1.62 验收流程全部通过</td></tr>
+              <tr><td>失败报告</td><td>上传 playwright-report artifact（保留 7 天）</td><td>失败时提供可下载的 HTML 报告用于调试</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p><b>门控条件:</b> Playwright 验收流程全部通过。失败时 artifact 保留 7 天供调试。</p>
+
+        <h3>Flow 4: container-quality — 容器安全门控</h3>
+        <p class="sub">超时 25 分钟。验证 Dockerfile 规范性、镜像可构建性和镜像安全。</p>
+        <div class="scroll">
+          <table>
+            <thead><tr><th>步骤</th><th>命令 / 动作</th><th>证据要求</th></tr></thead>
+            <tbody>
+              <tr><td>Dockerfile lint</td><td>hadolint v2.15.1 检查两个 Dockerfile (<code>--ignore DL3008</code>)</td><td>Dockerfile 符合最佳实践，忽略 DL3008（apt 版本固定）</td></tr>
+              <tr><td>Buildx 设置</td><td>docker/setup-buildx-action v4</td><td>启用 BuildKit 构建缓存</td></tr>
+              <tr><td>API 镜像构建</td><td>构建 <code>researchmate-api:ci</code> (load, cache gha)</td><td>API Dockerfile 成功构建，使用 GHA 缓存加速</td></tr>
+              <tr><td>Worker 依赖构建</td><td>构建 <code>researchmate-worker-dependencies:ci</code></td><td>Worker Dockerfile 的 dependencies target 成功构建</td></tr>
+              <tr><td>漏洞扫描</td><td>Trivy 0.73.0 <code>--exit-code 1 --severity HIGH,CRITICAL</code> 两个镜像</td><td>零 HIGH/CRITICAL 未修复 CVE</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p><b>门控条件:</b> Dockerfile lint 通过，两个镜像构建成功，零 HIGH/CRITICAL 未修复 CVE。</p>
+
+        <h3>Flow 5: ci-success — 稳定聚合门禁</h3>
+        <p class="sub">无显式超时（使用默认值）。此 Job 是稳定的外部发布契约——内部 Job 名称可自由演进，但聚合门禁名称保持不变，确保 Render 的 checksPass 依赖不受影响。</p>
+        <div class="scroll">
+          <table>
+            <thead><tr><th>步骤</th><th>命令 / 动作</th><th>证据要求</th></tr></thead>
+            <tbody>
+              <tr><td>始终运行</td><td><code>if: always()</code> + <code>needs: [python-quality, web-quality, browser-e2e, container-quality]</code></td><td>即使上游 Job 失败也运行，确保工作流有明确的最终状态</td></tr>
+              <tr><td>结果断言</td><td>读取 PYTHON_RESULT、WEB_RESULT、E2E_RESULT、CONTAINER_RESULT</td><td>四条 <code>test "$VAR" = success</code> 断言全部通过</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p><b>门控条件:</b> 前四个 Job 必须全部等于 success。任一失败或被取消，工作流标红，Render 部署被阻止。</p>
+
+        <div class="notice"><strong>并发控制:</strong> 工作流声明 <code>concurrency: group: researchmate-ci-${{ github.workflow }}-${{ github.ref }}</code> 并设置 <code>cancel-in-progress: true</code>。当开发者快速连续 push 两次时，第一次运行会在执行中被取消，只有最新 commit 被测试。</div>
         <div class="command-block"><code>npm run test:python
   = uv run --frozen coverage run --branch \
       --source=apps/api/src/researchmate_api,workers/ai-worker/src/researchmate_worker \
       -m pytest -q
-  &amp;&amp; uv run --frozen coverage report --fail-under=69
+  && uv run --frozen coverage report --fail-under=69
 
 npm run check:lint
   = uv run --frozen ruff check apps/api/src workers/ai-worker/src tests</code></div>
+
+        <div class="visual-panel">
+          <div class="visual-head"><h3>服务拓扑</h3><p>Render 托管从 worker Dockerfile 构建的 Docker 容器。Vercel 托管 Next.js 前端。外部托管服务通过环境变量连接。</p></div>
+          <div class="architecture-map">
+            <div class="arch-column">
+              <span>Source</span>
+              <button class="arch-node" data-title="GitHub repository" data-detail="包含 apps/api、workers/ai-worker、apps/web、packages/shared 的 monorepo。main 分支是部署目标。"><b>GitHub repo</b><small>main / develop / PR</small></button>
+            </div>
+            <div class="arch-column">
+              <span>CI</span>
+              <button class="arch-node" data-title="GitHub Actions" data-detail="researchmate-ci 工作流:5 个 Job，concurrency cancel-in-progress，固定 action 版本。ci-success 聚合门禁验证四个门控均返回 success。"><b>GitHub Actions</b><small>5 个 Job，4 个并行门控</small></button>
+            </div>
+            <div class="arch-column">
+              <span>Backend deploy</span>
+              <button class="arch-node" data-title="Render Free service" data-detail="Docker 运行时，Oregon 区域，checksPass 自动部署，healthCheckPath /api/v1/readyz。dockerCommand 启动合并 API+worker 进程。"><b>Render (Free)</b><small>合并 API + worker</small></button>
+            </div>
+            <div class="arch-column">
+              <span>Frontend deploy</span>
+              <button class="arch-node" data-title="Vercel" data-detail="Next.js 16.3.0 生产构建。CORS_ALLOWED_ORIGINS 指向 Vercel 源地址。"><b>Vercel</b><small>Next.js web 应用</small></button>
+            </div>
+            <div class="arch-column">
+              <span>Data layer</span>
+              <button class="arch-node" data-title="Supabase" data-detail="PostgreSQL 数据库、S3 兼容 Storage、Auth/JWKS。DATABASE_URL 和 SUPABASE_URL 为 sync:false 密钥。"><b>Supabase</b><small>Postgres + Storage + Auth</small></button>
+              <button class="arch-node" data-title="Qdrant Cloud" data-detail="向量数据库，含 dense + sparse + rerank 集合。QDRANT_URL 为 sync:false。"><b>Qdrant Cloud</b><small>chunks + rerank</small></button>
+              <button class="arch-node" data-title="Upstash Redis" data-detail="Celery broker 和 result backend。REDIS_URL 为 sync:false。"><b>Upstash Redis</b><small>Celery broker</small></button>
+            </div>
+            <div class="arch-column">
+              <span>AI &amp; observability</span>
+              <button class="arch-node" data-title="NVIDIA NIM" data-detail="通过 OpenAI SDK 调用 LLM chat completions 和 embeddings。NVIDIA_API_KEY 为 sync:false。"><b>NVIDIA NIM</b><small>LLM + embedding</small></button>
+              <button class="arch-node" data-title="Tavily" data-detail="Web 搜索 API。TAVILY_API_KEY 为 sync:false。"><b>Tavily</b><small>web search</small></button>
+              <button class="arch-node" data-title="Langfuse" data-detail="LLM 可观测性和 OpenTelemetry trace 导出。LANGFUSE 密钥和 OTEL 头为 sync:false。"><b>Langfuse</b><small>traces + observations</small></button>
+            </div>
+          </div>
+          <div class="arch-inspector" data-arch-title="选择一个节点" data-arch-body="点击上方任一节点查看其部署详情。"></div>
+        </div>
+        <div class="notice"><strong>合并运行时:</strong> Render 的 dockerCommand <code>python -m researchmate_worker.render_combined</code> 在单个进程中启动 FastAPI API 服务器和 Celery worker，专为只允许一个服务的 Free 层限制而设计。<code>RESEARCHMATE_PROCESS_ROLE</code> 变量控制是否运行 outbox dispatcher 而非 Celery worker。</div>
+        <div class="notice"><strong>恢复与回滚:</strong> 若部署后健康检查失败，Render 自动回滚到上一个稳定版本。若 CI 门控失败，开发者需修复后重新 push，工作流从步骤 1 重新开始。所有状态转换（planned / ready / executed / verified）均通过 GitHub Actions 日志和 Render 部署记录留痕，可追溯每次变更的执行结果。</div>
       </section>
 
       <section id="api-dockerfile">
@@ -346,57 +399,7 @@ uv sync --frozen --no-dev --all-packages</code></div>
         </div>
       </section>
 
-      <section id="full-flow">
-        <p class="eyebrow">CI/CD 全流程</p>
-        <h2>从 commit 到线上服务的六个验证步骤</h2>
-        <p class="sub">每次 push 到 main 或 develop,以及每个 pull request,都遵循此链。每个步骤对应一个明确的状态转换(planned → ready → executed → verified),任一步骤失败都会阻止部署;Render 的 autoDeployTrigger: checksPass 是最终门控。</p>
-        <div class="proof-chain">
-          <div class="proof-step"><b>1. 源码变更 <small>planned</small></b><small>开发者 push 到 main/develop 或发起 PR。GitHub Actions 触发 researchmate-ci 工作流。concurrency group 取消同一 ref 的进行中运行。</small></div>
-          <div class="proof-step"><b>2. 四个并行门控 <small>ready</small></b><small>python-quality(lint + 测试 + 覆盖率 69% + 类型检查(非阻塞) + OpenAPI + migrations)、web-quality(Vitest + 构建 + 审计)、browser-e2e(Playwright)和 container-quality(hadolint + Docker 构建 + Trivy 扫描)在 ubuntu-latest 上并发运行。全部通过才进入 executed 状态。</small></div>
-          <div class="proof-step"><b>3. ci-success 聚合器 <small>verified</small></b><small>使用 if: always() 运行,needs 全部四个 Job。断言 PYTHON_RESULT、WEB_RESULT、E2E_RESULT 和 CONTAINER_RESULT 均等于 success。如果任一门控失败或被取消,此步骤失败,工作流标红,部署被阻止。</small></div>
-          <div class="proof-step"><b>4. Render checksPass <small>executed</small></b><small>Render 观察 main 分支上的 GitHub 检查状态。autoDeployTrigger: checksPass 意味着仅当所有检查报告成功时才开始新部署。buildFilter 确保不相关路径变更不触发重建。</small></div>
-          <div class="proof-step"><b>5. Docker 构建与部署 <small>executed</small></b><small>Render 从 workers/ai-worker/Dockerfile 构建镜像(dockerContext: .),应用 researchmate-backend 组的 48 个环境变量加 3 个服务级覆盖,并以 dockerCommand: python -m researchmate_worker.render_combined 启动容器。</small></div>
-          <div class="proof-step"><b>6. 健康检查上线 <small>verified</small></b><small>Render 探测 /api/v1/readyz。端点返回 200 后,服务标记为 live 并开始路由流量。RUN_SCHEMA_MIGRATIONS=1 和 RUN_QDRANT_RERANK_BACKFILL=1 在首次启动就绪前运行。</small></div>
-        </div>
-        <div class="visual-panel">
-          <div class="visual-head"><h3>服务拓扑</h3><p>Render 托管从 worker Dockerfile 构建的 Docker 容器。Vercel 托管 Next.js 前端。外部托管服务通过环境变量连接。</p></div>
-          <div class="architecture-map">
-            <div class="arch-column">
-              <span>Source</span>
-              <button class="arch-node" data-title="GitHub repository" data-detail="包含 apps/api、workers/ai-worker、apps/web、packages/shared 的 monorepo。main 分支是部署目标。"><b>GitHub repo</b><small>main / develop / PR</small></button>
-            </div>
-            <div class="arch-column">
-              <span>CI</span>
-              <button class="arch-node" data-title="GitHub Actions" data-detail="researchmate-ci 工作流:5 个 Job,concurrency cancel-in-progress,固定 action 版本。ci-success 聚合器验证四个门控均返回 success。"><b>GitHub Actions</b><small>5 个 Job,4 个并行门控</small></button>
-            </div>
-            <div class="arch-column">
-              <span>Backend deploy</span>
-              <button class="arch-node" data-title="Render Free service" data-detail="Docker 运行时,Oregon 区域,checksPass 自动部署,healthCheckPath /api/v1/readyz。dockerCommand 启动合并 API+worker 进程。"><b>Render (Free)</b><small>合并 API + worker</small></button>
-            </div>
-            <div class="arch-column">
-              <span>Frontend deploy</span>
-              <button class="arch-node" data-title="Vercel" data-detail="Next.js 16.3.0 生产构建。CORS_ALLOWED_ORIGINS 指向 Vercel 源地址。"><b>Vercel</b><small>Next.js web 应用</small></button>
-            </div>
-            <div class="arch-column">
-              <span>Data layer</span>
-              <button class="arch-node" data-title="Supabase" data-detail="PostgreSQL 数据库、S3 兼容 Storage、Auth/JWKS。DATABASE_URL 和 SUPABASE_URL 为 sync:false 密钥。"><b>Supabase</b><small>Postgres + Storage + Auth</small></button>
-              <button class="arch-node" data-title="Qdrant Cloud" data-detail="向量数据库,含 dense + sparse + rerank 集合。QDRANT_URL 为 sync:false。"><b>Qdrant Cloud</b><small>chunks + rerank</small></button>
-              <button class="arch-node" data-title="Upstash Redis" data-detail="Celery broker 和 result backend。REDIS_URL 为 sync:false。"><b>Upstash Redis</b><small>Celery broker</small></button>
-            </div>
-            <div class="arch-column">
-              <span>AI &amp; observability</span>
-              <button class="arch-node" data-title="NVIDIA NIM" data-detail="通过 OpenAI SDK 调用 LLM chat completions 和 embeddings。NVIDIA_API_KEY 为 sync:false。"><b>NVIDIA NIM</b><small>LLM + embedding</small></button>
-              <button class="arch-node" data-title="Tavily" data-detail="Web 搜索 API。TAVILY_API_KEY 为 sync:false。"><b>Tavily</b><small>web search</small></button>
-              <button class="arch-node" data-title="Langfuse" data-detail="LLM 可观测性和 OpenTelemetry trace 导出。LANGFUSE 密钥和 OTEL 头为 sync:false。"><b>Langfuse</b><small>traces + observations</small></button>
-            </div>
-          </div>
-          <div class="arch-inspector" data-arch-title="选择一个节点" data-arch-body="点击上方任一节点查看其部署详情。"></div>
-        </div>
-        <div class="notice"><strong>合并运行时:</strong> Render 的 dockerCommand <code>python -m researchmate_worker.render_combined</code> 在单个进程中启动 FastAPI API 服务器和 Celery worker,专为只允许一个服务的 Free 层限制而设计。<code>RESEARCHMATE_PROCESS_ROLE</code> 变量控制是否运行 outbox dispatcher 而非 Celery worker。</div>
-        <div class="notice"><strong>恢复与回滚:</strong> 若部署后健康检查失败,Render 自动回滚到上一个稳定版本。若 CI 门控失败,开发者需修复后重新 push,工作流会从步骤 1 重新开始。所有状态转换(planned/ready/executed/verified)均通过 GitHub Actions 日志和 Render 部署记录留痕,可追溯每次变更的执行结果。</div>
-      </section>
-
-      <section id="further-reading">
+<section id="further-reading">
         <p class="eyebrow">延伸阅读</p>
         <h2>相关文档</h2>
         <div class="doc-index">
@@ -412,13 +415,12 @@ uv sync --frozen --no-dev --all-packages</code></div>
     </div>
     <aside class="toc"><b>本页目录</b>
       <a href="#stack">技术栈基础</a>
-      <a href="#ci-pipeline">CI 流水线</a>
+      <a href="#ci-pipeline">CI/CD 工作流</a>
       <a href="#api-dockerfile">API Dockerfile</a>
       <a href="#worker-dockerfile">Worker Dockerfile</a>
       <a href="#render-yaml">render.yaml</a>
       <a href="#dependency-mgmt">依赖管理</a>
       <a href="#env-example">.env.example</a>
-      <a href="#full-flow">CI/CD 全流程</a>
       <a href="#further-reading">延伸阅读</a>
     </aside></div>
   </main>

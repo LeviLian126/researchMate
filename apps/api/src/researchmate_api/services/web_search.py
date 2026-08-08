@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Protocol
+from typing import Any, Protocol, cast
 from urllib.parse import urlparse
 from uuid import UUID, uuid5
 
@@ -37,8 +37,13 @@ class TavilyWebSearchProvider:
         if client is None:
             import httpx
 
-            client = httpx.Client(timeout=settings.web_search_timeout_seconds)
-        self.client = client
+            # httpx.Client is structurally compatible with the HttpClient protocol but
+            # its post signature uses positional URL typing that the Protocol narrows;
+            # cast bridges that typing without changing the public boundary.
+            client = cast(HttpClient, httpx.Client(timeout=settings.web_search_timeout_seconds))
+        # self.client is non-None after the assignment above; declaring the attribute
+        # type here keeps subsequent method accesses from being treated as optional.
+        self.client: HttpClient = client
 
     def search(
         self,
@@ -50,11 +55,16 @@ class TavilyWebSearchProvider:
     ) -> list[ChunkEntry]:
         """Return bounded, sanitized web results as stable evidence chunks."""
         bounded_limit = max(1, min(5, limit))
+        # __init__ raises when tavily_api_key is None, but attribute access stays
+        # SecretStr | None; capture locally so the Bearer header has a typed secret.
+        tavily_key = self.settings.tavily_api_key
+        if tavily_key is None:
+            raise WebSearchRequestError(retryable=False)
         try:
             response = self.client.post(
                 f"{self.settings.tavily_base_url.rstrip('/')}/search",
                 headers={
-                    "Authorization": f"Bearer {self.settings.tavily_api_key.get_secret_value()}",
+                    "Authorization": f"Bearer {tavily_key.get_secret_value()}",
                     "Content-Type": "application/json",
                     "X-Project-ID": "researchmate",
                 },
@@ -88,8 +98,10 @@ class TavilyWebSearchProvider:
             content = item.get("raw_content") or item.get("content")
             if not self._safe_url(url) or not isinstance(content, str) or not content.strip():
                 continue
+            # _safe_url already verified url is a str; narrow for the typed ChunkEntry fields.
+            safe_url = cast(str, url)
             safe_text = content.strip()[:6000]
-            stable_key = f"{project_id}:{url}:{safe_text}"
+            stable_key = f"{project_id}:{safe_url}:{safe_text}"
             chunks.append(
                 ChunkEntry(
                     id=uuid5(WEB_EVIDENCE_NAMESPACE, stable_key),
@@ -97,9 +109,9 @@ class TavilyWebSearchProvider:
                     project_id=project_id,
                     document_id=None,
                     source_type=SourceType.WEB_PAGE,
-                    source_title=(title.strip()[:300] if isinstance(title, str) else url),
+                    source_title=(title.strip()[:300] if isinstance(title, str) else safe_url),
                     text=safe_text,
-                    url=url,
+                    url=safe_url,
                 )
             )
         return chunks

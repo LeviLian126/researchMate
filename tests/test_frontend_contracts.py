@@ -153,6 +153,9 @@ def test_frontend_uses_supabase_session_outside_local_development() -> None:
     auth = (ROOT / "apps/web/app/components/auth-gate.tsx").read_text(encoding="utf-8")
     supabase = (ROOT / "apps/web/app/lib/supabase.ts").read_text(encoding="utf-8")
     api = (ROOT / "apps/web/app/lib/api.ts").read_text(encoding="utf-8")
+    # SEC-3: the cookie name lives on the server route, not in the browser bundle.
+    session_route = (ROOT / "apps/web/app/api/auth/session/route.ts").read_text(encoding="utf-8")
+    session_get_route = (ROOT / "apps/web/app/api/auth/session/get/route.ts").read_text(encoding="utf-8")
 
     for token in [
         "NEXT_PUBLIC_SUPABASE_URL",
@@ -172,11 +175,19 @@ def test_frontend_uses_supabase_session_outside_local_development() -> None:
         '"/token?grant_type=refresh_token"',
         '"/logout?scope=local"',
         '"apikey"',
-        "researchmate_supabase_session",
         "REFRESH_SKEW_MS",
         "window.setTimeout(() => void refreshSession",
     ]:
-        assert token in package + auth + supabase + api
+        assert token in package + auth + supabase + api, f"expected token missing: {token!r}"
+
+    # SEC-3: the session cookie contract must be present on the server route.
+    assert "researchmate_supabase_session" in session_route
+    assert "httpOnly: true" in session_route
+    # SEC-3: the browser bundle reads the same cookie name via the GET route.
+    assert "researchmate_supabase_session" in session_get_route
+    # SEC-3: supabase.ts must no longer write session tokens to localStorage.
+    assert 'window.localStorage.setItem("researchmate_supabase_session"' not in supabase
+    assert 'window.localStorage.getItem("researchmate_supabase_session")' not in supabase
 
     assert '"@supabase/supabase-js"' not in package
     assert "if (isLocalDevelopment()) return getDevToken()" in api

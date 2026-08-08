@@ -14,6 +14,12 @@ class Settings(BaseSettings):
 
     app_env: Literal["local", "test", "preview", "production"] = "local"
     auth_mode: Literal["development", "supabase"] = "development"
+    # Explicit opt-in gate for the hardcoded DEV_USERS bearer tokens in
+    # dependencies.py. Defaults to False so that merely flipping AUTH_MODE to
+    # "development" in an operator-controlled environment is never sufficient to
+    # unlock the static developer credentials; operators must also set
+    # ALLOW_DEV_AUTH=true on top of an already-local/test auth_mode stack.
+    allow_dev_auth: bool = False
     repository_backend: Literal["memory", "postgres"] = "memory"
     database_url: str | None = None
     redis_url: str | None = None
@@ -191,6 +197,10 @@ class Settings(BaseSettings):
             )
         if self.app_env in {"preview", "production"} and self.auth_mode != "supabase":
             raise ValueError("preview and production must use Supabase JWT authentication")
+        if self.allow_dev_auth and self.app_env in {"preview", "production"}:
+            raise ValueError(
+                "ALLOW_DEV_AUTH=true is not permitted in preview or production environments"
+            )
         if self.auth_mode == "supabase":
             if not self.access_token_issuer:
                 raise ValueError("ACCESS_TOKEN_ISSUER is required for Supabase authentication")

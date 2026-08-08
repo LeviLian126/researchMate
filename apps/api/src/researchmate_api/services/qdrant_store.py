@@ -178,9 +178,7 @@ class QdrantHybridStore:
             if isinstance(query_filter.must, list)
             else ([query_filter.must] if query_filter.must is not None else [])
         )
-        base_must.append(
-            models.HasIdCondition(has_id=cast(list[ExtendedPointId], candidate_ids))
-        )
+        base_must.append(models.HasIdCondition(has_id=cast(list[ExtendedPointId], candidate_ids)))
         query_filter = models.Filter(must=base_must)
         try:
             result = self.client.query_points(
@@ -193,9 +191,7 @@ class QdrantHybridStore:
             )
         except Exception as exc:
             raise VectorStoreRequestError("rerank") from exc
-        return [
-            str((point.payload or {}).get("chunk_id", point.id)) for point in result.points
-        ]
+        return [str((point.payload or {}).get("chunk_id", point.id)) for point in result.points]
 
     def rerank_ready(self) -> bool:
         """Check that the optional rerank collection is configured and complete."""
@@ -297,11 +293,16 @@ class QdrantHybridStore:
         if not point_ids:
             return
         owner_filter = models.Filter(
-            must=cast(list[Condition], [
-                models.FieldCondition(key="user_id", match=models.MatchValue(value=user_id)),
-                models.FieldCondition(key="project_id", match=models.MatchValue(value=project_id)),
-                models.HasIdCondition(has_id=cast(list[ExtendedPointId], point_ids)),
-            ])
+            must=cast(
+                list[Condition],
+                [
+                    models.FieldCondition(key="user_id", match=models.MatchValue(value=user_id)),
+                    models.FieldCondition(
+                        key="project_id", match=models.MatchValue(value=project_id)
+                    ),
+                    models.HasIdCondition(has_id=cast(list[ExtendedPointId], point_ids)),
+                ],
+            )
         )
         try:
             self.client.delete(

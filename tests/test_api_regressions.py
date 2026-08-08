@@ -18,7 +18,11 @@ def client() -> TestClient:
     """Create an isolated in-memory API client with deterministic generation."""
     return TestClient(
         create_app(
-            settings=Settings(app_env="test", llm_provider="fake"),
+            settings=Settings(
+                app_env="test",
+                llm_provider="fake",
+                allow_dev_auth=True,
+            ),
             repository=InMemoryResearchMateStore(),
         )
     )

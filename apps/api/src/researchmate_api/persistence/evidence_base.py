@@ -49,6 +49,11 @@ class PostgresEvidenceRepositoryBase:
                 pool_pre_ping=True,
                 pool_recycle=300,
                 future=True,
+                # INFRA-4: Supabase free-tier Postgres caps connections well below the sum of
+                # default pool_size (5) + max_overflow (10) across 4+ engines. Pinning to a
+                # small total ceiling per engine keeps the platform from rejecting connections.
+                pool_size=2,
+                max_overflow=3,
             )
         )
 

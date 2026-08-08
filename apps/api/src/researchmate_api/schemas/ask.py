@@ -64,6 +64,7 @@ class AskResponse(BaseModel):
     validation_status: Literal["passed", "failed", "retrying"]
     rerank_degraded: bool = False
     retrieval_degraded: bool = False
+    web_degraded: bool = False
     summary_degraded: bool = False
     fallback_reason: str | None = Field(default=None, max_length=MAX_FALLBACK_REASON_LENGTH)
 

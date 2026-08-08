@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from functools import lru_cache
 from typing import NoReturn
 from uuid import UUID
@@ -19,6 +20,8 @@ from researchmate_api.services.store import ResearchMateRepository
 from researchmate_api.services.web_search import TavilyWebSearchProvider
 
 bearer = HTTPBearer(auto_error=False)
+
+LOGGER = logging.getLogger(__name__)
 
 DEV_USERS: dict[str, tuple[UUID, str, str]] = {
     "dev": (UUID("00000000-0000-4000-8000-000000000001"), "developer", "developer@example.com"),
@@ -129,12 +132,23 @@ def _supabase_user(token: str, settings: Settings) -> CurrentUser | None:
 
 
 def resolve_bearer_token(token: str, settings: Settings) -> CurrentUser | None:
-    """Resolve a bearer identity according to the configured authentication mode."""
-    return (
-        _development_user(token)
-        if settings.auth_mode == "development"
-        else _supabase_user(token, settings)
-    )
+    """Resolve a bearer identity according to the configured authentication mode.
+
+    The development auth path (DEV_USERS and the ``dev:<uuid>`` envelope) is also gated by
+    ``Settings.allow_dev_auth``. When that flag is False the development credentials are
+    treated as invalid tokens even when ``AUTH_MODE=development`` is set, so leaving the
+    flag unset is sufficient to deny the static developer identities at the boundary.
+    """
+    if settings.auth_mode != "development":
+        return _supabase_user(token, settings)
+    if not settings.allow_dev_auth:
+        LOGGER.warning(
+            "development_auth_rejected reason=allow_dev_auth_disabled token_prefix=%s auth_mode=%s",
+            token[:8],
+            settings.auth_mode,
+        )
+        return None
+    return _development_user(token)
 
 
 def get_current_user(

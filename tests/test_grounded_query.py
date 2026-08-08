@@ -243,19 +243,75 @@ def test_ask_for_missing_project_raises_not_found(repository) -> None:
     assert failure.value.status_code == 404
 
 
-def test_ask_with_web_enabled_without_provider_raises_not_configured(repository) -> None:
-    """Surface an explicit 503 failure when the Web boundary is unconfigured."""
+def test_ask_with_web_enabled_without_provider_degrades_to_local_evidence(repository) -> None:
+    """Gracefully degrade to local evidence when the Web boundary is unconfigured.
+
+    Previously the orchestration re-raised `WebEvidenceError` as a hard
+    failure, aborting the request even when local chunks had been retrieved.
+    The pipeline must now log the boundary error, empty the web evidence set,
+    and continue flowing through the local-retrieval path so the caller still
+    receives a grounded answer with `web_degraded=True` surfaced.
+    """
     caller, project_id = seed_workspace_with_ready_documents(repository)
     grounded = service(repository, web_search=None)
 
-    with pytest.raises(GroundedQueryError) as failure:
-        grounded.execute(
-            caller,
-            AskRequest(project_id=project_id, message="open question", web_enabled=True),
-        )
+    response = grounded.execute(
+        caller,
+        AskRequest(project_id=project_id, message="What is RAG?", web_enabled=True),
+    )
 
-    assert failure.value.code == "WEB_SEARCH_NOT_CONFIGURED"
-    assert failure.value.status_code == 503
+    assert response.answer
+    assert response.validation_status == "passed"
+    # Local chunks still produce citations even though the Web boundary failed.
+    assert response.citations, "local evidence must still be cited when web degrades"
+    assert response.web_degraded is True
+    assert response.fallback_reason is not None
+
+
+def test_ask_with_web_only_no_local_evidence_degrades_to_chat(repository) -> None:
+    """Fall back to plain chat when web is enabled, has no local chunks, and the Web boundary errors."""
+    caller = user()
+    repository.ensure_user(caller)
+    project = repository.ensure_personal_project(caller)
+    conversation = repository.ensure_conversation(caller, project.id, None, "New chat")
+    assert conversation is not None
+    grounded = service(repository, web_search=None)
+
+    response = grounded.execute(
+        caller,
+        AskRequest(
+            project_id=project.id,
+            conversation_id=conversation.id,
+            message="open question",
+            web_enabled=True,
+        ),
+    )
+
+    assert response.answer
+    assert response.citations == []
+    assert response.web_degraded is True
+    assert response.fallback_reason is not None
+
+
+def test_ask_web_enabled_succeeds_when_provider_unavailable_keeps_local_evidence(
+    repository,
+) -> None:
+    """Verify the Web boundary's WebSearchRequestError is translated like a hard Web failure but no longer aborts."""
+    caller, project_id = seed_workspace_with_ready_documents(repository)
+    grounded = service(repository, web_search=None)
+
+    response = grounded.execute(
+        caller,
+        AskRequest(
+            project_id=project_id,
+            message="What is RAG?",
+            web_enabled=True,
+        ),
+    )
+
+    assert response.web_degraded is True
+    assert response.fallback_reason
+    assert response.citations, "local retrieval must remain available when web evidence degrades"
 
 
 def test_ask_quotas_are_enforced_after_generation_succeeds(repository) -> None:

@@ -4,11 +4,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from typing import cast
 from uuid import UUID, uuid4
 
 from researchmate_api.schemas.common import CurrentUser
 from researchmate_api.schemas.conversation import ConversationMessage
-from researchmate_api.services.llm import ChatProvider, ProviderRequestError
+from researchmate_api.services.llm import ChatProvider, LLMResult, ProviderRequestError
 from researchmate_api.services.retrieval import estimate_tokens
 from researchmate_api.services.store import ResearchMateRepository
 
@@ -181,8 +182,8 @@ class ConversationContextBuilder:
         ]
         bounded = getattr(self.chat_provider, "complete_bounded", None)
         result = (
-            bounded(summary_messages, max_tokens=self.summary_token_budget)
+            cast(LLMResult, bounded(summary_messages, max_tokens=self.summary_token_budget))
             if callable(bounded)
-            else self.chat_provider.complete(summary_messages)
+            else cast(LLMResult, self.chat_provider.complete(summary_messages))
         )
         return _truncate_to_budget(result.content.strip(), self.summary_token_budget)

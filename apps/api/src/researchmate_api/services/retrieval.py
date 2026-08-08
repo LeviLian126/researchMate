@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections import Counter
+from collections import Counter, defaultdict
 from dataclasses import dataclass
 from math import log
 from re import findall
@@ -97,7 +97,9 @@ def fuse_candidates(
 ) -> list[RetrievalCandidate]:
     """Fuse lexical and semantic ranks with reciprocal-rank fusion."""
     by_id: dict[UUID, RetrievalCandidate] = {}
-    scores: Counter[UUID] = Counter()
+    # RRF scores are fractional (1 / (rrf_k + rank)); defaultdict(float) accumulates
+    # them without the int-only Counter.__setitem__ constraint on the boundary.
+    scores: defaultdict[UUID, float] = defaultdict(float)
     for candidate in lexical:
         rank = candidate.lexical_rank or 1
         scores[candidate.chunk.id] += 1 / (rrf_k + rank)

@@ -14,7 +14,15 @@ ADMIN_HEADERS = {"Authorization": "Bearer dev-admin"}
 
 def client() -> TestClient:
     """Create an isolated test client for evidence routes."""
-    return TestClient(create_app(settings=Settings(app_env="test", llm_provider="fake")))
+    return TestClient(
+        create_app(
+            settings=Settings(
+                app_env="test",
+                llm_provider="fake",
+                allow_dev_auth=True,
+            )
+        )
+    )
 
 
 def create_project(api: TestClient) -> str:

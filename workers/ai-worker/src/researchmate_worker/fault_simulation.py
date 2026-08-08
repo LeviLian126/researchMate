@@ -41,7 +41,6 @@ class FaultSimulationService:
         self.max_attempts = max_attempts
 
     def run(self, exercise_id: UUID, *, worker_id: str) -> str:
-        """Claim, record, and complete one non-mutating fault exercise."""
         """Claim one exercise and persist bounded reliability observations."""
         # The simulation has no remote side effect, so claim, snapshot, and completion
         # can be one short transaction. A database failure rolls the claim back and the

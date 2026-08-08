@@ -268,10 +268,10 @@ class PostgresEvidenceRunMixin:
                     text(
                         """
                     select id, decision, final_payload from human_decisions
-                    where run_id = :run_id and interrupt_key = :interrupt_key
+                    where run_id = :run_id and idempotency_key = :idempotency_key
                     """
                     ),
-                    {"run_id": run_id, "interrupt_key": payload.interrupt_key},
+                    {"run_id": run_id, "idempotency_key": idempotency_key},
                 )
                 .mappings()
                 .one_or_none()
@@ -308,10 +308,10 @@ class PostgresEvidenceRunMixin:
                 text(
                     """
                     insert into human_decisions (
-                      id, run_id, event_id, user_id, interrupt_key, decision,
+                      id, run_id, event_id, user_id, interrupt_key, idempotency_key, decision,
                       proposed_payload, final_payload, reason
                     ) values (
-                      :id, :run_id, :event_id, :user_id, :interrupt_key, :decision,
+                      :id, :run_id, :event_id, :user_id, :interrupt_key, :idempotency_key, :decision,
                       cast(:proposed as jsonb), cast(:final as jsonb), :reason
                     )
                     """
@@ -322,6 +322,7 @@ class PostgresEvidenceRunMixin:
                     "event_id": proposed["id"],
                     "user_id": user.id,
                     "interrupt_key": payload.interrupt_key,
+                    "idempotency_key": idempotency_key,
                     "decision": payload.decision,
                     "proposed": _json(proposed["safe_payload"]),
                     "final": _json(final_payload) if final_payload is not None else None,

@@ -21,7 +21,16 @@ def build_dispatcher(settings: WorkerSettings) -> OutboxDispatcher:
     """Construct a bounded dispatcher from validated managed-service settings."""
     if not settings.database_url:
         raise RuntimeError("DATABASE_URL is required to dispatch outbox events")
-    engine = create_engine(psycopg_database_url(settings.database_url), pool_pre_ping=True)
+    # INFRA-4: the dispatcher is a single long-running process. Without an explicit pool
+    # ceiling it would default to 5+10 connections and exhaust the Supabase free tier when
+    # combined with the worker and heartbeat engines.
+    engine = create_engine(
+        psycopg_database_url(settings.database_url),
+        pool_pre_ping=True,
+        pool_recycle=300,
+        pool_size=2,
+        max_overflow=3,
+    )
     return OutboxDispatcher(
         SqlOutboxStore(engine),
         CeleryTaskPublisher(celery_app, queue=settings.ingestion_queue),

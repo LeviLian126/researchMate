@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from time import monotonic
 from uuid import uuid4
 
@@ -30,6 +31,8 @@ from researchmate_api.services.retrieval import (
 )
 from researchmate_api.services.store import ChunkEntry, ResearchMateRepository
 from researchmate_api.services.web_search import TavilyWebSearchProvider
+
+LOGGER = logging.getLogger(__name__)
 
 
 class GroundedQueryService:
@@ -118,6 +121,8 @@ class GroundedQueryService:
         else:
             strategy = "web" if payload.web_enabled else "chat"
 
+        web_degraded = False
+        web_fallback_reason: str | None = None
         if payload.web_enabled:
             web_started = monotonic()
             try:
@@ -125,19 +130,36 @@ class GroundedQueryService:
                     self.web_search, user, payload.project_id, payload.message, limit=5
                 )
             except WebEvidenceError as exc:
-                raise GroundedQueryError(exc.code, exc.message, exc.status_code) from exc
+                # Web retrieval is an augmentation, not a hard dependency: when the
+                # provider is unavailable (or unconfigured) we log the boundary
+                # failure, empty the web evidence set, and keep flowing through
+                # the local-retrieval pipeline rather than aborting the request.
+                LOGGER.warning("web_evidence_degraded code=%s message=%s", exc.code, exc.message)
+                web_chunks = []
+                web_degraded = True
+                web_fallback_reason = exc.message
             candidates.extend(
                 RetrievalCandidate(chunk=chunk, score=1 / (60 + index))
                 for index, chunk in enumerate(web_chunks, start=1)
             )
-            strategy = "hybrid_retrieval_web" if chunks else "web"
+            if web_chunks:
+                strategy = "hybrid_retrieval_web" if chunks else "web"
+            elif not chunks:
+                # Web evidence degraded and no local chunks were retrieved:
+                # fall back to plain chat instead of leaving strategy="web".
+                strategy = "chat"
             tool_calls.append(
                 ToolCallTrace(
                     id=uuid4(),
                     tool_name="search_web",
                     input_summary={"query_length": len(payload.message)},
-                    output_summary={"provider": "tavily", "results": len(web_chunks)},
-                    status="succeeded",
+                    output_summary={
+                        "provider": "tavily",
+                        "results": len(web_chunks),
+                        "degraded": web_degraded,
+                        "fallback_reason": web_fallback_reason,
+                    },
+                    status="degraded" if web_degraded else "succeeded",
                     latency_ms=round((monotonic() - web_started) * 1000),
                 )
             )
@@ -241,6 +263,7 @@ class GroundedQueryService:
             "context_strategy": strategy,
             "rerank_degraded": rerank_result.degraded if rerank_result else False,
             "retrieval_degraded": retrieval_outcome.degraded,
+            "web_degraded": web_degraded,
             "summary_degraded": context_outcome.degraded,
         }
         runtime_metadata = {
@@ -250,10 +273,15 @@ class GroundedQueryService:
             "rerank_model": rerank_result.model if rerank_result else None,
             "rerank_config_version": rerank_config.version,
             "rerank_degraded": rerank_result.degraded if rerank_result else False,
+            "web_degraded": web_degraded,
             "fallback_reason": (
                 rerank_result.fallback_reason
                 if rerank_result and rerank_result.fallback_reason
-                else retrieval_outcome.reason or context_outcome.reason
+                else (
+                    web_fallback_reason
+                    if web_degraded
+                    else retrieval_outcome.reason or context_outcome.reason
+                )
             ),
             "candidate_count": len(candidates),
             "retrieved_count": len(retrieved),
@@ -293,10 +321,15 @@ class GroundedQueryService:
             validation_status="passed" if validation_result["passed"] else "failed",
             rerank_degraded=rerank_result.degraded if rerank_result else False,
             retrieval_degraded=retrieval_outcome.degraded,
+            web_degraded=web_degraded,
             summary_degraded=context_outcome.degraded,
             fallback_reason=(
                 rerank_result.fallback_reason
                 if rerank_result and rerank_result.fallback_reason
-                else retrieval_outcome.reason or context_outcome.reason
+                else (
+                    web_fallback_reason
+                    if web_degraded
+                    else retrieval_outcome.reason or context_outcome.reason
+                )
             ),
         )

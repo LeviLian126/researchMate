@@ -11,6 +11,7 @@ from researchmate_api.services.qdrant_store import (
     VectorStoreRequestError,
 )
 from sqlalchemy import create_engine, text
+from sqlalchemy.engine import Engine
 
 from researchmate_worker.budget import WorkflowBudgetExceeded
 from researchmate_worker.celery_app import celery_app
@@ -43,10 +44,29 @@ from researchmate_worker.workflow_runtime import (
 )
 
 
+def _bootstrap_failure_engine(database_url: str) -> Engine:
+    """Build a short-lived engine for one-shot bootstrap-failure markers.
+
+    INFRA-4: these engines run a single UPDATE and Dispose. Pinning pool_size and
+    max_overflow keeps the short-lived engine from ever opening the default 5+10
+    connections against the Supabase free-tier ceiling even under failure storms.
+    pool_recycle=300 matches the API/repository engines for connection-health parity.
+    """
+    return create_engine(
+        database_url,
+        pool_pre_ping=True,
+        pool_recycle=300,
+        pool_size=2,
+        max_overflow=3,
+    )
+
+
 def _mark_workflow_bootstrap_failed(settings: WorkerSettings, run_id: UUID, code: str) -> None:
     if not settings.database_url:
         return
-    engine = create_engine(psycopg_database_url(settings.database_url), pool_pre_ping=True)
+    # INFRA-4: even one-shot bootstrap-failure markers get a bounded pool so the
+    # short-lived engine does not open the default 5+10 connections against Supabase.
+    engine = _bootstrap_failure_engine(psycopg_database_url(settings.database_url))
     with engine.begin() as connection:
         connection.execute(
             text(
@@ -65,7 +85,9 @@ def _mark_job_bootstrap_failed(settings: WorkerSettings | None, job_id: UUID, co
     database_url = settings.database_url if settings is not None else os.getenv("DATABASE_URL")
     if not database_url:
         return
-    engine = create_engine(psycopg_database_url(database_url), pool_pre_ping=True)
+    # INFRA-4: bootstrap-failure markers are one-shot, but still get a bounded pool so
+    # the engine never opens the default 5+10 connections against Supabase free tier.
+    engine = _bootstrap_failure_engine(psycopg_database_url(database_url))
     with engine.begin() as connection:
         failed = (
             connection.execute(
@@ -118,7 +140,9 @@ def _mark_fault_exercise_failed(
     database_url = settings.database_url if settings is not None else os.getenv("DATABASE_URL")
     if not database_url:
         return
-    engine = create_engine(psycopg_database_url(database_url), pool_pre_ping=True)
+    # INFRA-4: bootstrap-failure markers are one-shot, but still get a bounded pool so
+    # the engine never opens the default 5+10 connections against Supabase free tier.
+    engine = _bootstrap_failure_engine(psycopg_database_url(database_url))
     with engine.begin() as connection:
         connection.execute(
             text(
@@ -137,7 +161,9 @@ def _mark_evaluation_run_failed(settings: WorkerSettings | None, run_id: UUID, c
     database_url = settings.database_url if settings is not None else os.getenv("DATABASE_URL")
     if not database_url:
         return
-    engine = create_engine(psycopg_database_url(database_url), pool_pre_ping=True)
+    # INFRA-4: bootstrap-failure markers are one-shot, but still get a bounded pool so
+    # the engine never opens the default 5+10 connections against Supabase free tier.
+    engine = _bootstrap_failure_engine(psycopg_database_url(database_url))
     with engine.begin() as connection:
         connection.execute(
             text(

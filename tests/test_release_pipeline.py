@@ -142,6 +142,9 @@ def test_repository_sources_do_not_contain_provider_secrets() -> None:
 def test_web_release_sets_baseline_browser_security_headers() -> None:
     """Require baseline browser security headers in the web release."""
     config = (ROOT / "apps/web/next.config.ts").read_text(encoding="utf-8")
+    # SEC-4/SEC-5: the CSP body lives in app/lib/csp-origins.ts so next.config.ts
+    # and middleware.ts render identical policies; check both surfaces.
+    csp_origins = (ROOT / "apps/web/app/lib/csp-origins.ts").read_text(encoding="utf-8")
 
     for header in (
         "Content-Security-Policy",
@@ -151,6 +154,17 @@ def test_web_release_sets_baseline_browser_security_headers() -> None:
         "X-Frame-Options",
     ):
         assert header in config
-    assert "frame-ancestors 'none'" in config
-    assert "object-src 'none'" in config
+    assert "frame-ancestors 'none'" in csp_origins
+    assert "object-src 'none'" in csp_origins
+    # SEC-4: connect-src must use an explicit origin allow-list, not the https: wildcard.
+    assert "connect-src 'self' https:" not in csp_origins
+    assert "allowedConnectOrigins" in csp_origins
+    # SEC-5: script-src must not carry a static 'unsafe-inline'.
+    assert "script-src 'self' 'unsafe-inline'" not in csp_origins
+    # SEC-5: middleware must inject per-request nonces via the shared CSP builder.
+    middleware = (ROOT / "apps/web/middleware.ts").read_text(encoding="utf-8")
+    assert "buildNonceCsp" in middleware
+    assert "NONCE_HEADER" in middleware
+    # The actual nonce token is assembled inside the shared CSP builder.
+    assert "'nonce-${nonce}'" in csp_origins
     assert 'source: "/docs", destination: "/docs/index.html"' not in config

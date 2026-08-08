@@ -14,6 +14,11 @@ from researchmate_api.services.store import store
 ADMIN = UUID("00000000-0000-4000-8000-000000000099")
 
 
+def _settings() -> Settings:
+    """Build test-mode settings with development auth explicitly opted in."""
+    return Settings(app_env="test", allow_dev_auth=True)
+
+
 @pytest.fixture(autouse=True)
 def reset_mcp_store() -> Generator[None]:
     """Keep MCP policy tests independent from suite-wide quota and trace state."""
@@ -38,7 +43,7 @@ def test_mcp_requires_the_same_bearer_boundary_as_rest(monkeypatch) -> None:
         "build_mcp_server",
         _missing_mcp_runtime,
     )
-    with TestClient(create_app(Settings(app_env="test"))) as client:
+    with TestClient(create_app(_settings())) as client:
         response = client.post("/mcp", headers={"X-Request-ID": "req_mcp_auth_123"})
 
     assert response.status_code == 401
@@ -55,7 +60,7 @@ def test_mcp_missing_sdk_is_an_explicit_authenticated_503(monkeypatch) -> None:
         "build_mcp_server",
         _missing_mcp_runtime,
     )
-    with TestClient(create_app(Settings(app_env="test"))) as client:
+    with TestClient(create_app(_settings())) as client:
         response = client.post(
             "/mcp",
             headers={
@@ -92,7 +97,7 @@ def test_installed_mcp_runtime_initializes_behind_the_rest_bearer_boundary() -> 
         },
     }
 
-    with TestClient(create_app(Settings(app_env="test"))) as client:
+    with TestClient(create_app(_settings())) as client:
         response = client.post("/mcp/", headers=headers, json=payload)
 
     assert response.status_code == 200
@@ -127,7 +132,7 @@ def _mcp_call(client: TestClient, token: str, name: str, arguments: dict, reques
 
 def test_mcp_personal_project_search_requires_conversation_scope() -> None:
     """Reject project-wide search of the shared personal-project container."""
-    with TestClient(create_app(Settings(app_env="test"))) as client:
+    with TestClient(create_app(_settings())) as client:
         personal = client.post(
             "/api/v1/chat/bootstrap",
             headers={"Authorization": "Bearer dev-user-a"},
@@ -146,7 +151,7 @@ def test_mcp_personal_project_search_requires_conversation_scope() -> None:
 def test_mcp_trace_access_matches_rest_admin_policy() -> None:
     """Deny a trace owner through MCP when REST also requires a privileged role."""
     user_headers = {"Authorization": "Bearer dev-user-a"}
-    with TestClient(create_app(Settings(app_env="test"))) as client:
+    with TestClient(create_app(_settings())) as client:
         project = client.post(
             "/api/v1/projects", json={"name": "Trace"}, headers=user_headers
         ).json()

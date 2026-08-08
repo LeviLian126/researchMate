@@ -22,7 +22,7 @@ _skip_no_slowapi = pytest.mark.skipif(not _HAS_SLOWAPI, reason="slowapi not inst
 
 def _local_settings(**overrides) -> Settings:
     """Build minimal local-mode settings for HTTP-level smoke tests."""
-    base = {"app_env": "local", "auth_mode": "development"}
+    base = {"app_env": "local", "auth_mode": "development", "allow_dev_auth": True}
     base.update(overrides)
     return Settings(**base)
 

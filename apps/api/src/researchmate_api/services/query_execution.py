@@ -5,6 +5,7 @@ from __future__ import annotations
 from uuid import UUID
 
 from researchmate_api.schemas.common import (
+    ContextStrategy,
     CurrentUser,
     ExecutionPlan,
     SourceType,
@@ -86,7 +87,7 @@ def limit_rerank_candidates(
 
 
 def build_execution_plan(
-    strategy: str,
+    strategy: ContextStrategy,
     web_enabled: bool,
     has_documents: bool,
     *,

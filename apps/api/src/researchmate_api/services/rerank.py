@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Literal, Protocol
+from typing import Any, Literal, Protocol, cast
 
 import httpx
 
@@ -55,7 +55,7 @@ class DeterministicReranker:
     """Provide a network-free stable fallback ranking."""
 
     name: RerankProviderName = "deterministic"
-    model = None
+    model: str | None = None
 
     def rerank(
         self,
@@ -211,13 +211,22 @@ class RerankCoordinator:
             return RerankResult([], "deterministic", None, False)
         order: list[Reranker]
         if provider == "qdrant":
-            order = [item for item in (self.qdrant, self.nvidia) if item is not None]
+            order = cast(
+                list[Reranker],
+                [item for item in (self.qdrant, self.nvidia) if item is not None],
+            )
         elif provider == "nvidia":
-            order = [item for item in (self.nvidia, self.qdrant) if item is not None]
+            order = cast(
+                list[Reranker],
+                [item for item in (self.nvidia, self.qdrant) if item is not None],
+            )
         elif provider == "deterministic":
             order = [self.deterministic]
         else:
-            order = [item for item in (self.qdrant, self.nvidia) if item is not None]
+            order = cast(
+                list[Reranker],
+                [item for item in (self.qdrant, self.nvidia) if item is not None],
+            )
         if any(item.chunk.source_type == SourceType.WEB_PAGE for item in candidates):
             order = [item for item in order if item.name != "qdrant"]
         failures: list[str] = []

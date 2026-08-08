@@ -198,7 +198,7 @@ def test_unknown_bearer_token_fails_closed_and_uses_request_id() -> None:
 
 def test_explicit_development_identity_remains_available_locally() -> None:
     """Keep the explicit local development identity available."""
-    settings = Settings(app_env="local", auth_mode="development")
+    settings = Settings(app_env="local", auth_mode="development", allow_dev_auth=True)
     user_id = UUID("00000000-0000-4000-8000-000000000042")
 
     try:
@@ -211,3 +211,38 @@ def test_explicit_development_identity_remains_available_locally() -> None:
         assert response.json()["id"] == str(user_id)
     finally:
         store.reset()
+
+
+def test_dev_auth_rejected_when_allow_dev_auth_disabled() -> None:
+    """Reject the hardcoded development tokens when ALLOW_DEV_AUTH is not set."""
+    settings = Settings(app_env="local", auth_mode="development")
+    user_id = UUID("00000000-0000-4000-8000-000000000042")
+
+    try:
+        with TestClient(create_app(settings=settings)) as client:
+            static_response = client.get(
+                "/api/v1/me",
+                headers={"Authorization": "Bearer dev-user-a"},
+            )
+            envelope_response = client.get(
+                "/api/v1/me",
+                headers={"Authorization": f"Bearer dev:{user_id}:user:student@example.test"},
+            )
+        # Both the static DEV_USERS credentials and the dev:<uuid> envelope must be
+        # treated as invalid tokens when allow_dev_auth is False, even though
+        # AUTH_MODE=development is set. This is the SEC-1 gate: a missing env var
+        # is sufficient to deny the static developer identities at the boundary.
+        assert static_response.status_code == 401
+        assert static_response.json()["error"]["code"] == "INVALID_TOKEN"
+        assert envelope_response.status_code == 401
+        assert envelope_response.json()["error"]["code"] == "INVALID_TOKEN"
+    finally:
+        store.reset()
+
+
+def test_allow_dev_auth_forbidden_in_protected_environments() -> None:
+    """Refuse ALLOW_DEV_AUTH=true in preview or production environments."""
+    with pytest.raises(ValidationError):
+        Settings(app_env="preview", auth_mode="supabase", allow_dev_auth=True)
+    with pytest.raises(ValidationError):
+        Settings(app_env="production", auth_mode="supabase", allow_dev_auth=True)

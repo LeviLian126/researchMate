@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import NoReturn
+
 
 class GroundedQueryError(RuntimeError):
     """Carry a stable application error across HTTP and MCP transports."""
@@ -14,6 +16,6 @@ class GroundedQueryError(RuntimeError):
         self.status_code = status_code
 
 
-def raise_grounded_error(code: str, message: str, status_code: int) -> None:
+def raise_grounded_error(code: str, message: str, status_code: int) -> NoReturn:
     """Raise the shared Ask application error from orchestration helpers."""
     raise GroundedQueryError(code, message, status_code)

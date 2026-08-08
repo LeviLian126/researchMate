@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import signal
 from contextlib import asynccontextmanager
 from time import monotonic
 from uuid import uuid4
@@ -78,6 +79,64 @@ RATE_LIMITED_PATHS = frozenset(
         "/mcp",
     }
 )
+
+# INFRA-3: graceful-shutdown window. This mirrors the worker soft time limit (840s) so a
+# request or MCP session mid-flight is not torn down by the platform default 20s window.
+# The actual enforcement lives on the ASGI server (uvicorn --timeout-graceful-shutdown),
+# which is set by render_combined.child_commands. This constant is the single in-process
+# source of truth so any future in-process drain logic stays aligned with that window.
+GRACEFUL_SHUTDOWN_TIMEOUT_SECONDS = 840
+
+# Module-level flag flipped by the SIGTERM/SIGINT handler below. Components that perform
+# long-running work in-process may poll this flag to opt into an early checkpoint instead of
+# waiting for the OS to deliver the signal at the end of the window.
+_SHUTTING_DOWN: bool = False
+
+
+def _handle_shutdown_signal(signum: int, _frame: object) -> None:
+    """Flip the in-process shutdown flag for observability and cooperative drain.
+
+    This handler intentionally does NOT raise or sys.exit: the actual graceful-shutdown
+    window is enforced by the ASGI server (uvicorn --timeout-graceful-shutdown). Flipping
+    this flag only lets long-running in-process work observe the signal and checkpoint
+    early instead of holding resources up to the platform-enforced ceiling.
+    """
+    global _SHUTTING_DOWN
+    _SHUTTING_DOWN = True
+    log_event(
+        "shutdown_signal_received",
+        signal=signal.Signals(signum).name,
+        graceful_timeout_seconds=GRACEFUL_SHUTDOWN_TIMEOUT_SECONDS,
+    )
+
+
+def _register_shutdown_handlers() -> None:
+    """Register SIGTERM and SIGINT handlers that observe the shutdown transition.
+
+    Windows has no SIGTERM (it only defines SIGINT), so SIGTERM registration is skipped on
+    that platform. uvicorn still receives the signal when run as a child process under the
+    supervisor, so the ASGI-level graceful window applies regardless.
+    """
+    # Skip re-registration if the signals are unsupported on this platform (Windows only
+    # exposes SIGINT) so importing this module never raises in test/dev environments.
+    sigterm = getattr(signal, "SIGTERM", None)
+    if sigterm is not None:
+        try:
+            signal.signal(sigterm, _handle_shutdown_signal)
+        except (ValueError, OSError):
+            # ValueError is raised when not in the main thread; OSError when the signal
+            # cannot be installed. Failing open keeps the import path non-fatal.
+            pass
+    try:
+        signal.signal(signal.SIGINT, _handle_shutdown_signal)
+    except (ValueError, OSError):
+        pass
+
+
+# Register the observer handlers at import time so a SIGTERM/SIGINT delivered to the API
+# process (whether from the platform or the render_combined supervisor) is logged and the
+# in-process flag flips. The ASGI server still owns the actual shutdown-window enforcement.
+_register_shutdown_handlers()
 
 
 def create_app(

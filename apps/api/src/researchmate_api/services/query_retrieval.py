@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from uuid import UUID
 
 from researchmate_api.config import Settings
-from researchmate_api.schemas.common import CurrentUser, SourceType
+from researchmate_api.schemas.common import ContextStrategy, CurrentUser, SourceType
 from researchmate_api.services.qdrant_store import QdrantHybridStore, VectorStoreRequestError
 from researchmate_api.services.retrieval import (
     RetrievalCandidate,
@@ -23,7 +23,7 @@ class RetrievalOutcome:
     """Describe selected candidates and whether the semantic path degraded."""
 
     candidates: list[RetrievalCandidate]
-    strategy: str
+    strategy: ContextStrategy
     full_context: bool
     estimated_tokens: int
     degraded: bool = False

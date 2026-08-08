@@ -9,6 +9,7 @@ from time import monotonic
 from celery import Celery
 from celery.signals import heartbeat_sent, worker_ready, worker_shutdown
 from sqlalchemy import create_engine
+from sqlalchemy.engine import Engine
 
 from researchmate_worker.config import WorkerSettings, psycopg_database_url
 
@@ -49,8 +50,17 @@ logger = logging.getLogger(__name__)
 
 
 @lru_cache(maxsize=1)
-def _heartbeat_engine(database_url: str):
-    return create_engine(psycopg_database_url(database_url), pool_pre_ping=True)
+def _heartbeat_engine(database_url: str) -> Engine:
+    # INFRA-4: the heartbeat writes are short transactions with low concurrency. Pin the
+    # pool so this long-lived engine does not accumulate Supabase connections alongside
+    # the ingestion / dispatcher / task engines. pool_recycle matches the API's 300s.
+    return create_engine(
+        psycopg_database_url(database_url),
+        pool_pre_ping=True,
+        pool_recycle=300,
+        pool_size=2,
+        max_overflow=3,
+    )
 
 
 def _worker_heartbeat(status: str) -> None:

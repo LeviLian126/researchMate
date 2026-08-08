@@ -12,6 +12,11 @@ from http.client import HTTPConnection
 
 QUEUES = "ingestion,deletion,workflow,evaluation,reliability"
 
+# INFRA-3: graceful-shutdown window must exceed the worker soft time limit (840s) so a
+# task mid-flight is not SIGKILLed before it can checkpoint. We keep a 60s buffer under
+# the hard 900s ceiling so the supervisor still reaps children before the platform does.
+GRACEFUL_SHUTDOWN_TIMEOUT_SECONDS = 840
+
 
 def apply_schema_migrations() -> None:
     """Apply repository migrations before any process can observe the new schema."""
@@ -53,6 +58,10 @@ def child_commands(port: int) -> list[list[str]]:
             "--port",
             str(port),
             "--proxy-headers",
+            # INFRA-3: align uvicorn's graceful shutdown with the supervisor's wait window
+            # so in-flight API requests and the MCP session get the full soft-time budget
+            # to drain instead of being torn down by the default 20s.
+            f"--timeout-graceful-shutdown={GRACEFUL_SHUTDOWN_TIMEOUT_SECONDS}",
         ],
         [
             sys.executable,
@@ -130,7 +139,7 @@ def run(port: int) -> int:
         stop_children(children, signal.SIGTERM)
         for child in children:
             try:
-                child.wait(timeout=20)
+                child.wait(timeout=GRACEFUL_SHUTDOWN_TIMEOUT_SECONDS)
             except subprocess.TimeoutExpired:
                 child.kill()
 

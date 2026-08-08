@@ -9,12 +9,16 @@ export interface BrowserAuthSession {
 }
 
 type SessionListener = (session: BrowserAuthSession | null) => void;
-const STORAGE_KEY = "researchmate_supabase_session";
+// SEC-3: session tokens now live in an HttpOnly cookie instead of localStorage.
+const SESSION_SET_URL = "/api/auth/session";
+const SESSION_GET_URL = "/api/auth/session/get";
 const REFRESH_SKEW_MS = 60_000;
 const listeners = new Set<SessionListener>();
 let currentSession: BrowserAuthSession | null | undefined;
 let refreshPromise: Promise<BrowserAuthSession | null> | null = null;
 let refreshTimer: number | null = null;
+// Tracks whether a cookie write is already in-flight so persist does not pile up requests.
+let persistPromise: Promise<void> | null = null;
 
 /** Detects the explicit local mode where a development identity is allowed. */
 export function isLocalDevelopment(): boolean {
@@ -47,23 +51,46 @@ function notify(session: BrowserAuthSession | null) {
 }
 
 /** Stores or clears the browser session and then notifies subscribers. */
-function persist(session: BrowserAuthSession | null) {
+function persist(session: BrowserAuthSession | null): Promise<void> {
+  // Update the in-memory copy and UI listeners synchronously so the user
+  // experience is unchanged; the cookie write happens in the background.
   currentSession = session;
-  if (typeof window !== "undefined") {
-    if (refreshTimer !== null) window.clearTimeout(refreshTimer);
+  if (refreshTimer !== null && typeof window !== "undefined") {
+    window.clearTimeout(refreshTimer);
     refreshTimer = null;
+  }
+  notify(session);
+  if (typeof window === "undefined") {
+    // Server render: nothing to write. Resolve so callers stay awaitable.
+    return Promise.resolve();
+  }
+  if (session) {
+    const delay = Math.max(0, session.expires_at - Date.now() - REFRESH_SKEW_MS);
+    refreshTimer = window.setTimeout(() => void refreshSession(session.refresh_token), delay);
+  }
+  // Coalesce concurrent cookie writes so back-to-back refreshes do not race.
+  const write = async () => {
     try {
-      if (session) window.localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
-      else window.localStorage.removeItem(STORAGE_KEY);
+      await fetch(SESSION_SET_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: session ? JSON.stringify(session) : "null",
+      });
     } catch {
       // The in-memory session still works for this tab when storage is unavailable.
     }
-    if (session) {
-      const delay = Math.max(0, session.expires_at - Date.now() - REFRESH_SKEW_MS);
-      refreshTimer = window.setTimeout(() => void refreshSession(session.refresh_token), delay);
-    }
+  };
+  if (!persistPromise) {
+    persistPromise = write().finally(() => {
+      persistPromise = null;
+    });
+  } else {
+    // Chain the latest write after the in-flight one completes.
+    persistPromise = persistPromise.then(() => write()).finally(() => {
+      persistPromise = null;
+    });
   }
-  notify(session);
+  return persistPromise;
 }
 
 /** Extracts display-only identity claims without treating them as authorization. */
@@ -125,26 +152,34 @@ function restoreRedirectSession(): BrowserAuthSession | null {
   return session;
 }
 
-/** Restores a structurally valid persisted session from browser storage. */
-function restoreStoredSession(): BrowserAuthSession | null {
+/** Restores a structurally valid persisted session from the HttpOnly cookie. */
+async function restoreStoredSession(): Promise<BrowserAuthSession | null> {
   if (typeof window === "undefined") return null;
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    const value = JSON.parse(raw) as Partial<BrowserAuthSession>;
-    if (typeof value.access_token !== "string" || typeof value.refresh_token !== "string" || typeof value.expires_at !== "number") return null;
-    const tokenIdentity = identityFromAccessToken(value.access_token);
+    const response = await fetch(SESSION_GET_URL, { method: "GET" });
+    if (!response.ok) return null;
+    const body = (await response.json().catch(() => ({}))) as { session?: unknown };
+    const value = body.session;
+    if (!value || typeof value !== "object") return null;
+    const record = value as Partial<BrowserAuthSession>;
+    if (
+      typeof record.access_token !== "string" ||
+      typeof record.refresh_token !== "string" ||
+      typeof record.expires_at !== "number"
+    ) {
+      return null;
+    }
+    const tokenIdentity = identityFromAccessToken(record.access_token);
     return {
-      access_token: value.access_token,
-      refresh_token: value.refresh_token,
-      expires_at: value.expires_at,
+      access_token: record.access_token,
+      refresh_token: record.refresh_token,
+      expires_at: record.expires_at,
       user: {
-        email: value.user?.email ?? tokenIdentity.email,
+        email: record.user?.email ?? tokenIdentity.email,
         role: tokenIdentity.role,
       },
     };
   } catch {
-    window.localStorage.removeItem(STORAGE_KEY);
     return null;
   }
 }
@@ -185,12 +220,12 @@ async function refreshSession(refreshToken: string): Promise<BrowserAuthSession 
     refreshPromise = authRequest("/token?grant_type=refresh_token", {
       method: "POST",
       body: JSON.stringify({ refresh_token: refreshToken }),
-    }).then((payload) => {
+    }).then(async (payload) => {
       const session = toSession(payload);
-      persist(session);
+      await persist(session);
       return session;
-    }).catch(() => {
-      persist(null);
+    }).catch(async () => {
+      await persist(null);
       return null;
     }).finally(() => {
       refreshPromise = null;
@@ -203,9 +238,10 @@ async function refreshSession(refreshToken: string): Promise<BrowserAuthSession 
 export async function getSupabaseSession(): Promise<BrowserAuthSession | null> {
   if (!configuration()) return null;
   if (currentSession === undefined) {
-    const restored = restoreRedirectSession() ?? restoreStoredSession();
+    const redirect = restoreRedirectSession();
+    const restored = redirect ?? (await restoreStoredSession());
     currentSession = restored;
-    if (restored) persist(restored);
+    if (restored) void persist(restored);
   }
   if (!currentSession) return null;
   if (currentSession.expires_at <= Date.now() + REFRESH_SKEW_MS) return refreshSession(currentSession.refresh_token);

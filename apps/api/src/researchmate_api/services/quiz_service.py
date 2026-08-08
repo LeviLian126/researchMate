@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from time import monotonic
+from typing import NoReturn
 from uuid import uuid4
 
 from researchmate_api.schemas.common import CurrentUser, ExecutionPlan, TaskType
@@ -206,6 +207,6 @@ class QuizService:
         )
 
     @staticmethod
-    def _error(code: str, message: str, status_code: int) -> None:
+    def _error(code: str, message: str, status_code: int) -> NoReturn:
         """Raise a stable Quiz application error."""
         raise QuizServiceError(code, message, status_code)

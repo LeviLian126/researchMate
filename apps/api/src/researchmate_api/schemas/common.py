@@ -13,6 +13,17 @@ from pydantic import BaseModel, ConfigDict, Field
 # avoids magic-number drift across schema validation and storage layers.
 MAX_TEXT_LENGTH = 1200
 
+# Centralize the context-strategy literal so callers in services layers can
+# reference it without duplicating the schema-defined member list.
+ContextStrategy = Literal[
+    "chat",
+    "full_context",
+    "hybrid_retrieval",
+    "web",
+    "hybrid_retrieval_web",
+    "quiz",
+]
+
 # Message and content length limits. Centralizing these keeps schema
 # validation, response contracts, and storage layers aligned without
 # magic-number drift across modules.
@@ -144,14 +155,7 @@ class ExecutionPlan(BaseModel):
     allowed_tools: list[str] = Field(min_length=1, max_length=12)
     requires_local_docs: bool
     requires_web: bool
-    context_strategy: Literal[
-        "chat",
-        "full_context",
-        "hybrid_retrieval",
-        "web",
-        "hybrid_retrieval_web",
-        "quiz",
-    ]
+    context_strategy: ContextStrategy
     output_schema: Literal["ChatAnswer", "GroundedAnswer", "QuizSet"]
 
     model_config = ConfigDict(use_enum_values=True)

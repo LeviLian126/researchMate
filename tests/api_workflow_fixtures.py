@@ -22,4 +22,12 @@ def reset_local_store() -> Generator[None]:
 @pytest.fixture()
 def client() -> TestClient:
     """Build the fake-provider application used by HTTP workflow tests."""
-    return TestClient(create_app(settings=Settings(app_env="test", llm_provider="fake")))
+    return TestClient(
+        create_app(
+            settings=Settings(
+                app_env="test",
+                llm_provider="fake",
+                allow_dev_auth=True,
+            )
+        )
+    )

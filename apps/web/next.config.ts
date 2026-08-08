@@ -1,5 +1,6 @@
 // Configures Next.js security headers and local-development connection allowances.
 import type { NextConfig } from "next";
+import { buildStaticCsp } from "./app/lib/csp-origins";
 
 // Resolves the backend origin for same-origin rewrites. Corporate or ISP
 // proxies sometimes intercept direct browser requests to *.onrender.com and
@@ -9,23 +10,11 @@ import type { NextConfig } from "next";
 const backendApiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000/api/v1";
 const backendOrigin = backendApiBase.replace(/\/api\/v1\/?$/, "");
 
-const developmentScripts = process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : "";
-const developmentConnections = process.env.NODE_ENV === "development"
-  ? " http://127.0.0.1:* http://localhost:* ws://127.0.0.1:* ws://localhost:*"
-  : "";
-const contentSecurityPolicy = [
-  "default-src 'self'",
-  `script-src 'self' 'unsafe-inline'${developmentScripts}`,
-  "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob: https:",
-  "font-src 'self' data:",
-  `connect-src 'self' https:${developmentConnections}`,
-  "object-src 'none'",
-  "base-uri 'self'",
-  "form-action 'self'",
-  "frame-ancestors 'none'",
-  "worker-src 'self' blob:",
-].join("; ");
+// SEC-5: script-src no longer carries a static 'unsafe-inline'. Per-request
+// nonces are injected by middleware.ts using buildNonceCsp(); the static CSP
+// below acts as a defense-in-depth fallback for any asset path middleware does
+// not run on (static images, _next/static).
+const staticContentSecurityPolicy = buildStaticCsp();
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
@@ -35,7 +24,7 @@ const nextConfig: NextConfig = {
       {
         source: "/:path*",
         headers: [
-          { key: "Content-Security-Policy", value: contentSecurityPolicy },
+          { key: "Content-Security-Policy", value: staticContentSecurityPolicy },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
           { key: "X-Content-Type-Options", value: "nosniff" },
