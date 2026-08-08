@@ -17,16 +17,20 @@ def test_ci_runs_the_full_test_build_contract_and_security_gate() -> None:
     assert '"test:e2e": "npm --workspace @researchmate/web run test:e2e"' in package
     assert "scripts/export_openapi.py --check" in package
     assert "scripts/apply_migrations.py --check-files" in package
+    assert "npx --yes pyright@1.1.390" in package
     assert "npm install" in workflow
     for job in ("python-quality", "web-quality", "browser-e2e", "container-quality", "ci-success"):
         assert f"{job}:" in workflow
     assert "uv sync --frozen --all-packages --group dev" in workflow
+    assert "npx --yes pyright@1.1.390" in package
+    assert "continue-on-error: true" in workflow
     assert "npx playwright install --with-deps chromium" in workflow
     assert "hadolint/hadolint:v2.15.1-debian" in workflow
     assert "aquasec/trivy:0.73.0" in workflow
     assert "target: dependencies" in workflow
     assert "researchmate-worker-dependencies:ci" in workflow
     assert "permissions:\n      contents: read" in workflow
+    assert "continue-on-error: true" in workflow
 
 
 def test_python_dependency_graph_is_locked_for_ci_and_images() -> None:

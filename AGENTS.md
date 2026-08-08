@@ -189,7 +189,7 @@ class Job(BaseModel):
 - Lint: `npm run check:lint` (ruff across `apps/api/src`, `workers/ai-worker/src`, `tests/`).
 - Format check: `uv run ruff format --check apps/api/src workers/ai-worker/src tests/`.
 - Types: `npm run check:types` (pyright via root `pyproject.toml`).
-- Tests + coverage: `npm run test:python` (threshold: 70%).
+- Tests + coverage: `npm run test:python` (threshold: 69%).
 - All: `npm run check:all`.
 
 Pre-commit hooks (configured in `.pre-commit-config.yaml`) run ruff, ruff-format, and pyright

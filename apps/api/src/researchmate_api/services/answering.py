@@ -274,7 +274,7 @@ def _complete(
     provider: ChatProvider,
     messages: list[dict[str, str]],
     max_tokens: int | None,
-):
+) -> LLMResult:
     """Call a provider with a bounded output when that capability is available."""
     bounded = getattr(provider, "complete_bounded", None)
     if max_tokens is not None and callable(bounded):
