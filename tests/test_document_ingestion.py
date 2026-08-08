@@ -1,14 +1,19 @@
 """Verify ingestion state transitions and deterministic content projections."""
 
+from __future__ import annotations
+
 from hashlib import sha256
+from pathlib import Path
 from uuid import UUID
 
 import pytest
+from researchmate_api.services.store import ChunkEntry
 from researchmate_worker.ingestion import (
     DocumentIngestionService,
     IngestionEvent,
     IngestionFailure,
     IngestionRecord,
+    PageProjection,
     ParsedBlock,
 )
 
@@ -23,7 +28,7 @@ EVENT = IngestionEvent(
 class FakeStore:
     """Record ingestion claims, projections, and lifecycle transitions."""
 
-    def __init__(self, checksum=None, attempts=1):
+    def __init__(self, checksum: str | None = None, attempts: int = 1) -> None:
         self.record = IngestionRecord(
             **EVENT.model_dump(),
             filename="evidence.pdf",
@@ -32,47 +37,57 @@ class FakeStore:
             checksum_sha256=checksum,
             attempts=attempts,
         )
-        self.pages = []
-        self.chunks = []
+        self.pages: list[PageProjection] = []
+        self.chunks: list[ChunkEntry] = []
         self.ready = False
         self.retry = None
         self.failed = None
 
-    def claim(self, event, *, worker_id, lease_seconds):
+    def claim(
+        self, event: IngestionEvent, *, worker_id: str, lease_seconds: int
+    ) -> IngestionRecord:
         assert event == EVENT
         assert worker_id == "worker-1"
         assert lease_seconds == 120
         return self.record
 
-    def replace_content(self, record, *, worker_id, pages, chunks, pipeline_version):
+    def replace_content(
+        self,
+        record: IngestionRecord,
+        *,
+        worker_id: str,
+        pages: list[PageProjection],
+        chunks: list[ChunkEntry],
+        pipeline_version: str,
+    ) -> None:
         self.pages = pages
         self.chunks = chunks
         assert pipeline_version == "pipeline-v1"
 
-    def mark_ready(self, record, *, worker_id):
+    def mark_ready(self, record: IngestionRecord, *, worker_id: str) -> None:
         self.ready = True
 
-    def mark_retryable(self, record, *, worker_id, code):
+    def mark_retryable(self, record: IngestionRecord, *, worker_id: str, code: str) -> None:
         self.retry = code
 
-    def mark_failed(self, record, *, worker_id, code):
+    def mark_failed(self, record: IngestionRecord, *, worker_id: str, code: str) -> None:
         self.failed = code
 
 
 class FakeObjectReader:
     """Provide deterministic uploaded bytes to the ingestion service."""
 
-    def __init__(self, content=b"source bytes"):
+    def __init__(self, content: bytes = b"source bytes") -> None:
         self.content = content
 
-    def download_to_file(self, object_key, destination):
+    def download_to_file(self, object_key: str, destination: Path) -> None:
         destination.write_bytes(self.content)
 
 
 class FakeParser:
     """Return deterministic parsed pages for ingestion tests."""
 
-    def parse(self, source, *, file_type):
+    def parse(self, source: Path, *, file_type: str) -> list[ParsedBlock]:
         assert source.read_bytes() == b"source bytes"
         assert file_type == "pdf"
         return [
@@ -88,18 +103,24 @@ class FakeParser:
 class FakeVectorProjection:
     """Record vector upserts and inject configured projection failures."""
 
-    def __init__(self, error=None):
+    def __init__(self, error: Exception | None = None) -> None:
         self.error = error
-        self.chunks = []
+        self.chunks: list[ChunkEntry] = []
 
-    def upsert_chunks(self, chunks, *, pipeline_version):
+    def upsert_chunks(self, chunks: list[ChunkEntry], *, pipeline_version: str) -> None:
         if self.error:
             raise self.error
         self.chunks = chunks
         assert pipeline_version == "pipeline-v1"
 
 
-def service(store, *, reader=None, parser=None, vector=None):
+def service(
+    store: FakeStore,
+    *,
+    reader: FakeObjectReader | None = None,
+    parser: FakeParser | None = None,
+    vector: FakeVectorProjection | None = None,
+) -> DocumentIngestionService:
     """Build an ingestion service from isolated test doubles."""
     return DocumentIngestionService(
         store=store,

@@ -10,6 +10,7 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 from datetime import UTC, datetime, timedelta
 from enum import Enum
+from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
 from sqlalchemy import create_engine, text
@@ -48,6 +49,12 @@ ObjectMetadataReader = Callable[[str], StoredObjectMetadata]
 
 class IdempotencyPersistenceMixin:
     """Own usage quotas and durable API idempotency reservations."""
+
+    if TYPE_CHECKING:
+        # Provided by sibling mixins composed in PostgresResearchMateRepository.
+        from contextlib import AbstractContextManager
+
+        _transaction: Callable[..., AbstractContextManager[Connection]]
 
     def increment_usage(self, user: CurrentUser, kind: str, limit: int) -> bool:
         """Accept and count an execution attempt only while quota remains."""

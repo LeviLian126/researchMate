@@ -1,5 +1,7 @@
 """Verify lexical retrieval, fusion, packing, and rerank degradation behavior."""
 
+from __future__ import annotations
+
 from datetime import UTC, datetime
 from uuid import uuid4
 
@@ -86,7 +88,7 @@ class _NvidiaClient:
     def __init__(self) -> None:
         self.payload = None
 
-    def post(self, path: str, *, json: dict):
+    def post(self, path: str, *, json: dict) -> _Response:
         assert path == "/v1/ranking"
         self.payload = json
         return _Response()

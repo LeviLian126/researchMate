@@ -1,9 +1,13 @@
 """Verify authentication, configuration, request, and readiness foundations."""
 
+from __future__ import annotations
+
 import inspect
 import json
+from collections.abc import Iterator
 from contextlib import contextmanager
 from types import SimpleNamespace
+from typing import Any
 from uuid import UUID
 
 import pytest
@@ -95,23 +99,25 @@ def test_managed_readiness_requires_live_background_delivery(monkeypatch) -> Non
         def __init__(self, kind: str) -> None:
             self.kind = kind
 
-        def scalar_one(self):
+        def scalar_one(self) -> Any:
+            # boundary: scalar value from opaque SQL result.
             return 4
 
-        def mappings(self):
+        def mappings(self) -> Result:
             return self
 
-        def all(self):
+        def all(self) -> list[Any]:
             return [
                 {"component": "worker", "status": "ready", "fresh": True},
                 {"component": "dispatcher", "status": "ready", "fresh": True},
             ]
 
-        def one(self):
+        def one(self) -> object:
             return {"stale_count": 0, "exhausted_count": 0}
 
     class Connection:
-        def execute(self, statement, _parameters=None):
+        def execute(self, statement: Any, _parameters: dict[str, Any] | None = None) -> Result:
+            # boundary: opaque test double for SQLAlchemy statements/parameters.
             source = str(statement)
             if "checkpoint_migrations" in source:
                 return Result("checkpoint")
@@ -123,14 +129,14 @@ def test_managed_readiness_requires_live_background_delivery(monkeypatch) -> Non
 
     class Engine:
         @contextmanager
-        def connect(self):
+        def connect(self) -> Iterator[Connection]:
             yield Connection()
 
     class RedisClient:
-        def ping(self):
+        def ping(self) -> bool:
             return True
 
-        def close(self):
+        def close(self) -> None:
             return None
 
     import redis

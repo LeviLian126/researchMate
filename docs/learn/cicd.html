@@ -348,21 +348,15 @@ uv sync --frozen --no-dev --all-packages</code></div>
       <section id="full-flow">
         <p class="eyebrow">CI/CD full flow</p>
         <h2>From commit to live service in six proof steps</h2>
-        <p class="sub">Every push to main or develop, and every pull request, follows this chain. A failure at any step blocks deployment; Render's autoDeployTrigger: checksPass is the final gate.</p>
+        <p class="sub">Every push to main or develop, and every pull request, follows this chain. Each step corresponds to an explicit state transition (planned &rarr; ready &rarr; executed &rarr; verified); a failure at any step blocks deployment. Render's autoDeployTrigger: checksPass is the final gate.</p>
         <div class="proof-chain">
-          <div class="proof-step"><b>1. Source change</b><small>Developer pushes to main/develop or opens a PR. GitHub Actions triggers the researchmate-ci workflow. The concurrency group cancels any in-progress run for the same ref.</small></div>
-          <div class="proof-step"><b>2. Four parallel gates</b><small>python-quality (lint + test + coverage 69% + types continue-on-error + OpenAPI + migrations), web-quality (Vitest + build + audit), browser-e2e (Playwright), and container-quality (hadolint + Docker build + Trivy scan) run concurrently on ubuntu-latest.</small></div>
-          <div class="proof-step"><b>3. ci-success aggregator</b><small>Runs with if: always() and needs all four jobs. Asserts PYTHON_RESULT, WEB_RESULT, E2E_RESULT, and CONTAINER_RESULT all equal success. If any gate failed or was cancelled, this step fails and the workflow is red.</small></div>
-          <div class="proof-step"><b>4. Render checksPass</b><small>Render observes GitHub check statuses on the main branch. autoDeployTrigger: checksPass means a new deploy begins only when all checks report success. The buildFilter ensures irrelevant path changes do not trigger a rebuild.</small></div>
-          <div class="proof-step"><b>5. Docker build &amp; deploy</b><small>Render builds the image from workers/ai-worker/Dockerfile with dockerContext: ., applies the 48 env vars from the researchmate-backend group plus 3 service-level overrides, and starts the container with dockerCommand: python -m researchmate_worker.render_combined.</small></div>
-          <div class="proof-step"><b>6. Health check live</b><small>Render probes /api/v1/readyz. Once the endpoint returns 200, the service is marked live and traffic is routed. RUN_SCHEMA_MIGRATIONS=1 and RUN_QDRANT_RERANK_BACKFILL=1 run on first boot before readiness.</small></div>
+          <div class="proof-step"><b>1. Source change <small>planned</small></b><small>Developer pushes to main/develop or opens a PR. GitHub Actions triggers the researchmate-ci workflow. The concurrency group cancels any in-progress run for the same ref.</small></div>
+          <div class="proof-step"><b>2. Four parallel gates <small>ready</small></b><small>python-quality (lint + test + coverage 69% + types continue-on-error + OpenAPI + migrations), web-quality (Vitest + build + audit), browser-e2e (Playwright), and container-quality (hadolint + Docker build + Trivy scan) run concurrently on ubuntu-latest. All four must pass before the executed state is reached.</small></div>
+          <div class="proof-step"><b>3. ci-success aggregator <small>verified</small></b><small>Runs with if: always() and needs all four jobs. Asserts PYTHON_RESULT, WEB_RESULT, E2E_RESULT, and CONTAINER_RESULT all equal success. If any gate failed or was cancelled, this step fails, the workflow is red, and deployment is blocked.</small></div>
+          <div class="proof-step"><b>4. Render checksPass <small>executed</small></b><small>Render observes GitHub check statuses on the main branch. autoDeployTrigger: checksPass means a new deploy begins only when all checks report success. The buildFilter ensures irrelevant path changes do not trigger a rebuild.</small></div>
+          <div class="proof-step"><b>5. Docker build &amp; deploy <small>executed</small></b><small>Render builds the image from workers/ai-worker/Dockerfile with dockerContext: ., applies the 48 env vars from the researchmate-backend group plus 3 service-level overrides, and starts the container with dockerCommand: python -m researchmate_worker.render_combined.</small></div>
+          <div class="proof-step"><b>6. Health check live <small>verified</small></b><small>Render probes /api/v1/readyz. Once the endpoint returns 200, the service is marked live and traffic is routed. RUN_SCHEMA_MIGRATIONS=1 and RUN_QDRANT_RERANK_BACKFILL=1 run on first boot before readiness.</small></div>
         </div>
-      </section>
-
-      <section id="deployment-arch">
-        <p class="eyebrow">Deployment architecture</p>
-        <h2>One Render service, one Vercel frontend, five managed dependencies</h2>
-        <p class="sub">The production topology runs a combined API-plus-worker process on a single Render Free container, with the Next.js frontend on Vercel and managed cloud services for data, vectors, cache, LLM, search, and observability.</p>
         <div class="visual-panel">
           <div class="visual-head"><h3>Service topology</h3><p>Render hosts the Docker container built from the worker Dockerfile. Vercel hosts the Next.js frontend. External managed services connect via environment variables.</p></div>
           <div class="architecture-map">
@@ -372,11 +366,11 @@ uv sync --frozen --no-dev --all-packages</code></div>
             </div>
             <div class="arch-column">
               <span>CI</span>
-              <button class="arch-node" data-title="GitHub Actions" data-detail="researchmate-ci workflow: 5 jobs, concurrency cancel-in-progress, pinned action versions."><b>GitHub Actions</b><small>5 jobs, 4 parallel gates</small></button>
+              <button class="arch-node" data-title="GitHub Actions" data-detail="researchmate-ci workflow: 5 jobs, concurrency cancel-in-progress, pinned action versions. The ci-success aggregator verifies that all four gates returned success."><b>GitHub Actions</b><small>5 jobs, 4 parallel gates</small></button>
             </div>
             <div class="arch-column">
               <span>Backend deploy</span>
-              <button class="arch-node" data-title="Render Free service" data-detail="Docker runtime, Oregon region, autoDeploy on checksPass, healthCheckPath /api/v1/readyz."><b>Render (Free)</b><small>combined API + worker</small></button>
+              <button class="arch-node" data-title="Render Free service" data-detail="Docker runtime, Oregon region, autoDeploy on checksPass, healthCheckPath /api/v1/readyz. dockerCommand starts the combined API + worker process."><b>Render (Free)</b><small>combined API + worker</small></button>
             </div>
             <div class="arch-column">
               <span>Frontend deploy</span>
@@ -398,6 +392,7 @@ uv sync --frozen --no-dev --all-packages</code></div>
           <div class="arch-inspector" data-arch-title="Select a node" data-arch-body="Click any node above to see its deployment details."></div>
         </div>
         <div class="notice"><strong>Combined runtime:</strong> Render's dockerCommand <code>python -m researchmate_worker.render_combined</code> starts both the FastAPI API server and the Celery worker in a single process, designed for Free-tier constraints where only one service is allowed. The <code>RESEARCHMATE_PROCESS_ROLE</code> variable controls whether the outbox dispatcher runs instead of the Celery worker.</div>
+        <div class="notice"><strong>Recovery &amp; Rollback:</strong> If the health check fails after a deploy, Render automatically rolls back to the previous stable version. If a CI gate fails, the developer must fix and re-push, and the workflow restarts from step 1. All state transitions (planned/ready/executed/verified) are recorded through GitHub Actions logs and Render deploy history, making every change traceable to its execution outcome.</div>
       </section>
 
       <section id="further-reading">
@@ -423,7 +418,6 @@ uv sync --frozen --no-dev --all-packages</code></div>
       <a href="#dependency-mgmt">Dependency mgmt</a>
       <a href="#env-example">.env.example</a>
       <a href="#full-flow">Full flow</a>
-      <a href="#deployment-arch">Deployment arch</a>
       <a href="#further-reading">Further reading</a>
     </aside></div>
   </main>

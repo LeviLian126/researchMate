@@ -7,7 +7,13 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from researchmate_api.schemas.common import MAX_TEXT_LENGTH, Citation, Difficulty, SourceSummary
+from researchmate_api.schemas.common import (
+    MAX_PROMPT_LENGTH,
+    MAX_TEXT_LENGTH,
+    Citation,
+    Difficulty,
+    SourceSummary,
+)
 
 
 # Define the Quiz API request body.
@@ -15,7 +21,11 @@ class QuizRequest(BaseModel):
     """Separate generation instructions from optional topic retrieval semantics."""
 
     project_id: UUID
-    prompt: str = Field(default="Generate a quiz from my documents.", min_length=1, max_length=4000)
+    prompt: str = Field(
+        default="Generate a quiz from my documents.",
+        min_length=1,
+        max_length=MAX_PROMPT_LENGTH,
+    )
     topic_query: str | None = Field(default=None, min_length=1, max_length=1000)
     resource_scope: Literal["all_ready_documents", "topic"] = "all_ready_documents"
     single_choice_count: int = Field(default=3, ge=0, le=20)

@@ -6,7 +6,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from threading import RLock
-from typing import Any, Literal, Protocol
+from typing import TYPE_CHECKING, Any, Literal, Protocol
 from uuid import UUID, uuid4
 
 from researchmate_api.schemas.common import (
@@ -37,6 +37,13 @@ from researchmate_api.services._store_models import (
 
 class LimitStoreMixin:
     """Own in-memory usage limits and API idempotency reservations."""
+
+    if TYPE_CHECKING:
+        # Provided by InMemoryStoreCore composed in InMemoryResearchMateStore.
+        _lock: RLock
+        # Opaque idempotency record payloads stored at the API boundary.
+        api_usage: dict[tuple[UUID, str, str], int]
+        idempotency_records: dict[tuple[UUID, str, str], dict[str, Any]]
 
     def increment_usage(self, user: CurrentUser, kind: str, limit: int) -> bool:
         """Accept and count an execution attempt only while quota remains."""

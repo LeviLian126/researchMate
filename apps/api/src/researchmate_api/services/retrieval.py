@@ -8,6 +8,7 @@ from math import log
 from re import findall
 from uuid import UUID
 
+from researchmate_api.schemas.common import SNIPPET_DEFAULT
 from researchmate_api.services.store import ChunkEntry
 
 
@@ -144,7 +145,7 @@ def retrieve_local_chunks(chunks: list[ChunkEntry], query: str, limit: int = 5) 
     return [candidate.chunk for candidate in bm25_candidates(chunks, query, limit=limit)]
 
 
-def snippet(text: str, length: int = 280) -> str:
+def snippet(text: str, length: int = SNIPPET_DEFAULT) -> str:
     """Collapse whitespace and return a display-safe bounded evidence excerpt."""
     compact = " ".join(text.split())
     if len(compact) <= length:

@@ -1,5 +1,7 @@
 """Verify MCP authentication, runtime fallback, and REST-equivalent access policies."""
 
+from __future__ import annotations
+
 from collections.abc import Generator
 from uuid import UUID
 

@@ -1,5 +1,7 @@
 """Configure shared import paths and fixtures for the repository test suite."""
 
+from __future__ import annotations
+
 import sys
 from pathlib import Path
 

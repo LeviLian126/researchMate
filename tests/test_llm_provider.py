@@ -1,5 +1,7 @@
 """Verify the NVIDIA chat adapter's bounded request and error contracts."""
 
+from __future__ import annotations
+
 from types import SimpleNamespace
 
 import pytest
@@ -19,7 +21,7 @@ class FakeCompletions:
         self.response = response
         self.calls: list[dict] = []
 
-    def create(self, **kwargs):
+    def create(self, **kwargs: object) -> object:  # boundary: opaque LLM completion
         self.calls.append(kwargs)
         if isinstance(self.response, Exception):
             raise self.response

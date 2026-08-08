@@ -1,5 +1,8 @@
 """Verify outbox delivery outcomes and bounded worker routing."""
 
+from __future__ import annotations
+
+from datetime import datetime
 from uuid import UUID
 
 from researchmate_worker.outbox import (
@@ -12,33 +15,33 @@ from researchmate_worker.outbox import (
 class FakeStore:
     """Record outbox claim and delivery-state transitions."""
 
-    def __init__(self, events):
+    def __init__(self, events: list[ClaimedOutboxEvent]) -> None:
         self.events = events
         self.published = []
         self.failed = []
 
-    def claim(self, limit, max_attempts):
+    def claim(self, limit: int, max_attempts: int) -> list[ClaimedOutboxEvent]:
         assert (limit, max_attempts) == (10, 3)
         return self.events
 
-    def mark_published(self, event_id):
+    def mark_published(self, event_id: UUID) -> None:
         self.published.append(event_id)
 
-    def mark_failed(self, event_id, attempts, safe_error):
+    def mark_failed(self, event_id: UUID, attempts: int, safe_error: str) -> None:
         self.failed.append((event_id, attempts, safe_error))
 
-    def requeue_stale(self, older_than):
+    def requeue_stale(self, older_than: datetime) -> int:
         return 0
 
 
 class FakePublisher:
     """Record published events and inject selected failures."""
 
-    def __init__(self, failing_id=None):
+    def __init__(self, failing_id: UUID | None = None) -> None:
         self.failing_id = failing_id
         self.events = []
 
-    def publish(self, event):
+    def publish(self, event: ClaimedOutboxEvent) -> None:
         if event.id == self.failing_id:
             raise TimeoutError("provider detail must not be persisted")
         self.events.append(event)
@@ -72,10 +75,10 @@ def test_fault_exercise_is_routed_to_bounded_reliability_worker() -> None:
     """Route fault exercises to the bounded reliability task."""
 
     class FakeCelery:
-        def __init__(self):
+        def __init__(self) -> None:
             self.calls = []
 
-        def send_task(self, *args, **kwargs):
+        def send_task(self, *args: object, **kwargs: object) -> None:
             self.calls.append((args, kwargs))
 
     celery = FakeCelery()
@@ -100,10 +103,10 @@ def test_project_deletion_is_routed_to_the_deletion_queue() -> None:
     """Route project deletion events to the deletion queue."""
 
     class FakeCelery:
-        def __init__(self):
+        def __init__(self) -> None:
             self.calls = []
 
-        def send_task(self, *args, **kwargs):
+        def send_task(self, *args: object, **kwargs: object) -> None:
             self.calls.append((args, kwargs))
 
     celery = FakeCelery()

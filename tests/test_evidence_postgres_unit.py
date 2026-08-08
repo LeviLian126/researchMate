@@ -7,6 +7,7 @@ from collections import deque
 from contextlib import contextmanager
 from datetime import UTC, datetime
 from inspect import getsource
+from typing import Any
 from uuid import UUID
 
 from researchmate_api.persistence.evidence_postgres import (
@@ -25,22 +26,22 @@ NOW = datetime(2026, 7, 26, tzinfo=UTC)
 class SequentialResult:
     """Exposes mapping, scalar, and row access over one configured value."""
 
-    def __init__(self, value=None) -> None:
+    def __init__(self, value: Any = None) -> None:  # boundary: opaque test double
         self.value = value
 
-    def mappings(self):
+    def mappings(self) -> SequentialResult:
         """Keep mapping access on this result."""
         return self
 
-    def one_or_none(self):
+    def one_or_none(self) -> Any:  # boundary: opaque test double
         """Return one optional row."""
         return self.value
 
-    def scalar_one(self):
+    def scalar_one(self) -> Any:  # boundary: opaque test double
         """Return one required scalar."""
         return self.value
 
-    def all(self):
+    def all(self) -> list[Any]:
         """Return a configured row collection."""
         return self.value or []
 
@@ -48,11 +49,14 @@ class SequentialResult:
 class SequentialConnection:
     """Records SQL and returns values in call order."""
 
-    def __init__(self, values=()) -> None:
+    def __init__(self, values: Any = ()) -> None:  # boundary: opaque test double
         self.values = deque(values)
         self.calls: list[tuple[str, dict | None]] = []
 
-    def execute(self, statement, parameters=None):
+    # statement is an opaque SQLAlchemy expression; parameters is a bound-parameter mapping.
+    def execute(
+        self, statement: Any, parameters: dict[str, Any] | None = None
+    ) -> SequentialResult:  # boundary: opaque test double
         """Record one statement and return the next configured value."""
         self.calls.append((str(statement), parameters))
         return SequentialResult(self.values.popleft() if self.values else None)
@@ -61,11 +65,11 @@ class SequentialConnection:
 class SequentialEngine:
     """Provides a transaction around one sequential connection."""
 
-    def __init__(self, values=()) -> None:
+    def __init__(self, values: Any = ()) -> None:  # boundary: opaque test double
         self.connection = SequentialConnection(values)
 
     @contextmanager
-    def begin(self):
+    def begin(self) -> Any:  # boundary: opaque test double
         """Yield the configured connection."""
         yield self.connection
 

@@ -1,7 +1,10 @@
 """Verify evidence generation accepts only server-issued identifiers."""
 
+from __future__ import annotations
+
 import json
 from types import SimpleNamespace
+from typing import Any
 from uuid import UUID
 
 import pytest
@@ -20,10 +23,10 @@ from researchmate_api.services.store import ChunkEntry
 class FakeProvider:
     """Return deterministic structured outputs to generation services."""
 
-    def __init__(self, outputs):
+    def __init__(self, outputs: list[Any]) -> None:  # boundary: opaque LLM output
         self.outputs = iter(outputs)
 
-    def complete(self, messages):
+    def complete(self, messages: object) -> LLMResult:
         return LLMResult(
             content=json.dumps(next(self.outputs)),
             reasoning=None,

@@ -6,9 +6,10 @@ import logging
 from collections import Counter
 from hashlib import sha256
 from math import log1p
-from typing import Any
+from typing import Any, cast
 
 from qdrant_client import QdrantClient, models
+from qdrant_client.http.models import Condition, ExtendedPointId
 
 from researchmate_api.config import Settings
 from researchmate_api.schemas.common import MAX_TEXT_LENGTH, SourceType
@@ -62,7 +63,7 @@ class QdrantHybridStore:
         self.client = client or QdrantClient(
             url=settings.qdrant_url,
             api_key=settings.qdrant_api_key.get_secret_value() if settings.qdrant_api_key else None,
-            timeout=settings.llm_timeout_seconds,
+            timeout=round(settings.llm_timeout_seconds),
             cloud_inference=bool(settings.qdrant_rerank_model),
         )
 
@@ -171,7 +172,16 @@ class QdrantHybridStore:
         if not candidate_ids:
             return []
         query_filter = self.owner_filter(user_id, project_id, SourceType.LOCAL_DOC)
-        query_filter.must.append(models.HasIdCondition(has_id=candidate_ids))
+        # must may be a single Condition, list, or None; normalize to a list to append safely.
+        base_must: list[Condition] = (
+            list(query_filter.must)
+            if isinstance(query_filter.must, list)
+            else ([query_filter.must] if query_filter.must is not None else [])
+        )
+        base_must.append(
+            models.HasIdCondition(has_id=cast(list[ExtendedPointId], candidate_ids))
+        )
+        query_filter = models.Filter(must=base_must)
         try:
             result = self.client.query_points(
                 collection_name=self.rerank_collection,
@@ -183,7 +193,9 @@ class QdrantHybridStore:
             )
         except Exception as exc:
             raise VectorStoreRequestError("rerank") from exc
-        return [str(point.payload.get("chunk_id", point.id)) for point in result.points]
+        return [
+            str((point.payload or {}).get("chunk_id", point.id)) for point in result.points
+        ]
 
     def rerank_ready(self) -> bool:
         """Check that the optional rerank collection is configured and complete."""
@@ -285,11 +297,11 @@ class QdrantHybridStore:
         if not point_ids:
             return
         owner_filter = models.Filter(
-            must=[
+            must=cast(list[Condition], [
                 models.FieldCondition(key="user_id", match=models.MatchValue(value=user_id)),
                 models.FieldCondition(key="project_id", match=models.MatchValue(value=project_id)),
-                models.HasIdCondition(has_id=point_ids),
-            ]
+                models.HasIdCondition(has_id=cast(list[ExtendedPointId], point_ids)),
+            ])
         )
         try:
             self.client.delete(

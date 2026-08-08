@@ -13,6 +13,28 @@ from pydantic import BaseModel, ConfigDict, Field
 # avoids magic-number drift across schema validation and storage layers.
 MAX_TEXT_LENGTH = 1200
 
+# Message and content length limits. Centralizing these keeps schema
+# validation, response contracts, and storage layers aligned without
+# magic-number drift across modules.
+MAX_MESSAGE_LENGTH = 8000
+MAX_ANSWER_LENGTH = 16000
+MAX_CONVERSATION_MESSAGE_LENGTH = 16000
+MAX_DOCUMENT_CONTENT_LENGTH = 200_000
+MAX_PROMPT_LENGTH = 4000
+MAX_REASON_LENGTH = 2000
+MAX_EVIDENCE_TEXT_LENGTH = 1600
+MAX_ID_LENGTH = 120
+MAX_FALLBACK_REASON_LENGTH = 300
+
+# Snippet lengths. Each constant names the bounded excerpt size used by a
+# specific call site so retrieval and quiz generation share one source of
+# truth instead of divergent hardcoded literals.
+SNIPPET_DEFAULT = 280
+SNIPPET_CHUNK = 900
+SNIPPET_QUOTE_SHORT = 180
+SNIPPET_QUOTE_MEDIUM = 220
+SNIPPET_QUOTE_LONG = 260
+
 
 # Define task types. Task only controls the execution goal.
 class TaskType(str, Enum):

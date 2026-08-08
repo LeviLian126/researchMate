@@ -4,8 +4,7 @@
   "version": "0.1.0",
   "packageManager": "npm@11.6.0",
   "workspaces": [
-    "apps/web",
-    "packages/shared"
+    "apps/web"
   ],
   "scripts": {
     "check:contracts": "uv run --frozen pytest tests/test_project_scaffold.py tests/test_api_workflow.py tests/test_frontend_contracts.py -q",

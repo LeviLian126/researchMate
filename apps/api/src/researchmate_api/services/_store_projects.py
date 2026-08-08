@@ -6,7 +6,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from threading import RLock
-from typing import Any, Literal, Protocol
+from typing import TYPE_CHECKING, Any, Literal, Protocol
 from uuid import UUID, uuid4
 
 from researchmate_api.schemas.common import (
@@ -37,6 +37,25 @@ from researchmate_api.services._store_models import (
 
 class ProjectStoreMixin:
     """Own in-memory users and project lifecycle state."""
+
+    if TYPE_CHECKING:
+        # Provided by InMemoryStoreCore composed in InMemoryResearchMateStore.
+        _lock: RLock
+        profiles: dict[UUID, CurrentUser]
+        projects: dict[UUID, ProjectRecord]
+        documents: dict[UUID, DocumentRecord]
+        chunks: dict[UUID, ChunkEntry]
+
+        def _create_job_locked(
+            self,
+            user: CurrentUser,
+            project_id: UUID | None,
+            document_id: UUID | None,
+            job_type: str,
+            status: JobStatus,
+            progress: int,
+            error_message: str | None = None,
+        ) -> JobRecord: ...
 
     def ensure_user(self, user: CurrentUser) -> CurrentUser:
         """Persist the caller profile required by owned resources."""

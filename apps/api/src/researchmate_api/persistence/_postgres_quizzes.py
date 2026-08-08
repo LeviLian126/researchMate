@@ -10,6 +10,7 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 from datetime import UTC, datetime, timedelta
 from enum import Enum
+from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
 from sqlalchemy import create_engine, text
@@ -48,6 +49,30 @@ ObjectMetadataReader = Callable[[str], StoredObjectMetadata]
 
 class QuizPersistenceMixin:
     """Own Quiz aggregate persistence and atomic Quiz run recording."""
+
+    if TYPE_CHECKING:
+        # Provided by sibling mixins composed in PostgresResearchMateRepository.
+        from contextlib import AbstractContextManager
+
+        _transaction: Callable[..., AbstractContextManager[Connection]]
+        _lock_active_project: Callable[[Connection, UUID, UUID], bool]
+
+        def get_project(self, user: CurrentUser, project_id: UUID) -> ProjectRecord | None: ...
+        def record_run(
+            self,
+            user: CurrentUser,
+            project_id: UUID,
+            message: str,
+            plan: ExecutionPlan,
+            router_reason: str,
+            retrieved_chunks: list[ChunkEntry],
+            citations: list[Citation],
+            tool_calls: list[ToolCallTrace],
+            validation_result: dict,
+            conversation_id: UUID | None = None,
+            runtime_metadata: dict | None = None,
+            assistant_answer: str | None = None,
+        ) -> tuple[UUID, UUID]: ...
 
     def save_quiz_set(
         self, user: CurrentUser, project_id: UUID, run_id: UUID, quiz_set: QuizSet

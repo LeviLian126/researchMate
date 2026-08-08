@@ -1,5 +1,7 @@
 """Share deterministic API workflow fixtures and ready-document setup helpers."""
 
+from __future__ import annotations
+
 from fastapi.testclient import TestClient
 
 HEADERS = {"Authorization": "Bearer dev"}

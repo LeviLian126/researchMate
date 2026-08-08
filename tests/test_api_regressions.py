@@ -1,5 +1,7 @@
 """Exercise repaired Ask, Quiz, quota, and idempotency behavior through HTTP."""
 
+from __future__ import annotations
+
 from uuid import uuid4
 
 import pytest

@@ -1,6 +1,9 @@
 """Verify hybrid vector retrieval shapes and mandatory owner filters."""
 
+from __future__ import annotations
+
 from types import SimpleNamespace
+from typing import Any
 from uuid import UUID
 
 from pydantic import SecretStr
@@ -14,9 +17,9 @@ class FakeEmbeddings:
     """Return deterministic vectors and record embedding modes."""
 
     def __init__(self) -> None:
-        self.calls = []
+        self.calls: list[dict[str, Any]] = []
 
-    def create(self, **kwargs):
+    def create(self, **kwargs: Any) -> Any:  # boundary: opaque test double (Qdrant response)
         self.calls.append(kwargs)
         return SimpleNamespace(
             data=[
@@ -41,16 +44,16 @@ class FakeQdrantClient:
         self.upsert_call = None
         self.delete_call = None
 
-    def query_points(self, **kwargs):
+    def query_points(self, **kwargs: Any) -> Any:  # boundary: opaque test double (Qdrant response)
         self.query_call = kwargs
         return SimpleNamespace(
             points=[SimpleNamespace(id=UUID(int=1), score=0.9, payload={"chunk_id": "1"})]
         )
 
-    def upsert(self, **kwargs):
+    def upsert(self, **kwargs: Any) -> None:
         self.upsert_call = kwargs
 
-    def delete(self, **kwargs):
+    def delete(self, **kwargs: Any) -> None:
         self.delete_call = kwargs
 
 

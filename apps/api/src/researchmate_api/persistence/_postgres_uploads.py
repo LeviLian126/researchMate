@@ -10,6 +10,7 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 from datetime import UTC, datetime, timedelta
 from enum import Enum
+from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
 from sqlalchemy import create_engine, text
@@ -48,6 +49,17 @@ ObjectMetadataReader = Callable[[str], StoredObjectMetadata]
 
 class UploadPersistenceMixin:
     """Own upload reservations and document lookup queries."""
+
+    if TYPE_CHECKING:
+        # Provided by sibling mixins composed in PostgresResearchMateRepository.
+        from contextlib import AbstractContextManager
+
+        _transaction: Callable[..., AbstractContextManager[Connection]]
+        _lock_active_project: Callable[[Connection, UUID, UUID], bool]
+        upload_url_factory: UploadUrlFactory
+        default_project_ttl_days: int
+
+        def get_project(self, user: CurrentUser, project_id: UUID) -> ProjectRecord | None: ...
 
     def create_upload_url(
         self, user: CurrentUser, payload: UploadUrlRequest

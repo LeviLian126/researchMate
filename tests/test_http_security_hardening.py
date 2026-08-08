@@ -1,5 +1,7 @@
 """Verify HTTP security hardening: rate limiting, CSP/HSTS, and readyz leak reduction."""
 
+from __future__ import annotations
+
 import pytest
 from fastapi.testclient import TestClient
 from researchmate_api.config import Settings

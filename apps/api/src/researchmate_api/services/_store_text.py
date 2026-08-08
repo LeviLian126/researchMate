@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+from researchmate_api.schemas.common import SNIPPET_CHUNK
 
-def chunk_text(text: str, target_size: int = 900) -> list[str]:
+
+def chunk_text(text: str, target_size: int = SNIPPET_CHUNK) -> list[str]:
     """Split normalized text into bounded, traceable chunks."""
     normalized = "\n".join(line.strip() for line in text.splitlines() if line.strip())
     if not normalized:

@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import UTC, datetime
 from decimal import Decimal
+from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
 from sqlalchemy import text
+from sqlalchemy.engine import Connection
 
 from researchmate_api.persistence.evidence_base import _json, _progress
 from researchmate_api.schemas.common import CurrentUser
@@ -23,6 +26,16 @@ from researchmate_api.services.evidence_store import EvidenceStoreError, evidenc
 
 class PostgresEvidenceRunMixin:
     """Owner-scoped workflow-run and human-review persistence operations."""
+
+    if TYPE_CHECKING:
+        # Provided by PostgresEvidenceRepositoryBase composed in PostgresEvidenceRepository.
+        from contextlib import AbstractContextManager
+
+        _transaction: Callable[..., AbstractContextManager[Connection]]
+        _lock_active_project: Callable[[Connection, UUID, UUID], bool]
+        _lock_idempotency: Callable[[Connection, UUID, str], None]
+        _append_event: Callable[..., None]
+        _append_outbox: Callable[..., None]
 
     def create_research_run(
         self, user: CurrentUser, payload: ResearchRunCreate, idempotency_key: str

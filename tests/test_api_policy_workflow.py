@@ -1,5 +1,7 @@
 """Verify API lifecycle, security validation, and developer-policy workflows."""
 
+from __future__ import annotations
+
 from fastapi.testclient import TestClient
 
 from tests.api_workflow_support import (

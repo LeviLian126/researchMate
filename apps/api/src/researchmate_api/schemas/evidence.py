@@ -9,6 +9,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field, model_validator
 
+from researchmate_api.schemas.common import MAX_REASON_LENGTH
+
 RunStatus = Literal["pending", "running", "waiting_human", "succeeded", "failed", "cancelled"]
 
 
@@ -85,7 +87,7 @@ class HumanDecisionCreate(BaseModel):
     interrupt_key: str = Field(min_length=1, max_length=160)
     decision: Literal["approve", "edit", "reject"]
     edited_payload: dict[str, Any] | None = None
-    reason: str | None = Field(default=None, max_length=2000)
+    reason: str | None = Field(default=None, max_length=MAX_REASON_LENGTH)
 
     @model_validator(mode="after")
     def require_edited_payload(self) -> HumanDecisionCreate:

@@ -1,6 +1,8 @@
 """Verify Render deployment configuration and combined-runtime startup order."""
 
 # Verifies that the Render blueprint and image stay within the combined free-tier boundary.
+from __future__ import annotations
+
 from pathlib import Path
 
 from researchmate_worker import render_combined
@@ -70,23 +72,23 @@ def test_combined_runtime_waits_for_api_health_before_heavy_workers(monkeypatch)
     """Start heavy workers only after the API answers its HTTP health endpoint."""
 
     class FakeProcess:
-        def poll(self):
+        def poll(self) -> int | None:
             return None
 
     class Response:
-        status = 200
+        status: int = 200
 
     class Connection:
-        def __init__(self, host, port, *, timeout):
+        def __init__(self, host: str, port: int, *, timeout: float) -> None:
             calls.append((host, port, timeout))
 
-        def request(self, method, path):
+        def request(self, method: str, path: str) -> None:
             requests.append((method, path))
 
-        def getresponse(self):
+        def getresponse(self) -> Response:
             return Response()
 
-        def close(self):
+        def close(self) -> None:
             closed.append(True)
 
     calls, requests, closed = [], [], []

@@ -44,7 +44,7 @@ class StubProvider:
         self.payload = payload
         self.calls: list[list[dict[str, str]]] = []
 
-    def complete(self, messages):
+    def complete(self, messages: list[dict[str, str]]) -> LLMResult:
         self.calls.append(list(messages))
         return LLMResult(
             content=json.dumps(self.payload),

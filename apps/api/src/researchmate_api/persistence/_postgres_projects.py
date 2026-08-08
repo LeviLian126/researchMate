@@ -10,6 +10,7 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 from datetime import UTC, datetime, timedelta
 from enum import Enum
+from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
 from sqlalchemy import create_engine, text
@@ -48,6 +49,15 @@ ObjectMetadataReader = Callable[[str], StoredObjectMetadata]
 
 class ProjectPersistenceMixin:
     """Own user and project persistence, including project deletion orchestration."""
+
+    if TYPE_CHECKING:
+        # Provided by sibling mixins composed in PostgresResearchMateRepository.
+        from contextlib import AbstractContextManager
+
+        _transaction: Callable[..., AbstractContextManager[Connection]]
+        _enqueue_project_deletion: Callable[..., None]
+        _insert_job: Callable[..., JobRecord]
+        default_project_ttl_days: int
 
     def ensure_user(self, user: CurrentUser) -> CurrentUser:
         """Persist the caller profile required by owned resources."""

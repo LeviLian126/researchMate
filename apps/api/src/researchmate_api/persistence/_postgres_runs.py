@@ -10,6 +10,7 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 from datetime import UTC, datetime, timedelta
 from enum import Enum
+from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
 from sqlalchemy import create_engine, text
@@ -48,6 +49,14 @@ ObjectMetadataReader = Callable[[str], StoredObjectMetadata]
 
 class RunPersistenceMixin:
     """Own persisted run sources and developer execution traces."""
+
+    if TYPE_CHECKING:
+        # Provided by sibling mixins composed in PostgresResearchMateRepository.
+        from contextlib import AbstractContextManager
+
+        _transaction: Callable[..., AbstractContextManager[Connection]]
+        _lock_active_project: Callable[[Connection, UUID, UUID], bool]
+        _load_citations: Callable[[Connection, UUID, UUID], list[Citation]]
 
     def get_run_sources(self, user: CurrentUser, run_id: UUID) -> RunSourcesResponse | None:
         """Return the citation panel for an authorized run."""

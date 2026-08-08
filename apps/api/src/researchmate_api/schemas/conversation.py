@@ -8,7 +8,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from researchmate_api.schemas.common import Citation
+from researchmate_api.schemas.common import MAX_CONVERSATION_MESSAGE_LENGTH, Citation
 
 
 class ConversationSummary(BaseModel):
@@ -67,7 +67,7 @@ class ConversationMessage(BaseModel):
     id: UUID
     conversation_id: UUID
     role: Literal["user", "assistant"]
-    content: str = Field(min_length=1, max_length=16000)
+    content: str = Field(min_length=1, max_length=MAX_CONVERSATION_MESSAGE_LENGTH)
     citations: list[Citation] = Field(default_factory=list, max_length=80)
     created_at: datetime
 

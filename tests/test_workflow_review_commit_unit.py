@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections import deque
 from contextlib import contextmanager
 from types import SimpleNamespace
+from typing import Any
 from uuid import UUID
 
 import pytest
@@ -29,34 +30,34 @@ CHUNK_ID = UUID("00000000-0000-4000-8000-000000000104")
 class FakeResult:
     """Provides the small SQLAlchemy result surface used by workflow methods."""
 
-    def __init__(self, value=None) -> None:
+    def __init__(self, value: Any = None) -> None:  # boundary: opaque test double
         self.value = value
 
-    def one_or_none(self):
+    def one_or_none(self) -> Any:  # boundary: opaque test double
         """Return the configured optional row."""
         return self.value
 
-    def one(self):
+    def one(self) -> Any:  # boundary: opaque test double
         """Return the configured required row."""
         return self.value
 
-    def scalar_one_or_none(self):
+    def scalar_one_or_none(self) -> Any:  # boundary: opaque test double
         """Return the configured optional scalar."""
         return self.value
 
-    def scalar_one(self):
+    def scalar_one(self) -> Any:  # boundary: opaque test double
         """Return the configured required scalar."""
         return self.value
 
-    def mappings(self):
+    def mappings(self) -> FakeResult:
         """Keep mapping-result chaining on this fake."""
         return self
 
-    def scalars(self):
+    def scalars(self) -> FakeResult:
         """Keep scalar-result chaining on this fake."""
         return self
 
-    def all(self):
+    def all(self) -> list[Any]:
         """Return a configured row collection."""
         return self.value or []
 
@@ -64,11 +65,14 @@ class FakeResult:
 class RecordingConnection:
     """Records SQL and returns results in a deterministic order."""
 
-    def __init__(self, responses=()) -> None:
+    def __init__(self, responses: Any = ()) -> None:  # boundary: opaque test double
         self.responses = deque(responses)
         self.calls: list[tuple[str, dict | None]] = []
 
-    def execute(self, statement, parameters=None):
+    # statement is an opaque SQLAlchemy expression; parameters is a bound-parameter mapping.
+    def execute(
+        self, statement: Any, parameters: dict[str, Any] | None = None
+    ) -> FakeResult:  # boundary: opaque test double
         """Record one statement and return the next configured result."""
         self.calls.append((str(statement), parameters))
         return FakeResult(self.responses.popleft() if self.responses else None)
@@ -77,11 +81,11 @@ class RecordingConnection:
 class RecordingEngine:
     """Provides transaction contexts backed by one recording connection."""
 
-    def __init__(self, responses=()) -> None:
+    def __init__(self, responses: Any = ()) -> None:  # boundary: opaque test double
         self.connection = RecordingConnection(responses)
 
     @contextmanager
-    def begin(self):
+    def begin(self) -> Any:  # boundary: opaque test double
         """Yield the recording connection as a transaction."""
         yield self.connection
 
@@ -89,11 +93,11 @@ class RecordingEngine:
 class FakeVectorStore:
     """Returns configured vector points and records query arguments."""
 
-    def __init__(self, points=()) -> None:
+    def __init__(self, points: Any = ()) -> None:  # boundary: opaque test double
         self.points = list(points)
         self.calls: list[dict] = []
 
-    def query(self, **kwargs):
+    def query(self, **kwargs: Any) -> list[Any]:  # boundary: opaque test double
         """Return configured candidates for one retrieval request."""
         self.calls.append(kwargs)
         return self.points

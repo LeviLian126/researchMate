@@ -8,7 +8,16 @@ from uuid import uuid4
 
 from pydantic import BaseModel, Field, ValidationError
 
-from researchmate_api.schemas.common import MAX_TEXT_LENGTH, Citation, Difficulty, SourceSummary
+from researchmate_api.schemas.common import (
+    MAX_TEXT_LENGTH,
+    SNIPPET_CHUNK,
+    SNIPPET_QUOTE_LONG,
+    SNIPPET_QUOTE_MEDIUM,
+    SNIPPET_QUOTE_SHORT,
+    Citation,
+    Difficulty,
+    SourceSummary,
+)
 from researchmate_api.schemas.quiz import QuizQuestion, QuizSet
 from researchmate_api.services.llm import ChatProvider, LLMResult
 from researchmate_api.services.retrieval import snippet
@@ -59,7 +68,7 @@ def generate_llm_quiz_set(
             "evidence_id": index,
             "source": chunk.source_title,
             "location": chunk.page_no or chunk.slide_no,
-            "text": snippet(chunk.text, 900),
+            "text": snippet(chunk.text, SNIPPET_CHUNK),
         }
         for index, chunk in enumerate(chunks, start=1)
     ]
@@ -163,7 +172,7 @@ def generate_quiz_set(
     total = max(1, single_choice_count + fill_blank_count + subjective_count)
     for index in range(min(single_choice_count, len(source_chunks), total)):
         chunk = source_chunks[index % len(source_chunks)]
-        quote = snippet(chunk.text, 180)
+        quote = snippet(chunk.text, SNIPPET_QUOTE_SHORT)
         citation = citation_by_chunk.get(chunk.id)
         questions.append(
             QuizQuestion(
@@ -184,7 +193,7 @@ def generate_quiz_set(
         )
     for offset in range(min(fill_blank_count, len(source_chunks))):
         chunk = source_chunks[(offset + single_choice_count) % len(source_chunks)]
-        quote = snippet(chunk.text, 220)
+        quote = snippet(chunk.text, SNIPPET_QUOTE_MEDIUM)
         citation = citation_by_chunk.get(chunk.id)
         questions.append(
             QuizQuestion(
@@ -201,7 +210,7 @@ def generate_quiz_set(
         chunk = source_chunks[
             (offset + single_choice_count + fill_blank_count) % len(source_chunks)
         ]
-        quote = snippet(chunk.text, 260)
+        quote = snippet(chunk.text, SNIPPET_QUOTE_LONG)
         citation = citation_by_chunk.get(chunk.id)
         questions.append(
             QuizQuestion(
@@ -222,7 +231,7 @@ def generate_quiz_set(
                 id=uuid4(),
                 type="subjective",
                 question="概括这份资料的一个核心信息。",
-                answer=snippet(chunk.text, 220),
+                answer=snippet(chunk.text, SNIPPET_QUOTE_MEDIUM),
                 explanation="本题用于本地资料不足时的最小可测输出。",
                 difficulty=Difficulty.EASY,
                 source_citations=[citation] if citation else [],

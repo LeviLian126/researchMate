@@ -1,5 +1,7 @@
 """Verify retrieval, context, scope, trace, idempotency, and unit-of-work policies."""
 
+from __future__ import annotations
+
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
@@ -8,6 +10,7 @@ from researchmate_api.config import Settings
 from researchmate_api.schemas.ask import AskRequest
 from researchmate_api.schemas.common import CurrentUser, SourceType
 from researchmate_api.schemas.conversation import ConversationMessage
+from researchmate_api.schemas.job import JobRecord
 from researchmate_api.schemas.project import ProjectCreate
 from researchmate_api.services.access_policy import TraceAccessError, TraceQueryService
 from researchmate_api.services.idempotency import IdempotencyCoordinator, IdempotencyError
@@ -143,7 +146,7 @@ def test_conversation_cleanup_rolls_back_after_attachment_failure() -> None:
             super().__init__()
             self.delete_calls = 0
 
-        def delete_document(self, user, document_id):
+        def delete_document(self, user: CurrentUser, document_id: UUID) -> JobRecord | None:
             """Fail the second document deletion after the first changed state."""
             self.delete_calls += 1
             if self.delete_calls == 2:

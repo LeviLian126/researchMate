@@ -6,7 +6,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from threading import RLock
-from typing import Any, Literal, Protocol
+from typing import TYPE_CHECKING, Any, Literal, Protocol
 from uuid import UUID, uuid4
 
 from researchmate_api.schemas.common import (
@@ -37,6 +37,18 @@ from researchmate_api.services._store_models import (
 
 class ChunkStoreMixin:
     """Own in-memory authorized chunk retrieval."""
+
+    if TYPE_CHECKING:
+        # Provided by InMemoryStoreCore and sibling mixins composed in InMemoryResearchMateStore.
+        _lock: RLock
+        chunks: dict[UUID, ChunkEntry]
+        documents: dict[UUID, DocumentRecord]
+        conversations: dict[UUID, ConversationSummary]
+
+        def get_project(self, user: CurrentUser, project_id: UUID) -> ProjectRecord | None: ...
+        def list_conversation_documents(
+            self, user: CurrentUser, conversation_id: UUID
+        ) -> list[DocumentRecord] | None: ...
 
     def project_chunks(self, user: CurrentUser, project_id: UUID) -> list[ChunkEntry] | None:
         """Return retrievable chunks from ready sources in an owned project."""

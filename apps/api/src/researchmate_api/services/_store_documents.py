@@ -6,7 +6,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from threading import RLock
-from typing import Any, Literal, Protocol
+from typing import TYPE_CHECKING, Any, Literal, Protocol
 from uuid import UUID, uuid4
 
 from researchmate_api.schemas.common import (
@@ -38,6 +38,27 @@ from researchmate_api.services._store_text import chunk_text
 
 class DocumentStoreMixin:
     """Own in-memory upload, document, and ingestion job state."""
+
+    if TYPE_CHECKING:
+        # Provided by InMemoryStoreCore and sibling mixins composed in InMemoryResearchMateStore.
+        _lock: RLock
+        documents: dict[UUID, DocumentRecord]
+        uploads: dict[UUID, UploadReservation]
+        chunks: dict[UUID, ChunkEntry]
+        jobs: dict[UUID, JobRecord]
+        conversations: dict[UUID, ConversationSummary]
+
+        def get_project(self, user: CurrentUser, project_id: UUID) -> ProjectRecord | None: ...
+        def _create_job_locked(
+            self,
+            user: CurrentUser,
+            project_id: UUID | None,
+            document_id: UUID | None,
+            job_type: str,
+            status: JobStatus,
+            progress: int,
+            error_message: str | None = None,
+        ) -> JobRecord: ...
 
     def create_upload_url(
         self, user: CurrentUser, payload: UploadUrlRequest

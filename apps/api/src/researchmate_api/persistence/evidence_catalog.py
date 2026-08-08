@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
+from typing import TYPE_CHECKING
 from uuid import UUID
 
 from sqlalchemy import text
+from sqlalchemy.engine import Connection
 
 from researchmate_api.schemas.common import CurrentUser
 from researchmate_api.schemas.evidence import (
@@ -25,6 +28,12 @@ from researchmate_api.schemas.evidence import (
 
 class PostgresEvidenceCatalogMixin:
     """Read-only claim, report, pipeline, and evaluation-dataset projections."""
+
+    if TYPE_CHECKING:
+        # Provided by PostgresEvidenceRepositoryBase composed in PostgresEvidenceRepository.
+        from contextlib import AbstractContextManager
+
+        _transaction: Callable[..., AbstractContextManager[Connection]]
 
     def list_claims(self, user: CurrentUser, project_id: UUID) -> ClaimListResponse:
         """List bounded claim summaries and aggregate evidence counts for one owner project."""

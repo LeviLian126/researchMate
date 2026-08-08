@@ -1,5 +1,7 @@
 """Verify the chat-answer path treats user input as untrusted data."""
 
+from __future__ import annotations
+
 import json
 from datetime import UTC, datetime
 from uuid import UUID
@@ -16,7 +18,7 @@ class RecordingProvider:
     def __init__(self) -> None:
         self.messages: list[dict[str, str]] = []
 
-    def complete(self, messages):
+    def complete(self, messages: list[dict[str, str]]) -> LLMResult:
         self.messages = list(messages)
         return LLMResult(
             content="A safe answer.",

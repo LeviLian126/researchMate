@@ -8,6 +8,7 @@ reproducible without any network or third-party dependency.
 from __future__ import annotations
 
 from collections import deque
+from collections.abc import Iterator
 from contextlib import contextmanager
 from decimal import Decimal
 from inspect import getsource
@@ -332,7 +333,8 @@ class StubConnection:
         self.values = deque(values)
         self.calls: list[tuple[str, dict | None]] = []
 
-    def execute(self, statement, parameters=None):
+    def execute(self, statement: Any, parameters: dict[str, Any] | None = None) -> StubResult:
+        # boundary: opaque test double for SQLAlchemy statements/parameters.
         self.calls.append((str(statement), parameters))
         value = self.values.popleft() if self.values else None
         return StubResult(value)
@@ -345,7 +347,7 @@ class StubEngine:
         self.connection = StubConnection(values)
 
     @contextmanager
-    def begin(self):
+    def begin(self) -> Iterator[StubConnection]:
         yield self.connection
 
 

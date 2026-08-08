@@ -1,5 +1,7 @@
 """Verify grounded answers and quizzes enforce server evidence allowlists."""
 
+from __future__ import annotations
+
 import json
 from uuid import UUID
 
@@ -21,7 +23,7 @@ class FakeProvider:
         self.payload = payload
         self.messages: list[dict[str, str]] = []
 
-    def complete(self, messages):
+    def complete(self, messages: list[dict[str, str]]) -> LLMResult:
         self.messages = list(messages)
         return LLMResult(
             content=json.dumps(self.payload),
@@ -39,7 +41,7 @@ class SequenceFakeProvider:
         self.payloads = list(payloads)
         self.calls: list[list[dict[str, str]]] = []
 
-    def complete(self, messages):
+    def complete(self, messages: list[dict[str, str]]) -> LLMResult:
         self.calls.append(list(messages))
         return LLMResult(
             content=json.dumps(self.payloads.pop(0)),

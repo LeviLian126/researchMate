@@ -6,7 +6,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from threading import RLock
-from typing import Any, Literal, Protocol
+from typing import TYPE_CHECKING, Any, Literal, Protocol, cast
 from uuid import UUID, uuid4
 
 from researchmate_api.schemas.common import (
@@ -38,6 +38,16 @@ from researchmate_api.services._store_models import (
 class MemoryStoreMixin:
     """Own in-memory rerank configuration and conversation/project memory."""
 
+    if TYPE_CHECKING:
+        # Provided by InMemoryStoreCore and sibling mixins composed in InMemoryResearchMateStore.
+        _lock: RLock
+        conversations: dict[UUID, ConversationSummary]
+        conversation_items: dict[UUID, list[ConversationMessage]]
+        conversation_summaries: dict[UUID, tuple[str, int]]
+        runtime_rerank_config: RuntimeRerankConfig
+
+        def get_project(self, user: CurrentUser, project_id: UUID) -> ProjectRecord | None: ...
+
     def get_runtime_rerank_config(self) -> RuntimeRerankConfig:
         """Return the active runtime rerank configuration."""
         with self._lock:
@@ -51,8 +61,10 @@ class MemoryStoreMixin:
             current = self.runtime_rerank_config
             if current.version != expected_version:
                 return None
+            # The protocol/sibling signature keeps `provider: str` for API symmetry; the
+            # router validates it against the same Literal before this call, so cast here.
             self.runtime_rerank_config = RuntimeRerankConfig(
-                provider=provider,
+                provider=cast(Literal["auto", "qdrant", "nvidia", "deterministic"], provider),
                 version=current.version + 1,
                 updated_at=datetime.now(UTC),
                 updated_by=user.id,

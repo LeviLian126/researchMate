@@ -1,5 +1,7 @@
 """Exercise core HTTP workflows for Ask, Quiz, projects, and conversations."""
 
+from __future__ import annotations
+
 from fastapi.testclient import TestClient
 
 from tests.api_workflow_support import (

@@ -7,6 +7,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, ValidationError
 
+from researchmate_api.schemas.common import MAX_EVIDENCE_TEXT_LENGTH
 from researchmate_api.services.llm import ChatProvider
 from researchmate_api.services.store import ChunkEntry
 
@@ -20,7 +21,7 @@ class ResearchPlan(BaseModel):
 class ExtractedClaim(BaseModel):
     """Represent a claim tied to server-assigned evidence identifiers."""
 
-    text: str = Field(min_length=1, max_length=1600)
+    text: str = Field(min_length=1, max_length=MAX_EVIDENCE_TEXT_LENGTH)
     stance: Literal["supports", "opposes", "neutral"] = "neutral"
     confidence: float = Field(ge=0, le=1)
     evidence_ids: list[int] = Field(min_length=1, max_length=12)

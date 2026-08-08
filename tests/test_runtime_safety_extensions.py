@@ -1,7 +1,11 @@
 """Verify source, budget, and pipeline-version runtime safety extensions."""
 
+from __future__ import annotations
+
+from collections.abc import Iterator
 from contextlib import contextmanager
 from decimal import Decimal
+from typing import Any
 from uuid import uuid4
 
 import pytest
@@ -18,7 +22,7 @@ class _Result:
     def __init__(self, claimed: bool = True) -> None:
         self.claimed = claimed
 
-    def one_or_none(self):
+    def one_or_none(self) -> object | None:
         return object() if self.claimed else None
 
 
@@ -29,7 +33,8 @@ class _Connection:
         self.claimed = claimed
         self.statements: list[str] = []
 
-    def execute(self, statement, _parameters=None):
+    def execute(self, statement: Any, _parameters: dict[str, Any] | None = None) -> _Result:
+        # boundary: opaque test double for SQLAlchemy statements/parameters.
         source = str(statement).lower()
         self.statements.append(source)
         return _Result(self.claimed if "returning budget_reserved_usd" in source else True)
@@ -42,14 +47,14 @@ class _Engine:
         self.connection = _Connection(claimed)
 
     @contextmanager
-    def begin(self):
+    def begin(self) -> Iterator[_Connection]:
         yield self.connection
 
 
 class _Provider:
     """Record bounded prompts and return deterministic token usage."""
 
-    def complete(self, messages):
+    def complete(self, messages: list[dict[str, Any]]) -> LLMResult:
         assert list(messages)
         return LLMResult(
             content="{}",

@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import sys
+from collections.abc import Iterator
 from contextlib import contextmanager
 from inspect import getsource
 from types import SimpleNamespace
+from typing import Any
 from uuid import UUID
 
 import pytest
@@ -23,8 +25,9 @@ class RecordingConnection:
     def __init__(self) -> None:
         self.calls: list[tuple[str, dict | None]] = []
 
-    def execute(self, statement, parameters=None):
+    def execute(self, statement: Any, parameters: dict[str, Any] | None = None) -> SimpleNamespace:
         """Record one SQL statement and its safe parameters."""
+        # boundary: opaque test double for SQLAlchemy statements/parameters.
         self.calls.append((str(statement), parameters))
         return SimpleNamespace()
 
@@ -36,7 +39,7 @@ class RecordingEngine:
         self.connection = RecordingConnection()
 
     @contextmanager
-    def begin(self):
+    def begin(self) -> Iterator[RecordingConnection]:
         """Yield the recording connection."""
         yield self.connection
 

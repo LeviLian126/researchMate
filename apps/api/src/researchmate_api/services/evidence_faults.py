@@ -5,7 +5,8 @@ from __future__ import annotations
 import json
 from datetime import UTC, datetime, timedelta
 from hashlib import sha256
-from typing import Any
+from threading import RLock
+from typing import TYPE_CHECKING, Any, cast
 from uuid import UUID, uuid4
 
 from researchmate_api.schemas.common import CurrentUser
@@ -28,13 +29,23 @@ class EvidenceStoreError(RuntimeError):
 
 def evidence_fingerprint(payload: object) -> str:
     """Hash a normalized payload for deterministic idempotency comparisons."""
-    value: Any = payload.model_dump(mode="json") if hasattr(payload, "model_dump") else payload
+    # Pydantic-validated payloads expose model_dump; otherwise accept a JSON-serializable object.
+    if hasattr(payload, "model_dump"):
+        value: Any = cast(Any, payload).model_dump(mode="json")
+    else:
+        value = payload
     encoded = json.dumps(value, sort_keys=True, separators=(",", ":")).encode()
     return sha256(encoded).hexdigest()
 
 
 class FaultScenarioStoreMixin:
     """Add owner-scoped, idempotent local fault-simulation records to a repository."""
+
+    if TYPE_CHECKING:
+        # Provided by InMemoryEvidenceRepository and sibling store mixins composed with it.
+        lock: RLock
+        idempotency: dict[tuple[UUID, str], tuple[str, object]]
+        faults: dict[UUID, tuple[UUID, FaultScenarioRecord]]
 
     def create_fault_scenario(
         self, user: CurrentUser, payload: FaultScenarioCreate, idempotency_key: str
@@ -48,7 +59,7 @@ class FaultScenarioStoreMixin:
             if existing:
                 if existing[0] != fingerprint:
                     raise EvidenceStoreError("IDEMPOTENCY_KEY_REUSED")
-                return existing[1]  # type: ignore[return-value]
+                return cast(FaultScenarioAccepted, existing[1])
             exercise_id = uuid4()
             expires_at = now + timedelta(seconds=payload.duration_seconds)
             accepted = FaultScenarioAccepted(

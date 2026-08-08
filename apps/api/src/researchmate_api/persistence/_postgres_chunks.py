@@ -10,12 +10,16 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 from datetime import UTC, datetime, timedelta
 from enum import Enum
+from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Connection, Engine
 
 from researchmate_api.persistence._postgres_core import _enum_value, _json, _safe_filename
+
+if TYPE_CHECKING:
+    from researchmate_api.persistence._postgres_projects import ProjectPersistenceMixin
 from researchmate_api.schemas.common import (
     Citation,
     CurrentUser,
@@ -48,6 +52,27 @@ ObjectMetadataReader = Callable[[str], StoredObjectMetadata]
 
 class ChunkPersistenceMixin:
     """Own authorized chunk retrieval for project and conversation contexts."""
+
+    if TYPE_CHECKING:
+        # Provided by sibling mixins composed in PostgresResearchMateRepository.
+        from contextlib import AbstractContextManager
+
+        _transaction: Callable[..., AbstractContextManager[Connection]]
+        _lock_active_project: Callable[[Connection, UUID, UUID], bool]
+        _load_citations: Callable[[Connection, UUID, UUID], list[Citation]]
+        _enqueue_project_deletion: Callable[..., None]
+        _enqueue_document_event: Callable[..., None]
+        _insert_job: Callable[..., JobRecord]
+
+        def get_project(
+            self, user: CurrentUser, project_id: UUID
+        ) -> ProjectRecord | None: ...
+        def list_conversation_documents(
+            self, user: CurrentUser, conversation_id: UUID
+        ) -> list[DocumentRecord]: ...
+        def delete_document(
+            self, user: CurrentUser, document_id: UUID
+        ) -> JobRecord | None: ...
 
     def project_chunks(self, user: CurrentUser, project_id: UUID) -> list[ChunkEntry] | None:
         """Return retrievable chunks from ready sources in an owned project."""

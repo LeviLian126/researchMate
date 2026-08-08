@@ -1,5 +1,7 @@
 """Verify PostgreSQL repository ownership, transaction, and delivery contracts."""
 
+from __future__ import annotations
+
 from contextlib import AbstractContextManager
 from inspect import getsource
 from typing import Any
@@ -166,7 +168,7 @@ class OneMappingResult:
 class ReservationConnection(RecordingConnection):
     """Return deterministic upload-reservation records while recording SQL."""
 
-    def execute(self, statement: Any, parameters: dict[str, Any]):
+    def execute(self, statement: Any, parameters: dict[str, Any]) -> EmptyResult | OneMappingResult:
         self.calls.append((str(statement), parameters))
         if "r2_object_key" in str(statement) and "join projects" in str(statement):
             return OneMappingResult(

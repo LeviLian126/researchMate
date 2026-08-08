@@ -1,5 +1,7 @@
 """Verify Tavily result sanitization, bounds, stability, and retry mapping."""
 
+from __future__ import annotations
+
 from uuid import UUID
 
 import pytest
@@ -24,7 +26,7 @@ class FakeResponse:
             error.response = self
             raise error
 
-    def json(self):
+    def json(self) -> object:  # boundary: opaque HTTP payload
         return self.payload
 
 
@@ -35,7 +37,7 @@ class FakeClient:
         self.response = response
         self.calls = []
 
-    def post(self, url: str, **kwargs):
+    def post(self, url: str, **kwargs: object) -> FakeResponse:
         self.calls.append((url, kwargs))
         return self.response
 

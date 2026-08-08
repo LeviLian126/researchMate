@@ -1,5 +1,9 @@
 """Verify S3-compatible upload signing, metadata, and credential selection."""
 
+from __future__ import annotations
+
+from typing import Any
+
 import pytest
 from pydantic import SecretStr
 from researchmate_api.config import Settings
@@ -33,11 +37,11 @@ class FakeS3Client:
         self.downloaded = None
         self.fetched_bytes: dict[str, bytes] = {}
 
-    def generate_presigned_url(self, operation, **kwargs):
+    def generate_presigned_url(self, operation: str, **kwargs: Any) -> str:
         self.presign_call = (operation, kwargs)
         return "https://upload.example.test/signed"
 
-    def head_object(self, **kwargs):
+    def head_object(self, **kwargs: Any) -> dict[str, Any]:
         return {
             "ContentLength": 123,
             "ContentType": "application/pdf",
@@ -45,14 +49,16 @@ class FakeS3Client:
             "Metadata": {"parser": "pending"},
         }
 
-    def delete_object(self, **kwargs):
+    def delete_object(self, **kwargs: Any) -> None:
         self.deleted = kwargs
 
-    def download_fileobj(self, bucket, key, target):
+    def download_fileobj(self, bucket: str, key: str, target: Any) -> None:  # boundary: opaque test double (file-like)
         self.downloaded = (bucket, key)
         target.write(b"document bytes")
 
-    def get_object(self, *, Bucket, Key, Range=None):  # noqa: N803 - mirrors boto3 kwargs.
+    def get_object(  # noqa: N803 - mirrors boto3 kwargs.
+        self, *, Bucket: str, Key: str, Range: str | None = None
+    ) -> dict[str, Any]:
         """Return a fake S3 get_object body whose bytes are configurable per object key."""
         body = self.fetched_bytes.get(Key, b"document bytes")
 

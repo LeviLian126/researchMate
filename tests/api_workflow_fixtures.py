@@ -1,5 +1,7 @@
 """Provide isolated local-store and HTTP-client fixtures for API workflow tests."""
 
+from __future__ import annotations
+
 from collections.abc import Generator
 
 import pytest

@@ -10,6 +10,7 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 from datetime import UTC, datetime, timedelta
 from enum import Enum
+from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
 from sqlalchemy import create_engine, text
@@ -48,6 +49,18 @@ ObjectMetadataReader = Callable[[str], StoredObjectMetadata]
 
 class ConversationPersistenceMixin:
     """Own conversation lifecycle, messages, and attachment-aware deletion."""
+
+    if TYPE_CHECKING:
+        # Provided by sibling mixins composed in PostgresResearchMateRepository.
+        from contextlib import AbstractContextManager
+
+        _transaction: Callable[..., AbstractContextManager[Connection]]
+        _lock_active_project: Callable[[Connection, UUID, UUID], bool]
+
+        def list_conversation_documents(
+            self, user: CurrentUser, conversation_id: UUID
+        ) -> list[DocumentRecord]: ...
+        def delete_document(self, user: CurrentUser, document_id: UUID) -> JobRecord | None: ...
 
     def ensure_conversation(
         self,

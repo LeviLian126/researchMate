@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
+from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
 from sqlalchemy import text
@@ -15,6 +17,15 @@ from researchmate_api.services.evidence_store import EvidenceStoreError, evidenc
 
 class PostgresEvidenceReportMixin:
     """Atomic report-refresh workflow persistence operations."""
+
+    if TYPE_CHECKING:
+        # Provided by PostgresEvidenceRepositoryBase composed in PostgresEvidenceRepository.
+        from contextlib import AbstractContextManager
+
+        _transaction: Callable[..., AbstractContextManager[Connection]]
+        _lock_idempotency: Callable[[Connection, UUID, str], None]
+        _append_event: Callable[..., None]
+        _append_outbox: Callable[..., None]
 
     def refresh_report(
         self,

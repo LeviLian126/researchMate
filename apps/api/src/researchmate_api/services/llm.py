@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
-from typing import Any, Literal, Protocol
+from typing import Any, Literal, Protocol, cast
+
+from openai.types.chat import ChatCompletionMessageParam
 
 from researchmate_api.config import Settings
 from researchmate_api.observability import provider_observation
@@ -95,7 +97,7 @@ class NvidiaChatProvider:
             ) as observation:
                 response = self.client.chat.completions.create(
                     model=self.settings.nvidia_model,
-                    messages=safe_messages,
+                    messages=cast(list[ChatCompletionMessageParam], safe_messages),
                     temperature=self.settings.llm_temperature,
                     top_p=self.settings.llm_top_p,
                     max_tokens=output_limit,

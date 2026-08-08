@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
+from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
 from sqlalchemy import text
+from sqlalchemy.engine import Connection
 
 from researchmate_api.schemas.common import CurrentUser
 from researchmate_api.schemas.evidence import (
@@ -20,6 +23,14 @@ from researchmate_api.services.evidence_store import EvidenceStoreError, evidenc
 
 class PostgresEvidenceOperationsMixin:
     """Privileged reliability and fault-exercise persistence operations."""
+
+    if TYPE_CHECKING:
+        # Provided by PostgresEvidenceRepositoryBase composed in PostgresEvidenceRepository.
+        from contextlib import AbstractContextManager
+
+        _transaction: Callable[..., AbstractContextManager[Connection]]
+        _lock_idempotency: Callable[[Connection, UUID, str], None]
+        _append_outbox: Callable[..., None]
 
     def reliability(self, user: CurrentUser, window_hours: int) -> ReliabilityResponse:
         """Aggregate the bounded reliability window for a privileged operator."""

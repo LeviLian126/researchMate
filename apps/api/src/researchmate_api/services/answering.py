@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from typing import cast
 from uuid import uuid4
 
 from pydantic import BaseModel, Field, ValidationError
@@ -278,8 +279,9 @@ def _complete(
     """Call a provider with a bounded output when that capability is available."""
     bounded = getattr(provider, "complete_bounded", None)
     if max_tokens is not None and callable(bounded):
-        return bounded(messages, max_tokens=max_tokens)
-    return provider.complete(messages)
+        # The bounded hook returns an LLMResult-shaped payload but getattr keeps it as object.
+        return cast(LLMResult, bounded(messages, max_tokens=max_tokens))
+    return cast(LLMResult, provider.complete(messages))
 
 
 def build_chat_answer(query: str) -> str:

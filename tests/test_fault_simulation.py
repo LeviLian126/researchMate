@@ -1,7 +1,10 @@
 """Verify fault exercises record bounded recovery without external mutation."""
 
+from __future__ import annotations
+
 import json
 from contextlib import nullcontext
+from typing import Any
 from uuid import UUID
 
 from researchmate_worker.fault_simulation import FaultSimulationService
@@ -10,23 +13,23 @@ from researchmate_worker.fault_simulation import FaultSimulationService
 class FakeResult:
     """Expose the minimal result mapping used by fault persistence."""
 
-    def __init__(self, row=None):
+    def __init__(self, row: object | None = None) -> None:
         self.row = row
 
-    def mappings(self):
+    def mappings(self) -> FakeResult:
         return self
 
-    def one_or_none(self):
+    def one_or_none(self) -> object | None:
         return self.row
 
 
 class FakeConnection:
     """Record SQL calls and return deterministic fault records."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.finished = None
 
-    def execute(self, statement, params):
+    def execute(self, statement: Any, params: dict[str, Any]) -> FakeResult:  # boundary: SQLAlchemy statement
         sql = str(statement)
         if "returning id,scenario,target_run_id,attempts" in sql:
             return FakeResult(
@@ -48,10 +51,10 @@ class FakeConnection:
 class FakeEngine:
     """Provide an isolated transaction context for fault simulation."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.connection = FakeConnection()
 
-    def begin(self):
+    def begin(self) -> Any:
         return nullcontext(self.connection)
 
 

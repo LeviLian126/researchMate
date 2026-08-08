@@ -1,5 +1,7 @@
 """Verify stable worker task registration and event payload validation."""
 
+from __future__ import annotations
+
 from researchmate_worker.celery_app import celery_app
 from researchmate_worker.ingestion import IngestionEvent
 

@@ -6,7 +6,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from threading import RLock
-from typing import Any, Literal, Protocol
+from typing import TYPE_CHECKING, Any, Literal, Protocol
 from uuid import UUID, uuid4
 
 from researchmate_api.schemas.common import (
@@ -38,6 +38,14 @@ from researchmate_api.services._store_models import (
 
 class RunStoreMixin:
     """Own in-memory run traces and Quiz aggregate state."""
+
+    if TYPE_CHECKING:
+        # Provided by InMemoryStoreCore and sibling mixins composed in InMemoryResearchMateStore.
+        _lock: RLock
+        conversations: dict[UUID, ConversationSummary]
+        conversation_items: dict[UUID, list[ConversationMessage]]
+
+        def get_project(self, user: CurrentUser, project_id: UUID) -> ProjectRecord | None: ...
 
     def get_run_sources(self, user: CurrentUser, run_id: UUID) -> RunSourcesResponse | None:
         """Return the citation panel for an authorized run."""

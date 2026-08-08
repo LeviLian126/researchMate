@@ -6,7 +6,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from threading import RLock
-from typing import Any, Literal, Protocol
+from typing import TYPE_CHECKING, Any, Literal, Protocol
 from uuid import UUID, uuid4
 
 from researchmate_api.schemas.common import (
@@ -37,6 +37,22 @@ from researchmate_api.services._store_models import (
 
 class ConversationStoreMixin:
     """Own in-memory conversation lifecycle and attachment-aware deletion."""
+
+    if TYPE_CHECKING:
+        # Provided by InMemoryStoreCore and sibling mixins composed in InMemoryResearchMateStore.
+        _lock: RLock
+        chunks: dict[UUID, ChunkEntry]
+        documents: dict[UUID, DocumentRecord]
+        jobs: dict[UUID, JobRecord]
+        conversations: dict[UUID, ConversationSummary]
+        conversation_items: dict[UUID, list[ConversationMessage]]
+        conversation_summaries: dict[UUID, tuple[str, int]]
+
+        def get_project(self, user: CurrentUser, project_id: UUID) -> ProjectRecord | None: ...
+        def list_conversation_documents(
+            self, user: CurrentUser, conversation_id: UUID
+        ) -> list[DocumentRecord] | None: ...
+        def delete_document(self, user: CurrentUser, document_id: UUID) -> JobRecord | None: ...
 
     def ensure_conversation(
         self,

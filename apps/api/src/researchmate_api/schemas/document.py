@@ -8,7 +8,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from researchmate_api.schemas.common import DocumentStatus
+from researchmate_api.schemas.common import MAX_DOCUMENT_CONTENT_LENGTH, DocumentStatus
 
 MIME_BY_TYPE = {
     "pdf": {"application/pdf"},
@@ -55,7 +55,7 @@ class UploadCompleteRequest(BaseModel):
     checksum_sha256: str | None = Field(default=None, pattern=r"^[0-9a-fA-F]{64}$")
     extracted_text: str | None = Field(
         default=None,
-        max_length=200_000,
+        max_length=MAX_DOCUMENT_CONTENT_LENGTH,
         description="Local development fallback. Production worker should extract text from R2.",
     )
 

@@ -8,25 +8,25 @@ def test_langgraph_graph_executes_a_bounded_local_path() -> None:
     from researchmate_worker.evidence_graph import build_evidence_graph
 
     class Domain:
-        def plan(self, _state):
+        def plan(self, _state: object) -> dict[str, list[str]]:
             return {"questions": ["first", "second"]}
 
-        def retrieve_and_extract(self, state):
+        def retrieve_and_extract(self, state: dict[str, object]) -> dict[str, list[dict[str, object]]]:
             return {"evidence_batches": [{"question": state["question"], "claims": []}]}
 
-        def reconcile(self, _state):
+        def reconcile(self, _state: object) -> dict[str, list[object]]:
             return {"claims": [], "relations": []}
 
-        def review_payload(self, _state):
+        def review_payload(self, _state: object) -> None:
             return None
 
-        def apply_decision(self, _state, decision):
+        def apply_decision(self, _state: object, decision: object) -> dict[str, object]:
             return {"decision": decision}
 
-        def synthesize(self, _state):
+        def synthesize(self, _state: object) -> dict[str, dict[str, str]]:
             return {"report": {"title": "safe local proof"}}
 
-        def validate_and_commit(self, _state):
+        def validate_and_commit(self, _state: object) -> dict[str, dict[str, str]]:
             return {"validation": {"status": "passed"}}
 
     graph = build_evidence_graph(Domain(), None)
