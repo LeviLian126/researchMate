@@ -16,45 +16,37 @@ $$ language plpgsql;
 -- Each table below carries an updated_at column. We do not attach the trigger to
 -- tables that only have created_at or runtime-specific timestamps.
 do $$
+declare
+  target_table text;
 begin
-  create trigger if not exists set_updated_at_trigger
-    before update on profiles
-    for each row execute function set_updated_at();
-  create trigger if not exists set_updated_at_trigger
-    before update on projects
-    for each row execute function set_updated_at();
-  create trigger if not exists set_updated_at_trigger
-    before update on documents
-    for each row execute function set_updated_at();
-  create trigger if not exists set_updated_at_trigger
-    before update on conversations
-    for each row execute function set_updated_at();
-  create trigger if not exists set_updated_at_trigger
-    before update on jobs
-    for each row execute function set_updated_at();
-  create trigger if not exists set_updated_at_trigger
-    before update on api_usage
-    for each row execute function set_updated_at();
-  create trigger if not exists set_updated_at_trigger
-    before update on claims
-    for each row execute function set_updated_at();
-  create trigger if not exists set_updated_at_trigger
-    before update on reports
-    for each row execute function set_updated_at();
-  create trigger if not exists set_updated_at_trigger
-    before update on report_sections
-    for each row execute function set_updated_at();
-  create trigger if not exists set_updated_at_trigger
-    before update on runtime_heartbeats
-    for each row execute function set_updated_at();
-  create trigger if not exists set_updated_at_trigger
-    before update on runtime_ai_config
-    for each row execute function set_updated_at();
-exception
-  -- create trigger if not exists is only supported on PG14+; tolerate older targets
-  -- and surface any genuine SQL error in the log rather than aborting the migration.
-  when others then
-    raise notice 'set_updated_at trigger setup skipped: %', sqlerrm;
+  foreach target_table in array array[
+    'profiles',
+    'projects',
+    'documents',
+    'conversations',
+    'jobs',
+    'api_usage',
+    'claims',
+    'reports',
+    'report_sections',
+    'runtime_heartbeats',
+    'runtime_ai_config'
+  ]
+  loop
+    if not exists (
+      select 1
+      from pg_trigger
+      where tgname = 'set_updated_at_trigger'
+        and tgrelid = to_regclass(target_table)
+        and not tgisinternal
+    ) then
+      execute format(
+        'create trigger set_updated_at_trigger before update on %I '
+        'for each row execute function set_updated_at()',
+        target_table
+      );
+    end if;
+  end loop;
 end
 $$;
 
