@@ -115,7 +115,10 @@ def provider_observation(
         from langfuse import get_client
 
         client = get_client()
-        manager = client.start_as_current_observation(
+        client_boundary: Any = (
+            client  # Langfuse overloads omit several supported observation types.
+        )
+        manager = client_boundary.start_as_current_observation(
             name=name,
             as_type=observation_type,
             model=model,

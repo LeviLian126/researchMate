@@ -4,6 +4,13 @@
 > 范围：写入端（文件解析 → chunking → 向量索引）+ 读取端（检索 → rerank → 生成）
 > 目标：将当前"基础 Hybrid RAG"升级为"高质量 Hybrid RAG"，不做 Agentic RAG
 
+> 实施校准（2026-08-09）：本文是设计输入，不是上线事实。已采纳结构化 chunk、显式查询路由、
+> multi-query、原生稀疏+dense 融合、rerank、降级与分层评测；已调整为 Qdrant 命名
+> `bm25` sparse vector（`Modifier.IDF` + `qdrant/bm25` Document inference），而不是假设
+> payload 文本会自动成为 BM25。BM25 是词法检索，不提供同义词语义能力。HyDE 不会无条件执行；
+> 仅对追问/复合歧义触发一次有界、结构化 query expansion。生产切换采用影子 collection、
+> 可恢复回填和配置开关，禁止在 Render 冷启动中执行全量 reindex。
+
 ---
 
 ## 1. 现状分析

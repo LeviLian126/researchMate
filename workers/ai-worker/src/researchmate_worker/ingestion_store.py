@@ -153,10 +153,12 @@ class SqlIngestionStore:
                         """
                         insert into chunks (
                           id, user_id, project_id, document_id, source_type, source_title,
-                          page_no, slide_no, text, token_count, qdrant_point_id, metadata
+                          page_no, slide_no, section_title, section_path, chunk_index,
+                          char_start, char_end, text, token_count, qdrant_point_id, metadata
                         ) values (
                           :id, :user_id, :project_id, :document_id, 'local_doc', :source_title,
-                          :page_no, :slide_no, :text, :token_count, :qdrant_point_id,
+                          :page_no, :slide_no, :section_title, :section_path, :chunk_index,
+                          :char_start, :char_end, :text, :token_count, :qdrant_point_id,
                           cast(:metadata as jsonb)
                         )
                         """
@@ -169,11 +171,21 @@ class SqlIngestionStore:
                         "source_title": chunk.source_title,
                         "page_no": chunk.page_no,
                         "slide_no": chunk.slide_no,
+                        "section_title": chunk.section_title,
+                        "section_path": list(chunk.section_path),
+                        "chunk_index": chunk.chunk_index,
+                        "char_start": chunk.char_start,
+                        "char_end": chunk.char_end,
                         "text": chunk.text,
                         "token_count": len(chunk.text.split()),
                         "qdrant_point_id": str(chunk.id),
                         "metadata": json.dumps(
-                            {"content_hash": chunk_hash, "pipeline_version": pipeline_version}
+                            {
+                                **chunk.metadata,
+                                "content_hash": chunk_hash,
+                                "pipeline_version": pipeline_version,
+                            },
+                            ensure_ascii=False,
                         ),
                     },
                 )

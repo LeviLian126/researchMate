@@ -24,6 +24,8 @@ envVarGroups:
         sync: false
       - key: QDRANT_COLLECTION
         value: researchmate_chunks
+      - key: QDRANT_NATIVE_HYBRID_ENABLED
+        value: "false"
       - key: QDRANT_RERANK_COLLECTION
         value: researchmate_chunks_v2
       - key: QDRANT_RERANK_MODEL
@@ -118,6 +120,7 @@ services:
         - infra/supabase/migrations/**
         - scripts/apply_migrations.py
         - scripts/provision_qdrant_rerank.py
+        - scripts/provision_qdrant_hybrid.py
         - pyproject.toml
         - uv.lock
     envVars:

@@ -8,8 +8,8 @@ from uuid import NAMESPACE_URL, uuid5
 from researchmate_api.schemas.common import SourceType
 from researchmate_api.services.store import ChunkEntry
 
+from researchmate_worker.ingestion_chunking import build_structure_chunks
 from researchmate_worker.ingestion_models import IngestionRecord, PageProjection, ParsedBlock
-from researchmate_worker.jobs import chunk_text_for_index
 
 
 def build_projections(
@@ -46,24 +46,32 @@ def build_projections(
                 metadata=metadata,
             )
         )
-        for chunk_index, chunk_text in enumerate(chunk_text_for_index(normalized)):
-            chunk_hash = sha256(chunk_text.encode("utf-8")).hexdigest()
-            chunk_id = uuid5(
-                NAMESPACE_URL,
+    for projection in build_structure_chunks(blocks):
+        chunk_hash = sha256(projection.text.encode("utf-8")).hexdigest()
+        chunk_id = uuid5(
+            NAMESPACE_URL,
+            (
                 f"researchmate:{record.document_id}:{pipeline_version}:chunk:"
-                f"{block_index}:{chunk_index}:{chunk_hash}",
+                f"{projection.chunk_index}:{chunk_hash}"
+            ),
+        )
+        chunks.append(
+            ChunkEntry(
+                id=chunk_id,
+                user_id=record.user_id,
+                project_id=record.project_id,
+                document_id=record.document_id,
+                source_type=SourceType.LOCAL_DOC,
+                source_title=record.filename,
+                text=projection.text,
+                page_no=projection.page_no,
+                slide_no=projection.slide_no,
+                section_title=projection.section_title,
+                section_path=projection.section_path,
+                chunk_index=projection.chunk_index,
+                char_start=projection.char_start,
+                char_end=projection.char_end,
+                metadata=projection.metadata,
             )
-            chunks.append(
-                ChunkEntry(
-                    id=chunk_id,
-                    user_id=record.user_id,
-                    project_id=record.project_id,
-                    document_id=record.document_id,
-                    source_type=SourceType.LOCAL_DOC,
-                    source_title=record.filename,
-                    text=chunk_text,
-                    page_no=block.page_no,
-                    slide_no=block.slide_no,
-                )
-            )
+        )
     return pages, chunks

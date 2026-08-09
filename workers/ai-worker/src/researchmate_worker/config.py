@@ -33,7 +33,7 @@ class WorkerSettings(BaseSettings):
     runtime_heartbeat_seconds: int = Field(default=30, ge=10, le=120)
     ingestion_lease_seconds: int = Field(default=1200, ge=60, le=3600)
     ingestion_max_attempts: int = Field(default=5, ge=1, le=10)
-    parser_pipeline_version: str = "resource-aware-v3"
+    parser_pipeline_version: str = "resource-aware-v4"
     workflow_pipeline_version: str = "evidence-v1"
     workflow_lease_seconds: int = Field(default=900, ge=120, le=1800)
     workflow_call_budget_reservation_usd: Decimal = Field(default=Decimal("0.250000"), gt=0, le=5)
@@ -66,7 +66,9 @@ class WorkerSettings(BaseSettings):
     llm_timeout_seconds: float = Field(default=120.0, gt=0, le=300)
     qdrant_url: str | None = None
     qdrant_api_key: SecretStr | None = None
-    qdrant_collection: str = "researchmate_chunks"
+    qdrant_collection: str = "researchmate_chunks_v3"
+    qdrant_sparse_model: str = "qdrant/bm25"
+    qdrant_native_hybrid_enabled: bool = True
     qdrant_rerank_collection: str = "researchmate_chunks_v2"
     qdrant_rerank_model: str | None = None
     qdrant_rerank_model_is_free: bool = False

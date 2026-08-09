@@ -7,6 +7,7 @@ from functools import lru_cache
 from uuid import UUID
 
 from pydantic import BaseModel
+from researchmate_api.config import Settings
 from researchmate_api.services.embedding import NvidiaEmbeddingProvider
 from researchmate_api.services.llm import NvidiaChatProvider
 from researchmate_api.services.object_storage import S3CompatibleObjectStorage
@@ -93,10 +94,11 @@ def build_ingestion_service() -> DocumentIngestionService:
         raise RuntimeError("NVIDIA embeddings are required to execute ingestion tasks")
     if not settings.qdrant_url:
         raise RuntimeError("Qdrant is required to execute ingestion tasks")
+    api_settings = Settings.model_validate(settings.model_dump())
     engine = _worker_engine(psycopg_database_url(settings.database_url))
-    embedding = NvidiaEmbeddingProvider(settings)  # type: ignore[arg-type]
-    vector_projection = QdrantHybridStore(  # type: ignore[arg-type]
-        settings,
+    embedding = NvidiaEmbeddingProvider(api_settings)
+    vector_projection = QdrantHybridStore(
+        api_settings,
         embedding,
     )
     return DocumentIngestionService(

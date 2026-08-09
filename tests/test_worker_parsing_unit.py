@@ -175,8 +175,31 @@ def test_office_documents_use_bounded_ooxml_parsing_without_docling(tmp_path) ->
         "Access phrase: cobalt-orchid-7319",
     ]
     assert blocks[1].section_title == "Aurora"
+    assert blocks[1].metadata["section_path"] == ["Aurora"]
     assert blocks[1].metadata["parser_name"] == "ooxml"
     assert parser.converter is None
+
+
+def test_docx_parser_preserves_nested_heading_path(tmp_path) -> None:
+    """Retain the heading hierarchy needed for structure-aware retrieval."""
+    docx = tmp_path / "nested.docx"
+    with ZipFile(docx, "w") as archive:
+        archive.writestr(
+            "word/document.xml",
+            """<?xml version="1.0" encoding="UTF-8"?>
+            <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+              <w:body>
+                <w:p><w:pPr><w:pStyle w:val="Heading1"/></w:pPr><w:r><w:t>RAG</w:t></w:r></w:p>
+                <w:p><w:pPr><w:pStyle w:val="Heading2"/></w:pPr><w:r><w:t>Fusion</w:t></w:r></w:p>
+                <w:p><w:r><w:t>Weighted RRF combines ranked channels.</w:t></w:r></w:p>
+              </w:body>
+            </w:document>""",
+        )
+    parser = DoclingDocumentParser(max_file_size=4096, max_num_pages=5)
+
+    blocks = parser.parse(docx, file_type="docx")
+
+    assert blocks[-1].metadata["section_path"] == ["RAG", "Fusion"]
 
 
 def test_docx_parser_accepts_noncanonical_archive_member_paths(tmp_path) -> None:

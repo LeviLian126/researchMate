@@ -147,6 +147,11 @@ def test_ingestion_builds_stable_page_and_chunk_projections() -> None:
     assert store.pages[0].metadata["pipeline_version"] == "pipeline-v1"
     assert len(store.chunks) == 1
     assert store.chunks[0].page_no == 1
+    assert store.chunks[0].section_title == "Finding"
+    assert store.chunks[0].section_path == ("Finding",)
+    assert store.chunks[0].chunk_index == 0
+    assert store.chunks[0].char_start == 0
+    assert store.chunks[0].char_end == len("Evidence on page one.")
     assert vector.chunks == store.chunks
 
 

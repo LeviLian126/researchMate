@@ -8,6 +8,7 @@ from researchmate_api.schemas.common import SourceType
 from researchmate_api.services.answering import build_llm_grounded_answer
 from researchmate_api.services.llm import ChatProvider
 from researchmate_api.services.qdrant_store import QdrantHybridStore
+from researchmate_api.services.query_planning import plan_retrieval
 from researchmate_api.services.store import ChunkEntry
 from sqlalchemy import Engine, text
 
@@ -44,12 +45,20 @@ class QdrantCaseExecutor:
             raise EvaluationRuntimeError("PIPELINE_MODEL_NOT_CONFIGURED")
         if run.pipeline.evaluation_prompt_version != "grounded-answer-v1":
             raise EvaluationRuntimeError("PIPELINE_PROMPT_NOT_SUPPORTED")
+        retrieval_plan = plan_retrieval(
+            question,
+            [],
+            corpus_tokens=1,
+            full_context_limit=0,
+            provider=None,
+        )
         points = self.vector_store.query(
             user_id=str(run.user_id),
             project_id=str(run.project_id),
             source_type=SourceType.LOCAL_DOC,
             text=question,
             limit=run.pipeline.retrieval_limit,
+            plan=retrieval_plan,
         )
         ids = []
         for point in points:
@@ -79,7 +88,8 @@ class QdrantCaseExecutor:
                     text(
                         """
                     select id,user_id,project_id,document_id,source_type,source_title,text,
-                      page_no,slide_no,url,created_at
+                           page_no,slide_no,url,section_title,section_path,chunk_index,
+                           char_start,char_end,metadata,created_at
                     from chunks where user_id=:user_id and project_id=:project_id and id=any(:ids)
                     """
                     ),

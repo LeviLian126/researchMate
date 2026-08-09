@@ -42,16 +42,16 @@
   </div></nav>
   <main class="shell">
     <div class="hero">
-      <p class="eyebrow">Supabase / PostgreSQL RLS / Qdrant / 10 个迁移 / 45 个端点</p>
+      <p class="eyebrow">Supabase / PostgreSQL RLS / Qdrant / 11 个迁移 / 45 个端点</p>
       <h1>基础设施 . infra &amp; scripts</h1>
-      <p class="lede">ResearchMate 基础设施层定义了全部持久化与协调基础设施:Supabase/PostgreSQL 作为唯一真相源,Qdrant 提供向量检索,OpenAPI 规范锁定 45 个端点的 API 契约。本页逐文件解析 infra/ 目录下的 10 个 SQL 迁移、2 个 Qdrant 集合配置、1 个 OpenAPI 规范,以及 scripts/ 目录下的 8 个运维脚本。</p>
+      <p class="lede">ResearchMate 基础设施层定义全部持久化与协调设施:Supabase/PostgreSQL 是唯一真相源,Qdrant 执行路由式 Hybrid 检索,OpenAPI 锁定 45 个端点。本页覆盖 11 个 SQL 迁移、三种生产向量集合角色与 9 个运维脚本。</p>
       <div class="meta">
         <span class="status local">34 张表(31 业务 + 3 协调)</span>
-        <span class="status local">10 个 SQL 迁移</span>
-        <span class="status local">2 个 Qdrant 集合</span>
+        <span class="status local">11 个 SQL 迁移</span>
+        <span class="status local">3 个 Qdrant 集合角色</span>
         <span class="status local">45 个端点 / 11 个 tag</span>
         <span class="status local">65 个 schema</span>
-        <span class="status local">8 个脚本</span>
+        <span class="status local">9 个脚本</span>
       </div>
     </div>
     <div class="layout"><div class="content">
@@ -62,15 +62,15 @@
         <div class="grid">
           <article class="fact"><b>Supabase</b><p>PostgreSQL 托管平台,提供数据库、认证(auth.uid())、存储和 Edge Functions。ResearchMate 使用其 PostgreSQL 实例作为唯一真相源,所有业务表和协调表均在此创建。RLS 策略直接在数据库层强制多租户隔离。</p></article>
           <article class="fact"><b>PostgreSQL RLS</b><p>Row Level Security 在数据库层强制每行数据的访问控制。全部 31 张业务表均启用 RLS,通过 auth.uid() 实现按用户隔离。pipeline_versions 支持 developer/admin 角色策略,outbox_events 不设认证用户策略(仅 service-role)。</p></article>
-          <article class="fact"><b>Database migrations</b><p>10 个 additive SQL 迁移,按 YYYYMMDDNNN 版本前缀排序。apply_migrations.py 在 advisory lock 下执行,用 SHA-256 校验和追踪已应用迁移,拒绝 DROP DATABASE 和空文件。</p></article>
-          <article class="fact"><b>Qdrant collections</b><p>两个向量集合:researchmate_chunks(v1,dense 4096 维 + sparse,RRF 融合)和 researchmate_chunks_v2(multivector 96 维,MAX_SIM,late-interaction rerank)。两者均强制 user_id + project_id + source_type 三重过滤。</p></article>
+          <article class="fact"><b>Database migrations</b><p>11 个 additive SQL 迁移按版本排序。最新迁移保存 section path、chunk 序号与稳定字符偏移,供检索溯源使用。</p></article>
+          <article class="fact"><b>Qdrant collections</b><p>三种角色:保留 legacy retrieval 用于即时回滚,v2 执行 multivector late-interaction rerank,v3 影子集合存储命名 dense 与启用 IDF 的 BM25 向量。每个查询分支都重复 owner filter。</p></article>
           <article class="fact"><b>OpenAPI spec</b><p>45 个端点分布在 11 个 tag 下,65 个 schema(含 HTTPBearer 安全方案)。openapi.yaml 由 export_openapi.py 从 FastAPI 应用确定性渲染,支持 --check 模式校验跟踪文件是否过期。</p></article>
         </div>
       </section>
       <section id="tree">
         <p class="eyebrow">完整目录树</p>
         <h2>infra/ 与 scripts/ 文件结构</h2>
-        <p class="sub">infra/ 包含 3 个子目录(openapi、qdrant、supabase),scripts/ 包含 8 个脚本文件。</p>
+        <p class="sub">infra/ 包含 3 个子目录(openapi、qdrant、supabase),scripts/ 包含 9 个脚本文件。</p>
         <pre class="command-block"><code>infra/
   openapi/
     openapi.yaml              168 KB  45 endpoints / 11 tags / 65 schemas
@@ -88,6 +88,7 @@
       202607280008_remove_source_modes.sql                253 B
       202607290009_personal_chat_project_memory_and_quiz.sql  1.1 KB
       202608010010_api_idempotency.sql                   1.1 KB
+      202608090006_add_structured_chunk_provenance.sql   结构化检索溯源
 
 scripts/
   apply_migrations.py            3.6 KB  Validate &amp; apply ordered migrations
@@ -96,12 +97,13 @@ scripts/
   dev_api.ps1                      491 B  Start uvicorn dev server
   export_openapi.py              1.2 KB  Render/verify OpenAPI artifact
   provision_qdrant_rerank.py     6.3 KB  Provision Qdrant v2 backfill
+  provision_qdrant_hybrid.py             回放并验证原生 Hybrid v3
   repair_docs_html_encoding.py   3.3 KB  Repair corrupted HTML docs
   setup_langgraph_checkpoint.py    979 B  Create LangGraph checkpoint tables</code></pre>
       </section>
       <section id="migrations">
         <p class="eyebrow">SQL 迁移逐文件详解</p>
-        <h2>10 个迁移按顺序解析</h2>
+        <h2>11 个迁移按顺序解析</h2>
         <p class="sub">每个迁移均为 additive(仅添加,不破坏已有数据),按版本号前缀 YYYYMMDDNNN 排序执行。</p>
         <details id="migration-01"><summary>1. 202605260001_initial_schema.sql</summary>
           <dl class="kv">
@@ -191,6 +193,14 @@ scripts/
             <dt>字段与索引</dt><dd>复合主键(user_id, operation, idempotency_key);request_hash 为 SHA-256(64 位十六进制);state(pending/succeeded);CHECK 约束确保 pending+null response 或 succeeded</dd>
             <dt>RLS</dt><dd>api_idempotency 启用 RLS:owner ALL 策略(user_id = auth.uid())。</dd>
             <dt>增量说明</dt><dd>为高成本的 Ask 和 Quiz 操作持久化防重放请求标识。</dd>
+          </dl>
+        </details>
+        <details id="migration-11"><summary>11. 202608090006_add_structured_chunk_provenance.sql</summary>
+          <dl class="kv">
+            <dt>Version</dt><dd><code>202608090006</code></dd>
+            <dt>表</dt><dd>增量修改 chunks 与 citations,不重写历史行。</dd>
+            <dt>字段与索引</dt><dd>section_title、section_path、chunk_index、char_start、char_end;校验偏移成对出现并索引文档内 chunk 顺序。</dd>
+            <dt>增量说明</dt><dd>让结构感知摄取的溯源贯穿 SQL、Qdrant payload 与用户可见 citation。</dd>
           </dl>
         </details>
       </section>
@@ -485,8 +495,8 @@ scripts/
       </section>
       <section id="qdrant">
         <p class="eyebrow">Qdrant 配置详解</p>
-        <h2>两个向量集合</h2>
-        <p class="sub">researchmate_chunks 是主检索集合(dense + sparse + RRF 融合);researchmate_chunks_v2 是 rerank 回填集合(multivector late-interaction)。两者均强制 tenant 过滤。</p>
+        <h2>三个向量集合角色</h2>
+        <p class="sub">researchmate_chunks 保留为回滚路径;researchmate_chunks_v2 执行 late-interaction rerank;researchmate_chunks_v3 是原生 BM25 影子检索目标。三者均强制 tenant 过滤。</p>
         <h3>researchmate_chunks (v1)</h3>
         <p>主检索集合,定义在 <code>infra/qdrant/researchmate_chunks.json</code>。支持 hybrid retrieval:dense 向量(4096 维,Cosine 距离)+ sparse 向量(IDF modifier),使用 RRF(Relative Reciprocal Fusion)融合排序。</p>
         <dl class="kv">
@@ -509,6 +519,13 @@ scripts/
           <dt>hnsw.m</dt><dd><code>0 (brute-force)</code></dd>
           <dt>payload indexes</dt><dd><code>user_id, project_id, document_id, source_type (all keyword)</code></dd>
           <dt>验证</dt><dd>点数校验 + 租户过滤样本查询校验;chunk ID 的 SHA-256 摘要存入 researchmate_vector_migrations</dd>
+        </dl>
+        <h3>researchmate_chunks_v3 (native hybrid)</h3>
+        <p>仅由 <code>scripts/provision_qdrant_hybrid.py</code> 创建与回放,绝不放在服务启动路径。集合保存命名 4096 维 <code>dense</code> 向量和启用 Qdrant IDF 统计的命名 <code>bm25</code> sparse 向量。路由权重进入 weighted RRF;多个改写共享分支预算,不会仅靠增加票数获胜。</p>
+        <dl class="kv">
+          <dt>灰度</dt><dd>先部署关闭原生模式的代码,回放并验证影子集合,再通过配置切流。</dd>
+          <dt>验证</dt><dd>精确计数、SHA-256 语料指纹、陈旧点清理与 owner-filtered 词法样本。</dd>
+          <dt>回滚</dt><dd>恢复 legacy collection 并关闭 native hybrid,无需回滚数据库。</dd>
         </dl>
       </section>
       <section id="openapi">
@@ -715,6 +732,13 @@ scripts/
             <dt>行数</dt><dd>26</dd>
             <dt>职责</dt><dd>在经批准的 schema 阶段创建 LangGraph 拥有的 checkpoint 表。将 DATABASE_URL 从 postgresql+psycopg:// 转换为 postgresql:// 并调用 PostgresSaver.setup()。需要 ALLOW_SCHEMA_APPLY=1。</dd>
             <dt>细节</dt><dd>LangGraph 拥有并版本化其 checkpoint DDL。仅在受保护的发布迁移阶段运行,切勿在任务交付期间并发运行。</dd>
+          </dl>
+        </details>
+        <details id="script-09"><summary>9. provision_qdrant_hybrid.py</summary>
+          <dl class="kv">
+            <dt>语言</dt><dd><code>Python</code></dd>
+            <dt>职责</dt><dd>创建 v3 影子集合,分批回放 ready 本地 chunks,删除陈旧点,并验证 tenant-filtered 原生 BM25 检索。</dd>
+            <dt>安全</dt><dd>必须显式设置 <code>ALLOW_QDRANT_HYBRID_BACKFILL=1</code>;配置切流前记录精确数量与语料 checksum。</dd>
           </dl>
         </details>
       </section>

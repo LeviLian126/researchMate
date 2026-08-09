@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from io import BytesIO
 from pathlib import Path
-from re import search
+from re import IGNORECASE, search
 from typing import Any
 from xml.etree import ElementTree
 from zipfile import BadZipFile, ZipFile
@@ -155,15 +155,19 @@ class DoclingDocumentParser:
         with ZipFile(source) as archive:
             root = self._read_bounded_xml(archive, "word/document.xml")
         blocks: list[ParsedBlock] = []
-        active_section: str | None = None
+        section_stack: list[str] = []
         for ordinal, paragraph in enumerate(root.findall(".//w:p", ns)):
             text = "".join(node.text or "" for node in paragraph.findall(".//w:t", ns)).strip()
             if not text:
                 continue
             style = paragraph.find("./w:pPr/w:pStyle", ns)
             style_name = style.attrib.get(value_attribute, "") if style is not None else ""
-            if style_name.lower().startswith(("heading", "title")):
-                active_section = text
+            style_match = search(r"(?:heading|title)\s*(\d+)?", style_name, flags=IGNORECASE)
+            heading_level = int(style_match.group(1) or 1) if style_match else None
+            if heading_level is not None:
+                section_stack = section_stack[: heading_level - 1]
+                section_stack.append(text)
+            active_section = section_stack[-1] if section_stack else None
             item_ref = f"word/document.xml#paragraph-{ordinal}"
             blocks.append(
                 ParsedBlock(
@@ -175,7 +179,8 @@ class DoclingDocumentParser:
                         "source_item_ref": item_ref,
                         "source_ordinal": ordinal,
                         "source_label": style_name or "paragraph",
-                        "source_level": None,
+                        "source_level": heading_level,
+                        "section_path": list(section_stack),
                         "source_anchors": self._structural_anchor(
                             item_ref, locator_kind="structural"
                         ),
@@ -232,6 +237,7 @@ class DoclingDocumentParser:
                             "source_ordinal": ordinal,
                             "source_label": "slide_text",
                             "source_level": None,
+                            "section_path": [section_title] if section_title else [],
                             "source_anchors": self._structural_anchor(
                                 item_ref, locator_kind="slide"
                             ),
@@ -271,7 +277,7 @@ class DoclingDocumentParser:
             raise ParserAdapterError("PARSER_EXECUTION_FAILED") from exc
         try:
             from docling.datamodel.base_models import DocumentStream
-            from docling_core.types.doc import ContentLayer, TableItem, TextItem
+            from docling_core.types.doc.document import ContentLayer, TableItem, TextItem
 
             result = self._pdf_converter().convert(
                 DocumentStream(name=source.name, stream=BytesIO(source.read_bytes())),
@@ -294,7 +300,7 @@ class DoclingDocumentParser:
             "parser_core_version": _package_version("docling-core"),
         }
         blocks: list[ParsedBlock] = []
-        active_section: str | None = None
+        section_stack: list[str] = []
         try:
             items = document.iterate_items(
                 with_groups=False,
@@ -312,7 +318,10 @@ class DoclingDocumentParser:
                     continue
                 label = getattr(item.label, "value", str(item.label))
                 if label in {"title", "section_header"}:
-                    active_section = item_text
+                    heading_level = max(1, int(level or 1))
+                    section_stack = section_stack[: heading_level - 1]
+                    section_stack.append(item_text)
+                active_section = section_stack[-1] if section_stack else None
                 anchors = _serialize_provenance(item, locator_kind=locator_kind)
                 primary_page = anchors[0]["page_no"]
                 blocks.append(
@@ -327,6 +336,7 @@ class DoclingDocumentParser:
                             "source_ordinal": ordinal,
                             "source_label": label,
                             "source_level": level,
+                            "section_path": list(section_stack),
                             "source_anchors": anchors,
                         },
                     )

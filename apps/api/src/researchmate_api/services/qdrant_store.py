@@ -3,9 +3,7 @@
 from __future__ import annotations
 
 import logging
-from collections import Counter
 from hashlib import sha256
-from math import log1p
 from typing import Any, cast
 
 from qdrant_client import QdrantClient, models
@@ -14,39 +12,28 @@ from qdrant_client.http.models import Condition, ExtendedPointId
 from researchmate_api.config import Settings
 from researchmate_api.schemas.common import MAX_TEXT_LENGTH, SourceType
 from researchmate_api.services.embedding import NvidiaEmbeddingProvider
-from researchmate_api.services.retrieval import tokenize
+from researchmate_api.services.qdrant_errors import (
+    VectorStoreRequestError,
+    raise_vector_store_error,
+)
+from researchmate_api.services.qdrant_hybrid_query import execute_hybrid_query
+from researchmate_api.services.qdrant_projection import (
+    build_owner_filter,
+    delete_stale_points,
+    legacy_sparse_text_vector,
+    snapshot_stale_points,
+)
+from researchmate_api.services.query_planning import RetrievalPlan, RetrievalRoute
 from researchmate_api.services.store import ChunkEntry
 
 LOGGER = logging.getLogger(__name__)
-
-
-class VectorStoreRequestError(RuntimeError):
-    """Normalize vector-store failures and their retryability."""
-
-    def __init__(self, operation: str, *, retryable: bool = True) -> None:
-        super().__init__(f"Vector store {operation} failed")
-        self.operation = operation
-        self.retryable = retryable
-
-
-def sparse_text_vector(text: str) -> models.SparseVector:
-    """Build a deterministic sorted sparse vector from lexical tokens."""
-    counts = Counter(tokenize(text))
-    indexed = sorted(
-        (
-            (int.from_bytes(sha256(token.encode("utf-8")).digest()[:4], "big"), 1.0 + log1p(count))
-            for token, count in counts.items()
-        ),
-        key=lambda item: item[0],
-    )
-    return models.SparseVector(
-        indices=[item[0] for item in indexed],
-        values=[item[1] for item in indexed],
-    )
+__all__ = ["QdrantHybridStore", "VectorStoreRequestError"]
 
 
 class QdrantHybridStore:
     """Enforce owner filters around hybrid Qdrant queries and mutations."""
+
+    owner_filter = staticmethod(build_owner_filter)
 
     def __init__(
         self,
@@ -64,28 +51,8 @@ class QdrantHybridStore:
             url=settings.qdrant_url,
             api_key=settings.qdrant_api_key.get_secret_value() if settings.qdrant_api_key else None,
             timeout=round(settings.llm_timeout_seconds),
-            cloud_inference=bool(settings.qdrant_rerank_model),
+            cloud_inference=True,
         )
-
-    @staticmethod
-    def owner_filter(
-        user_id: str,
-        project_id: str,
-        source_type: SourceType | str,
-        document_ids: list[str] | None = None,
-    ) -> models.Filter:
-        """Build the mandatory owner, project, source, and document filter."""
-        source_value = source_type.value if isinstance(source_type, SourceType) else source_type
-        conditions: list[Any] = [
-            models.FieldCondition(key="user_id", match=models.MatchValue(value=user_id)),
-            models.FieldCondition(key="project_id", match=models.MatchValue(value=project_id)),
-            models.FieldCondition(key="source_type", match=models.MatchValue(value=source_value)),
-        ]
-        if document_ids:
-            conditions.append(
-                models.FieldCondition(key="document_id", match=models.MatchAny(any=document_ids))
-            )
-        return models.Filter(must=conditions)
 
     def query(
         self,
@@ -96,34 +63,29 @@ class QdrantHybridStore:
         text: str,
         limit: int = 10,
         document_ids: list[str] | None = None,
+        plan: RetrievalPlan | None = None,
     ) -> list[dict[str, Any]]:
-        """Fuse dense and sparse channels inside an owner-scoped query."""
-        dense = self.embedding.embed([text], input_type="query")[0]
+        """Fuse native BM25 and dense variants inside one owner-scoped Qdrant query."""
+        effective_plan = plan or RetrievalPlan(
+            route=RetrievalRoute.HYBRID,
+            queries=(text,),
+            dense_weight=0.5,
+            lexical_weight=0.5,
+            reason="adapter_default",
+        )
         query_filter = self.owner_filter(user_id, project_id, source_type, document_ids)
         try:
-            result = self.client.query_points(
-                collection_name=self.collection,
-                prefetch=[
-                    models.Prefetch(
-                        query=sparse_text_vector(text),
-                        using="sparse",
-                        filter=query_filter,
-                        limit=max(limit * 3, 20),
-                    ),
-                    models.Prefetch(
-                        query=dense,
-                        using="dense",
-                        filter=query_filter,
-                        limit=max(limit * 3, 20),
-                    ),
-                ],
-                query=models.RrfQuery(rrf=models.Rrf()),
-                query_filter=query_filter,
+            result = execute_hybrid_query(
+                self.client,
+                self.embedding,
+                self.settings,
+                self.collection,
+                effective_plan,
+                query_filter,
                 limit=limit,
-                with_payload=True,
             )
         except Exception as exc:
-            raise VectorStoreRequestError("query") from exc
+            raise_vector_store_error("query", exc)
         return [
             {"id": str(point.id), "score": point.score, "payload": dict(point.payload or {})}
             for point in result.points
@@ -140,9 +102,9 @@ class QdrantHybridStore:
         document_ids: list[str] | None = None,
     ) -> list[dict[str, Any]]:
         """Return the semantic channel only; application BM25 is fused separately."""
-        dense = self.embedding.embed([text], input_type="query")[0]
         query_filter = self.owner_filter(user_id, project_id, source_type, document_ids)
         try:
+            dense = self.embedding.embed([text], input_type="query")[0]
             result = self.client.query_points(
                 collection_name=self.collection,
                 query=dense,
@@ -152,7 +114,7 @@ class QdrantHybridStore:
                 with_payload=True,
             )
         except Exception as exc:
-            raise VectorStoreRequestError("dense_query") from exc
+            raise_vector_store_error("dense_query", exc)
         return [
             {"id": str(point.id), "score": point.score, "payload": dict(point.payload or {})}
             for point in result.points
@@ -190,7 +152,7 @@ class QdrantHybridStore:
                 with_payload=True,
             )
         except Exception as exc:
-            raise VectorStoreRequestError("rerank") from exc
+            raise_vector_store_error("rerank", exc)
         return [str((point.payload or {}).get("chunk_id", point.id)) for point in result.points]
 
     def rerank_ready(self) -> bool:
@@ -227,13 +189,39 @@ class QdrantHybridStore:
         """Project chunks into owner-tagged dense, sparse, and rerank vectors."""
         if not chunks:
             return
+        try:
+            primary_previous = snapshot_stale_points(
+                self.client, self.collection, chunks, self.owner_filter
+            )
+            rerank_previous = (
+                snapshot_stale_points(
+                    self.client, self.rerank_collection, chunks, self.owner_filter
+                )
+                if self.settings.qdrant_rerank_model and self.settings.qdrant_rerank_model_is_free
+                else set()
+            )
+        except Exception as exc:
+            raise_vector_store_error("stale_scan", exc)
         dense_vectors = self.embedding.embed([chunk.text for chunk in chunks], input_type="passage")
         points = []
         for chunk, dense in zip(chunks, dense_vectors, strict=True):
             points.append(
                 models.PointStruct(
                     id=str(chunk.id),
-                    vector={"dense": dense, "sparse": sparse_text_vector(chunk.text)},
+                    vector=(
+                        {
+                            "dense": dense,
+                            "bm25": models.Document(
+                                text=chunk.text[:MAX_TEXT_LENGTH],
+                                model=self.settings.qdrant_sparse_model,
+                            ),
+                        }
+                        if self.settings.qdrant_native_hybrid_enabled
+                        else {
+                            "dense": dense,
+                            "sparse": legacy_sparse_text_vector(chunk.text),
+                        }
+                    ),
                     payload={
                         "user_id": str(chunk.user_id),
                         "project_id": str(chunk.project_id),
@@ -244,6 +232,12 @@ class QdrantHybridStore:
                         "slide_no": chunk.slide_no,
                         "title": chunk.source_title,
                         "url": chunk.url,
+                        "section_title": chunk.section_title,
+                        "section_path": list(chunk.section_path),
+                        "chunk_index": chunk.chunk_index,
+                        "char_start": chunk.char_start,
+                        "char_end": chunk.char_end,
+                        "source_anchors": chunk.metadata.get("source_anchors", []),
                         "content_hash": sha256(chunk.text.encode("utf-8")).hexdigest(),
                         "pipeline_version": pipeline_version,
                     },
@@ -252,7 +246,7 @@ class QdrantHybridStore:
         try:
             self.client.upsert(collection_name=self.collection, points=points, wait=True)
         except Exception as exc:
-            raise VectorStoreRequestError("upsert") from exc
+            raise_vector_store_error("upsert", exc)
         if self.settings.qdrant_rerank_model and self.settings.qdrant_rerank_model_is_free:
             rerank_points = [
                 models.PointStruct(
@@ -280,7 +274,13 @@ class QdrantHybridStore:
                     wait=True,
                 )
             except Exception as exc:
-                raise VectorStoreRequestError("rerank_upsert") from exc
+                raise_vector_store_error("rerank_upsert", exc)
+        try:
+            delete_stale_points(self.client, self.collection, primary_previous, chunks)
+            if self.settings.qdrant_rerank_model and self.settings.qdrant_rerank_model_is_free:
+                delete_stale_points(self.client, self.rerank_collection, rerank_previous, chunks)
+        except Exception as exc:
+            raise_vector_store_error("stale_delete", exc)
 
     def delete_points(
         self,
@@ -311,7 +311,7 @@ class QdrantHybridStore:
                 wait=True,
             )
         except Exception as exc:
-            raise VectorStoreRequestError("delete") from exc
+            raise_vector_store_error("delete", exc)
         if self.settings.qdrant_rerank_model and self.settings.qdrant_rerank_model_is_free:
             try:
                 self.client.delete(
@@ -320,7 +320,7 @@ class QdrantHybridStore:
                     wait=True,
                 )
             except Exception as exc:
-                raise VectorStoreRequestError("rerank_delete") from exc
+                raise_vector_store_error("rerank_delete", exc)
 
     def delete_project_points(self, *, user_id: str, project_id: str) -> None:
         """Delete every vector projection belonging to one owner's project."""
@@ -337,7 +337,7 @@ class QdrantHybridStore:
                 wait=True,
             )
         except Exception as exc:
-            raise VectorStoreRequestError("project_delete") from exc
+            raise_vector_store_error("project_delete", exc)
         if self.settings.qdrant_rerank_model and self.settings.qdrant_rerank_model_is_free:
             try:
                 self.client.delete(
@@ -346,4 +346,4 @@ class QdrantHybridStore:
                     wait=True,
                 )
             except Exception as exc:
-                raise VectorStoreRequestError("rerank_project_delete") from exc
+                raise_vector_store_error("rerank_project_delete", exc)

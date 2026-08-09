@@ -251,7 +251,7 @@ class ConversationPersistenceMixin:
                         text(
                             """
                             select id,source_type,document_id,chunk_id,page_no,slide_no,
-                                   url,quote,claim_id
+                                   section_title,url,quote,claim_id
                             from citations
                             where ask_run_id=:run_id
                             order by created_at,id

@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 from uuid import UUID
 
+from langchain_core.runnables import RunnableConfig
 from researchmate_api.services.evidence_generation import EvidenceGenerationError
 from researchmate_api.services.llm import ProviderRequestError
 from researchmate_api.services.qdrant_store import (
@@ -288,7 +289,7 @@ def run_workflow(self, event: dict[str, str]) -> str:
                 serde=JsonPlusSerializer(pickle_fallback=False),
             )
             graph = build_evidence_graph(domain, strict_checkpointer)
-            config = {"configurable": {"thread_id": str(payload.run_id)}}
+            config: RunnableConfig = {"configurable": {"thread_id": str(payload.run_id)}}
             if payload.decision_id is not None:
                 resume_value = domain.resume_value(payload.decision_id, payload.run_id)
                 result = graph.invoke(Command(resume=resume_value), config=config)

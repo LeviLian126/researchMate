@@ -55,7 +55,9 @@ class GroundedQueryService:
         self.hybrid_store = hybrid_store
         self.reranker = reranker
         self.web_search = web_search
-        self.local_retriever = LocalEvidenceRetriever(settings, repository, hybrid_store)
+        self.local_retriever = LocalEvidenceRetriever(
+            settings, repository, hybrid_store, chat_provider
+        )
         self.context_builder = ConversationContextBuilder(
             repository,
             chat_provider,
@@ -94,6 +96,7 @@ class GroundedQueryService:
                     if project.kind == "personal"
                     else None
                 ),
+                history=history,
             )
             candidates = retrieval_outcome.candidates
             strategy = retrieval_outcome.strategy
@@ -113,6 +116,7 @@ class GroundedQueryService:
                         "estimated_tokens": local_total,
                         "degraded": retrieval_outcome.degraded,
                         "fallback_reason": retrieval_outcome.reason,
+                        **retrieval_outcome.metadata(),
                     },
                     status="succeeded",
                     latency_ms=round((monotonic() - local_started) * 1000),
@@ -285,6 +289,7 @@ class GroundedQueryService:
             ),
             "candidate_count": len(candidates),
             "retrieved_count": len(retrieved),
+            **retrieval_outcome.metadata(prefix="retrieval_"),
             "estimated_input_tokens": (
                 estimate_tokens(payload.message)
                 + sum(estimate_tokens(item.content) for item in history)
@@ -297,12 +302,15 @@ class GroundedQueryService:
             ),
             "total_latency_ms": round((monotonic() - request_started) * 1000),
         }
+        router_reason = (
+            f"Retrieval route {retrieval_outcome.route.value}: {retrieval_outcome.route_reason}."
+        )
         run_id, trace_id = self.repository.record_run(
             user=user,
             project_id=payload.project_id,
             message=payload.message,
             plan=plan,
-            router_reason=f"Unified chat resolved {strategy} from document readiness and web_enabled.",
+            router_reason=router_reason,
             retrieved_chunks=retrieved,
             citations=citations,
             tool_calls=tool_calls,

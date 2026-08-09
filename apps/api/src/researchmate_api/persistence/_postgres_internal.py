@@ -184,7 +184,7 @@ class PostgresInternalMixin:
             text(
                 """
                 select c.id, c.source_type, c.document_id, c.chunk_id, c.page_no, c.slide_no,
-                       c.url, c.quote, c.claim_id
+                       c.section_title, c.url, c.quote, c.claim_id
                 from citations c
                 join ask_runs ar on ar.id = c.ask_run_id
                 where c.ask_run_id = :run_id and ar.user_id = :user_id

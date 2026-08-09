@@ -48,7 +48,9 @@ class Settings(BaseSettings):
     embedding_dimension: int = Field(default=4096, ge=128, le=8192)
     qdrant_url: str | None = None
     qdrant_api_key: SecretStr | None = None
-    qdrant_collection: str = "researchmate_chunks"
+    qdrant_collection: str = "researchmate_chunks_v3"
+    qdrant_sparse_model: str = "qdrant/bm25"
+    qdrant_native_hybrid_enabled: bool = True
     qdrant_rerank_collection: str = "researchmate_chunks_v2"
     qdrant_rerank_model: str | None = None
     qdrant_rerank_model_is_free: bool = False

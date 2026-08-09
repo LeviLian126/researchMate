@@ -36,6 +36,7 @@ export interface Citation {
   chunk_id?: string | null;
   page_no?: number | null;
   slide_no?: number | null;
+  section_title?: string | null;
   url?: string | null;
   quote: string;
   claim_id?: string | null;

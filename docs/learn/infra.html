@@ -42,16 +42,16 @@
   </div></nav>
   <main class="shell">
     <div class="hero">
-      <p class="eyebrow">Supabase / PostgreSQL RLS / Qdrant / 10 migrations / 45 endpoints</p>
+      <p class="eyebrow">Supabase / PostgreSQL RLS / Qdrant / 11 migrations / 45 endpoints</p>
       <h1>Infrastructure . infra &amp; scripts</h1>
-      <p class="lede">The ResearchMate infrastructure layer defines all persistence and coordination infrastructure: Supabase/PostgreSQL as the single source of truth, Qdrant for vector retrieval, and an OpenAPI spec locking down 45 endpoints. This page walks through every file in infra/ (10 SQL migrations, 2 Qdrant collection configs, 1 OpenAPI spec) and scripts/ (8 operational scripts).</p>
+      <p class="lede">The ResearchMate infrastructure layer defines all persistence and coordination infrastructure: Supabase/PostgreSQL as the single source of truth, Qdrant for routed hybrid retrieval, and an OpenAPI spec locking down 45 endpoints. This page covers 11 SQL migrations, three production vector roles, and 9 operational scripts.</p>
       <div class="meta">
         <span class="status local">34 tables (31 business + 3 coordination)</span>
-        <span class="status local">10 SQL migrations</span>
-        <span class="status local">2 Qdrant collections</span>
+        <span class="status local">11 SQL migrations</span>
+        <span class="status local">3 Qdrant collection roles</span>
         <span class="status local">45 endpoints / 11 tags</span>
         <span class="status local">65 schemas</span>
-        <span class="status local">8 scripts</span>
+        <span class="status local">9 scripts</span>
       </div>
     </div>
     <div class="layout"><div class="content">
@@ -62,15 +62,15 @@
         <div class="grid">
           <article class="fact"><b>Supabase</b><p>Managed PostgreSQL platform providing database, auth (auth.uid()), storage, and Edge Functions. ResearchMate uses its PostgreSQL instance as the single source of truth; all business and coordination tables live here. RLS policies enforce multi-tenant isolation at the database layer.</p></article>
           <article class="fact"><b>PostgreSQL RLS</b><p>Row Level Security enforces per-row access control in the database. All 31 business tables have RLS enabled, using auth.uid() for user-scoped isolation. pipeline_versions supports developer/admin role policies; outbox_events has no authenticated-user policy (service-role only).</p></article>
-          <article class="fact"><b>Database migrations</b><p>10 additive SQL migrations ordered by YYYYMMDDNNN version prefix. apply_migrations.py executes under an advisory lock, tracks applied migrations with SHA-256 checksums, and rejects DROP DATABASE and empty files.</p></article>
-          <article class="fact"><b>Qdrant collections</b><p>Two vector collections: researchmate_chunks (v1, dense 4096-dim + sparse, RRF fusion) and researchmate_chunks_v2 (multivector 96-dim, MAX_SIM, late-interaction rerank). Both enforce user_id + project_id + source_type triple filtering.</p></article>
+          <article class="fact"><b>Database migrations</b><p>11 additive SQL migrations ordered by version prefix. The latest preserves section path, chunk ordinal, and stable character offsets for retrieval provenance.</p></article>
+          <article class="fact"><b>Qdrant collections</b><p>Three roles: legacy retrieval for instant rollback, v2 multivector late-interaction rerank, and the v3 shadow collection with named dense and IDF-enabled BM25 vectors. Every query branch repeats owner filters.</p></article>
           <article class="fact"><b>OpenAPI spec</b><p>45 endpoints across 11 tags, 65 schemas (including HTTPBearer security scheme). openapi.yaml is deterministically rendered from the FastAPI app by export_openapi.py, with a --check mode to verify the tracked artifact is not stale.</p></article>
         </div>
       </section>
       <section id="tree">
         <p class="eyebrow">Complete directory tree</p>
         <h2>infra/ and scripts/ file structure</h2>
-        <p class="sub">infra/ contains 3 subdirectories (openapi, qdrant, supabase); scripts/ contains 8 script files.</p>
+        <p class="sub">infra/ contains 3 subdirectories (openapi, qdrant, supabase); scripts/ contains 9 script files.</p>
         <pre class="command-block"><code>infra/
   openapi/
     openapi.yaml              168 KB  45 endpoints / 11 tags / 65 schemas
@@ -88,6 +88,7 @@
       202607280008_remove_source_modes.sql                253 B
       202607290009_personal_chat_project_memory_and_quiz.sql  1.1 KB
       202608010010_api_idempotency.sql                   1.1 KB
+      202608090006_add_structured_chunk_provenance.sql   Structured retrieval provenance
 
 scripts/
   apply_migrations.py            3.6 KB  Validate &amp; apply ordered migrations
@@ -96,12 +97,13 @@ scripts/
   dev_api.ps1                      491 B  Start uvicorn dev server
   export_openapi.py              1.2 KB  Render/verify OpenAPI artifact
   provision_qdrant_rerank.py     6.3 KB  Provision Qdrant v2 backfill
+  provision_qdrant_hybrid.py             Replay and verify native hybrid v3
   repair_docs_html_encoding.py   3.3 KB  Repair corrupted HTML docs
   setup_langgraph_checkpoint.py    979 B  Create LangGraph checkpoint tables</code></pre>
       </section>
       <section id="migrations">
         <p class="eyebrow">SQL migration file-by-file analysis</p>
-        <h2>10 migrations in execution order</h2>
+        <h2>11 migrations in execution order</h2>
         <p class="sub">Each migration is additive (never destructive to existing data), ordered by the YYYYMMDDNNN version prefix.</p>
         <details id="migration-01"><summary>1. 202605260001_initial_schema.sql</summary>
           <dl class="kv">
@@ -191,6 +193,14 @@ scripts/
             <dt>Fields &amp; indexes</dt><dd>Composite PK (user_id, operation, idempotency_key); request_hash SHA-256; state (pending/succeeded); CHECK constraint</dd>
             <dt>RLS</dt><dd>RLS on api_idempotency: owner ALL (user_id = auth.uid()).</dd>
             <dt>Incremental change</dt><dd>Persists replay-safe request identities for cost-bearing Ask and Quiz operations.</dd>
+          </dl>
+        </details>
+        <details id="migration-11"><summary>11. 202608090006_add_structured_chunk_provenance.sql</summary>
+          <dl class="kv">
+            <dt>Version</dt><dd><code>202608090006</code></dd>
+            <dt>Tables</dt><dd>Alters chunks and citations without rewriting historical rows.</dd>
+            <dt>Fields &amp; indexes</dt><dd>section_title, section_path, chunk_index, char_start, char_end; validates offset pairs and indexes document chunk order.</dd>
+            <dt>Incremental change</dt><dd>Preserves structure-aware ingestion provenance through SQL, Qdrant payloads, and user-visible citations.</dd>
           </dl>
         </details>
       </section>
@@ -485,8 +495,8 @@ scripts/
       </section>
       <section id="qdrant">
         <p class="eyebrow">Qdrant configuration</p>
-        <h2>Two vector collections</h2>
-        <p class="sub">researchmate_chunks is the primary retrieval collection (dense + sparse + RRF fusion); researchmate_chunks_v2 is the rerank backfill collection (multivector late-interaction). Both enforce tenant filtering.</p>
+        <h2>Three vector collection roles</h2>
+        <p class="sub">researchmate_chunks remains the rollback path; researchmate_chunks_v2 performs late-interaction rerank; researchmate_chunks_v3 is the shadow native-BM25 retrieval target. All enforce tenant filtering.</p>
         <h3>researchmate_chunks (v1)</h3>
         <p>Primary retrieval collection, defined in <code>infra/qdrant/researchmate_chunks.json</code>. Supports hybrid retrieval: dense vectors (4096 dimensions, Cosine distance) + sparse vectors (IDF modifier), fused with RRF (Relative Reciprocal Fusion).</p>
         <dl class="kv">
@@ -509,6 +519,13 @@ scripts/
           <dt>hnsw.m</dt><dd><code>0 (brute-force)</code></dd>
           <dt>payload indexes</dt><dd><code>user_id, project_id, document_id, source_type (all keyword)</code></dd>
           <dt>Verification</dt><dd>Point count check + tenant-filter sample query; SHA-256 digest of chunk IDs stored in researchmate_vector_migrations</dd>
+        </dl>
+        <h3>researchmate_chunks_v3 (native hybrid)</h3>
+        <p>Created and replayed only by <code>scripts/provision_qdrant_hybrid.py</code>, never during service startup. It stores a named 4096-dimensional <code>dense</code> vector and a named <code>bm25</code> sparse vector with Qdrant IDF statistics. Route-specific weights feed weighted RRF; rewritten queries share one branch budget so they cannot win merely by adding votes.</p>
+        <dl class="kv">
+          <dt>Rollout</dt><dd>Deploy with native mode disabled, replay and verify the shadow collection, then cut over by configuration.</dd>
+          <dt>Verification</dt><dd>Exact count, SHA-256 corpus fingerprint, stale-point cleanup, and an owner-filtered lexical sample.</dd>
+          <dt>Rollback</dt><dd>Restore the legacy collection and disable native hybrid; no database rollback is required.</dd>
         </dl>
       </section>
       <section id="openapi">
@@ -715,6 +732,13 @@ scripts/
             <dt>Lines</dt><dd>26</dd>
             <dt>Purpose</dt><dd>Creates LangGraph checkpoint tables during approved schema phase. Converts DATABASE_URL and calls PostgresSaver.setup(). Requires ALLOW_SCHEMA_APPLY=1.</dd>
             <dt>Details</dt><dd>LangGraph owns/checkpoints its DDL. Run only during protected release migration phase, never during task delivery.</dd>
+          </dl>
+        </details>
+        <details id="script-09"><summary>9. provision_qdrant_hybrid.py</summary>
+          <dl class="kv">
+            <dt>Language</dt><dd><code>Python</code></dd>
+            <dt>Purpose</dt><dd>Creates the v3 shadow collection, replays ready local chunks in bounded batches, removes stale points, and verifies tenant-filtered native BM25 retrieval.</dd>
+            <dt>Safety</dt><dd>Requires <code>ALLOW_QDRANT_HYBRID_BACKFILL=1</code>; records exact count and corpus checksum before configuration cutover.</dd>
           </dl>
         </details>
       </section>

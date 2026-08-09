@@ -140,6 +140,7 @@ class Citation(BaseModel):
     chunk_id: UUID | None = None
     page_no: int | None = Field(default=None, ge=1)
     slide_no: int | None = Field(default=None, ge=1)
+    section_title: str | None = Field(default=None, max_length=300)
     url: str | None = Field(default=None, max_length=2048)
     quote: str = Field(min_length=1, max_length=MAX_TEXT_LENGTH)
     claim_id: str | None = Field(default=None, max_length=120)

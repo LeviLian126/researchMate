@@ -2,15 +2,14 @@
 // can drop the static 'unsafe-inline' for script-src. Nonces make inline
 // scripts signed by the server the only acceptable ones at any moment.
 import { NextResponse, type NextRequest } from "next/server";
-import { randomUUID } from "node:crypto";
 import { buildNonceCsp } from "./app/lib/csp-origins";
 
 const NONCE_HEADER = "x-researchmate-nonce";
 
 /** Generate a cryptographically strong random nonce (32 hex chars). */
 function makeNonce(): string {
-  // randomUUID() gives 128 bits of entropy; strip dashes for a clean CSP value.
-  return randomUUID().replaceAll("-", "");
+  // Web Crypto is available in both the Edge runtime and current Node releases.
+  return crypto.randomUUID().replaceAll("-", "");
 }
 
 /** Adds a nonce + nonce-aware CSP to every response so inline scripts are signed. */

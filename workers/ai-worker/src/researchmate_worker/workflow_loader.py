@@ -29,7 +29,8 @@ class WorkflowEvidenceLoaderMixin:
                     text(
                         """
                     select id,user_id,project_id,document_id,source_type,source_title,text,
-                      page_no,slide_no,url,created_at
+                           page_no,slide_no,url,section_title,section_path,chunk_index,
+                           char_start,char_end,metadata,created_at
                     from chunks where user_id=:user_id and project_id=:project_id
                       and id = any(:ids)
                     """

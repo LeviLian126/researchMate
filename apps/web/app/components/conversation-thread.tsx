@@ -96,7 +96,7 @@ export function ConversationThread({
                       <summary className="cursor-pointer text-xs font-medium text-muted-foreground hover:text-foreground">
                         {index + 1}. {citation.source_type === "web_page"
                           ? citation.url || "Web source"
-                          : `Project source${citation.page_no ? `, page ${citation.page_no}` : ""}`}
+                          : `Project source${citation.page_no ? `, page ${citation.page_no}` : ""}${citation.section_title ? ` · ${citation.section_title}` : ""}`}
                       </summary>
                       <blockquote className="mt-2 border-l-2 border-primary/30 pl-3 text-xs italic text-muted-foreground">
                         {citation.quote}

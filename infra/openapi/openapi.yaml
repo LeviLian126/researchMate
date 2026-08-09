@@ -3654,6 +3654,10 @@ components:
           type: boolean
           title: Retrieval Degraded
           default: false
+        web_degraded:
+          type: boolean
+          title: Web Degraded
+          default: false
         summary_degraded:
           type: boolean
           title: Summary Degraded
@@ -3707,6 +3711,12 @@ components:
             minimum: 1.0
           - type: 'null'
           title: Slide No
+        section_title:
+          anyOf:
+          - type: string
+            maxLength: 300
+          - type: 'null'
+          title: Section Title
         url:
           anyOf:
           - type: string

@@ -2,7 +2,7 @@
 import "./globals.css";
 import type { ReactNode } from "react";
 import { headers } from "next/headers";
-import { NONCE_CONTEXT_DEFAULT, SessionNonceContext } from "./nonce-context";
+import { NONCE_CONTEXT_DEFAULT, SessionNonceProvider } from "./nonce-context";
 
 export const metadata = {
   title: "ResearchMate · Research workspace",
@@ -24,7 +24,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   return (
     <html lang="en" data-scroll-behavior="smooth">
       <body>
-        <SessionNonceContext.Provider value={nonce}>{children}</SessionNonceContext.Provider>
+        <SessionNonceProvider value={nonce}>{children}</SessionNonceProvider>
       </body>
     </html>
   );

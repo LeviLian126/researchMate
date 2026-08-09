@@ -80,7 +80,7 @@
           <div class="proof-step"><b>认证 + 依赖注入</b><small>dependencies.py:get_current_user(JWKS 验证 JWT),get_store / get_chat_provider / get_hybrid_store / get_reranker(从 app.state 读取单例)</small></div>
           <div class="proof-step"><b>路由 + 幂等</b><small>routers/ask.py(极薄编排),services/idempotency.py(四态机:execute / replay / mismatch / in_progress)</small></div>
           <div class="proof-step"><b>对话 scope</b><small>services/query_conversation.py:验证项目/对话,加载 chunks,query_context.py(摘要压缩 + token 预算 + 跨对话 memory)</small></div>
-          <div class="proof-step"><b>本地检索</b><small>services/query_retrieval.py,retrieval.py(BM25 + CJK bigram),qdrant_store.py(Qdrant dense + RRF 融合),embedding.py(NVIDIA 4096维)</small></div>
+          <div class="proof-step"><b>路由式 Hybrid 检索</b><small>query_planning.py 选择全文、精确、语义、hybrid 或扩展 hybrid；Qdrant v3 执行命名 BM25 + NVIDIA 4096 维 dense 分支，以路由权重 RRF 融合并强制 owner filter。</small></div>
           <div class="proof-step"><b>Rerank</b><small>services/rerank.py:Qdrant native,NVIDIA ranking,Deterministic(三路降级),pack_chunks(token 预算打包)</small></div>
           <div class="proof-step"><b>答案生成</b><small>services/query_generation.py,answering.py:有证据走 LLM grounded(JSON schema 验证 + 一次修复);无证据走 chat 或 abstain</small></div>
           <div class="proof-step"><b>持久化 + 响应</b><small>store.py / persistence/postgres.py(RLS 参数):保存 run/trace/消息,返回 AskResponse,中间件附加 headers,浏览器渲染</small></div>

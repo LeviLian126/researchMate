@@ -10,7 +10,8 @@ from pydantic import SecretStr
 from researchmate_api.config import Settings
 from researchmate_api.schemas.common import SourceType
 from researchmate_api.services.embedding import NvidiaEmbeddingProvider
-from researchmate_api.services.qdrant_store import QdrantHybridStore, sparse_text_vector
+from researchmate_api.services.qdrant_store import QdrantHybridStore
+from researchmate_api.services.query_planning import RetrievalPlan, RetrievalRoute
 
 
 class FakeEmbeddings:
@@ -55,6 +56,9 @@ class FakeQdrantClient:
 
     def delete(self, **kwargs: Any) -> None:
         self.delete_call = kwargs
+
+    def scroll(self, **kwargs: Any) -> tuple[list[Any], None]:
+        return [], None
 
 
 def settings() -> Settings:
@@ -101,7 +105,8 @@ def test_hybrid_query_has_dense_sparse_rrf_and_all_owner_filters() -> None:
     call = qdrant.query_call
     assert call is not None, "query_points must record its call payload"
     assert results[0]["score"] == 0.9
-    assert [prefetch.using for prefetch in call["prefetch"]] == ["sparse", "dense"]
+    assert [prefetch.using for prefetch in call["prefetch"]] == ["bm25", "dense"]
+    assert call["prefetch"][0].query.model == "qdrant/bm25"
     assert call["query_filter"] is not None
     assert {condition.key for condition in call["query_filter"].must} == {
         "user_id",
@@ -110,13 +115,31 @@ def test_hybrid_query_has_dense_sparse_rrf_and_all_owner_filters() -> None:
     }
 
 
-def test_sparse_vector_is_stable_and_sorted() -> None:
-    """Keep sparse token hashing deterministic and index-sorted."""
-    first = sparse_text_vector("RAG retrieval retrieval")
-    second = sparse_text_vector("RAG retrieval retrieval")
+def test_hybrid_query_splits_route_weights_across_query_variants() -> None:
+    """Prevent expansion variants from gaining extra votes during weighted fusion."""
+    qdrant = FakeQdrantClient()
+    store = QdrantHybridStore(
+        settings(), NvidiaEmbeddingProvider(settings(), client=FakeOpenAIClient()), client=qdrant
+    )
+    plan = RetrievalPlan(
+        route=RetrievalRoute.EXPANDED_HYBRID,
+        queries=("original", "standalone"),
+        dense_weight=0.6,
+        lexical_weight=0.4,
+        reason="test",
+    )
 
-    assert first == second
-    assert first.indices == sorted(first.indices)
+    store.query(
+        user_id="user-1",
+        project_id="project-1",
+        source_type=SourceType.LOCAL_DOC,
+        text="original",
+        plan=plan,
+    )
+
+    call = qdrant.query_call
+    assert [item.using for item in call["prefetch"]] == ["bm25", "dense", "bm25", "dense"]
+    assert call["query"].rrf.weights == [0.2, 0.3, 0.2, 0.3]
 
 
 def test_upsert_uses_named_vectors_and_owner_payload() -> None:
@@ -141,13 +164,43 @@ def test_upsert_uses_named_vectors_and_owner_payload() -> None:
     store.upsert_chunks([chunk], pipeline_version="pipeline-v1")
 
     assert qdrant.upsert_call is not None, "upsert must record its call payload"
-    assert qdrant.upsert_call["collection_name"] == "researchmate_chunks"
+    assert qdrant.upsert_call["collection_name"] == "researchmate_chunks_v3"
     point = qdrant.upsert_call["points"][0]
-    assert set(point.vector) == {"dense", "sparse"}
+    assert set(point.vector) == {"dense", "bm25"}
+    assert point.vector["bm25"].model == "qdrant/bm25"
     assert point.payload["user_id"] == str(chunk.user_id)
     assert point.payload["project_id"] == str(chunk.project_id)
     assert point.payload["chunk_id"] == str(chunk.id)
     assert point.payload["pipeline_version"] == "pipeline-v1"
+
+
+def test_reingestion_deletes_stale_document_points_only_after_upsert() -> None:
+    """Converge deterministic re-chunking without leaving obsolete vector hits."""
+    from researchmate_api.services.store import ChunkEntry
+
+    class StaleQdrant(FakeQdrantClient):
+        def scroll(self, **kwargs: Any) -> tuple[list[Any], None]:
+            return [SimpleNamespace(id="old-point")], None
+
+    qdrant = StaleQdrant()
+    store = QdrantHybridStore(
+        settings(), NvidiaEmbeddingProvider(settings(), client=FakeOpenAIClient()), client=qdrant
+    )
+    chunk = ChunkEntry(
+        id=UUID("20000000-0000-4000-8000-000000000001"),
+        user_id=UUID("20000000-0000-4000-8000-000000000002"),
+        project_id=UUID("20000000-0000-4000-8000-000000000003"),
+        document_id=UUID("20000000-0000-4000-8000-000000000004"),
+        source_type=SourceType.LOCAL_DOC,
+        source_title="Evidence",
+        text="replacement",
+    )
+
+    store.upsert_chunks([chunk], pipeline_version="pipeline-v2")
+
+    selector = qdrant.delete_call["points_selector"]
+    stale = next(item for item in selector.filter.must if hasattr(item, "has_id"))
+    assert stale.has_id == ["old-point"]
 
 
 def test_delete_points_keeps_owner_filter_at_the_vector_boundary() -> None:

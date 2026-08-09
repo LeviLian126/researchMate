@@ -226,10 +226,10 @@ class RunPersistenceMixin:
                         """
                         insert into citations (
                           id, ask_run_id, chunk_id, document_id, source_type, page_no,
-                          slide_no, url, quote, claim_id
+                          slide_no, section_title, url, quote, claim_id
                         ) values (
                           :id, :run_id, :chunk_id, :document_id, :source_type, :page_no,
-                          :slide_no, :url, :quote, :claim_id
+                          :slide_no, :section_title, :url, :quote, :claim_id
                         )
                         """
                     ),
@@ -241,6 +241,7 @@ class RunPersistenceMixin:
                         "source_type": _enum_value(citation.source_type),
                         "page_no": citation.page_no,
                         "slide_no": citation.slide_no,
+                        "section_title": citation.section_title,
                         "url": citation.url,
                         "quote": citation.quote,
                         "claim_id": citation.claim_id,

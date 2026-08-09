@@ -263,6 +263,7 @@ def test_existing_conversation_named_new_chat_triggers_rename_query() -> None:
 
 def test_list_conversations_requires_owned_project_before_listing() -> None:
     """Require an owned project before listing its conversations."""
+
     # Routing returns a marker row for the active-project predicate (so the listing runs)
     # and an empty iterable for the listing SQL itself (so the result list is empty).
     class ListingConnection(RecordingConnection):

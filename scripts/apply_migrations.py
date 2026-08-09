@@ -6,6 +6,7 @@ import argparse
 import os
 from hashlib import sha256
 from pathlib import Path
+from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 MIGRATIONS = ROOT / "infra" / "supabase" / "migrations"
@@ -50,9 +51,7 @@ def apply(database_url: str) -> None:
                 )
                 """
             )
-            cursor.execute(
-                "select version,checksum_sha256 from researchmate_schema_migrations"
-            )
+            cursor.execute("select version,checksum_sha256 from researchmate_schema_migrations")
             applied = dict(cursor.fetchall())
             for path in migration_files():
                 source = path.read_text(encoding="utf-8")
@@ -62,7 +61,8 @@ def apply(database_url: str) -> None:
                     if previous != digest:
                         raise RuntimeError(f"Applied migration checksum changed: {path.name}")
                     continue
-                cursor.execute(source)
+                cursor_boundary: Any = cursor  # Psycopg typing rejects trusted migration files.
+                cursor_boundary.execute(source)
                 cursor.execute(
                     """
                     insert into researchmate_schema_migrations(version,checksum_sha256)

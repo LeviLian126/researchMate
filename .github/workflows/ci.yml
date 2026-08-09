@@ -48,8 +48,8 @@ jobs:
         with:
           node-version: "22"
           cache: npm
-      - name: Install web dependencies
-        run: npm install --no-audit --no-fund
+      - name: Install locked web dependencies
+        run: npm ci --no-audit --no-fund
       - name: Run web unit tests and coverage
         run: npm run test:web
       - name: Build web application
@@ -69,7 +69,7 @@ jobs:
         with:
           node-version: "22"
           cache: npm
-      - run: npm install --no-audit --no-fund
+      - run: npm ci --no-audit --no-fund
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
       - name: Run browser acceptance flow
