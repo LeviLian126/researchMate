@@ -30,9 +30,9 @@
   <div class="hero">
     <p class="eyebrow">FastAPI / JSON over HTTP</p>
     <h1>API 合约</h1>
-    <p class="lede">本页记录了 45 个维护中的 FastAPI REST 操作，涵盖个人聊天、项目对话、来源、测验、就绪检查、证据审查、评估、可靠性和管理。路由和 OpenAPI 记录仅证明合约本身，不证明受管后台进程或云集成。</p>
+    <p class="lede">本页记录了 46 个维护中的 FastAPI REST 操作，涵盖个人聊天、项目对话、来源、测验、就绪检查、证据审查、评估、可靠性和管理。路由和 OpenAPI 记录仅证明合约本身，不证明受管后台进程或云集成。</p>
   <div class="meta">
-    <span class="status local">45 个已实现的 REST 操作</span>
+    <span class="status local">46 个已实现的 REST 操作</span>
     <span class="status partial">Current-ref CI 证据待定</span>
     <span class="status partial">Bearer · 本地开发身份</span>
     <span class="status partial">运行时/OpenAPI 错误偏差</span>
@@ -86,6 +86,7 @@
        </div>
        <div class="endpoint-group"><h3>文档和任务</h3>
         <a class="endpoint-pill" data-api="documents" data-method="POST" href="#op-upload-url"><span class="method">POST</span>/api/v1/documents/upload-url</a>
+        <a class="endpoint-pill" data-api="documents" data-method="PUT" href="#op-upload-content"><span class="method">PUT</span>/api/v1/documents/{document_id}/content</a>
         <a class="endpoint-pill" data-api="documents" data-method="POST" href="#op-document-create"><span class="method">POST</span>/api/v1/documents</a>
         <a class="endpoint-pill" data-api="documents" data-method="GET" href="#op-document-list"><span class="method">GET</span>/api/v1/projects/{project_id}/documents</a>
         <a class="endpoint-pill" data-api="documents" data-method="GET" href="#op-conversation-documents"><span class="method">GET</span>/api/v1/conversations/{conversation_id}/documents</a>
@@ -201,8 +202,15 @@
       <dt>调用方 / 访问</dt><dd>项目拥有者。</dd>
       <dt>输入</dt><dd>JSON <a href="#schema-upload"><code>UploadUrlRequest</code></a>：项目、文件名、支持的文件类型和 MIME 类型，以及字节大小。</dd>
       <dt>成功</dt><dd>200 <a href="#schema-upload"><code>UploadUrlResponse</code></a>，包含文档 ID、上传 URL、对象键和过期时间。</dd>
-      <dt>故障 / 语义</dt><dd>404 项目；422 无效类型、MIME 或大小；认证失败。内存仓库返回本地占位符。Postgres 仓库使用 S3 兼容适配器返回绑定到预留内容类型的短期 PUT URL。认证生产环境的预留和上传流程通过合成 PDF 测试。不接受幂等键。</dd>
+      <dt>故障 / 语义</dt><dd>404 项目；422 无效类型、MIME 或大小；认证失败。内存仓库返回本地占位符。Postgres 仓库返回同源、带认证的 API 代理 URL，浏览器无需直接访问私有 S3 兼容存储。认证生产环境的预留和上传流程通过合成 PDF 测试。不接受幂等键。</dd>
       <dt>证据</dt><dd><span class="source">routers/documents.py · schemas/document.py · persistence/postgres.py · services/object_storage.py</span></dd>
+     </dl></details>
+     <details id="op-upload-content" data-api-card data-api="documents" data-method="PUT" data-access="owner"><summary><code>PUT /api/v1/documents/{document_id}/content</code> — 将预留内容流式写入私有存储</summary><dl class="kv">
+      <dt>调用方 / 访问</dt><dd>文档拥有者；外部用户 ID 隐藏为不存在。</dd>
+      <dt>输入</dt><dd>原始请求体；<code>Content-Type</code> 必须与预留值一致，<code>Content-Length</code> 必须存在且不超过 25 MiB。</dd>
+      <dt>成功</dt><dd>204；服务端将流写入带上限的临时文件，再用服务端派生的对象键上传到私有存储。</dd>
+      <dt>故障 / 语义</dt><dd>404 文档；409 已完成上传；413 声明或实际大小超限；415 MIME 不匹配；503 对象存储不可用。客户端不能控制对象键，实际读取字节数也会重新校验。</dd>
+      <dt>证据</dt><dd><span class="source">routers/documents.py · services/object_storage.py · tests/test_api.py</span></dd>
      </dl></details>
      <details id="op-document-create" data-api-card data-api="documents" data-method="POST" data-access="owner"><summary><code>POST /api/v1/documents</code> — 创建文档元数据</summary><dl class="kv">
       <dt>调用方 / 访问</dt><dd>项目拥有者。</dd>
@@ -349,7 +357,7 @@
     <section id="planned-operations">
      <p class="eyebrow">扩展合约</p>
      <h2>证据审查、评估、可靠性和 MCP 操作</h2>
-     <p class="sub">生成的 OpenAPI 现包含 45 个 REST 操作，包括个人聊天引导、跨工作空间对话导航、对话范围附件、拥有者范围对话 CRUD 和两个运行时 rerank 操作。其路由、schema、拥有权/角色、幂等性和确定性仓库行为有代码证据；受管提供商、队列交付、检查点恢复、遥测导出和本次发布部署仍为集成未验证。MCP 是独立的协议边界，不计入 REST。</p>
+     <p class="sub">生成的 OpenAPI 现包含 46 个 REST 操作，包括个人聊天引导、跨工作空间对话导航、对话范围附件、拥有者范围对话 CRUD、同源私有对象上传代理和两个运行时 rerank 操作。其路由、schema、拥有权/角色、幂等性和确定性仓库行为有代码证据；受管提供商、队列交付、检查点恢复、遥测导出和本次发布部署仍为集成未验证。MCP 是独立的协议边界，不计入 REST。</p>
      <div class="notice"><strong>共享约定：</strong> bearer 认证；API 中的拥有者/项目权限检查；命令上的 <code>Idempotency-Key</code>；带请求 ID 的当前错误信封；Postgres 中的权威操作状态；持久化 SSE 重放；以及 Redis 作为交付而非不可替代状态。Supabase JWT 支持的项目创建/列表/读取已针对密码和 GitHub 身份验证，跨用户 API 隐藏通过。直接 RLS 查询和分布式交付尚未验证。</div>
      <div class="notice warning"><strong>如何阅读各行：</strong> 请求和成功结构描述已实现的路由 schema。本地 LangGraph、RAGAS、严格检查点序列化器和 MCP 初始化测试现已通过。故障/恢复和验收行仍指明分布式系统门槛；它们不是受管检查点、提供商、队列或云运行时通过的证据。</div>
 
@@ -520,7 +528,7 @@
    </aside>
   </div>
  </main>
- <footer class="shell footer">ResearchMate API 合约 · 45 个 OpenAPI REST 操作 · 受管就绪已验证，本次发布待云验证</footer>
+ <footer class="shell footer">ResearchMate API 合约 · 46 个 OpenAPI REST 操作 · 受管就绪已验证，本次发布待云验证</footer>
  <script src="../../assets/site.js"></script>
 </body>
 </html>

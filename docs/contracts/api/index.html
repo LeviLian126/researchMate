@@ -30,9 +30,9 @@
   <div class="hero">
    <p class="eyebrow">FastAPI / JSON over HTTP</p>
    <h1>API contracts</h1>
-    <p class="lede">This page records 45 maintained FastAPI REST operations across personal chat, project conversations, sources, quiz, readiness, evidence review, evaluation, reliability, and administration. A route and OpenAPI record prove the contract only. They do not prove a managed background process or cloud integration.</p>
+    <p class="lede">This page records 46 maintained FastAPI REST operations across personal chat, project conversations, sources, quiz, readiness, evidence review, evaluation, reliability, and administration. A route and OpenAPI record prove the contract only. They do not prove a managed background process or cloud integration.</p>
    <div class="meta">
-     <span class="status local">45 implemented REST operations</span>
+     <span class="status local">46 implemented REST operations</span>
      <span class="status partial">Current-ref CI evidence pending</span>
     <span class="status partial">Bearer · local development identity</span>
     <span class="status partial">Runtime/OpenAPI error drift</span>
@@ -86,6 +86,7 @@
        </div>
        <div class="endpoint-group"><h3>Documents and jobs</h3>
         <a class="endpoint-pill" data-api="documents" data-method="POST" href="#op-upload-url"><span class="method">POST</span>/api/v1/documents/upload-url</a>
+        <a class="endpoint-pill" data-api="documents" data-method="PUT" href="#op-upload-content"><span class="method">PUT</span>/api/v1/documents/{document_id}/content</a>
         <a class="endpoint-pill" data-api="documents" data-method="POST" href="#op-document-create"><span class="method">POST</span>/api/v1/documents</a>
         <a class="endpoint-pill" data-api="documents" data-method="GET" href="#op-document-list"><span class="method">GET</span>/api/v1/projects/{project_id}/documents</a>
         <a class="endpoint-pill" data-api="documents" data-method="GET" href="#op-conversation-documents"><span class="method">GET</span>/api/v1/conversations/{conversation_id}/documents</a>
@@ -201,8 +202,15 @@
       <dt>Caller / access</dt><dd>Project owner.</dd>
       <dt>Input</dt><dd>JSON <a href="#schema-upload"><code>UploadUrlRequest</code></a>: project, filename, supported file type and MIME type, and byte size.</dd>
       <dt>Success</dt><dd>200 <a href="#schema-upload"><code>UploadUrlResponse</code></a> with document ID, upload URL, object key, and expiry.</dd>
-      <dt>Failure / semantics</dt><dd>404 project; 422 invalid type, MIME, or size; auth failures. The memory repository returns a local placeholder. The Postgres repository uses the S3-compatible adapter to return a short-lived PUT URL bound to the reserved content type. The authenticated production reserve and upload flow passed with a synthetic PDF. No idempotency key is accepted.</dd>
+      <dt>Failure / semantics</dt><dd>404 project; 422 invalid type, MIME, or size; auth failures. The memory repository returns a local placeholder. The Postgres repository returns an authenticated same-origin proxy URL so browser behavior does not depend on provider CORS. No idempotency key is accepted.</dd>
       <dt>Evidence</dt><dd><span class="source">routers/documents.py · schemas/document.py · persistence/postgres.py · services/object_storage.py</span></dd>
+     </dl></details>
+     <details id="op-upload-content" data-api-card data-api="documents" data-method="PUT" data-access="owner"><summary><code>PUT /api/v1/documents/{document_id}/content</code> — stream reserved content to private storage</summary><dl class="kv">
+      <dt>Caller / access</dt><dd>Document owner; foreign IDs are concealed as not found.</dd>
+      <dt>Input</dt><dd>Raw request body with the reserved MIME type and byte length.</dd>
+      <dt>Success</dt><dd>204 after the API streams the exact reserved bytes to the server-derived private object key.</dd>
+      <dt>Failure / semantics</dt><dd>404 document; 409 size mismatch; 413 oversized body; 415 MIME mismatch; 503 storage unavailable. The client never selects an object key, and the API enforces declared and observed size before transmitting to storage.</dd>
+      <dt>Evidence</dt><dd><span class="source">routers/documents.py · services/object_storage.py · owner/size/MIME proxy tests</span></dd>
      </dl></details>
      <details id="op-document-create" data-api-card data-api="documents" data-method="POST" data-access="owner"><summary><code>POST /api/v1/documents</code> — create document metadata</summary><dl class="kv">
       <dt>Caller / access</dt><dd>Project owner.</dd>
@@ -349,7 +357,7 @@
     <section id="planned-operations">
      <p class="eyebrow">Extended contracts</p>
      <h2>Evidence-review, evaluation, reliability, and MCP operations</h2>
-     <p class="sub">The generated OpenAPI now contains 45 REST operations, including personal-chat bootstrap, cross-workspace conversation navigation, conversation-scoped attachments, owner-scoped conversation CRUD, and two runtime-rerank operations. Their route, schema, ownership/role, idempotency, and deterministic repository behavior have code evidence; managed providers, queue delivery, checkpoint recovery, telemetry export, and this release deployment remain integration-unvalidated. MCP is a separate protocol boundary and is not counted as REST.</p>
+     <p class="sub">The generated OpenAPI now contains 46 REST operations, including personal-chat bootstrap, cross-workspace conversation navigation, conversation-scoped attachments, owner-scoped conversation CRUD, the bounded upload proxy, and two runtime-rerank operations. Their route, schema, ownership/role, idempotency, and deterministic repository behavior have code evidence; managed providers, queue delivery, checkpoint recovery, telemetry export, and this release deployment remain integration-unvalidated. MCP is a separate protocol boundary and is not counted as REST.</p>
      <div class="notice"><strong>Shared conventions:</strong> bearer authentication; owner/project permission checks in the API; <code>Idempotency-Key</code> on commands; the current error envelope with a request ID; authoritative operation state in Postgres; persisted SSE replay; and Redis as delivery rather than irreplaceable state. Supabase JWT-backed project create/list/read is validated for password and GitHub identities and cross-user API concealment passes. A direct RLS query and distributed delivery are not yet validated.</div>
      <div class="notice warning"><strong>How to read the rows:</strong> request and success shapes describe the implemented route schemas. Local LangGraph, RAGAS, strict-checkpoint serializer, and MCP initialization tests now pass. Failure/recovery and acceptance rows still name distributed-system gates; they are not evidence that a managed checkpoint, provider, queue, or cloud runtime passed.</div>
 
@@ -520,7 +528,7 @@
    </aside>
   </div>
  </main>
- <footer class="shell footer">ResearchMate API contracts · 45 OpenAPI REST operations · managed readiness verified, this release pending cloud validation</footer>
+ <footer class="shell footer">ResearchMate API contracts · 46 OpenAPI REST operations · managed readiness verified, this release pending cloud validation</footer>
  <script src="../../assets/site.js"></script>
 </body>
 </html>
