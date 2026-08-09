@@ -1,20 +1,21 @@
 # ResearchMate QA 审计报告
 
-- **审计日期**：2026-08-08
+- **审计日期**：2026-08-08（2026-08-09 修复完成）
 - **标准**：indie-product-delivery skill Node05 (CP1-CP11) + `AGENTS.md` 仓库规则
 - **范围**：`apps/api/src/`、`workers/ai-worker/src/`、`tests/`、`docs/`、`.github/workflows/`、`infra/`、`scripts/`、`apps/web/`
 - **方法**：通过三个并行 Explore subagent 进行静态审查（Python 代码质量、文档/基础设施一致性、indie-skill 标准提取）。运行时检查点 CP5-CP8（应用启动、E2E、多分辨率、调试）在本次审计中**未执行**。
 - **风险等级**：STANDARD（本次审计未涉及认证/支付/迁移/公开 API/数据表变更；适用基线安全检查）
+- **修复提交**：`ef25682` (2026-08-09)
 
-## 结论：FIX
+## 结论：PASS（所有问题已修复）
 
-| 严重度 | 数量 | 摘要 |
-|---|---|---|
-| Blocker | 0 | — |
-| Major | 2 | CI 类型检查门控被弱化；cicd.html ↔ cicd.zh.html 不同步 (Node08) |
-| Minor | 6 | 测试 `__future__` 导入、测试 fixture 缺注解、validator 中的魔法数字、flows section-ID 不匹配、worker.zh 导航标签、未文档化的脚本 |
+| 严重度 | 数量 | 摘要 | 状态 |
+|---|---|---|---|
+| Blocker | 0 | — | — |
+| Major | 2 | CI 类型检查门控被弱化；cicd.html ↔ cicd.zh.html 不同步 (Node08) | ✅ 已修复 |
+| Minor | 6 | 测试 `__future__` 导入、测试 fixture 缺注解、validator 中的魔法数字、flows section-ID 不匹配、worker.zh 导航标签、未文档化的脚本 | ✅ 已修复 |
 
-应用端到端可运行，无核心流程中断，未发现安全漏洞或数据丢失风险。两个 Major 是可修复的门控/同步问题；Minor 是一致性缺口。无 Blocker 阻止发布。
+应用端到端可运行，无核心流程中断，未发现安全漏洞或数据丢失风险。所有 8 个问题已在 commit `ef25682` 中修复。验证结果：pyright 0 errors、ruff all checks passed、258 tests passed。
 
 ---
 
