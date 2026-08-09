@@ -23,9 +23,9 @@ envVarGroups:
       - key: QDRANT_API_KEY
         sync: false
       - key: QDRANT_COLLECTION
-        value: researchmate_chunks
+        value: researchmate_chunks_v3
       - key: QDRANT_NATIVE_HYBRID_ENABLED
-        value: "false"
+        value: "true"
       - key: QDRANT_RERANK_COLLECTION
         value: researchmate_chunks_v2
       - key: QDRANT_RERANK_MODEL
@@ -100,10 +100,6 @@ envVarGroups:
         value: "1"
       - key: RUN_QDRANT_RERANK_BACKFILL
         value: "1"
-      - key: RUN_QDRANT_HYBRID_BACKFILL
-        value: "1"
-      - key: QDRANT_HYBRID_COLLECTION
-        value: researchmate_chunks_v3
 
 services:
   - type: web
