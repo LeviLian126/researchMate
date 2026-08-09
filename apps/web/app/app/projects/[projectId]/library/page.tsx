@@ -6,7 +6,13 @@ import { useParams } from "next/navigation";
 import { Search, Trash2, Upload } from "lucide-react";
 import { ProjectNav } from "../../../../components/project-nav";
 import { StateNotice } from "../../../../components/state-notice";
-import { apiFetch, DocumentRecord, fileTypeFromName, mimeForFileType } from "../../../../lib/api";
+import {
+  apiFetch,
+  DocumentRecord,
+  fileTypeFromName,
+  mimeForFileType,
+  uploadReservedContent,
+} from "../../../../lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -111,12 +117,7 @@ export default function LibraryPage() {
       });
       const isLocalFallback = uploadUrl.upload_url.includes("/api/v1/dev/upload/");
       if (!isLocalFallback) {
-        const uploadResponse = await fetch(uploadUrl.upload_url, {
-          method: "PUT",
-          headers: { "Content-Type": mimeType },
-          body: selectedFile,
-        });
-        if (!uploadResponse.ok) throw new Error("Object storage rejected the upload. Request a new URL and retry.");
+        await uploadReservedContent(uploadUrl.upload_url, selectedFile, mimeType);
       }
       await apiFetch(`/documents/${uploadUrl.document_id}/complete`, {
         method: "POST",

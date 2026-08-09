@@ -24,6 +24,7 @@ import {
   type QuizHistoryResponse,
   type QuizResponse,
   type QuizSet,
+  uploadReservedContent,
 } from "../lib/api";
 import {
   clearCompletedIntent,
@@ -239,12 +240,7 @@ export function useChatWorkspace({ suppliedProjectId, projectMode }: UseChatWork
         });
         const localFallback = reservation.upload_url.includes("/api/v1/dev/upload/");
         if (!localFallback) {
-          const response = await fetch(reservation.upload_url, {
-            method: "PUT",
-            headers: { "Content-Type": mimeType },
-            body: file,
-          });
-          if (!response.ok) throw new Error(`Upload failed for ${file.name}.`);
+          await uploadReservedContent(reservation.upload_url, file, mimeType);
         }
         await apiFetch(`/documents/${reservation.document_id}/complete`, {
           method: "POST",

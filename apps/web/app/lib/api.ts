@@ -356,6 +356,23 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
   return body as T;
 }
 
+/** Uploads reserved document bytes through either the authenticated API proxy or a signed URL. */
+export async function uploadReservedContent(
+  uploadUrl: string,
+  file: File,
+  mimeType: string,
+): Promise<void> {
+  const headers = new Headers({ "Content-Type": mimeType });
+  const isAuthenticatedProxy = uploadUrl.startsWith("/api/v1/documents/")
+    || uploadUrl.startsWith(`${API_BASE}/documents/`);
+  if (isAuthenticatedProxy) headers.set("Authorization", `Bearer ${await getAccessToken()}`);
+  const response = await fetch(uploadUrl, { method: "PUT", headers, body: file });
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({})) as Record<string, unknown>;
+    throw toApiError(response, body);
+  }
+}
+
 /** Consumes sanitized server-sent run events until completion or cancellation. */
 export async function streamRunEvents(
   runId: string,

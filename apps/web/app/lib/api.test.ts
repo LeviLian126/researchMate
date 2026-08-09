@@ -11,6 +11,7 @@ import {
   mimeForFileType,
   setDevToken,
   streamRunEvents,
+  uploadReservedContent,
 } from "./api";
 
 beforeEach(() => {
@@ -79,6 +80,33 @@ describe("apiFetch", () => {
     await expect(apiFetch("/projects/p1")).rejects.toEqual(
       expect.objectContaining({ code: "HTTP_502", status: 502 }),
     );
+  });
+});
+
+describe("uploadReservedContent", () => {
+  it("authenticates same-origin upload proxies", async () => {
+    setDevToken("local-user");
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 204 }));
+    const file = new File(["evidence"], "evidence.pdf", { type: "application/pdf" });
+
+    await uploadReservedContent("/api/v1/documents/doc-1/content", file, "application/pdf");
+
+    const [url, init] = fetchMock.mock.calls[0];
+    const headers = new Headers(init?.headers);
+    expect(url).toBe("/api/v1/documents/doc-1/content");
+    expect(headers.get("Authorization")).toBe("Bearer local-user");
+    expect(headers.get("Content-Type")).toBe("application/pdf");
+    expect(init?.body).toBe(file);
+  });
+
+  it("does not attach bearer credentials to external signed URLs", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 200 }));
+    const file = new File(["evidence"], "evidence.pdf", { type: "application/pdf" });
+
+    await uploadReservedContent("https://storage.example/signed", file, "application/pdf");
+
+    const [, init] = fetchMock.mock.calls[0];
+    expect(new Headers(init?.headers).has("Authorization")).toBe(false);
   });
 });
 
