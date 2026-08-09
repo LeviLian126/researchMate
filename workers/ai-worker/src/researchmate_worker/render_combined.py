@@ -45,6 +45,21 @@ def backfill_qdrant_rerank() -> None:
     )
 
 
+def backfill_qdrant_hybrid() -> None:
+    """Run the explicitly enabled native-hybrid replay before accepting traffic."""
+    if os.getenv("RUN_QDRANT_HYBRID_BACKFILL") != "1":
+        return
+    environment = {
+        **os.environ,
+        "ALLOW_QDRANT_HYBRID_BACKFILL": "1",
+    }
+    subprocess.run(
+        [sys.executable, "/app/scripts/provision_qdrant_hybrid.py"],
+        check=True,
+        env=environment,
+    )
+
+
 def child_commands(port: int) -> list[list[str]]:
     """Declare the supervised API, Celery, and dispatcher commands."""
     return [
@@ -114,6 +129,7 @@ def run(port: int) -> int:
     """Supervise combined deployment processes and propagate child failures."""
     apply_schema_migrations()
     backfill_qdrant_rerank()
+    backfill_qdrant_hybrid()
     commands = child_commands(port)
     children: list[subprocess.Popen[bytes]] = []
 

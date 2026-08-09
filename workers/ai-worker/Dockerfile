@@ -21,6 +21,7 @@ COPY workers/ai-worker /app/workers/ai-worker
 COPY infra/supabase/migrations /app/infra/supabase/migrations
 COPY scripts/apply_migrations.py /app/scripts/apply_migrations.py
 COPY scripts/provision_qdrant_rerank.py /app/scripts/provision_qdrant_rerank.py
+COPY scripts/provision_qdrant_hybrid.py /app/scripts/provision_qdrant_hybrid.py
 RUN uv sync --frozen --no-dev --all-packages
 
 FROM dependencies AS runtime
