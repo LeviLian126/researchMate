@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from decimal import Decimal
+from typing import TYPE_CHECKING
 from uuid import UUID
 
 from sqlalchemy import text
@@ -25,6 +26,15 @@ SUPPORTED_METRICS = {"schema_valid", "citation_precision", "evidence_recall", "f
 
 class EvaluationPersistenceMixin:
     """Provide lease-safe database operations to the evaluation runner."""
+
+    if TYPE_CHECKING:
+        # Provided by EvaluationRunner, the composing class in evaluation_runner.py.
+        from sqlalchemy import Engine
+
+        engine: Engine
+        lease_seconds: int
+        max_attempts: int
+        case_budget_reservation_usd: Decimal
 
     def _claim(self, run_id: UUID, worker_id: str) -> ClaimedEvaluation | None:
         """Lease one pending evaluation run for a bounded worker attempt."""

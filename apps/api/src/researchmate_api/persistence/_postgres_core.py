@@ -43,7 +43,9 @@ from researchmate_api.services.object_storage import (
 from researchmate_api.services.store import ChunkEntry, IdempotencyDecision
 
 UploadUrlFactory = Callable[[UUID, str, UploadUrlRequest], str]
-ObjectMetadataReader = Callable[[str], StoredObjectMetadata]
+# Object metadata readers accept the optional declared_mime_type keyword used by callers; the
+# ... form preserves that call shape through typing without exposing internal kwargs.
+ObjectMetadataReader = Callable[..., StoredObjectMetadata]
 
 
 def _enum_value(value: str | Enum) -> str:

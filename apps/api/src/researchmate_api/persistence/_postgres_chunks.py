@@ -64,15 +64,11 @@ class ChunkPersistenceMixin:
         _enqueue_document_event: Callable[..., None]
         _insert_job: Callable[..., JobRecord]
 
-        def get_project(
-            self, user: CurrentUser, project_id: UUID
-        ) -> ProjectRecord | None: ...
+        def get_project(self, user: CurrentUser, project_id: UUID) -> ProjectRecord | None: ...
         def list_conversation_documents(
             self, user: CurrentUser, conversation_id: UUID
         ) -> list[DocumentRecord]: ...
-        def delete_document(
-            self, user: CurrentUser, document_id: UUID
-        ) -> JobRecord | None: ...
+        def delete_document(self, user: CurrentUser, document_id: UUID) -> JobRecord | None: ...
 
     def project_chunks(self, user: CurrentUser, project_id: UUID) -> list[ChunkEntry] | None:
         """Return retrievable chunks from ready sources in an owned project."""

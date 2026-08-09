@@ -105,6 +105,7 @@ def test_nvidia_adapter_uses_ranking_api_and_top_n() -> None:
     ]
     result = reranker.rerank("query", candidates, top_n=2, user_id="user", project_id="project")
     assert [item.chunk.text for item in result] == ["second", "first"]
+    assert client.payload is not None, "rerank must record its NVIDIA ranking payload"
     assert client.payload["model"] == "rank-model"
     assert client.payload["top_n"] == 2
 

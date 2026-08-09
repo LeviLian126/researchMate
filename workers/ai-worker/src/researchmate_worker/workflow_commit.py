@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from hashlib import sha256
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from uuid import NAMESPACE_URL, UUID, uuid5
 
 from researchmate_api.schemas.common import SourceType
@@ -18,10 +18,20 @@ from researchmate_worker.workflow_models import WorkflowRuntimeError, _json
 class WorkflowCommitMixin(WorkflowEvidenceLoaderMixin):
     """Persist one workflow outcome within a single database transaction boundary."""
 
+    if TYPE_CHECKING:
+        # Provided by sibling mixins composed in SqlEvidenceWorkflowDomain.
+        from collections.abc import Callable
+
+        from sqlalchemy import Connection, Engine
+
+        engine: Engine
+        pipeline_version: str
+        _event: Callable[..., None]
+
     def _commit(self, state: EvidenceWorkflowState, report: ReportProposal) -> None:
-        run_id = UUID(state["run_id"])
-        user_id = UUID(state["user_id"])
-        project_id = UUID(state["project_id"])
+        run_id = UUID(state.get("run_id", ""))
+        user_id = UUID(state.get("user_id", ""))
+        project_id = UUID(state.get("project_id", ""))
         with self.engine.begin() as connection:
             locked = (
                 connection.execute(
@@ -68,7 +78,7 @@ class WorkflowCommitMixin(WorkflowEvidenceLoaderMixin):
                     "id": run_id,
                     "user_id": user_id,
                     "project_id": project_id,
-                    "message": state["research_goal"],
+                    "message": state.get("research_goal", ""),
                     "web_enabled": web_enabled,
                     "context_strategy": (
                         "hybrid_retrieval_web" if web_enabled else "hybrid_retrieval"
@@ -77,7 +87,7 @@ class WorkflowCommitMixin(WorkflowEvidenceLoaderMixin):
                 },
             )
             question_ids = []
-            for index, question in enumerate(state["questions"]):
+            for index, question in enumerate(state.get("questions", [])):
                 question_id = uuid5(NAMESPACE_URL, f"researchmate:{run_id}:question:{index}")
                 question_ids.append(question_id)
                 connection.execute(
@@ -101,7 +111,7 @@ class WorkflowCommitMixin(WorkflowEvidenceLoaderMixin):
                 )
             chunks_by_id = {
                 chunk["id"]: chunk
-                for batch in state["evidence_batches"]
+                for batch in state.get("evidence_batches", [])
                 for chunk in batch["chunks"]
             }
             citation_ids = {}
@@ -135,7 +145,7 @@ class WorkflowCommitMixin(WorkflowEvidenceLoaderMixin):
                     },
                 )
             claim_ids = []
-            for index, claim in enumerate(state["claims"]):
+            for index, claim in enumerate(state.get("claims", [])):
                 claim_id = uuid5(NAMESPACE_URL, f"researchmate:{run_id}:claim:{index}")
                 claim_ids.append(claim_id)
                 question_index = int(claim.get("question_index", 0))

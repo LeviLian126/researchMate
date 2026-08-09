@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from typing import cast
+
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from tests.api_workflow_support import (
@@ -111,7 +114,9 @@ def test_deleting_project_rejects_chat_and_quiz_before_consuming_usage(
         "/api/v1/projects", json={"name": "Deleting project"}, headers=USER_A_HEADERS
     ).json()
     project_id = project["id"]
-    repository = client.app.state.store
+    # TestClient.app is typed as a generic ASGI app; cast to FastAPI to access state.
+    app = cast(FastAPI, client.app)
+    repository = app.state.store
     project_key = next(key for key in repository.projects if str(key) == project_id)
     repository.projects[project_key] = repository.projects[project_key].model_copy(
         update={"status": "deleting"}

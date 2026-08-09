@@ -25,9 +25,9 @@ class SqlEvidenceWorkflowDomain(_SqlEvidenceWorkflowDomain):
 
     def synthesize(self, state: EvidenceWorkflowState) -> dict[str, Any]:
         """Preserve the public synthesis seam used by orchestration tests and clients."""
-        run_id = UUID(state["run_id"])
+        run_id = UUID(state.get("run_id", ""))
         self._node_started(run_id, "synthesize", 70)
-        claims = [ExtractedClaim.model_validate(claim) for claim in state["claims"]]
+        claims = [ExtractedClaim.model_validate(claim) for claim in state.get("claims", [])]
         required_keys = (
             state.get("impacted_section_keys")
             if state.get("run_kind") == "report_refresh"
@@ -35,7 +35,7 @@ class SqlEvidenceWorkflowDomain(_SqlEvidenceWorkflowDomain):
         )
         report = synthesize_report(
             self.provider,
-            state["research_goal"],
+            state.get("research_goal", ""),
             claims,
             required_section_keys=required_keys,
         )

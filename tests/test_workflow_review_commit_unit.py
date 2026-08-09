@@ -318,6 +318,7 @@ def test_resume_and_failure_state_use_stable_database_contracts() -> None:
     failure_domain.mark_failed(RUN_ID, "X" * 200)
 
     update_params = failure_engine.connection.calls[0][1]
+    assert update_params is not None, "mark_failed must persist bounded parameters"
     assert len(update_params["code"]) == 120
     assert sum("insert into run_events" in sql for sql, _ in failure_engine.connection.calls) == 1
 

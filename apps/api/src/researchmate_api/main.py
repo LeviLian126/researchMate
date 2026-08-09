@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import re
 import signal
+from collections.abc import Callable
 from contextlib import asynccontextmanager
 from time import monotonic
-from uuid import uuid4
+from typing import Any, cast
+from uuid import UUID, uuid4
 
 from anyio import to_thread
 from fastapi import FastAPI, HTTPException, Request
@@ -18,6 +20,10 @@ from researchmate_api.config import Settings, get_settings
 from researchmate_api.dependencies import resolve_bearer_token
 from researchmate_api.mcp_server import MCPRequestIdentity, current_mcp_identity
 from researchmate_api.observability import configure_observability, log_event
+from researchmate_api.persistence._postgres_core import (
+    ObjectMetadataReader,
+    UploadUrlFactory,
+)
 from researchmate_api.routers import (
     ask,
     conversations,
@@ -32,9 +38,11 @@ from researchmate_api.routers import (
     runs,
 )
 from researchmate_api.schemas.common import ErrorResponse
+from researchmate_api.schemas.document import UploadUrlRequest
 from researchmate_api.services.embedding import NvidiaEmbeddingProvider
 from researchmate_api.services.evidence_store import EvidenceRepository, InMemoryEvidenceRepository
 from researchmate_api.services.llm import NvidiaChatProvider
+from researchmate_api.services.object_storage import StoredObjectMetadata
 from researchmate_api.services.qdrant_store import QdrantHybridStore
 from researchmate_api.services.rerank import RerankCoordinator
 from researchmate_api.services.store import InMemoryResearchMateStore, ResearchMateRepository
@@ -217,6 +225,12 @@ def create_app(
     if Limiter is not None:
         from limits import parse as _parse_rate_limit
 
+        # The slowapi symbols are typed as `X | None` at module scope because the optional
+        # import falls back to None when slowapi is absent. Inside this branch slowapi is
+        # installed, so assert each symbol to its non-None form for the slowapi API surface.
+        assert get_remote_address is not None
+        assert _rate_limit_exceeded_handler is not None
+        assert RateLimitExceeded is not None
         limiter = Limiter(
             key_func=get_remote_address,
             default_limits=[],
@@ -226,7 +240,13 @@ def create_app(
         # Pre-parse the rate limit once so every request shares the same RateLimitItem and the
         # per-IP window is a single fixed-window bucket across all RATE_LIMITED_PATHS.
         app.state.rate_limit_item = _parse_rate_limit(RATE_LIMIT_PER_MINUTE)
-        app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+        # The slowapi handler signature is a coroutine but FastAPI's stubs declare
+        # ExceptionHandler as a sync callable. Cast through Any so the runtime contract
+        # (which FastAPI supports) is preserved without fighting the stub typing.
+        app.add_exception_handler(  # type: ignore[arg-type]
+            RateLimitExceeded,
+            cast(Any, _rate_limit_exceeded_handler),
+        )
     app.add_middleware(
         CORSMiddleware,
         allow_origins=runtime_settings.cors_origins,
@@ -262,7 +282,10 @@ def create_app(
             and rate_limit_item is not None
             and request.url.path in RATE_LIMITED_PATHS
         ):
-            client_ip = get_remote_address(request) or "unknown"
+            # get_remote_address is the slowapi resolver; the optional-import path leaves it as
+            # None at module scope. The block above only enters when slowapi is installed, so
+            # narrow the resolver via cast for the per-IP bucket assignment.
+            client_ip = cast(Callable[[Request], str], get_remote_address)(request) or "unknown"
             bucket_scope = "researchmate-api:protected"
             allowed = limiter._limiter.hit(  # type: ignore[attr-defined]
                 rate_limit_item, client_ip, bucket_scope, cost=1
@@ -384,8 +407,20 @@ def create_app(
                 environment=runtime_settings.app_env,
             )
 
-    app.add_exception_handler(HTTPException, http_exception_handler)
-    app.add_exception_handler(RequestValidationError, validation_exception_handler)
+    # FastAPI accepts coroutines for exception handlers but its type stubs declare
+    # ExceptionHandler as sync. The runtime contract is preserved by casting the
+    # coroutine function to the typed handler slot.
+    # FastAPI accepts coroutine functions for exception handlers but its type stubs declare
+    # ExceptionHandler as a sync signature. Cast the coroutine functions through Any so the
+    # runtime contract (which FastAPI supports) is preserved without fighting the stub.
+    app.add_exception_handler(  # type: ignore[arg-type]
+        HTTPException,
+        cast(Any, http_exception_handler),
+    )
+    app.add_exception_handler(  # type: ignore[arg-type]
+        RequestValidationError,
+        cast(Any, validation_exception_handler),
+    )
     app.include_router(health.router, prefix="/api/v1", tags=["health"])
     app.include_router(me.router, prefix="/api/v1", tags=["auth"])
     app.include_router(projects.router, prefix="/api/v1", tags=["projects"])
@@ -427,16 +462,24 @@ def build_repository(settings: Settings) -> ResearchMateRepository:
     from researchmate_api.services.object_storage import S3CompatibleObjectStorage
 
     assert settings.database_url is not None
-    upload_url_factory = None
-    object_metadata_reader = None
+    # Typed factories are constructed lazily when object storage is configured so that local and
+    # worker environments without S3-like storage still bootstrap the repository. Both names are
+    # assigned None initially and conditionally rebound to closure callables; the casts at the
+    # binding site preserve the factory types through the optional binding.
+    upload_url_factory: UploadUrlFactory | None = None
+    object_metadata_reader: ObjectMetadataReader | None = None
     if settings.object_storage_configured:
         storage = S3CompatibleObjectStorage(settings)
 
-        def upload_url_factory(_document_id, object_key, payload):
+        def _upload_url_factory(
+            _document_id: UUID, object_key: str, payload: UploadUrlRequest
+        ) -> str:
             """Map a validated upload reservation to the configured object-store signer."""
             return storage.presign_upload(object_key, content_type=payload.mime_type)
 
-        def object_metadata_reader(object_key: str, *, declared_mime_type: str | None = None):
+        def _object_metadata_reader(
+            object_key: str, *, declared_mime_type: str | None = None
+        ) -> StoredObjectMetadata:
             """Read object metadata and verify uploaded magic bytes match the declared MIME.
 
             When the caller supplies the declared MIME type (set by the upload reservation),
@@ -449,11 +492,19 @@ def build_repository(settings: Settings) -> ResearchMateRepository:
                 storage.verify_uploaded_content(object_key, declared_mime_type=declared_mime_type)
             return metadata
 
-    return PostgresResearchMateRepository.from_database_url(
-        settings.database_url,
-        default_project_ttl_days=settings.default_project_ttl_days,
-        upload_url_factory=upload_url_factory,
-        object_metadata_reader=object_metadata_reader,
+        # Reassign the optional factory names with cast so the inferred callable shapes widen
+        # back to the declared factory types instead of shadowing the typed outer declaration.
+        upload_url_factory = cast(UploadUrlFactory, _upload_url_factory)
+        object_metadata_reader = cast(ObjectMetadataReader, _object_metadata_reader)
+
+    return cast(
+        ResearchMateRepository,
+        PostgresResearchMateRepository.from_database_url(
+            settings.database_url,
+            default_project_ttl_days=settings.default_project_ttl_days,
+            upload_url_factory=upload_url_factory,
+            object_metadata_reader=object_metadata_reader,
+        ),
     )
 
 
@@ -464,7 +515,10 @@ def build_evidence_repository(settings: Settings) -> EvidenceRepository:
     from researchmate_api.persistence.evidence_postgres import PostgresEvidenceRepository
 
     assert settings.database_url is not None
-    return PostgresEvidenceRepository.from_database_url(settings.database_url)
+    return cast(
+        EvidenceRepository,
+        PostgresEvidenceRepository.from_database_url(settings.database_url),
+    )
 
 
 async def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:

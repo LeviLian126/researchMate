@@ -13,6 +13,12 @@ from researchmate_api.services.web_search import (
 )
 
 
+class FakeHttpError(RuntimeError):
+    """Mimic httpx HTTP errors by exposing a response attribute."""
+
+    response: FakeResponse
+
+
 class FakeResponse:
     """Return deterministic search payloads or configured HTTP failures."""
 
@@ -22,7 +28,7 @@ class FakeResponse:
 
     def raise_for_status(self) -> None:
         if self.status_code >= 400:
-            error = RuntimeError("provider failed")
+            error = FakeHttpError("provider failed")
             error.response = self
             raise error
 

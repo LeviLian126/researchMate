@@ -78,90 +78,262 @@
         <h2>From commit to production: five quality flows and deployment elevation chain</h2>
         <p class="sub">Every push to main/develop and every pull request follows the same gate chain. State transitions follow the planned → ready → executed → verified four-state model: the first four parallel gate Jobs verify the source artifact in the ready phase, and the ci-success aggregation gate confirms all succeeded in the verified phase. Only after the aggregation gate passes does Render's autoDeployTrigger: checksPass trigger the production deployment elevation—establishing a hard dependency between CI green light and production deployment.</p>
 
-        <div class="proof-chain">
-          <div class="proof-step"><b>1. Source change <small>planned</small></b><small>Developer pushes to main/develop or opens a PR. GitHub Actions triggers the researchmate-ci workflow. The concurrency group cancels in-progress runs for the same ref, ensuring only the latest commit is tested.</small></div>
-          <div class="proof-step"><b>2. Four parallel gates <small>ready</small></b><small>python-quality, web-quality, browser-e2e, and container-quality run concurrently on ubuntu-latest. They are independent with no dependencies, sharing only the source artifact. All must pass to enter executed state.</small></div>
-          <div class="proof-step"><b>3. ci-success aggregation gate <small>verified</small></b><small>Runs with if: always(), needs all four Jobs. Asserts all four environment variables equal success. If any gate fails or is cancelled, this step fails, the workflow turns red, and deployment is blocked.</small></div>
-          <div class="proof-step"><b>4. Render checksPass elevation <small>executed</small></b><small>Render observes GitHub check status on the main branch, starting a new deployment only when all checks report success. buildFilter ensures irrelevant path changes don't trigger rebuilds.</small></div>
-          <div class="proof-step"><b>5. Health check live <small>verified</small></b><small>Render builds the image, applies environment variables, and starts the container. After /api/v1/readyz returns 200, the service is marked live and routes traffic. If the health check fails, Render automatically rolls back to the last stable version.</small></div>
+        <!-- Pipeline overview chips -->
+        <div class="coverage-strip">
+          <div class="coverage-item"><b>1. Source change</b><small>planned — push / PR trigger</small></div>
+          <div class="coverage-item"><b>2. python-quality</b><small>ready — lint + test + coverage 69%</small></div>
+          <div class="coverage-item"><b>3. web-quality</b><small>ready — Vitest + next build + audit</small></div>
+          <div class="coverage-item"><b>4. browser-e2e</b><small>ready — Playwright acceptance</small></div>
+          <div class="coverage-item"><b>5. container-quality</b><small>ready — hadolint + Trivy</small></div>
+          <div class="coverage-item"><b>6. ci-success</b><small>verified — aggregation gate</small></div>
+          <div class="coverage-item"><b>7. Render deploy</b><small>executed — checksPass elevation</small></div>
+          <div class="coverage-item"><b>8. Health check live</b><small>verified — /api/v1/readyz</small></div>
         </div>
 
-        <h3>Flow 1: python-quality — Backend quality gate</h3>
+        <!-- Vertical timeline -->
+        <h3 style="margin-top:28px;">Full gate timeline</h3>
+        <div class="timeline">
+
+          <div class="event">
+            <h3>1. Source change <span class="status">planned</span></h3>
+            <p>Developer pushes to main/develop or opens a PR. GitHub Actions triggers the researchmate-ci workflow.</p>
+            <div class="flow">
+              <div class="node"><b>Trigger</b><small>push to main/develop<br/>every pull request</small></div>
+              <div class="node"><b>Concurrency</b><small>concurrency group<br/>cancel-in-progress: true</small></div>
+              <div class="node"><b>Workflow</b><small>.github/workflows/ci.yml<br/>researchmate-ci</small></div>
+            </div>
+          </div>
+
+          <div class="event">
+            <h3>2. Four parallel quality flows <span class="status">ready</span></h3>
+            <p>python-quality, web-quality, browser-e2e, and container-quality run concurrently on ubuntu-latest. They are independent with no dependencies, sharing only the source artifact. All must pass to proceed.</p>
+            <div class="journey-map">
+              <div class="journey-step">
+                <span class="step-no">FLOW 1</span>
+                <b>python-quality</b>
+                <small>35 min · Backend quality</small>
+                <p style="margin-top:8px;font-size:12px;">lint + test + coverage 69% + OpenAPI + migrations</p>
+              </div>
+              <div class="journey-step">
+                <span class="step-no">FLOW 2</span>
+                <b>web-quality</b>
+                <small>20 min · Frontend quality</small>
+                <p style="margin-top:8px;font-size:12px;">Vitest + next build + npm audit</p>
+              </div>
+              <div class="journey-step">
+                <span class="step-no">FLOW 3</span>
+                <b>browser-e2e</b>
+                <small>20 min · E2E acceptance</small>
+                <p style="margin-top:8px;font-size:12px;">Playwright 1.62 browser acceptance</p>
+              </div>
+              <div class="journey-step">
+                <span class="step-no">FLOW 4</span>
+                <b>container-quality</b>
+                <small>25 min · Container security</small>
+                <p style="margin-top:8px;font-size:12px;">hadolint + Docker build + Trivy CVE</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="event">
+            <h3>3. ci-success aggregation gate <span class="status">verified</span></h3>
+            <p>Runs with if: always(), needs all four Jobs. Asserts all four environment variables equal success. If any gate fails or is cancelled, this step fails, the workflow turns red, and deployment is blocked.</p>
+            <div class="flow">
+              <div class="node"><b>Stable contract</b><small>ci-success<br/>external name unchanged</small></div>
+              <div class="node"><b>Assertions</b><small>PYTHON_RESULT = success<br/>WEB_RESULT = success<br/>E2E_RESULT = success<br/>CONTAINER_RESULT = success</small></div>
+              <div class="node"><b>Failure handling</b><small>Workflow turns red<br/>Render deploy blocked</small></div>
+            </div>
+          </div>
+
+          <div class="event">
+            <h3>4. Render checksPass elevation <span class="status">executed</span></h3>
+            <p>Render observes GitHub check status on the main branch, starting a new deployment only when all checks report success. buildFilter ensures irrelevant path changes don't trigger rebuilds.</p>
+            <div class="flow">
+              <div class="node"><b>Trigger</b><small>autoDeployTrigger<br/>checksPass</small></div>
+              <div class="node"><b>Path filter</b><small>buildFilter<br/>7 path patterns</small></div>
+              <div class="node"><b>Docker build</b><small>workers/ai-worker/Dockerfile<br/>dockerContext: .</small></div>
+            </div>
+          </div>
+
+          <div class="event">
+            <h3>5. Health check live <span class="status">verified</span></h3>
+            <p>Render builds the image, applies environment variables, and starts the container. After /api/v1/readyz returns 200, the service is marked live and routes traffic. If the health check fails, Render automatically rolls back to the last stable version.</p>
+            <div class="flow">
+              <div class="node"><b>Health check</b><small>/api/v1/readyz<br/>HTTP 200 = live</small></div>
+              <div class="node"><b>Env vars</b><small>48 envVarGroup entries<br/>+ 3 service-level overrides</small></div>
+              <div class="node"><b>Start command</b><small>python -m<br/>researchmate_worker<br/>.render_combined</small></div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Why this topology works -->
+        <div class="notice" style="border-left:3px solid var(--clay);background:#fbede8;padding:16px;margin-top:24px;border-radius:0 8px 8px 0;">
+          <b>Why this topology works</b>
+          <p style="margin-top:8px;color:var(--g700);">Four independent quality flows run in parallel instead of sequentially, compressing wall-clock time from 100 minutes to 35 minutes (the longest path). The ci-success aggregation gate uses if: always() to ensure explicit result reporting even when upstream fails, rather than silently skipping. Render's checksPass establishes a hard dependency between CI green light and production deployment — a green build does not mean it has been elevated; only the aggregation gate passing triggers deployment. buildFilter restricts rebuilds to relevant path changes, preventing pure documentation changes from triggering unnecessary backend rebuilds.</p>
+        </div>
+
+        <h3>Flow 1: python-quality — Backend quality gate <span class="status">ready</span></h3>
         <p class="sub">Timeout 35 minutes. Validates Python code lint compliance, test pass rate, coverage threshold, OpenAPI export consistency, and migration validity.</p>
-        <div class="scroll">
-          <table>
-            <thead><tr><th>Step</th><th>Command / Action</th><th>Evidence requirement</th></tr></thead>
-            <tbody>
-              <tr><td>Environment setup</td><td>setup-uv 0.12.1 (enable-cache) + setup-python 3.13</td><td>uv cache hits accelerate subsequent runs</td></tr>
-              <tr><td>Dependency installation</td><td><code>uv sync --frozen --all-packages --group dev</code></td><td><code>--frozen</code> refuses lockfile drift, <code>--all-packages</code> installs all workspace members</td></tr>
-              <tr><td>Tests + coverage</td><td><code>npm run test:python</code></td><td><code>coverage run --branch</code> + <code>pytest -q</code>, coverage threshold 69% (<code>--fail-under=69</code>)</td></tr>
-              <tr><td>Type checking</td><td><code>npm run check:types</code></td><td>pyright basic mode, <code>continue-on-error: true</code> (non-blocking, report only)</td></tr>
-              <tr><td>Lint + OpenAPI + Migrations</td><td><code>npm run check:lint && npm run check:openapi && npm run check:migrations</code></td><td>ruff zero violations, OpenAPI export matches source, migrations valid</td></tr>
-            </tbody>
-          </table>
+        <div class="journey-map">
+          <div class="journey-step">
+            <span class="step-no">STEP 1</span>
+            <b>Environment setup</b>
+            <small>setup-uv 0.12.1 (enable-cache) + setup-python 3.13</small>
+            <p style="margin-top:8px;font-size:12px;">uv cache hits accelerate subsequent runs</p>
+          </div>
+          <div class="journey-step">
+            <span class="step-no">STEP 2</span>
+            <b>Dependency installation</b>
+            <small><code>uv sync --frozen --all-packages --group dev</code></small>
+            <p style="margin-top:8px;font-size:12px;"><code>--frozen</code> refuses lockfile drift, <code>--all-packages</code> installs all workspace members</p>
+          </div>
+          <div class="journey-step">
+            <span class="step-no">STEP 3</span>
+            <b>Tests + coverage</b>
+            <small><code>npm run test:python</code></small>
+            <p style="margin-top:8px;font-size:12px;"><code>coverage run --branch</code> + <code>pytest -q</code>, coverage threshold 69% (<code>--fail-under=69</code>)</p>
+          </div>
+          <div class="journey-step">
+            <span class="step-no">STEP 4</span>
+            <b>Type checking</b>
+            <small><code>npm run check:types</code></small>
+            <p style="margin-top:8px;font-size:12px;">pyright basic mode, blocking on error</p>
+          </div>
+          <div class="journey-step">
+            <span class="step-no">STEP 5</span>
+            <b>Lint + OpenAPI + Migrations</b>
+            <small><code>npm run check:lint && npm run check:openapi && npm run check:migrations</code></small>
+            <p style="margin-top:8px;font-size:12px;">ruff zero violations, OpenAPI export matches source, migrations valid</p>
+          </div>
         </div>
-        <p><b>Gate condition:</b> Coverage ≥ 69%, ruff clean, OpenAPI export consistent, migrations valid. Type checking is observational and doesn't block deployment.</p>
+        <div class="notice"><strong>Gate condition:</strong> Coverage ≥ 69%, ruff clean, OpenAPI export consistent, migrations valid, pyright type checks passing.</div>
 
-        <h3>Flow 2: web-quality — Frontend quality gate</h3>
+        <h3>Flow 2: web-quality — Frontend quality gate <span class="status">ready</span></h3>
         <p class="sub">Timeout 20 minutes. Validates frontend unit tests, production build, and dependency security.</p>
-        <div class="scroll">
-          <table>
-            <thead><tr><th>Step</th><th>Command / Action</th><th>Evidence requirement</th></tr></thead>
-            <tbody>
-              <tr><td>Environment setup</td><td>setup-node 22 (cache: npm)</td><td>npm cache accelerates installation</td></tr>
-              <tr><td>Dependency installation</td><td><code>npm install --no-audit --no-fund</code></td><td>Installs full workspace tree, skips audit and fund info to accelerate</td></tr>
-              <tr><td>Unit tests</td><td><code>npm run test:web</code></td><td>Vitest 4 + coverage-v8 suite all pass</td></tr>
-              <tr><td>Production build</td><td><code>npm run check:web</code></td><td><code>next build</code> succeeds, confirming TypeScript compilation and production optimization without errors</td></tr>
-              <tr><td>Dependency audit</td><td><code>npm run check:audit</code></td><td>npm audit no moderate+ level vulnerabilities</td></tr>
-            </tbody>
-          </table>
+        <div class="journey-map">
+          <div class="journey-step">
+            <span class="step-no">STEP 1</span>
+            <b>Environment setup</b>
+            <small>setup-node 22 (cache: npm)</small>
+            <p style="margin-top:8px;font-size:12px;">npm cache accelerates installation</p>
+          </div>
+          <div class="journey-step">
+            <span class="step-no">STEP 2</span>
+            <b>Dependency installation</b>
+            <small><code>npm install --no-audit --no-fund</code></small>
+            <p style="margin-top:8px;font-size:12px;">Installs full workspace tree, skips audit and fund info to accelerate</p>
+          </div>
+          <div class="journey-step">
+            <span class="step-no">STEP 3</span>
+            <b>Unit tests</b>
+            <small><code>npm run test:web</code></small>
+            <p style="margin-top:8px;font-size:12px;">Vitest 4 + coverage-v8 suite all pass</p>
+          </div>
+          <div class="journey-step">
+            <span class="step-no">STEP 4</span>
+            <b>Production build</b>
+            <small><code>npm run check:web</code></small>
+            <p style="margin-top:8px;font-size:12px;"><code>next build</code> succeeds, confirming TypeScript compilation and production optimization without errors</p>
+          </div>
+          <div class="journey-step">
+            <span class="step-no">STEP 5</span>
+            <b>Dependency audit</b>
+            <small><code>npm run check:audit</code></small>
+            <p style="margin-top:8px;font-size:12px;">npm audit no moderate+ level vulnerabilities</p>
+          </div>
         </div>
-        <p><b>Gate condition:</b> Vitest suite passes, next build succeeds, zero moderate+ security vulnerabilities.</p>
+        <div class="notice"><strong>Gate condition:</strong> Vitest suite passes, next build succeeds, zero moderate+ security vulnerabilities.</div>
 
-        <h3>Flow 3: browser-e2e — End-to-end acceptance gate</h3>
+        <h3>Flow 3: browser-e2e — End-to-end acceptance gate <span class="status">ready</span></h3>
         <p class="sub">Timeout 20 minutes. Uses Playwright to validate critical user flows in a real browser.</p>
-        <div class="scroll">
-          <table>
-            <thead><tr><th>Step</th><th>Command / Action</th><th>Evidence requirement</th></tr></thead>
-            <tbody>
-              <tr><td>Environment setup</td><td>setup-node 22 (cache: npm)</td><td>npm cache accelerates installation</td></tr>
-              <tr><td>Dependency installation</td><td><code>npm install --no-audit --no-fund</code></td><td>Installs full workspace tree</td></tr>
-              <tr><td>Browser installation</td><td><code>npx playwright install --with-deps chromium</code></td><td>Installs Chromium and its system dependencies</td></tr>
-              <tr><td>Acceptance tests</td><td><code>npm run test:e2e</code></td><td>Playwright 1.62 acceptance flow all pass</td></tr>
-              <tr><td>Failure reporting</td><td>Upload playwright-report artifact (7-day retention)</td><td>Provides downloadable HTML report for debugging on failure</td></tr>
-            </tbody>
-          </table>
+        <div class="journey-map">
+          <div class="journey-step">
+            <span class="step-no">STEP 1</span>
+            <b>Environment setup</b>
+            <small>setup-node 22 (cache: npm)</small>
+            <p style="margin-top:8px;font-size:12px;">npm cache accelerates installation</p>
+          </div>
+          <div class="journey-step">
+            <span class="step-no">STEP 2</span>
+            <b>Dependency installation</b>
+            <small><code>npm install --no-audit --no-fund</code></small>
+            <p style="margin-top:8px;font-size:12px;">Installs full workspace tree</p>
+          </div>
+          <div class="journey-step">
+            <span class="step-no">STEP 3</span>
+            <b>Browser installation</b>
+            <small><code>npx playwright install --with-deps chromium</code></small>
+            <p style="margin-top:8px;font-size:12px;">Installs Chromium and its system dependencies</p>
+          </div>
+          <div class="journey-step">
+            <span class="step-no">STEP 4</span>
+            <b>Acceptance tests</b>
+            <small><code>npm run test:e2e</code></small>
+            <p style="margin-top:8px;font-size:12px;">Playwright 1.62 acceptance flow all pass</p>
+          </div>
+          <div class="journey-step">
+            <span class="step-no">STEP 5</span>
+            <b>Failure reporting</b>
+            <small>Upload playwright-report artifact (7-day retention)</small>
+            <p style="margin-top:8px;font-size:12px;">Provides downloadable HTML report for debugging on failure</p>
+          </div>
         </div>
-        <p><b>Gate condition:</b> Playwright acceptance flow all pass. On failure, artifact retained for 7 days for debugging.</p>
+        <div class="notice"><strong>Gate condition:</strong> Playwright acceptance flow all pass. On failure, artifact retained for 7 days for debugging.</div>
 
-        <h3>Flow 4: container-quality — Container security gate</h3>
+        <h3>Flow 4: container-quality — Container security gate <span class="status">ready</span></h3>
         <p class="sub">Timeout 25 minutes. Validates Dockerfile best practices, image buildability, and image security.</p>
-        <div class="scroll">
-          <table>
-            <thead><tr><th>Step</th><th>Command / Action</th><th>Evidence requirement</th></tr></thead>
-            <tbody>
-              <tr><td>Dockerfile lint</td><td>hadolint v2.15.1 on both Dockerfiles (<code>--ignore DL3008</code>)</td><td>Dockerfiles follow best practices, ignoring DL3008 (apt version pinning)</td></tr>
-              <tr><td>Buildx setup</td><td>docker/setup-buildx-action v4</td><td>Enables BuildKit build cache</td></tr>
-              <tr><td>API image build</td><td>Build <code>researchmate-api:ci</code> (load, cache gha)</td><td>API Dockerfile builds successfully, using GHA cache to accelerate</td></tr>
-              <tr><td>Worker dependencies build</td><td>Build <code>researchmate-worker-dependencies:ci</code></td><td>Worker Dockerfile dependencies target builds successfully</td></tr>
-              <tr><td>Vulnerability scan</td><td>Trivy 0.73.0 <code>--exit-code 1 --severity HIGH,CRITICAL</code> on both images</td><td>Zero HIGH/CRITICAL unfixed CVEs</td></tr>
-            </tbody>
-          </table>
+        <div class="journey-map">
+          <div class="journey-step">
+            <span class="step-no">STEP 1</span>
+            <b>Dockerfile lint</b>
+            <small>hadolint v2.15.1 on both Dockerfiles (<code>--ignore DL3008</code>)</small>
+            <p style="margin-top:8px;font-size:12px;">Dockerfiles follow best practices, ignoring DL3008 (apt version pinning)</p>
+          </div>
+          <div class="journey-step">
+            <span class="step-no">STEP 2</span>
+            <b>Buildx setup</b>
+            <small>docker/setup-buildx-action v4</small>
+            <p style="margin-top:8px;font-size:12px;">Enables BuildKit build cache</p>
+          </div>
+          <div class="journey-step">
+            <span class="step-no">STEP 3</span>
+            <b>API image build</b>
+            <small>Build <code>researchmate-api:ci</code> (load, cache gha)</small>
+            <p style="margin-top:8px;font-size:12px;">API Dockerfile builds successfully, using GHA cache to accelerate</p>
+          </div>
+          <div class="journey-step">
+            <span class="step-no">STEP 4</span>
+            <b>Worker dependencies build</b>
+            <small>Build <code>researchmate-worker-dependencies:ci</code></small>
+            <p style="margin-top:8px;font-size:12px;">Worker Dockerfile dependencies target builds successfully</p>
+          </div>
+          <div class="journey-step">
+            <span class="step-no">STEP 5</span>
+            <b>Vulnerability scan</b>
+            <small>Trivy 0.73.0 <code>--exit-code 1 --ignore-unfixed --severity HIGH,CRITICAL</code> on both images</small>
+            <p style="margin-top:8px;font-size:12px;">Zero fixable HIGH/CRITICAL CVEs (<code>--ignore-unfixed</code> skips no-patch issues)</p>
+          </div>
         </div>
-        <p><b>Gate condition:</b> Dockerfile lint passes, both images build successfully, zero HIGH/CRITICAL unfixed CVEs.</p>
+        <div class="notice"><strong>Gate condition:</strong> Dockerfile lint passes, both images build successfully, zero fixable HIGH/CRITICAL CVEs.</div>
 
-        <h3>Flow 5: ci-success — Stable aggregation gate</h3>
+        <h3>Flow 5: ci-success — Stable aggregation gate <span class="status">verified</span></h3>
         <p class="sub">No explicit timeout (uses default). This Job is the stable external release contract—internal Job names can evolve freely, but the aggregation gate name remains unchanged to ensure Render's checksPass dependency is unaffected.</p>
-        <div class="scroll">
-          <table>
-            <thead><tr><th>Step</th><th>Command / Action</th><th>Evidence requirement</th></tr></thead>
-            <tbody>
-              <tr><td>Always runs</td><td><code>if: always()</code> + <code>needs: [python-quality, web-quality, browser-e2e, container-quality]</code></td><td>Runs even if upstream Jobs fail, ensuring the workflow has a definitive final state</td></tr>
-              <tr><td>Result assertion</td><td>Reads PYTHON_RESULT, WEB_RESULT, E2E_RESULT, CONTAINER_RESULT</td><td>Four <code>test "$VAR" = success</code> assertions all pass</td></tr>
-            </tbody>
-          </table>
+        <div class="journey-map">
+          <div class="journey-step">
+            <span class="step-no">STEP 1</span>
+            <b>Always runs</b>
+            <small><code>if: always()</code> + <code>needs: [python-quality, web-quality, browser-e2e, container-quality]</code></small>
+            <p style="margin-top:8px;font-size:12px;">Runs even if upstream Jobs fail, ensuring the workflow has a definitive final state</p>
+          </div>
+          <div class="journey-step">
+            <span class="step-no">STEP 2</span>
+            <b>Result assertion</b>
+            <small>Reads PYTHON_RESULT, WEB_RESULT, E2E_RESULT, CONTAINER_RESULT</small>
+            <p style="margin-top:8px;font-size:12px;">Four <code>test "$VAR" = success</code> assertions all pass</p>
+          </div>
         </div>
-        <p><b>Gate condition:</b> All four preceding Jobs must equal success. If any fails or is cancelled, the workflow turns red and Render deployment is blocked.</p>
+        <div class="notice"><strong>Gate condition:</strong> All four preceding Jobs must equal success. If any fails or is cancelled, the workflow turns red and Render deployment is blocked.</div>
 
         <div class="notice"><strong>Concurrency control:</strong> The workflow declares <code>concurrency: group: researchmate-ci-${{ github.workflow }}-${{ github.ref }}</code> with <code>cancel-in-progress: true</code>. When a developer pushes twice in quick succession, the first run is cancelled mid-flight and only the latest commit is tested.</div>
         <div class="command-block"><code>npm run test:python
@@ -398,7 +570,7 @@ uv sync --frozen --no-dev --all-packages</code></div>
         </div>
       </section>
 
-<section id="further-reading">
+      <section id="further-reading">
         <p class="eyebrow">Further reading</p>
         <h2>Related documentation</h2>
         <div class="doc-index">

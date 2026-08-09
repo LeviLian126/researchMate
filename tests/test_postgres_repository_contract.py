@@ -28,7 +28,7 @@ from researchmate_api.services.object_storage import (
 class EmptyResult:
     """Return no rows from isolated repository queries."""
 
-    def mappings(self) -> "EmptyResult":
+    def mappings(self) -> EmptyResult:
         return self
 
     def one_or_none(self) -> None:
@@ -158,7 +158,7 @@ class OneMappingResult:
     def __init__(self, value: dict[str, Any]) -> None:
         self.value = value
 
-    def mappings(self) -> "OneMappingResult":
+    def mappings(self) -> OneMappingResult:
         return self
 
     def one_or_none(self) -> dict[str, Any]:

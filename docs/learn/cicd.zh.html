@@ -78,90 +78,262 @@
         <h2>从 commit 到线上:五个质量流与部署提升链</h2>
         <p class="sub">每次 push 到 main/develop 以及每个 pull request 都遵循同一条门禁链。状态转换遵循 planned → ready → executed → verified 四态模型:前四个并行门控 Job 在 ready 阶段验证源 artifact，ci-success 聚合门禁在 verified 阶段确认全部成功。只有聚合门禁通过后，Render 的 autoDeployTrigger: checksPass 才触发生产部署提升——在 CI 绿灯与生产部署之间建立硬依赖。</p>
 
-        <div class="proof-chain">
-          <div class="proof-step"><b>1. 源码变更 <small>planned</small></b><small>开发者 push 到 main/develop 或发起 PR。GitHub Actions 触发 researchmate-ci 工作流。concurrency group 取消同一 ref 的进行中运行，确保只有最新 commit 被测试。</small></div>
-          <div class="proof-step"><b>2. 四个并行门控 <small>ready</small></b><small>python-quality、web-quality、browser-e2e 和 container-quality 在 ubuntu-latest 上并发运行。它们相互独立、无依赖关系，仅共享源 artifact。全部通过才进入 executed 状态。</small></div>
-          <div class="proof-step"><b>3. ci-success 聚合门禁 <small>verified</small></b><small>使用 if: always() 运行，needs 全部四个 Job。断言四个环境变量均等于 success。任一门控失败或被取消，此步骤失败，工作流标红，部署被阻止。</small></div>
-          <div class="proof-step"><b>4. Render checksPass 提升 <small>executed</small></b><small>Render 观察 main 分支上的 GitHub 检查状态，仅当所有检查报告成功时才开始新部署。buildFilter 确保不相关路径变更不触发重建。</small></div>
-          <div class="proof-step"><b>5. 健康检查上线 <small>verified</small></b><small>Render 构建镜像、应用环境变量、启动容器。探测 /api/v1/readyz 返回 200 后标记 live 并路由流量。健康检查失败时 Render 自动回滚到上一个稳定版本。</small></div>
+        <!-- 全景预览 chips 条 -->
+        <div class="coverage-strip">
+          <div class="coverage-item"><b>1. 源码变更</b><small>planned — push / PR 触发</small></div>
+          <div class="coverage-item"><b>2. python-quality</b><small>ready — lint + test + coverage 69%</small></div>
+          <div class="coverage-item"><b>3. web-quality</b><small>ready — Vitest + next build + audit</small></div>
+          <div class="coverage-item"><b>4. browser-e2e</b><small>ready — Playwright 验收</small></div>
+          <div class="coverage-item"><b>5. container-quality</b><small>ready — hadolint + Trivy</small></div>
+          <div class="coverage-item"><b>6. ci-success</b><small>verified — 聚合门禁</small></div>
+          <div class="coverage-item"><b>7. Render 部署</b><small>executed — checksPass 提升</small></div>
+          <div class="coverage-item"><b>8. 健康检查上线</b><small>verified — /api/v1/readyz</small></div>
         </div>
 
-        <h3>Flow 1: python-quality — 后端质量门控</h3>
+        <!-- 垂直时间线 -->
+        <h3 style="margin-top:28px;">完整门禁时间线</h3>
+        <div class="timeline">
+
+          <div class="event">
+            <h3>1. 源码变更 <span class="status">planned</span></h3>
+            <p>开发者 push 到 main/develop 或发起 PR。GitHub Actions 触发 researchmate-ci 工作流。</p>
+            <div class="flow">
+              <div class="node"><b>触发条件</b><small>push to main/develop<br/>每个 pull request</small></div>
+              <div class="node"><b>并发控制</b><small>concurrency group<br/>cancel-in-progress: true</small></div>
+              <div class="node"><b>工作流定义</b><small>.github/workflows/ci.yml<br/>researchmate-ci</small></div>
+            </div>
+          </div>
+
+          <div class="event">
+            <h3>2. 四个并行质量流 <span class="status">ready</span></h3>
+            <p>python-quality、web-quality、browser-e2e 和 container-quality 在 ubuntu-latest 上并发运行。它们相互独立、无依赖关系，仅共享源 artifact。全部通过才进入下一步。</p>
+            <div class="journey-map">
+              <div class="journey-step">
+                <span class="step-no">FLOW 1</span>
+                <b>python-quality</b>
+                <small>35 min · 后端质量</small>
+                <p style="margin-top:8px;font-size:12px;">lint + test + coverage 69% + OpenAPI + migrations</p>
+              </div>
+              <div class="journey-step">
+                <span class="step-no">FLOW 2</span>
+                <b>web-quality</b>
+                <small>20 min · 前端质量</small>
+                <p style="margin-top:8px;font-size:12px;">Vitest + next build + npm audit</p>
+              </div>
+              <div class="journey-step">
+                <span class="step-no">FLOW 3</span>
+                <b>browser-e2e</b>
+                <small>20 min · 端到端验收</small>
+                <p style="margin-top:8px;font-size:12px;">Playwright 1.62 浏览器验收</p>
+              </div>
+              <div class="journey-step">
+                <span class="step-no">FLOW 4</span>
+                <b>container-quality</b>
+                <small>25 min · 容器安全</small>
+                <p style="margin-top:8px;font-size:12px;">hadolint + Docker build + Trivy CVE</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="event">
+            <h3>3. ci-success 聚合门禁 <span class="status">verified</span></h3>
+            <p>使用 if: always() 运行，needs 全部四个 Job。断言四个环境变量均等于 success。任一门控失败或被取消，此步骤失败，工作流标红，部署被阻止。</p>
+            <div class="flow">
+              <div class="node"><b>稳定契约</b><small>ci-success<br/>外部名称不变</small></div>
+              <div class="node"><b>断言</b><small>PYTHON_RESULT = success<br/>WEB_RESULT = success<br/>E2E_RESULT = success<br/>CONTAINER_RESULT = success</small></div>
+              <div class="node"><b>失败处理</b><small>工作流标红<br/>Render 部署被阻止</small></div>
+            </div>
+          </div>
+
+          <div class="event">
+            <h3>4. Render checksPass 提升 <span class="status">executed</span></h3>
+            <p>Render 观察 main 分支上的 GitHub 检查状态，仅当所有检查报告成功时才开始新部署。buildFilter 确保不相关路径变更不触发重建。</p>
+            <div class="flow">
+              <div class="node"><b>触发机制</b><small>autoDeployTrigger<br/>checksPass</small></div>
+              <div class="node"><b>路径过滤</b><small>buildFilter<br/>7 个路径模式</small></div>
+              <div class="node"><b>Docker 构建</b><small>workers/ai-worker/Dockerfile<br/>dockerContext: .</small></div>
+            </div>
+          </div>
+
+          <div class="event">
+            <h3>5. 健康检查上线 <span class="status">verified</span></h3>
+            <p>Render 构建镜像、应用环境变量、启动容器。探测 /api/v1/readyz 返回 200 后标记 live 并路由流量。健康检查失败时 Render 自动回滚到上一个稳定版本。</p>
+            <div class="flow">
+              <div class="node"><b>健康检查</b><small>/api/v1/readyz<br/>HTTP 200 = live</small></div>
+              <div class="node"><b>环境变量</b><small>48 个 envVarGroup<br/>+ 3 个服务级覆盖</small></div>
+              <div class="node"><b>启动命令</b><small>python -m<br/>researchmate_worker<br/>.render_combined</small></div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- 有效性说明 -->
+        <div class="notice" style="border-left:3px solid var(--clay);background:#fbede8;padding:16px;margin-top:24px;border-radius:0 8px 8px 0;">
+          <b>为什么这个拓扑有效</b>
+          <p style="margin-top:8px;color:var(--g700);">四个独立质量流并行运行而非串行，将墙钟时间从 100 分钟压缩到 35 分钟（最长路径）。ci-success 聚合门禁使用 if: always() 确保即使上游失败也显式报告结果，而非静默跳过。Render 的 checksPass 在 CI 绿灯与生产部署之间建立硬依赖——绿色 build 不等于已提升，只有聚合门禁通过才触发部署。buildFilter 将重建限制在相关路径变更，避免纯文档变更触发不必要的后端重建。</p>
+        </div>
+
+        <h3>Flow 1: python-quality — 后端质量门控 <span class="status">ready</span></h3>
         <p class="sub">超时 35 分钟。验证 Python 代码的 lint 合规性、测试通过性、覆盖率阈值、OpenAPI 导出一致性和 migration 有效性。</p>
-        <div class="scroll">
-          <table>
-            <thead><tr><th>步骤</th><th>命令 / 动作</th><th>证据要求</th></tr></thead>
-            <tbody>
-              <tr><td>环境准备</td><td>setup-uv 0.12.1 (enable-cache) + setup-python 3.13</td><td>uv 缓存命中加速后续运行</td></tr>
-              <tr><td>依赖安装</td><td><code>uv sync --frozen --all-packages --group dev</code></td><td><code>--frozen</code> 拒绝锁文件漂移，<code>--all-packages</code> 安装 workspace 全部成员</td></tr>
-              <tr><td>测试 + 覆盖率</td><td><code>npm run test:python</code></td><td><code>coverage run --branch</code> + <code>pytest -q</code>，覆盖率阈值 69% (<code>--fail-under=69</code>)</td></tr>
-              <tr><td>类型检查</td><td><code>npm run check:types</code></td><td>pyright basic 模式，<code>continue-on-error: true</code>（非阻塞，仅报告）</td></tr>
-              <tr><td>Lint + OpenAPI + Migrations</td><td><code>npm run check:lint && npm run check:openapi && npm run check:migrations</code></td><td>ruff 零违规，OpenAPI 导出与源码一致，migrations 有效</td></tr>
-            </tbody>
-          </table>
+        <div class="journey-map">
+          <div class="journey-step">
+            <span class="step-no">STEP 1</span>
+            <b>环境准备</b>
+            <small>setup-uv 0.12.1 (enable-cache) + setup-python 3.13</small>
+            <p style="margin-top:8px;font-size:12px;">uv 缓存命中加速后续运行</p>
+          </div>
+          <div class="journey-step">
+            <span class="step-no">STEP 2</span>
+            <b>依赖安装</b>
+            <small><code>uv sync --frozen --all-packages --group dev</code></small>
+            <p style="margin-top:8px;font-size:12px;"><code>--frozen</code> 拒绝锁文件漂移，<code>--all-packages</code> 安装 workspace 全部成员</p>
+          </div>
+          <div class="journey-step">
+            <span class="step-no">STEP 3</span>
+            <b>测试 + 覆盖率</b>
+            <small><code>npm run test:python</code></small>
+            <p style="margin-top:8px;font-size:12px;"><code>coverage run --branch</code> + <code>pytest -q</code>，覆盖率阈值 69% (<code>--fail-under=69</code>)</p>
+          </div>
+          <div class="journey-step">
+            <span class="step-no">STEP 4</span>
+            <b>类型检查</b>
+            <small><code>npm run check:types</code></small>
+            <p style="margin-top:8px;font-size:12px;">pyright basic 模式，类型错误将阻断 CI</p>
+          </div>
+          <div class="journey-step">
+            <span class="step-no">STEP 5</span>
+            <b>Lint + OpenAPI + Migrations</b>
+            <small><code>npm run check:lint && npm run check:openapi && npm run check:migrations</code></small>
+            <p style="margin-top:8px;font-size:12px;">ruff 零违规，OpenAPI 导出与源码一致，migrations 有效</p>
+          </div>
         </div>
-        <p><b>门控条件:</b> 覆盖率 ≥ 69%，ruff 无违规，OpenAPI 导出一致，migrations 有效。类型检查为观察项，不阻止部署。</p>
+        <div class="notice"><strong>门控条件:</strong> 覆盖率 ≥ 69%，ruff 无违规，OpenAPI 导出一致，migrations 有效，pyright 类型检查通过。</div>
 
-        <h3>Flow 2: web-quality — 前端质量门控</h3>
+        <h3>Flow 2: web-quality — 前端质量门控 <span class="status">ready</span></h3>
         <p class="sub">超时 20 分钟。验证前端单元测试、生产构建和依赖安全。</p>
-        <div class="scroll">
-          <table>
-            <thead><tr><th>步骤</th><th>命令 / 动作</th><th>证据要求</th></tr></thead>
-            <tbody>
-              <tr><td>环境准备</td><td>setup-node 22 (cache: npm)</td><td>npm 缓存加速安装</td></tr>
-              <tr><td>依赖安装</td><td><code>npm install --no-audit --no-fund</code></td><td>安装完整 workspace 树，跳过审计和 fund 信息以加速</td></tr>
-              <tr><td>单元测试</td><td><code>npm run test:web</code></td><td>Vitest 4 + coverage-v8 套件全部通过</td></tr>
-              <tr><td>生产构建</td><td><code>npm run check:web</code></td><td><code>next build</code> 成功，确认 TypeScript 编译和生产优化无错误</td></tr>
-              <tr><td>依赖审计</td><td><code>npm run check:audit</code></td><td>npm audit 无 moderate+ 级别漏洞</td></tr>
-            </tbody>
-          </table>
+        <div class="journey-map">
+          <div class="journey-step">
+            <span class="step-no">STEP 1</span>
+            <b>环境准备</b>
+            <small>setup-node 22 (cache: npm)</small>
+            <p style="margin-top:8px;font-size:12px;">npm 缓存加速安装</p>
+          </div>
+          <div class="journey-step">
+            <span class="step-no">STEP 2</span>
+            <b>依赖安装</b>
+            <small><code>npm install --no-audit --no-fund</code></small>
+            <p style="margin-top:8px;font-size:12px;">安装完整 workspace 树，跳过审计和 fund 信息以加速</p>
+          </div>
+          <div class="journey-step">
+            <span class="step-no">STEP 3</span>
+            <b>单元测试</b>
+            <small><code>npm run test:web</code></small>
+            <p style="margin-top:8px;font-size:12px;">Vitest 4 + coverage-v8 套件全部通过</p>
+          </div>
+          <div class="journey-step">
+            <span class="step-no">STEP 4</span>
+            <b>生产构建</b>
+            <small><code>npm run check:web</code></small>
+            <p style="margin-top:8px;font-size:12px;"><code>next build</code> 成功，确认 TypeScript 编译和生产优化无错误</p>
+          </div>
+          <div class="journey-step">
+            <span class="step-no">STEP 5</span>
+            <b>依赖审计</b>
+            <small><code>npm run check:audit</code></small>
+            <p style="margin-top:8px;font-size:12px;">npm audit 无 moderate+ 级别漏洞</p>
+          </div>
         </div>
-        <p><b>门控条件:</b> Vitest 套件通过，next build 成功，零 moderate+ 安全漏洞。</p>
+        <div class="notice"><strong>门控条件:</strong> Vitest 套件通过，next build 成功，零 moderate+ 安全漏洞。</div>
 
-        <h3>Flow 3: browser-e2e — 端到端验收门控</h3>
+        <h3>Flow 3: browser-e2e — 端到端验收门控 <span class="status">ready</span></h3>
         <p class="sub">超时 20 分钟。使用 Playwright 在真实浏览器中验证关键用户流程。</p>
-        <div class="scroll">
-          <table>
-            <thead><tr><th>步骤</th><th>命令 / 动作</th><th>证据要求</th></tr></thead>
-            <tbody>
-              <tr><td>环境准备</td><td>setup-node 22 (cache: npm)</td><td>npm 缓存加速安装</td></tr>
-              <tr><td>依赖安装</td><td><code>npm install --no-audit --no-fund</code></td><td>安装完整 workspace 树</td></tr>
-              <tr><td>浏览器安装</td><td><code>npx playwright install --with-deps chromium</code></td><td>安装 Chromium 及其系统依赖</td></tr>
-              <tr><td>验收测试</td><td><code>npm run test:e2e</code></td><td>Playwright 1.62 验收流程全部通过</td></tr>
-              <tr><td>失败报告</td><td>上传 playwright-report artifact（保留 7 天）</td><td>失败时提供可下载的 HTML 报告用于调试</td></tr>
-            </tbody>
-          </table>
+        <div class="journey-map">
+          <div class="journey-step">
+            <span class="step-no">STEP 1</span>
+            <b>环境准备</b>
+            <small>setup-node 22 (cache: npm)</small>
+            <p style="margin-top:8px;font-size:12px;">npm 缓存加速安装</p>
+          </div>
+          <div class="journey-step">
+            <span class="step-no">STEP 2</span>
+            <b>依赖安装</b>
+            <small><code>npm install --no-audit --no-fund</code></small>
+            <p style="margin-top:8px;font-size:12px;">安装完整 workspace 树</p>
+          </div>
+          <div class="journey-step">
+            <span class="step-no">STEP 3</span>
+            <b>浏览器安装</b>
+            <small><code>npx playwright install --with-deps chromium</code></small>
+            <p style="margin-top:8px;font-size:12px;">安装 Chromium 及其系统依赖</p>
+          </div>
+          <div class="journey-step">
+            <span class="step-no">STEP 4</span>
+            <b>验收测试</b>
+            <small><code>npm run test:e2e</code></small>
+            <p style="margin-top:8px;font-size:12px;">Playwright 1.62 验收流程全部通过</p>
+          </div>
+          <div class="journey-step">
+            <span class="step-no">STEP 5</span>
+            <b>失败报告</b>
+            <small>上传 playwright-report artifact（保留 7 天）</small>
+            <p style="margin-top:8px;font-size:12px;">失败时提供可下载的 HTML 报告用于调试</p>
+          </div>
         </div>
-        <p><b>门控条件:</b> Playwright 验收流程全部通过。失败时 artifact 保留 7 天供调试。</p>
+        <div class="notice"><strong>门控条件:</strong> Playwright 验收流程全部通过。失败时 artifact 保留 7 天供调试。</div>
 
-        <h3>Flow 4: container-quality — 容器安全门控</h3>
+        <h3>Flow 4: container-quality — 容器安全门控 <span class="status">ready</span></h3>
         <p class="sub">超时 25 分钟。验证 Dockerfile 规范性、镜像可构建性和镜像安全。</p>
-        <div class="scroll">
-          <table>
-            <thead><tr><th>步骤</th><th>命令 / 动作</th><th>证据要求</th></tr></thead>
-            <tbody>
-              <tr><td>Dockerfile lint</td><td>hadolint v2.15.1 检查两个 Dockerfile (<code>--ignore DL3008</code>)</td><td>Dockerfile 符合最佳实践，忽略 DL3008（apt 版本固定）</td></tr>
-              <tr><td>Buildx 设置</td><td>docker/setup-buildx-action v4</td><td>启用 BuildKit 构建缓存</td></tr>
-              <tr><td>API 镜像构建</td><td>构建 <code>researchmate-api:ci</code> (load, cache gha)</td><td>API Dockerfile 成功构建，使用 GHA 缓存加速</td></tr>
-              <tr><td>Worker 依赖构建</td><td>构建 <code>researchmate-worker-dependencies:ci</code></td><td>Worker Dockerfile 的 dependencies target 成功构建</td></tr>
-              <tr><td>漏洞扫描</td><td>Trivy 0.73.0 <code>--exit-code 1 --severity HIGH,CRITICAL</code> 两个镜像</td><td>零 HIGH/CRITICAL 未修复 CVE</td></tr>
-            </tbody>
-          </table>
+        <div class="journey-map">
+          <div class="journey-step">
+            <span class="step-no">STEP 1</span>
+            <b>Dockerfile lint</b>
+            <small>hadolint v2.15.1 检查两个 Dockerfile (<code>--ignore DL3008</code>)</small>
+            <p style="margin-top:8px;font-size:12px;">Dockerfile 符合最佳实践，忽略 DL3008（apt 版本固定）</p>
+          </div>
+          <div class="journey-step">
+            <span class="step-no">STEP 2</span>
+            <b>Buildx 设置</b>
+            <small>docker/setup-buildx-action v4</small>
+            <p style="margin-top:8px;font-size:12px;">启用 BuildKit 构建缓存</p>
+          </div>
+          <div class="journey-step">
+            <span class="step-no">STEP 3</span>
+            <b>API 镜像构建</b>
+            <small>构建 <code>researchmate-api:ci</code> (load, cache gha)</small>
+            <p style="margin-top:8px;font-size:12px;">API Dockerfile 成功构建，使用 GHA 缓存加速</p>
+          </div>
+          <div class="journey-step">
+            <span class="step-no">STEP 4</span>
+            <b>Worker 依赖构建</b>
+            <small>构建 <code>researchmate-worker-dependencies:ci</code></small>
+            <p style="margin-top:8px;font-size:12px;">Worker Dockerfile 的 dependencies target 成功构建</p>
+          </div>
+          <div class="journey-step">
+            <span class="step-no">STEP 5</span>
+            <b>漏洞扫描</b>
+            <small>Trivy 0.73.0 <code>--exit-code 1 --ignore-unfixed --severity HIGH,CRITICAL</code> 两个镜像</small>
+            <p style="margin-top:8px;font-size:12px;">零可修复 HIGH/CRITICAL CVE（<code>--ignore-unfixed</code> 跳过无补丁项）</p>
+          </div>
         </div>
-        <p><b>门控条件:</b> Dockerfile lint 通过，两个镜像构建成功，零 HIGH/CRITICAL 未修复 CVE。</p>
+        <div class="notice"><strong>门控条件:</strong> Dockerfile lint 通过，两个镜像构建成功，零可修复 HIGH/CRITICAL CVE。</div>
 
-        <h3>Flow 5: ci-success — 稳定聚合门禁</h3>
+        <h3>Flow 5: ci-success — 稳定聚合门禁 <span class="status">verified</span></h3>
         <p class="sub">无显式超时（使用默认值）。此 Job 是稳定的外部发布契约——内部 Job 名称可自由演进，但聚合门禁名称保持不变，确保 Render 的 checksPass 依赖不受影响。</p>
-        <div class="scroll">
-          <table>
-            <thead><tr><th>步骤</th><th>命令 / 动作</th><th>证据要求</th></tr></thead>
-            <tbody>
-              <tr><td>始终运行</td><td><code>if: always()</code> + <code>needs: [python-quality, web-quality, browser-e2e, container-quality]</code></td><td>即使上游 Job 失败也运行，确保工作流有明确的最终状态</td></tr>
-              <tr><td>结果断言</td><td>读取 PYTHON_RESULT、WEB_RESULT、E2E_RESULT、CONTAINER_RESULT</td><td>四条 <code>test "$VAR" = success</code> 断言全部通过</td></tr>
-            </tbody>
-          </table>
+        <div class="journey-map">
+          <div class="journey-step">
+            <span class="step-no">STEP 1</span>
+            <b>始终运行</b>
+            <small><code>if: always()</code> + <code>needs: [python-quality, web-quality, browser-e2e, container-quality]</code></small>
+            <p style="margin-top:8px;font-size:12px;">即使上游 Job 失败也运行，确保工作流有明确的最终状态</p>
+          </div>
+          <div class="journey-step">
+            <span class="step-no">STEP 2</span>
+            <b>结果断言</b>
+            <small>读取 PYTHON_RESULT、WEB_RESULT、E2E_RESULT、CONTAINER_RESULT</small>
+            <p style="margin-top:8px;font-size:12px;">四条 <code>test "$VAR" = success</code> 断言全部通过</p>
+          </div>
         </div>
-        <p><b>门控条件:</b> 前四个 Job 必须全部等于 success。任一失败或被取消，工作流标红，Render 部署被阻止。</p>
+        <div class="notice"><strong>门控条件:</strong> 前四个 Job 必须全部等于 success。任一失败或被取消，工作流标红，Render 部署被阻止。</div>
 
         <div class="notice"><strong>并发控制:</strong> 工作流声明 <code>concurrency: group: researchmate-ci-${{ github.workflow }}-${{ github.ref }}</code> 并设置 <code>cancel-in-progress: true</code>。当开发者快速连续 push 两次时，第一次运行会在执行中被取消，只有最新 commit 被测试。</div>
         <div class="command-block"><code>npm run test:python
@@ -399,7 +571,7 @@ uv sync --frozen --no-dev --all-packages</code></div>
         </div>
       </section>
 
-<section id="further-reading">
+      <section id="further-reading">
         <p class="eyebrow">延伸阅读</p>
         <h2>相关文档</h2>
         <div class="doc-index">

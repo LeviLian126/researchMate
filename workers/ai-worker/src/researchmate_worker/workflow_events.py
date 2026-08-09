@@ -2,16 +2,20 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
-from sqlalchemy import text
+from sqlalchemy import Connection, Engine, text
 
 from researchmate_worker.workflow_models import _json
 
 
 class WorkflowEventsMixin:
     """Provide structured workflow event writes shared by execution and commit stages."""
+
+    if TYPE_CHECKING:
+        # Provided by sibling mixins composed in SqlEvidenceWorkflowDomain.
+        engine: Engine
 
     def _node_started(self, run_id: UUID, node: str, progress: int) -> None:
         with self.engine.begin() as connection:
@@ -39,7 +43,7 @@ class WorkflowEventsMixin:
 
     @staticmethod
     def _event(
-        connection,
+        connection: Connection,
         run_id: UUID,
         node: str,
         event_type: str,

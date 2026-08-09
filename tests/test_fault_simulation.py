@@ -29,7 +29,9 @@ class FakeConnection:
     def __init__(self) -> None:
         self.finished = None
 
-    def execute(self, statement: Any, params: dict[str, Any]) -> FakeResult:  # boundary: SQLAlchemy statement
+    def execute(
+        self, statement: Any, params: dict[str, Any]
+    ) -> FakeResult:  # boundary: SQLAlchemy statement
         sql = str(statement)
         if "returning id,scenario,target_run_id,attempts" in sql:
             return FakeResult(
@@ -66,6 +68,7 @@ def test_fault_simulation_records_recovery_without_external_mutation() -> None:
     assert service.run(UUID(int=1), worker_id="test-worker") == "succeeded"
 
     finished = engine.connection.finished
+    assert finished is not None, "fault exercise should persist finished parameters"
     assert finished["status"] == "succeeded"
     result = json.loads(finished["result"])
     assert result["simulation_only"] is True

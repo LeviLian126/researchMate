@@ -99,6 +99,7 @@ def test_hybrid_query_has_dense_sparse_rrf_and_all_owner_filters() -> None:
     )
 
     call = qdrant.query_call
+    assert call is not None, "query_points must record its call payload"
     assert results[0]["score"] == 0.9
     assert [prefetch.using for prefetch in call["prefetch"]] == ["sparse", "dense"]
     assert call["query_filter"] is not None
@@ -139,6 +140,7 @@ def test_upsert_uses_named_vectors_and_owner_payload() -> None:
 
     store.upsert_chunks([chunk], pipeline_version="pipeline-v1")
 
+    assert qdrant.upsert_call is not None, "upsert must record its call payload"
     assert qdrant.upsert_call["collection_name"] == "researchmate_chunks"
     point = qdrant.upsert_call["points"][0]
     assert set(point.vector) == {"dense", "sparse"}
@@ -157,6 +159,7 @@ def test_delete_points_keeps_owner_filter_at_the_vector_boundary() -> None:
 
     store.delete_points(["point-1"], user_id="user-1", project_id="project-1")
 
+    assert qdrant.delete_call is not None, "delete must record its call payload"
     selector = qdrant.delete_call["points_selector"]
     keys = {condition.key for condition in selector.filter.must if hasattr(condition, "key")}
     assert keys == {"user_id", "project_id"}
@@ -172,6 +175,7 @@ def test_delete_project_points_removes_every_point_inside_the_owner_boundary() -
 
     store.delete_project_points(user_id="user-1", project_id="project-1")
 
+    assert qdrant.delete_call is not None, "delete must record its call payload"
     selector = qdrant.delete_call["points_selector"]
     assert {condition.key for condition in selector.filter.must} == {
         "user_id",

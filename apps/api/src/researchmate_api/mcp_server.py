@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from contextvars import ContextVar
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Literal, cast
 from uuid import UUID
 
 from researchmate_api.config import Settings
@@ -202,7 +202,19 @@ def build_mcp_server() -> tuple[Any, Any]:
             payload = EvaluationRunCreate(
                 dataset_id=UUID(dataset_id),
                 pipeline_version_id=UUID(pipeline_version_id),
-                metrics=metrics,
+                # The MCP signature accepts arbitrary strings here for transport ergonomics;
+                # pydantic validates against the Literal metric set in EvaluationRunCreate.
+                metrics=cast(
+                    list[
+                        Literal[
+                            "schema_valid",
+                            "citation_precision",
+                            "evidence_recall",
+                            "faithfulness",
+                        ]
+                    ],
+                    metrics,
+                ),
                 max_parallelism=max_parallelism,
             )
             accepted = ctx.evidence.create_evaluation_run(ctx.user, payload, idempotency_key)

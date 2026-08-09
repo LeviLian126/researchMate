@@ -66,15 +66,16 @@ def build_evidence_graph(domain: EvidenceWorkflowDomain, checkpointer: Any):
         raise RuntimeError("LangGraph runtime is not installed") from exc
 
     def fan_out(state: EvidenceWorkflowState):
+        questions = state.get("questions", [])
         return [
             Send(
                 "retrieve_and_extract",
                 {
-                    "run_id": state["run_id"],
-                    "user_id": state["user_id"],
-                    "project_id": state["project_id"],
-                    "research_goal": state["research_goal"],
-                    "review_policy": state["review_policy"],
+                    "run_id": state.get("run_id", ""),
+                    "user_id": state.get("user_id", ""),
+                    "project_id": state.get("project_id", ""),
+                    "research_goal": state.get("research_goal", ""),
+                    "review_policy": state.get("review_policy", "strict"),
                     "run_kind": state.get("run_kind", "evidence_review"),
                     "base_report_id": state.get("base_report_id", ""),
                     "impacted_section_keys": state.get("impacted_section_keys", []),
@@ -89,7 +90,7 @@ def build_evidence_graph(domain: EvidenceWorkflowDomain, checkpointer: Any):
                     "question": question,
                 },
             )
-            for index, question in enumerate(state["questions"])
+            for index, question in enumerate(questions)
         ]
 
     def review(state: EvidenceWorkflowState) -> dict[str, Any]:

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import time
+from typing import cast
 
 from sqlalchemy import create_engine
 
@@ -48,9 +49,13 @@ def main() -> None:
     settings = WorkerSettings()
     dispatcher = build_dispatcher(settings)
     dispatcher.recover_stale_claims()
+    # The dispatcher process is only ever constructed with a SqlOutboxStore in
+    # build_dispatcher above, so the concrete store always exposes the engine
+    # required by the heartbeat writer.
+    store = cast(SqlOutboxStore, dispatcher.store)
     while True:
         record_heartbeat(
-            dispatcher.store.engine,
+            store.engine,
             "dispatcher",
             metadata={"poll_seconds": max(0.25, args.poll_seconds)},
         )

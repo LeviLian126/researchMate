@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+from typing import cast
 from uuid import uuid4
 
 import pytest
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from researchmate_api.config import Settings
 from researchmate_api.main import create_app
@@ -57,7 +59,9 @@ def _ready_project(client: TestClient, text: str) -> str:
 def test_invalid_conversation_does_not_consume_ask_quota(client: TestClient) -> None:
     """Reject an invalid conversation before the accepted-attempt quota boundary."""
     project_id = _ready_project(client, "RAG uses retrieval before generation.")
-    usage_before = dict(client.app.state.store.api_usage)
+    # TestClient.app is typed as a generic ASGI app; cast to FastAPI to access state.
+    store = cast(FastAPI, client.app).state.store
+    usage_before = dict(store.api_usage)
     response = client.post(
         "/api/v1/ask",
         json={
@@ -69,7 +73,7 @@ def test_invalid_conversation_does_not_consume_ask_quota(client: TestClient) -> 
     )
     assert response.status_code == 404
     assert response.json()["error"]["code"] == "CONVERSATION_NOT_FOUND"
-    assert client.app.state.store.api_usage == usage_before
+    assert store.api_usage == usage_before
 
 
 def test_ask_idempotency_replays_without_duplicate_messages(client: TestClient) -> None:
@@ -86,7 +90,7 @@ def test_ask_idempotency_replays_without_duplicate_messages(client: TestClient) 
         f"/api/v1/conversations/{conversation_id}/messages", headers=HEADERS
     ).json()["messages"]
     assert [message["role"] for message in messages] == ["user", "assistant"]
-    assert sum(client.app.state.store.api_usage.values()) == 1
+    assert sum(cast(FastAPI, client.app).state.store.api_usage.values()) == 1
 
 
 def test_idempotency_key_body_mismatch_returns_conflict(client: TestClient) -> None:

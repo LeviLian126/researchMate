@@ -179,6 +179,7 @@ def test_bootstrap_failure_update_is_bounded_and_optional(monkeypatch) -> None:
 
     sql, parameters = engine.connection.calls[0]
     assert "status='failed'" in sql
+    assert parameters is not None, "bootstrap failure must persist bounded parameters"
     assert parameters["run_id"] == JOB_ID
     assert len(parameters["code"]) == 120
 

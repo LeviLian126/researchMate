@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 from researchmate_api.schemas.common import SourceType
@@ -23,9 +23,41 @@ from researchmate_worker.workflow_models import WorkflowRuntimeError
 class WorkflowExecutionMixin:
     """Provide provider-facing workflow decisions independently from SQL commit mechanics."""
 
+    if TYPE_CHECKING:
+        # Provided by sibling mixins composed in SqlEvidenceWorkflowDomain.
+        from collections.abc import Callable
+
+        from researchmate_api.services.llm import ChatProvider
+        from researchmate_api.services.qdrant_store import QdrantHybridStore
+        from researchmate_api.services.store import ChunkEntry
+        from researchmate_api.services.web_search import TavilyWebSearchProvider
+        from sqlalchemy import Engine
+
+        engine: Engine
+        provider: ChatProvider
+        vector_store: QdrantHybridStore
+        web_search: TavilyWebSearchProvider | None
+        _event: Callable[..., None]
+
+        def _node_started(self, run_id: UUID, node: str, progress: int) -> None: ...
+        def _node_completed(
+            self,
+            run_id: UUID,
+            node: str,
+            progress: int,
+            payload: dict[str, Any],
+        ) -> None: ...
+        def _load_chunks(
+            self,
+            user_id: UUID,
+            project_id: UUID,
+            chunk_ids: list[UUID],
+        ) -> list[ChunkEntry]: ...
+        def _commit(self, state: EvidenceWorkflowState, report: ReportProposal) -> None: ...
+
     def plan(self, state: EvidenceWorkflowState) -> dict[str, Any]:
         """Create provider-backed questions or preserve exact refresh sections."""
-        run_id = UUID(state["run_id"])
+        run_id = UUID(state.get("run_id", ""))
         self._node_started(run_id, "plan", 5)
         if state.get("run_kind") == "report_refresh":
             questions = [
@@ -36,16 +68,16 @@ class WorkflowExecutionMixin:
             from researchmate_worker import workflow_runtime
 
             questions = workflow_runtime.build_research_plan(
-                self.provider, state["research_goal"]
+                self.provider, state.get("research_goal", "")
             ).questions
         self._node_completed(run_id, "plan", 15, {"question_count": len(questions)})
         return {"questions": questions}
 
     def retrieve_and_extract(self, state: EvidenceWorkflowState) -> dict[str, Any]:
         """Retrieve owned evidence and extract claims with server-controlled provenance."""
-        run_id = UUID(state["run_id"])
-        question = state["question"]
-        question_index = state["question_index"]
+        run_id = UUID(state.get("run_id", ""))
+        question = state.get("question", "")
+        question_index = state.get("question_index", 0)
         node_key = f"retrieve_extract:{question_index}"
         self._node_started(run_id, node_key, 20)
         selected_documents = (
@@ -54,8 +86,8 @@ class WorkflowExecutionMixin:
             else state.get("selected_document_ids")
         )
         points = self.vector_store.query(
-            user_id=state["user_id"],
-            project_id=state["project_id"],
+            user_id=state.get("user_id", ""),
+            project_id=state.get("project_id", ""),
             source_type=SourceType.LOCAL_DOC,
             text=question,
             limit=int(state.get("retrieval_limit", 12)),
@@ -68,15 +100,19 @@ class WorkflowExecutionMixin:
                 chunk_ids.append(UUID(str(raw_id)))
             except (TypeError, ValueError):
                 continue
-        chunks = self._load_chunks(UUID(state["user_id"]), UUID(state["project_id"]), chunk_ids)
+        chunks = self._load_chunks(
+            UUID(state.get("user_id", "")),
+            UUID(state.get("project_id", "")),
+            chunk_ids,
+        )
         if state.get("allow_web"):
             if self.web_search is None:
                 raise WorkflowRuntimeError("WEB_SEARCH_NOT_CONFIGURED")
             try:
                 chunks.extend(
                     self.web_search.search(
-                        user_id=UUID(state["user_id"]),
-                        project_id=UUID(state["project_id"]),
+                        user_id=UUID(state.get("user_id", "")),
+                        project_id=UUID(state.get("project_id", "")),
                         query=question,
                         limit=5,
                     )
@@ -132,7 +168,7 @@ class WorkflowExecutionMixin:
 
     def reconcile(self, state: EvidenceWorkflowState) -> dict[str, Any]:
         """Derive claim relationships without changing the underlying evidence."""
-        run_id = UUID(state["run_id"])
+        run_id = UUID(state.get("run_id", ""))
         self._node_started(run_id, "reconcile", 50)
         batches = sorted(state.get("evidence_batches", []), key=lambda item: item["question_index"])
         claims = [claim for batch in batches for claim in batch["claims"]]
@@ -175,7 +211,7 @@ class WorkflowExecutionMixin:
             "suspicious_chunk_ids": suspicious_sources,
             "allowed_decisions": ["approve", "edit", "reject"],
         }
-        run_id = UUID(state["run_id"])
+        run_id = UUID(state.get("run_id", ""))
         with self.engine.begin() as connection:
             existing = connection.execute(
                 text(
@@ -250,15 +286,15 @@ class WorkflowExecutionMixin:
         with self.engine.begin() as connection:
             connection.execute(
                 text("update workflow_runs set status='running' where id=:id"),
-                {"id": UUID(state["run_id"])},
+                {"id": UUID(state.get("run_id", ""))},
             )
         return {"claims": claims, "decision": decision}
 
     def synthesize(self, state: EvidenceWorkflowState) -> dict[str, Any]:
         """Build a report proposal constrained to reviewed claims and section scope."""
-        run_id = UUID(state["run_id"])
+        run_id = UUID(state.get("run_id", ""))
         self._node_started(run_id, "synthesize", 70)
-        claims = [ExtractedClaim.model_validate(claim) for claim in state["claims"]]
+        claims = [ExtractedClaim.model_validate(claim) for claim in state.get("claims", [])]
         required_keys = (
             state.get("impacted_section_keys")
             if state.get("run_kind") == "report_refresh"
@@ -266,7 +302,7 @@ class WorkflowExecutionMixin:
         )
         report = synthesize_report(
             self.provider,
-            state["research_goal"],
+            state.get("research_goal", ""),
             claims,
             required_section_keys=required_keys,
         )
@@ -275,10 +311,10 @@ class WorkflowExecutionMixin:
 
     def validate_and_commit(self, state: EvidenceWorkflowState) -> dict[str, Any]:
         """Reject ungrounded claims before atomically committing the report."""
-        run_id = UUID(state["run_id"])
+        run_id = UUID(state.get("run_id", ""))
         self._node_started(run_id, "validate_and_commit", 90)
-        report = ReportProposal.model_validate(state["report"])
-        if any(not claim.get("chunk_ids") for claim in state["claims"]):
+        report = ReportProposal.model_validate(state.get("report", {}))
+        if any(not claim.get("chunk_ids") for claim in state.get("claims", [])):
             raise WorkflowRuntimeError("CLAIM_WITHOUT_EVIDENCE")
         self._commit(state, report)
         return {"validation": {"passed": True, "report_sections": len(report.sections)}}

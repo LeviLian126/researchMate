@@ -32,7 +32,6 @@ jobs:
       - name: Run Python tests and coverage
         run: npm run test:python
       - name: Run Python type checks
-        continue-on-error: true
         run: npm run check:types
       - name: Run Python lint and repository contracts
         run: npm run check:lint && npm run check:openapi && npm run check:migrations
