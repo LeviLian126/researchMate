@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import IO, Any
 
 from researchmate_api.config import Settings
 
@@ -162,6 +162,18 @@ class S3CompatibleObjectStorage:
             )
         except Exception as exc:
             raise self._normalize_error("presign", exc) from exc
+
+    def upload_stream(self, object_key: str, source: IO[bytes], *, content_type: str) -> None:
+        """Upload a bounded server-received stream without relying on browser S3 CORS."""
+        try:
+            self.client.upload_fileobj(
+                source,
+                self.bucket,
+                object_key,
+                ExtraArgs={"ContentType": content_type},
+            )
+        except Exception as exc:
+            raise self._normalize_error("upload", exc) from exc
 
     def head(self, object_key: str) -> StoredObjectMetadata:
         """Read normalized metadata for a private object."""

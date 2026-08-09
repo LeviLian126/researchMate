@@ -14,6 +14,7 @@ from researchmate_api.config import Settings
 from researchmate_api.schemas.common import CurrentUser
 from researchmate_api.services.evidence_store import EvidenceRepository
 from researchmate_api.services.llm import ChatProvider
+from researchmate_api.services.object_storage import S3CompatibleObjectStorage
 from researchmate_api.services.qdrant_store import QdrantHybridStore
 from researchmate_api.services.rerank import RerankCoordinator
 from researchmate_api.services.store import ResearchMateRepository
@@ -59,6 +60,11 @@ def get_web_search(request: Request) -> TavilyWebSearchProvider | None:
 def get_reranker(request: Request) -> RerankCoordinator:
     """Resolve the shared rerank coordinator."""
     return request.app.state.reranker
+
+
+def get_object_storage(request: Request) -> S3CompatibleObjectStorage | None:
+    """Resolve the private object-storage adapter used by the upload proxy."""
+    return request.app.state.object_storage
 
 
 def error_detail(code: str, message: str, request_id: str = "req_local_dev") -> dict[str, str]:

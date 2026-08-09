@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import cast
+from typing import IO, cast
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -192,6 +192,53 @@ def test_upload_rejects_mime_mismatch(client: TestClient) -> None:
     )
     assert response.status_code == 422
     assert response.json()["error"]["code"] == "VALIDATION_FAILED"
+
+
+def test_authenticated_upload_proxy_enforces_owner_size_and_mime(client: TestClient) -> None:
+    """Store a bounded stream only under its server-derived owner-scoped object key."""
+
+    class RecordingStorage:
+        uploaded: tuple[str, bytes, str] | None = None
+
+        def upload_stream(
+            self, object_key: str, source: IO[bytes], *, content_type: str
+        ) -> None:
+            self.uploaded = (object_key, source.read(), content_type)
+
+    storage = RecordingStorage()
+    cast(FastAPI, client.app).state.object_storage = storage
+    content = b"%PDF deterministic proxy upload"
+    project = client.post("/api/v1/projects", json={"name": "Proxy"}, headers=USER_A_HEADERS)
+    reservation = client.post(
+        "/api/v1/documents/upload-url",
+        json={
+            "project_id": project.json()["id"],
+            "filename": "proxy-test.pdf",
+            "file_type": "pdf",
+            "mime_type": "application/pdf",
+            "size_bytes": len(content),
+        },
+        headers=USER_A_HEADERS,
+    ).json()
+
+    concealed = client.put(
+        f"/api/v1/documents/{reservation['document_id']}/content",
+        content=content,
+        headers={**USER_B_HEADERS, "Content-Type": "application/pdf"},
+    )
+    uploaded = client.put(
+        f"/api/v1/documents/{reservation['document_id']}/content",
+        content=content,
+        headers={**USER_A_HEADERS, "Content-Type": "application/pdf"},
+    )
+
+    assert concealed.status_code == 404
+    assert uploaded.status_code == 204
+    assert storage.uploaded is not None
+    object_key, stored_content, stored_mime = storage.uploaded
+    assert f"/projects/{project.json()['id']}/documents/{reservation['document_id']}/" in object_key
+    assert stored_content == content
+    assert stored_mime == "application/pdf"
 
 
 def test_upload_completion_rejects_non_hex_checksum(client: TestClient) -> None:

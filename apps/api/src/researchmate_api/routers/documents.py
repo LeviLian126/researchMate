@@ -2,26 +2,109 @@
 
 from __future__ import annotations
 
+from tempfile import SpooledTemporaryFile
+from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, status
+from anyio import to_thread
+from fastapi import APIRouter, Depends, Header, Request, Response, status
 
-from researchmate_api.dependencies import get_current_user, get_store, raise_api_error
+from researchmate_api.dependencies import (
+    get_current_user,
+    get_object_storage,
+    get_store,
+    raise_api_error,
+)
 from researchmate_api.schemas.common import CurrentUser
 from researchmate_api.schemas.document import (
+    MAX_DOCUMENT_UPLOAD_BYTES,
     DocumentRecord,
     UploadCompleteRequest,
     UploadUrlRequest,
     UploadUrlResponse,
+    safe_upload_filename,
 )
 from researchmate_api.services.object_storage import (
     ObjectStorageConfigurationError,
     ObjectStorageRequestError,
+    S3CompatibleObjectStorage,
     UploadVerificationError,
 )
 from researchmate_api.services.store import ResearchMateRepository
 
 router = APIRouter()
+
+
+@router.put("/documents/{document_id}/content", status_code=status.HTTP_204_NO_CONTENT)
+async def upload_document_content(
+    document_id: UUID,
+    request: Request,
+    content_type: Annotated[str | None, Header()] = None,
+    content_length: Annotated[int | None, Header()] = None,
+    user: CurrentUser = Depends(get_current_user),
+    repository: ResearchMateRepository = Depends(get_store),
+    object_storage: S3CompatibleObjectStorage | None = Depends(get_object_storage),
+) -> Response:
+    """Proxy a bounded owner-scoped upload when provider CORS is unavailable."""
+    document = repository.get_document(user, document_id)
+    if document is None:
+        raise_api_error(status.HTTP_404_NOT_FOUND, "DOCUMENT_NOT_FOUND", "Document was not found.")
+    if object_storage is None:
+        raise_api_error(
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            "OBJECT_STORAGE_NOT_CONFIGURED",
+            "Object storage is not configured for uploads.",
+        )
+    if content_type != document.mime_type:
+        raise_api_error(
+            status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            "MIME_MISMATCH",
+            "Upload content type does not match the reserved document.",
+        )
+    if content_length is not None and content_length != document.size_bytes:
+        raise_api_error(
+            status.HTTP_409_CONFLICT,
+            "SIZE_MISMATCH",
+            "Upload size does not match the reserved document.",
+        )
+
+    received = 0
+    with SpooledTemporaryFile(max_size=1024 * 1024, mode="w+b") as source:
+        async for chunk in request.stream():
+            received += len(chunk)
+            if received > MAX_DOCUMENT_UPLOAD_BYTES or received > document.size_bytes:
+                raise_api_error(
+                    status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                    "UPLOAD_TOO_LARGE",
+                    "Upload exceeds the reserved document size.",
+                )
+            source.write(chunk)
+        if received != document.size_bytes:
+            raise_api_error(
+                status.HTTP_409_CONFLICT,
+                "SIZE_MISMATCH",
+                "Upload size does not match the reserved document.",
+            )
+        source.seek(0)
+        object_key = (
+            f"users/{user.id}/projects/{document.project_id}/documents/{document.id}/"
+            f"{safe_upload_filename(document.filename)}"
+        )
+        try:
+            await to_thread.run_sync(
+                lambda: object_storage.upload_stream(
+                    object_key, source, content_type=document.mime_type
+                )
+            )
+        except ObjectStorageRequestError as exc:
+            raise_api_error(
+                status.HTTP_503_SERVICE_UNAVAILABLE,
+                "OBJECT_STORAGE_UNAVAILABLE",
+                "The object storage upload failed. Retry later."
+                if exc.retryable
+                else "The object storage upload failed.",
+            )
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 # Generate a local R2 signed upload URL placeholder and create an uploaded document record.

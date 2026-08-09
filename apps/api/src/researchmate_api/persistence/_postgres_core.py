@@ -5,7 +5,6 @@
 from __future__ import annotations
 
 import json
-import re
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from contextvars import ContextVar
@@ -29,7 +28,12 @@ from researchmate_api.schemas.conversation import (
     ConversationSummary,
     RuntimeRerankConfig,
 )
-from researchmate_api.schemas.document import DocumentRecord, UploadUrlRequest, UploadUrlResponse
+from researchmate_api.schemas.document import (
+    DocumentRecord,
+    UploadUrlRequest,
+    UploadUrlResponse,
+    safe_upload_filename,
+)
 from researchmate_api.schemas.job import JobRecord
 from researchmate_api.schemas.project import ProjectCreate, ProjectRecord
 from researchmate_api.schemas.quiz import QuizQuestion, QuizSet
@@ -60,8 +64,7 @@ def _json(value: object) -> str:
 
 def _safe_filename(filename: str) -> str:
     """Sanitize an uploaded filename for use inside an object-storage key."""
-    sanitized = re.sub(r"[^A-Za-z0-9._-]+", "_", filename).strip("._")
-    return sanitized[:180] or "document"
+    return safe_upload_filename(filename)
 
 
 def _psycopg_url(database_url: str) -> str:

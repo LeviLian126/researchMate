@@ -42,7 +42,7 @@ from researchmate_api.schemas.document import UploadUrlRequest
 from researchmate_api.services.embedding import NvidiaEmbeddingProvider
 from researchmate_api.services.evidence_store import EvidenceRepository, InMemoryEvidenceRepository
 from researchmate_api.services.llm import NvidiaChatProvider
-from researchmate_api.services.object_storage import StoredObjectMetadata
+from researchmate_api.services.object_storage import S3CompatibleObjectStorage, StoredObjectMetadata
 from researchmate_api.services.qdrant_store import QdrantHybridStore
 from researchmate_api.services.rerank import RerankCoordinator
 from researchmate_api.services.store import InMemoryResearchMateStore, ResearchMateRepository
@@ -196,7 +196,14 @@ def create_app(
         },
     )
     app.state.settings = runtime_settings
-    app.state.store = repository or build_repository(runtime_settings)
+    app.state.object_storage = (
+        S3CompatibleObjectStorage(runtime_settings)
+        if runtime_settings.object_storage_configured
+        else None
+    )
+    app.state.store = repository or build_repository(
+        runtime_settings, object_storage=app.state.object_storage
+    )
     app.state.evidence_store = evidence_repository or build_evidence_repository(runtime_settings)
     app.state.chat_provider = (
         NvidiaChatProvider(runtime_settings) if runtime_settings.llm_provider == "nvidia" else None
@@ -453,14 +460,16 @@ def create_app(
     return app
 
 
-def build_repository(settings: Settings) -> ResearchMateRepository:
+def build_repository(
+    settings: Settings,
+    *,
+    object_storage: S3CompatibleObjectStorage | None = None,
+) -> ResearchMateRepository:
     """Build the configured persistence adapter without opening a database connection."""
     if settings.repository_backend == "memory":
         return InMemoryResearchMateStore()
 
     from researchmate_api.persistence.postgres import PostgresResearchMateRepository
-    from researchmate_api.services.object_storage import S3CompatibleObjectStorage
-
     assert settings.database_url is not None
     # Typed factories are constructed lazily when object storage is configured so that local and
     # worker environments without S3-like storage still bootstrap the repository. Both names are
@@ -469,13 +478,13 @@ def build_repository(settings: Settings) -> ResearchMateRepository:
     upload_url_factory: UploadUrlFactory | None = None
     object_metadata_reader: ObjectMetadataReader | None = None
     if settings.object_storage_configured:
-        storage = S3CompatibleObjectStorage(settings)
+        storage = object_storage or S3CompatibleObjectStorage(settings)
 
         def _upload_url_factory(
-            _document_id: UUID, object_key: str, payload: UploadUrlRequest
+            document_id: UUID, _object_key: str, _payload: UploadUrlRequest
         ) -> str:
-            """Map a validated upload reservation to the configured object-store signer."""
-            return storage.presign_upload(object_key, content_type=payload.mime_type)
+            """Route browser uploads through the authenticated same-origin API boundary."""
+            return f"/api/v1/documents/{document_id}/content"
 
         def _object_metadata_reader(
             object_key: str, *, declared_mime_type: str | None = None

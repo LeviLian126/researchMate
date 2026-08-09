@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from io import BytesIO
 from typing import Any
 
 import pytest
@@ -35,6 +36,7 @@ class FakeS3Client:
         self.presign_call = None
         self.deleted = None
         self.downloaded = None
+        self.uploaded = None
         self.fetched_bytes: dict[str, bytes] = {}
 
     def generate_presigned_url(self, operation: str, **kwargs: Any) -> str:
@@ -55,6 +57,12 @@ class FakeS3Client:
     def download_fileobj(self, bucket: str, key: str, target: Any) -> None:  # boundary: opaque test double (file-like)
         self.downloaded = (bucket, key)
         target.write(b"document bytes")
+
+    def upload_fileobj(
+        self, source: Any, bucket: str, key: str, *, ExtraArgs: dict[str, str]
+    ) -> None:  # boundary: opaque boto3-compatible stream
+        """Record the proxied upload bytes and provider metadata."""
+        self.uploaded = (source.read(), bucket, key, ExtraArgs)
 
     def get_object(  # noqa: N803 - mirrors boto3 kwargs.
         self, *, Bucket: str, Key: str, Range: str | None = None
@@ -113,6 +121,23 @@ def test_r2_adapter_presigns_and_normalizes_metadata(tmp_path) -> None:
     assert destination.read_bytes() == b"document bytes"
     assert client.downloaded == ("researchmate-test", "users/u/document.pdf")
     assert client.deleted == {"Bucket": "researchmate-test", "Key": "users/u/document.pdf"}
+
+
+def test_s3_adapter_uploads_server_received_stream() -> None:
+    """Keep proxy uploads private and preserve their verified MIME metadata."""
+    client = FakeS3Client()
+    storage = S3CompatibleObjectStorage(r2_settings(), client=client)
+
+    storage.upload_stream(
+        "users/u/document.pdf", BytesIO(b"pdf bytes"), content_type="application/pdf"
+    )
+
+    assert client.uploaded == (
+        b"pdf bytes",
+        "researchmate-test",
+        "users/u/document.pdf",
+        {"ContentType": "application/pdf"},
+    )
 
 
 def test_generic_s3_endpoint_uses_its_own_credential_set() -> None:

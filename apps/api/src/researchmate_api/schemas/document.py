@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from datetime import datetime
 from typing import Literal
 from uuid import UUID
@@ -15,6 +16,13 @@ MIME_BY_TYPE = {
     "docx": {"application/vnd.openxmlformats-officedocument.wordprocessingml.document"},
     "pptx": {"application/vnd.openxmlformats-officedocument.presentationml.presentation"},
 }
+MAX_DOCUMENT_UPLOAD_BYTES = 25 * 1024 * 1024
+
+
+def safe_upload_filename(filename: str) -> str:
+    """Sanitize an uploaded filename for use inside a private object key."""
+    sanitized = re.sub(r"[^A-Za-z0-9._-]+", "_", filename).strip("._")
+    return sanitized[:180] or "document"
 
 
 # Define the request for obtaining an upload URL.
@@ -26,7 +34,7 @@ class UploadUrlRequest(BaseModel):
     filename: str = Field(min_length=1, max_length=240)
     file_type: Literal["pdf", "docx", "pptx"]
     mime_type: str = Field(min_length=3, max_length=120)
-    size_bytes: int = Field(gt=0, le=25 * 1024 * 1024)
+    size_bytes: int = Field(gt=0, le=MAX_DOCUMENT_UPLOAD_BYTES)
 
     model_config = ConfigDict(extra="forbid")
 
