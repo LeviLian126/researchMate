@@ -118,11 +118,9 @@ def test_openapi_contract_declares_mvp_routes() -> None:
 def test_docs_use_english_html_without_parallel_markdown() -> None:
     """Keep the HTML board authoritative without a root or docs Markdown duplicate."""
     assert not (ROOT / "README.md").exists()
-    # Allow the QA audit report as the only sanctioned Markdown exception.
     markdown_files = sorted(
         path.relative_to(ROOT).as_posix()
         for path in (ROOT / "docs").rglob("*.md")
-        if path.name != "qa-audit.md"
     )
     assert markdown_files == []
 
