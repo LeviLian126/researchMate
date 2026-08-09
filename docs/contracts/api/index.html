@@ -357,7 +357,7 @@
     <section id="planned-operations">
      <p class="eyebrow">Extended contracts</p>
      <h2>Evidence-review, evaluation, reliability, and MCP operations</h2>
-     <p class="sub">The generated OpenAPI now contains 46 REST operations, including personal-chat bootstrap, cross-workspace conversation navigation, conversation-scoped attachments, owner-scoped conversation CRUD, the bounded upload proxy, and two runtime-rerank operations. Their route, schema, ownership/role, idempotency, and deterministic repository behavior have code evidence; managed providers, queue delivery, checkpoint recovery, telemetry export, and this release deployment remain integration-unvalidated. MCP is a separate protocol boundary and is not counted as REST.</p>
+     <p class="sub">The generated OpenAPI now contains 46 REST operations, including personal-chat bootstrap, cross-workspace conversation navigation, conversation-scoped attachments, owner-scoped conversation CRUD, the bounded upload proxy, and two runtime-rerank operations. Their route, schema, ownership/role, idempotency, and deterministic repository behavior have code evidence. This release is live and the authenticated upload/ingestion/retrieval path passed; managed checkpoint recovery, telemetry export, and broader provider failure drills remain integration-unvalidated. MCP is a separate protocol boundary and is not counted as REST.</p>
      <div class="notice"><strong>Shared conventions:</strong> bearer authentication; owner/project permission checks in the API; <code>Idempotency-Key</code> on commands; the current error envelope with a request ID; authoritative operation state in Postgres; persisted SSE replay; and Redis as delivery rather than irreplaceable state. Supabase JWT-backed project create/list/read is validated for password and GitHub identities and cross-user API concealment passes. A direct RLS query and distributed delivery are not yet validated.</div>
      <div class="notice warning"><strong>How to read the rows:</strong> request and success shapes describe the implemented route schemas. Local LangGraph, RAGAS, strict-checkpoint serializer, and MCP initialization tests now pass. Failure/recovery and acceptance rows still name distributed-system gates; they are not evidence that a managed checkpoint, provider, queue, or cloud runtime passed.</div>
 
@@ -528,7 +528,7 @@
    </aside>
   </div>
  </main>
- <footer class="shell footer">ResearchMate API contracts · 46 OpenAPI REST operations · managed readiness verified, this release pending cloud validation</footer>
+ <footer class="shell footer">ResearchMate API contracts · 46 OpenAPI REST operations · release live, authenticated Hybrid RAG path verified</footer>
  <script src="../../assets/site.js"></script>
 </body>
 </html>
