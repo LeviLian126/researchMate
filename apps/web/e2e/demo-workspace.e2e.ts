@@ -22,6 +22,21 @@ test("completes the deterministic research workspace journey", async ({ page }) 
   await expect(page.getByRole("heading", { name: "Welcome back" })).toHaveCount(0);
   await expect(page.getByRole("textbox", { name: "Message" })).toBeEnabled();
 
+  const sidebar = page.locator(".app-sidebar");
+  const resizeHandle = page.getByRole("separator", { name: "Resize sidebar" });
+  await expect(resizeHandle).toBeVisible();
+  const sidebarBeforeResize = await sidebar.boundingBox();
+  const handleBounds = await resizeHandle.boundingBox();
+  expect(sidebarBeforeResize).not.toBeNull();
+  expect(handleBounds).not.toBeNull();
+  await page.mouse.move(handleBounds!.x + handleBounds!.width / 2, handleBounds!.y + 40);
+  await page.mouse.down();
+  await page.mouse.move(handleBounds!.x + 72, handleBounds!.y + 40);
+  await page.mouse.up();
+  await expect.poll(async () => (await sidebar.boundingBox())?.width ?? 0).toBeGreaterThan(
+    sidebarBeforeResize!.width + 40,
+  );
+
   await page.getByRole("textbox", { name: "Message" }).fill("What makes retrieved evidence defensible?");
   await page.getByRole("button", { name: "Send message" }).click();
 

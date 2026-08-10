@@ -4,6 +4,7 @@
 import Link from "next/link";
 import {
   FormEvent,
+  PointerEvent as ReactPointerEvent,
   useCallback,
   useEffect,
   useMemo,
@@ -57,6 +58,10 @@ import {
 } from "@/components/ui/sheet";
 
 const PROJECT_PATTERN = /\/app\/projects\/([^/]+)/;
+const SIDEBAR_MIN_WIDTH = 220;
+const SIDEBAR_MAX_WIDTH = 520;
+const SIDEBAR_DEFAULT_WIDTH = 300;
+const SIDEBAR_WIDTH_STORAGE_KEY = "researchmate_sidebar_width";
 
 interface DeletionJob {
   status: "pending" | "running" | "succeeded" | "failed" | "cancelled";
@@ -82,6 +87,8 @@ export function AppSidebar() {
   const activeProjectId = pathname.match(PROJECT_PATTERN)?.[1] ?? null;
   const activeConversationId = searchParams.get("conversation");
   const [collapsed, setCollapsed] = useState(false);
+  const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_DEFAULT_WIDTH);
+  const [isResizing, setIsResizing] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [projects, setProjects] = useState<ProjectRecord[]>([]);
   const [personalProjectId, setPersonalProjectId] = useState<string | null>(null);
@@ -127,7 +134,13 @@ export function AppSidebar() {
 
   useEffect(() => {
     const saved = window.localStorage.getItem("researchmate_sidebar_collapsed");
+    const savedWidth = window.localStorage.getItem(SIDEBAR_WIDTH_STORAGE_KEY);
     setCollapsed(saved === null ? window.innerWidth <= 820 : saved === "true");
+    if (savedWidth !== null && Number.isFinite(Number(savedWidth))) {
+      setSidebarWidth(
+        Math.min(SIDEBAR_MAX_WIDTH, Math.max(SIDEBAR_MIN_WIDTH, Number(savedWidth))),
+      );
+    }
     void loadNavigation();
     const refresh = () => void loadNavigation();
     window.addEventListener("researchmate:sidebar-refresh", refresh);
@@ -143,6 +156,21 @@ export function AppSidebar() {
       window.localStorage.setItem("researchmate_sidebar_collapsed", String(!current));
       return !current;
     });
+  }
+
+  /** Stores a bounded desktop width so the workspace always retains usable room. */
+  function setDesktopSidebarWidth(nextWidth: number) {
+    const boundedWidth = Math.min(SIDEBAR_MAX_WIDTH, Math.max(SIDEBAR_MIN_WIDTH, nextWidth));
+    setSidebarWidth(boundedWidth);
+    window.localStorage.setItem(SIDEBAR_WIDTH_STORAGE_KEY, String(boundedWidth));
+  }
+
+  /** Starts pointer resizing from the sidebar's trailing edge. */
+  function startSidebarResize(event: ReactPointerEvent<HTMLDivElement>) {
+    if (collapsed) return;
+    event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setIsResizing(true);
   }
 
   /** Creates a workspace project and navigates to its chat. */
@@ -468,12 +496,46 @@ export function AppSidebar() {
       {/* Desktop sidebar */}
       <aside
         className={cn(
-          "app-sidebar hidden h-full shrink-0 flex-col overflow-hidden border-r border-white/30 bg-white/70 backdrop-blur-xl transition-[width] duration-300 ease-out md:flex",
-          collapsed ? "w-[72px]" : "w-[260px]",
+          "app-sidebar relative hidden h-full shrink-0 flex-col overflow-hidden border-r border-white/30 bg-white/70 backdrop-blur-xl md:flex",
+          isResizing ? "transition-none" : "transition-[width] duration-300 ease-out",
         )}
+        style={{ width: collapsed ? 72 : sidebarWidth }}
         aria-label="Workspace navigation"
       >
         {renderSidebarBody(collapsed, true)}
+        {!collapsed && (
+          <div
+            role="separator"
+            tabIndex={0}
+            aria-label="Resize sidebar"
+            aria-orientation="vertical"
+            aria-valuemin={SIDEBAR_MIN_WIDTH}
+            aria-valuemax={SIDEBAR_MAX_WIDTH}
+            aria-valuenow={sidebarWidth}
+            className="absolute inset-y-0 right-0 z-20 w-2 cursor-col-resize touch-none bg-transparent outline-none hover:bg-primary/15 focus-visible:bg-primary/20"
+            onPointerDown={startSidebarResize}
+            onPointerMove={(event) => {
+              if (isResizing) setDesktopSidebarWidth(event.clientX);
+            }}
+            onPointerUp={(event) => {
+              if (!isResizing) return;
+              event.currentTarget.releasePointerCapture(event.pointerId);
+              setIsResizing(false);
+            }}
+            onPointerCancel={() => setIsResizing(false)}
+            onKeyDown={(event) => {
+              const delta = event.shiftKey ? 32 : 16;
+              if (event.key === "ArrowLeft") {
+                event.preventDefault();
+                setDesktopSidebarWidth(sidebarWidth - delta);
+              }
+              if (event.key === "ArrowRight") {
+                event.preventDefault();
+                setDesktopSidebarWidth(sidebarWidth + delta);
+              }
+            }}
+          />
+        )}
       </aside>
 
       {/* Conversation management dialog */}
@@ -596,13 +658,13 @@ function ConversationLink({
   onNavigate?: () => void;
 }) {
   return (
-    <div className="group/convo flex min-w-0 items-center gap-1 pl-7">
+    <div className="group/convo flex w-full min-w-0 items-center gap-1 overflow-hidden pl-7">
       <Link
         aria-current={active ? "page" : undefined}
         href={href}
         onClick={onNavigate}
         className={cn(
-          "flex min-w-0 flex-1 items-center gap-2 rounded-lg px-2 py-1.5 text-sm transition-all duration-300 ease-out",
+          "flex min-w-0 flex-1 basis-0 items-center gap-2 overflow-hidden rounded-lg px-2 py-1.5 text-sm transition-all duration-300 ease-out",
           active
             ? "bg-accent font-medium text-accent-foreground"
             : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
@@ -615,7 +677,7 @@ function ConversationLink({
         type="button"
         variant="ghost"
         size="icon"
-        className="h-7 w-7 shrink-0 text-muted-foreground hover:text-foreground"
+        className="relative z-10 h-7 w-7 shrink-0 text-muted-foreground hover:text-foreground"
         aria-label={`Manage ${conversation.title}`}
         onClick={() => onManage(conversation)}
       >

@@ -64,11 +64,27 @@ const personalProject = {
   updated_at: "2026-07-30T00:00:00Z",
 };
 
-function setupNavigation({ ok = true }: { ok?: boolean } = {}) {
+const conversationsFixture = [
+  {
+    id: "conversation-long-title",
+    project_id: "project-personal",
+    title: "A deliberately long conversation title that must not hide its management action",
+    created_at: "2026-08-05T00:00:00Z",
+    updated_at: "2026-08-05T00:00:00Z",
+  },
+];
+
+function setupNavigation({
+  ok = true,
+  conversations = [],
+}: {
+  ok?: boolean;
+  conversations?: typeof conversationsFixture;
+} = {}) {
   apiFetchMock.mockImplementation(async (path: string) => {
     if (!ok) throw new Error("navigation unavailable");
     if (path === "/projects") return projectsFixture;
-    if (path === "/conversations") return { items: [] };
+    if (path === "/conversations") return { items: conversations };
     if (path === "/chat/bootstrap") return personalProject;
     return undefined;
   });
@@ -95,6 +111,7 @@ describe("AppSidebar navigation", () => {
     // Reset sidebar persistence between tests so the initial collapsed
     // state reflects the (default narrow) jsdom viewport every time.
     window.localStorage.removeItem("researchmate_sidebar_collapsed");
+    window.localStorage.removeItem("researchmate_sidebar_width");
     container = document.createElement("div");
     document.body.append(container);
     root = createRoot(container);
@@ -104,6 +121,7 @@ describe("AppSidebar navigation", () => {
     act(() => root.unmount());
     container.remove();
     window.localStorage.removeItem("researchmate_sidebar_collapsed");
+    window.localStorage.removeItem("researchmate_sidebar_width");
     vi.clearAllMocks();
   });
 
@@ -172,6 +190,41 @@ describe("AppSidebar navigation", () => {
     expect(window.localStorage.getItem("researchmate_sidebar_collapsed")).toBe(
       "true",
     );
+  });
+
+  it("keeps a long conversation's management action visible and reserves its control space", async () => {
+    setupNavigation({ conversations: conversationsFixture });
+
+    await act(async () => root.render(<AppSidebar />));
+    await flushAsyncQueue();
+
+    const manageButton = [...container.querySelectorAll("button")].find(
+      (button) =>
+        button.getAttribute("aria-label") ===
+        `Manage ${conversationsFixture[0].title}`,
+    );
+    expect(manageButton).toBeTruthy();
+    expect(manageButton?.className).toContain("shrink-0");
+    expect(manageButton?.parentElement?.className).toContain("w-full");
+  });
+
+  it("persists keyboard sidebar resizing within the supported desktop bounds", async () => {
+    setupNavigation({ ok: true });
+
+    await act(async () => root.render(<AppSidebar />));
+    await flushAsyncQueue();
+
+    const resizeHandle = container.querySelector<HTMLElement>(
+      '[role="separator"][aria-label="Resize sidebar"]',
+    );
+    expect(resizeHandle?.getAttribute("aria-valuenow")).toBe("300");
+
+    act(() => {
+      resizeHandle?.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "ArrowRight" }));
+    });
+
+    expect(window.localStorage.getItem("researchmate_sidebar_width")).toBe("316");
+    expect(resizeHandle?.getAttribute("aria-valuenow")).toBe("316");
   });
 
   it("navigates to the new project chat after creating a project", async () => {
