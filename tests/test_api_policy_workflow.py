@@ -257,7 +257,7 @@ def test_upload_completion_rejects_non_hex_checksum(client: TestClient) -> None:
     )
     response = client.post(
         f"/api/v1/documents/{upload.json()['document_id']}/complete",
-        json={"checksum_sha256": "z" * 64, "extracted_text": "valid local text"},
+        json={"checksum_sha256": "z" * 64},
         headers=HEADERS,
     )
     assert response.status_code == 422

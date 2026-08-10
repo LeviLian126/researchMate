@@ -9,7 +9,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from researchmate_api.schemas.common import MAX_DOCUMENT_CONTENT_LENGTH, DocumentStatus
+from researchmate_api.schemas.common import DocumentStatus
 
 MIME_BY_TYPE = {
     "pdf": {"application/pdf"},
@@ -58,14 +58,9 @@ class UploadUrlResponse(BaseModel):
 
 # Define the upload-complete notification.
 class UploadCompleteRequest(BaseModel):
-    """Accept the upload checksum and the explicitly local-only extraction fallback."""
+    """Accept the upload checksum for completion verification."""
 
     checksum_sha256: str | None = Field(default=None, pattern=r"^[0-9a-fA-F]{64}$")
-    extracted_text: str | None = Field(
-        default=None,
-        max_length=MAX_DOCUMENT_CONTENT_LENGTH,
-        description="Local development fallback. Production worker should extract text from R2.",
-    )
 
     model_config = ConfigDict(extra="forbid")
 

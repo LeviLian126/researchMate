@@ -300,10 +300,10 @@
         <p class="sub">用户选择 PDF/DOCX/PPTX 文件后,经过 3 个步骤完成上传和索引。使用 signed URL 模式:前端先请求上传 URL,直接 PUT 到对象存储,再通知后端完成。</p>
         <div class="proof-chain">
           <div class="proof-step"><b>1. 文件选择</b><small>chat-composer.tsx:<code>&lt;input type="file" accept=".pdf,.docx,.pptx" multiple&gt;</code> 的 <code>onChange</code> → 调用 <code>onUpload(event)</code> → 传入 <code>workspace.uploadFiles</code>。上传中展示 Loader2 旋转图标。Library 页面还支持拖拽上传(<code>onDrop</code>)。</small></div>
-          <div class="proof-step"><b>2. 上传编排</b><small>use-chat-workspace.ts:<code>uploadFiles</code> → 验证文件扩展名(<code>/\.(pdf|docx|pptx)$/i</code>)→ <code>fileTypeFromName</code> + <code>mimeForFileType</code> 解析类型 → <code>apiFetch POST /documents/upload-url</code> 获取 signed URL → <code>fetch PUT</code> 直传到 R2(本地回退路径读取 <code>file.text()</code>)→ <code>apiFetch POST /documents/{id}/complete</code> 通知后端。</small></div>
+          <div class="proof-step"><b>2. 上传编排</b><small>use-chat-workspace.ts:<code>uploadFiles</code> → 验证文件扩展名(<code>/\.(pdf|docx|pptx)$/i</code>)→ <code>fileTypeFromName</code> + <code>mimeForFileType</code> 解析类型 → <code>apiFetch POST /documents/upload-url</code> 获取 signed URL → <code>fetch PUT</code> 直传到 R2 → <code>apiFetch POST /documents/{id}/complete</code> 通知后端。</small></div>
           <div class="proof-step"><b>3. 状态刷新</b><small>use-chat-workspace.ts:项目模式 dispatch <code>"researchmate:sources-refresh"</code> 事件 → 个人模式 <code>setDocuments</code> 刷新文档列表 → 如果文档处于处理中状态,启动 2 秒轮询定时器直到所有文档变为 ready/failed。Library 页面同样轮询 <code>loadDocuments</code>。</small></div>
         </div>
-        <div class="notice"><strong>Signed URL 模式:</strong>前端不通过后端中转文件二进制数据,而是直接 PUT 到 R2 对象存储的 presigned URL。这减少了后端带宽压力,但要求 R2 的 CORS 配置允许浏览器的 PUT 请求。本地开发回退路径(<code>/api/v1/dev/upload/</code>)由后端直接接收文件文本。</div>
+        <div class="notice"><strong>Signed URL 模式:</strong>前端不通过后端中转文件二进制数据,而是直接 PUT 到 R2 对象存储的 presigned URL。这减少了后端带宽压力,但要求 R2 的 CORS 配置允许浏览器的 PUT 请求。</div>
       </section>
 
       <section id="deps">
@@ -318,11 +318,11 @@
           <div class="node"><b>认证组件</b><small>auth-gate.tsx → supabase.ts + demo.ts + api.ts(warmApi) + StateNotice + BrandLogo</small></div>
           <div class="node"><b>lib 层</b><small>api.ts → supabase.ts + demo.ts; supabase.ts(独立); demo.ts(独立); idempotent-intent.ts → api.ts; utils.ts(独立)</small></div>
           <div class="node"><b>ui/ 原语</b><small>15 个组件 → @radix-ui/* + cva + clsx + tailwind-merge + utils.ts(cn)</small></div>
-          <div class="node"><b>外部依赖</b><small>@researchmate/shared(类型契约), next, react, lucide-react, tailwindcss</small></div>
+          <div class="node"><b>外部依赖</b><small>next, react, lucide-react, tailwindcss</small></div>
         </div>
         <div class="grid two" style="margin-top:18px">
           <article class="fact"><b>关键依赖链</b><p><code>app/app/page.tsx</code> → <code>ChatWorkspace</code> → <code>useChatWorkspace</code> → <code>apiFetch</code> → <code>getAccessToken</code> → <code>getSupabaseSession</code> → <code>fetch</code>。这条链覆盖了从前端路由到网络请求的完整路径。</p></article>
-          <article class="fact"><b>共享类型来源</b><p><code>@researchmate/shared</code> 包提供前后端共享的 TypeScript 类型契约(<code>contracts.ts</code>),但 apps/web 的 <code>api.ts</code> 也自定义了大量接口(ProjectRecord, AskResponse, Citation 等),形成前端独立的类型层。</p></article>
+          <article class="fact"><b>共享类型来源</b><p>所有前端 TypeScript 类型直接定义在 <code>apps/web/app/lib/api.ts</code> 中,涵盖 ProjectRecord、AskResponse、Citation 等接口。这些类型镜像 <code>infra/openapi/openapi.yaml</code> 中的 OpenAPI 规范,该规范是 API 合约的唯一真相来源。</p></article>
         </div>
       </section>
 

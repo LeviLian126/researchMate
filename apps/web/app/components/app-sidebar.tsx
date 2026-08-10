@@ -326,22 +326,22 @@ export function AppSidebar() {
       )}
 
       <ScrollArea className="min-h-0 flex-1">
-        <div className="flex flex-col gap-3 px-3 pb-3">
+        <div className="flex min-w-0 flex-col gap-3 px-3 pb-3">
           {!!projects.length && (
-            <section className="flex flex-col gap-0.5">
+            <section className="flex min-w-0 flex-col gap-0.5">
               {!compact && (
                 <div className="px-2 py-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   Projects
                 </div>
               )}
               {projects.map((project) => (
-                <div key={project.id} className="flex flex-col">
-                  <div className="group/project flex items-center">
+                <div key={project.id} className="flex min-w-0 flex-col">
+                  <div className="group/project flex min-w-0 items-center">
                     <Link
                       href={`/app/projects/${project.id}/chat`}
                       onClick={() => setMobileOpen(false)}
                       aria-current={project.id === activeProjectId ? "page" : undefined}
-                      className={navItemClass(project.id === activeProjectId, compact)}
+                      className={cn(navItemClass(project.id === activeProjectId, compact), !compact && "min-w-0 flex-1")}
                     >
                       <Folder strokeWidth={1.5} className="size-4 shrink-0" />
                       {!compact && <span className="truncate">{project.name}</span>}
@@ -400,7 +400,7 @@ export function AppSidebar() {
           )}
 
           {!compact && !!personalConversations.length && (
-            <section className="flex flex-col gap-0.5">
+            <section className="flex min-w-0 flex-col gap-0.5">
               <div className="px-2 py-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 Recents
               </div>
@@ -596,7 +596,7 @@ function ConversationLink({
   onNavigate?: () => void;
 }) {
   return (
-    <div className="group/convo flex items-center gap-1 pl-7">
+    <div className="group/convo flex min-w-0 items-center gap-1 pl-7">
       <Link
         aria-current={active ? "page" : undefined}
         href={href}

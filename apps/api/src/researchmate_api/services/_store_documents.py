@@ -221,6 +221,15 @@ class DocumentStoreMixin:
                 error_message=error_message,
             )
 
+    def dev_complete_with_text(self, document_id: UUID, text: str) -> JobRecord | None:
+        """Inject extracted text directly for development and test workflows."""
+        with self._lock:
+            document = self.documents.get(document_id)
+            if document is None:
+                return None
+            user = CurrentUser(id=document.user_id)
+            return self.complete_document(user, document_id, text, None)
+
     def delete_document(self, user: CurrentUser, document_id: UUID) -> JobRecord | None:
         """Delete an owned document and its process-local dependent state."""
         with self._lock:

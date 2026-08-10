@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+from typing import cast
+from uuid import UUID
+
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from tests.api_workflow_support import (
@@ -167,10 +171,15 @@ def test_personal_chat_attachments_are_conversation_scoped(client: TestClient) -
     document_id = upload.json()["document_id"]
     completed = client.post(
         f"/api/v1/documents/{document_id}/complete",
-        json={"extracted_text": "Conversation one contains the private keyword ALPHA-ONLY."},
+        json={},
         headers=USER_A_HEADERS,
     )
     assert completed.status_code == 202
+    store = cast(FastAPI, client.app).state.store
+    job = store.dev_complete_with_text(
+        UUID(document_id), "Conversation one contains the private keyword ALPHA-ONLY."
+    )
+    assert job is not None
 
     first_docs = client.get(
         f"/api/v1/conversations/{first['id']}/documents",

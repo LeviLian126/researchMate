@@ -69,7 +69,7 @@
           <article class="fact"><b>Render</b><p>云部署平台,将合并的 backend-plus-worker 服务作为单个 Free 层 Docker web 服务托管在 Oregon 区域。render.yaml 声明一个包含 48 条目的 envVarGroups 块(37 条带值,11 条 sync:false 密钥),autoDeployTrigger 设为 checksPass,并使用 buildFilter 将重建限制在相关路径变更时触发。healthCheckPath /api/v1/readyz 确认运行时就绪。</p></article>
           <article class="fact"><b>Vercel</b><p>apps/web 中 Next.js 16.3.0 前端应用的部署平台。Vercel 独立于后端构建并服务生产前端。render.yaml 中的 CORS_ALLOWED_ORIGINS 设为 Vercel 源地址,使 API 接受来自已部署前端的浏览器请求。</p></article>
           <article class="fact"><b>uv</b><p>Astral 开发的 Python 包管理器与项目管理器,在 CI 和 Dockerfile 中固定为 0.12.1 版本。uv 解析 monorepo workspace(apps/api + workers/ai-worker),通过 uv.lock 以 --frozen 标志安装锁定依赖,并支持 --all-packages 在一条命令中安装所有 workspace 成员。setup-uv action 在 CI 中启用缓存以加速运行。</p></article>
-          <article class="fact"><b>npm workspaces</b><p>JavaScript monorepo 管理方案,通过根 package.json 中的 packageManager 声明 npm@11.6.0。workspaces 数组包含 apps/web 和 packages/shared。CI 运行 npm install --no-audit --no-fund 安装完整 workspace 树,package-lock.json 锁文件保证本地与 CI 环境间的可复现 JavaScript 依赖解析。</p></article>
+          <article class="fact"><b>npm workspaces</b><p>JavaScript monorepo 管理方案,通过根 package.json 中的 packageManager 声明 npm@11.6.0。workspaces 数组包含 apps/web。CI 运行 npm install --no-audit --no-fund 安装完整 workspace 树,package-lock.json 锁文件保证本地与 CI 环境间的可复现 JavaScript 依赖解析。</p></article>
         </div>
       </section>
 
@@ -350,7 +350,7 @@ npm run check:lint
           <div class="architecture-map">
             <div class="arch-column">
               <span>Source</span>
-              <button class="arch-node" data-title="GitHub repository" data-detail="包含 apps/api、workers/ai-worker、apps/web、packages/shared 的 monorepo。main 分支是部署目标。"><b>GitHub repo</b><small>main / develop / PR</small></button>
+              <button class="arch-node" data-title="GitHub repository" data-detail="包含 apps/api、workers/ai-worker 和 apps/web 的 monorepo。main 分支是部署目标。"><b>GitHub repo</b><small>main / develop / PR</small></button>
             </div>
             <div class="arch-column">
               <span>CI</span>
@@ -491,7 +491,7 @@ else exec python -m celery -A researchmate_worker.celery_app:celery_app worker -
         <h2>Python 与 JavaScript 的双锁策略</h2>
         <p class="sub">ResearchMate 使用两个独立的锁文件管理依赖:Python workspace 的 uv.lock 和 npm workspace 的 package-lock.json。两者都提交到仓库,并在 CI 和 Docker 中使用 --frozen 标志保证可复现安装。</p>
         <div class="grid two">
-          <article class="fact"><b>根 package.json</b><p>声明 <code>packageManager: npm@11.6.0</code> 和 <code>workspaces: ["apps/web", "packages/shared"]</code>。定义 17 个脚本,包括 <code>test:python</code>、<code>test:web</code>、<code>test:e2e</code>、<code>check:lint</code>、<code>check:openapi</code>、<code>check:migrations</code>、<code>check:web</code>、<code>check:audit</code> 以及总括脚本 <code>check:all</code>。private 标志防止意外 npm 发布。</p></article>
+          <article class="fact"><b>根 package.json</b><p>声明 <code>packageManager: npm@11.6.0</code> 和 <code>workspaces: ["apps/web"]</code>。定义 17 个脚本,包括 <code>test:python</code>、<code>test:web</code>、<code>test:e2e</code>、<code>check:lint</code>、<code>check:openapi</code>、<code>check:migrations</code>、<code>check:web</code>、<code>check:audit</code> 以及总括脚本 <code>check:all</code>。private 标志防止意外 npm 发布。</p></article>
           <article class="fact"><b>根 pyproject.toml</b><p>声明 uv workspace(<code>members = ["apps/api", "workers/ai-worker"]</code>)和 dev 依赖组:<code>coverage&gt;=7.10.0,&lt;8</code>、<code>httpx2&gt;=2.5.0,&lt;3</code>、<code>pre-commit&gt;=4.2.0,&lt;5</code>、<code>pytest&gt;=9.0.0,&lt;10</code>、<code>pyyaml&gt;=6.0.0,&lt;7</code>、<code>ruff==0.16.0</code>。pyright 不再列入 dev 依赖——<code>check:types</code> 脚本改用 <code>npx --yes pyright@1.1.390</code> 拉取。声明专用 <code>pytorch-cpu</code> index 用于 torch CPU wheel,并通过新的 <code>[tool.pyright]</code> 节集中配置类型检查器:<code>typeCheckingMode = "basic"</code>、<code>pythonVersion = "3.13"</code>、<code>venvPath = "."</code>、<code>venv = ".venv"</code>,include 覆盖 <code>apps/api/src/researchmate_api</code>、<code>workers/ai-worker/src/researchmate_worker</code> 和 <code>tests</code>。</p></article>
           <article class="fact"><b>apps/api/pyproject.toml</b><p>17 个生产依赖,包括 FastAPI、Pydantic、SQLAlchemy、psycopg、PyJWT、qdrant-client、redis、boto3、OpenAI SDK、Langfuse 和四个 OpenTelemetry 包(<code>opentelemetry-api</code>、<code>opentelemetry-exporter-otlp-proto-http</code>、<code>opentelemetry-instrumentation-fastapi</code>、<code>opentelemetry-sdk</code>)。Ruff 配置 line-length=100,忽略 B008 和 BLE001。</p></article>
           <article class="fact"><b>workers/ai-worker/pyproject.toml</b><p>18 个生产依赖,包括 Celery[redis]、Docling(固定 2.111.0)、LangGraph、RAGAS 0.4.3、torch 2.13.0+cpu、torchvision 0.28.0+cpu 和 pypdf。声明 <code>researchmate-dispatch-outbox</code> console script。torch 和 torchvision 从 pytorch-cpu index 获取。</p></article>

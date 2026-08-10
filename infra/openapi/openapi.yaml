@@ -5654,19 +5654,11 @@ components:
             pattern: ^[0-9a-fA-F]{64}$
           - type: 'null'
           title: Checksum Sha256
-        extracted_text:
-          anyOf:
-          - type: string
-            maxLength: 200000
-          - type: 'null'
-          title: Extracted Text
-          description: Local development fallback. Production worker should extract
-            text from R2.
       additionalProperties: false
       type: object
       title: UploadCompleteRequest
-      description: Accept the upload checksum and the explicitly local-only extraction
-        fallback.
+      description: Accept the upload checksum. The production worker parses uploaded
+        files from R2 object storage; no client-side text extraction is accepted.
     UploadUrlRequest:
       properties:
         project_id:

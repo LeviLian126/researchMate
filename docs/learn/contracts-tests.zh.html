@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8"/>
   <meta content="width=device-width,initial-scale=1" name="viewport"/>
-  <meta content="ResearchMate 共享合约与测试学习指南:contracts.ts 逐类型解析,三层契约镜像架构,38 个 Python 测试文件分析,Hermetic 测试策略,Mock 模式,覆盖率配置,前端 Vitest 与 Playwright 测试。" name="description"/>
+  <meta content="ResearchMate 共享合约与测试学习指南:OpenAPI 规范作为唯一真相来源,三层契约镜像架构,38 个 Python 测试文件分析,Hermetic 测试策略,Mock 模式,覆盖率配置,前端 Vitest 与 Playwright 测试。" name="description"/>
   <title>ResearchMate &middot; 合约与测试学习</title>
   <link href="../assets/site.css" rel="stylesheet"/>
   <style>
@@ -25,7 +25,7 @@
   <style>.module-nav{border-top:1px solid var(--g200)}.module-nav .shell{padding:6px 0 12px}.module-nav a{font-size:11.5px;padding:5px 11px}</style>
 </head>
 <body>
-  <header class="mast"><div class="shell mast-row"><a class="brand" href="../index.zh.html">ResearchMate 文档</a><div class="mast-right"><span class="stamp">合约与测试 &middot; 2026 年 8 月 7 日</span><a class="lang-toggle" href="contracts-tests.html" hreflang="en" lang="en">English</a></div></div></header>
+  <header class="mast"><div class="shell mast-row"><a class="brand" href="../index.zh.html">ResearchMate 文档</a><div class="mast-right"><span class="stamp">合约与测试 &middot; 2026 年 8 月 9 日</span><a class="lang-toggle" href="contracts-tests.html" hreflang="en" lang="en">English</a></div></div></header>
   <nav aria-label="文档" class="global"><div class="shell">
     <a href="../index.zh.html">概览</a>
     <a href="../product/index.zh.html">产品与路线图</a>
@@ -46,10 +46,10 @@
   <main class="shell">
     <div class="hero">
       <p class="eyebrow">TypeScript contracts / Pydantic / pytest / Vitest / Playwright / Hermetic testing</p>
-      <h1>合约与测试 &middot; packages/shared + tests</h1>
-      <p class="lede">ResearchMate 测试套件是一个 Hermetic、合约优先的验证系统。单个 TypeScript 文件(contracts.ts)定义了 23 个共享类型,在 Pydantic schema 和 SQL migration 中镜像。Python 测试套件包含 36 个 test_*.py 文件,分为 HTTP 集成测试、单元测试、Worker 测试、工作流测试和契约源码检视测试五类。每个测试都在无外部依赖的情况下运行,使用 fake provider、内存 store 和源码文件检视。本页逐类型解析每个合约,逐文件解析每个测试。</p>
+      <h1>合约与测试 &middot; OpenAPI + tests</h1>
+      <p class="lede">ResearchMate 测试套件是一个 Hermetic、合约优先的验证系统。OpenAPI 规范(openapi.yaml)定义了 65 个 schema,镜像到 Pydantic 模型和 SQL 迁移中。前端类型直接定义在 apps/web/app/lib/api.ts 中。Python 测试套件包含 36 个 test_*.py 文件,分为 HTTP 集成测试、单元测试、Worker 测试、工作流测试和契约源码检视测试五类。每个测试都在无外部依赖的情况下运行,使用 fake provider、内存 store 和源码文件检视。本页逐类型解析每个合约,逐文件解析每个测试。</p>
       <div class="meta">
-        <span class="status local">23 个合约类型(4 type + 19 interface)</span>
+        <span class="status local">65 个 OpenAPI schema</span>
         <span class="status local">38 个 test_*.py 文件</span>
         <span class="status local">3 个 Python 基础设施文件 + 1 个 INI 配置</span>
         <span class="status local">7 个 Vitest + 1 个 Playwright 前端测试</span>
@@ -64,8 +64,8 @@
         <h2>驱动合约与测试的 7 个核心依赖</h2>
         <p class="sub">每张卡片说明该技术的通用职责,以及 ResearchMate 在合约验证中的具体用法。</p>
         <div class="grid two">
-          <article class="fact"><b>TypeScript type contracts</b><p>单个文件 packages/shared/src/contracts.ts 定义了 23 个导出类型(4 个 <code>export type</code> + 19 个 <code>export interface</code>),作为 API 数据形状的权威来源。前端通过 <code>@researchmate/shared</code> workspace 包直接导入这些类型。该文件不含运行时代码,只有类型声明,确保对 bundle 大小零影响。</p></article>
-          <article class="fact"><b>Pydantic</b><p>Python 数据验证库。后端将每个 TypeScript 合约镜像为 apps/api/src/researchmate_api/schemas/ 下的 Pydantic 模型。Pydantic 在请求边界强制执行字段类型、可选 vs 必填、枚举约束和验证器逻辑。test_project_scaffold.py 验证后端 Pydantic 合约与 contracts.ts 定义的请求形状一致。</p></article>
+          <article class="fact"><b>TypeScript type contracts</b><p>位于 <code>infra/openapi/openapi.yaml</code> 的 OpenAPI 规范定义了 65 个 schema,作为 API 数据形状的权威来源。前端类型直接定义在 <code>apps/web/app/lib/api.ts</code> 中,镜像 OpenAPI schema。后端将它们镜像为 Pydantic 模型。不存在共享 workspace 包。</p></article>
+          <article class="fact"><b>Pydantic</b><p>Python 数据验证库。后端将每个 TypeScript 合约镜像为 apps/api/src/researchmate_api/schemas/ 下的 Pydantic 模型。Pydantic 在请求边界强制执行字段类型、可选 vs 必填、枚举约束和验证器逻辑。test_project_scaffold.py 验证后端 Pydantic 合约与 OpenAPI 规范定义的请求形状一致。</p></article>
           <article class="fact"><b>pytest</b><p>Python 测试框架(锁定 9.0+)。pytest.ini 配置 <code>-p no:cacheprovider --basetemp=.pytest-temp</code> 以确保确定性、无缓存的运行。conftest.py 将 API 和 worker 源码路径插入 sys.path。测试函数使用 <code>def test_*</code> 命名,<code>pytest.raises</code> 验证预期失败,<code>pytest.importorskip</code> 处理 SQLAlchemy 等可选依赖。</p></article>
           <article class="fact"><b>Vitest</b><p>前端单元测试框架,在 apps/web/vitest.config.ts 中配置 jsdom 环境和 v8 coverage provider。7 个测试文件覆盖 API 客户端逻辑、auth gate、展示组件、demo 模式、邮件限流、幂等 intent 和 Supabase session 处理。覆盖率阈值要求 app/lib 和 app/components 达到 40% 行和语句覆盖。</p></article>
           <article class="fact"><b>Playwright</b><p>浏览器验收测试框架。apps/web/playwright.config.ts 在 demo 模式(NEXT_PUBLIC_DEMO_MODE=true)下对端口 3100 的本地 Next.js dev server 运行测试。1 个 E2E 测试文件(demo-workspace.e2e.ts)验证确定性 client-only demo 运行时。CI 中 retries=2、单 worker;本地运行完全并行。</p></article>
@@ -75,22 +75,13 @@
       </section>
 
       <section id="shared-package">
-        <p class="eyebrow">packages/shared</p>
+        <p class="eyebrow">OpenAPI 规范</p>
         <h2>API 数据形状的唯一真相来源</h2>
-        <p class="sub">packages/shared 是一个无运行时代码的 npm workspace 包。其 package.json 将其声明为 type-only 模块,主入口为 contracts.ts。</p>
-        <h3>package.json</h3>
-        <pre class="command-block"><code>{
-  "name": "@researchmate/shared",
-  "private": true,
-  "version": "0.1.0",
-  "type": "module",
-  "main": "src/contracts.ts",
-  "types": "src/contracts.ts"
-}</code></pre>
-        <div class="notice"><code>main</code> 和 <code>types</code> 均指向 <code>src/contracts.ts</code>。因为该文件只包含类型声明(无可执行代码),导入它对前端 bundle 大小零影响。前端通过 npm workspaces 解析 <code>@researchmate/shared</code>,使每个组件和 API client 都能直接访问权威类型。</div>
+        <p class="sub">位于 <code>infra/openapi/openapi.yaml</code> 的 OpenAPI 3.1.0 规范(5729 行)定义了 65 个 schema,覆盖所有 API 端点。前端类型在 <code>apps/web/app/lib/api.ts</code> 中本地镜像这些 schema。<code>check:openapi</code> CI 门控确保 YAML 与 FastAPI 运行时保持同步。</p>
+        <div class="notice"><code>packages/shared</code> workspace 包已作为未使用的幽灵代码移除(整个仓库中零导入)。所有前端类型现在直接定义在 <code>apps/web/app/lib/api.ts</code> 中。OpenAPI 规范是前端和后端共同镜像的唯一真相来源。</div>
 
-        <h3>contracts.ts &middot; 23 个类型,逐类型详解</h3>
-        <p class="sub">该文件定义了 4 个 <code>export type</code> 别名和 19 个 <code>export interface</code> 声明。源码中所有注释为中文,类型名和字段名为英文。以下逐个说明每个类型及其用途和关键字段。</p>
+        <h3>api.ts &middot; 前端类型,逐类型详解</h3>
+        <p class="sub">该文件定义了 TypeScript 接口和类型,镜像 OpenAPI 规范。源码中所有注释为英文,类型名和字段名为英文。以下逐个说明每个类型及其用途和关键字段。</p>
         <div class="grid two">
           <article class="fact"><b>1. TaskType <code>(type)</code></b><p>联合类型:<code>"answer" | "quiz"</code>。定义请求代表的任务类型。Task 只决定要做什么,不决定怎么做。Router 检查请求以确定用户是在提问还是生成 quiz。</p></article>
           <article class="fact"><b>2. ToolName <code>(type)</code></b><p>8 个工具名的联合类型:<code>query_local_docs</code>、<code>search_web</code>、<code>read_url</code>、<code>crawl_url_optional</code>、<code>rerank_evidence</code>、<code>generate_answer</code>、<code>generate_quiz</code>、<code>save_quiz</code>。后端通过 ExecutionPlan 控制给定请求允许使用哪些工具,强制执行安全边界。</p></article>
@@ -110,7 +101,7 @@
           <article class="fact"><b>16. DocumentStatus <code>(type)</code></b><p>8 个状态的联合类型:<code>uploaded</code>、<code>parsing</code>、<code>parsed</code>、<code>indexing</code>、<code>ready</code>、<code>failed</code>、<code>expired</code>、<code>deleted</code>。定义文档生命周期状态机。只有 "ready" 文档可作为 quiz 或 answer 的证据。</p></article>
           <article class="fact"><b>17. DocumentRecord <code>(interface)</code></b><p>定义文档记录。字段:<code>id</code>、<code>user_id</code>、<code>project_id</code>、<code>conversation_id?</code>、<code>filename</code>、<code>file_type</code>("pdf" | "docx" | "pptx" | string)、<code>mime_type</code>、<code>size_bytes</code>、<code>status</code>(DocumentStatus)、<code>error_message?</code>、<code>expires_at?</code>、<code>created_at</code>、<code>updated_at</code>、<code>deleted_at?</code>。</p></article>
           <article class="fact"><b>18. UploadUrlRequest <code>(interface)</code></b><p>定义上传地址请求。字段:<code>project_id</code>、<code>conversation_id?</code>、<code>filename</code>、<code>file_type</code>("pdf" | "docx" | "pptx")、<code>mime_type</code>、<code>size_bytes</code>。由前端发送,从 object storage provider 获取 presigned upload URL。</p></article>
-          <article class="fact"><b>19. UploadCompleteRequest <code>(interface)</code></b><p>定义本地开发上传完成请求。字段:<code>checksum_sha256?</code>、<code>extracted_text?</code>。在本地开发中,前端直接发送提取的文本,而不是触发 worker 解析任务。</p></article>
+          <article class="fact"><b>19. UploadCompleteRequest <code>(interface)</code></b><p>定义上传完成请求。字段:<code>checksum_sha256?</code>。生产 worker 从 R2 对象存储解析上传的文件,不接受客户端文本提取。</p></article>
           <article class="fact"><b>20. UploadUrlResponse <code>(interface)</code></b><p>定义上传地址响应。字段:<code>document_id</code>、<code>upload_url</code>、<code>r2_object_key</code>、<code>expires_in_seconds</code>。前端将文件上传到 <code>upload_url</code>,然后使用 document_id 调用 complete 端点。</p></article>
           <article class="fact"><b>21. JobRecord <code>(interface)</code></b><p>定义 job 状态记录。字段:<code>id</code>、<code>user_id</code>、<code>project_id?</code>、<code>document_id?</code>、<code>type</code>(string)、<code>status</code>("pending" | "running" | "succeeded" | "failed" | "cancelled")、<code>progress</code>(number 0-100)、<code>error_message?</code>、<code>created_at</code>、<code>updated_at</code>。</p></article>
           <article class="fact"><b>22. DeveloperTrace <code>(interface)</code></b><p>定义用于调试和可观测性的 developer trace 记录。字段:<code>trace_id</code>、<code>user_id</code>、<code>project_id</code>、<code>run_id</code>、<code>execution_plan</code>(ExecutionPlan)、<code>router_reason</code>、<code>retrieved_chunks</code>(Record[])、<code>tool_calls</code>(Record[])、<code>validation_result</code>(Record)、<code>created_at</code>。仅管理员可访问。</p></article>
@@ -123,11 +114,11 @@
         <h2>TypeScript 到 Pydantic 到 SQL</h2>
         <p class="sub">同一数据形状在三层中表达,每层在不同边界强制执行。</p>
         <div class="proof-chain">
-          <div class="proof-step"><b>Layer 1 &middot; TypeScript(权威层)</b><small>packages/shared/src/contracts.ts -- 23 个类型。前端直接导入。无运行时代码,bundle 零成本。这是其他两层必须镜像的唯一真相来源。</small></div>
+          <div class="proof-step"><b>Layer 1 &middot; OpenAPI(权威层)</b><small>infra/openapi/openapi.yaml -- 65 个 schema。CI 门控 <code>check:openapi</code> 验证其与 FastAPI 运行时一致。前端在 <code>apps/web/app/lib/api.ts</code> 中镜像。这是其他两层必须镜像的唯一真相来源。</small></div>
           <div class="proof-step"><b>Layer 2 &middot; Pydantic(请求边界)</b><small>apps/api/src/researchmate_api/schemas/ -- 镜像每个 TypeScript interface 的 Python 模型。FastAPI 使用这些模型进行自动请求验证、OpenAPI 生成和响应序列化。字段名完全匹配。</small></div>
           <div class="proof-step"><b>Layer 3 &middot; SQL(持久化边界)</b><small>infra/supabase/migrations/ -- 带 RLS policy 的 PostgreSQL 表定义。列类型和约束镜像 Pydantic 模型。test_database_migration_contract.py 验证 migration 保留 schema 和 RLS 合约。</small></div>
         </div>
-        <div class="notice"><strong>为什么要三层?</strong> TypeScript 给前端编译时安全。Pydantic 给后端运行时验证和自动 OpenAPI 文档。SQL 给数据库结构完整性和 row-level security。对 contracts.ts 的修改必须传播到所有三层,契约源码检视测试验证这种一致性。</div>
+        <div class="notice"><strong>为什么要三层?</strong> OpenAPI 规范通过本地类型定义给前端编译时安全。Pydantic 给后端运行时验证和自动 OpenAPI 文档。SQL 给数据库结构完整性和 row-level security。对 OpenAPI 规范的修改必须传播到所有三层,契约源码检视测试验证这种一致性。</div>
       </section>
 
       <section id="consistency">
@@ -135,8 +126,8 @@
         <h2>测试如何强制执行镜像</h2>
         <p class="sub">6 个契约源码检视测试在不运行应用代码的情况下验证三层保持同步。</p>
         <div class="grid two">
-          <article class="fact"><b>Frontend 到 API 合约</b><p>test_frontend_contracts.py 读取前端源码文件,验证前端只调用 contracts.ts 中批准的 API 路由。检查 MVP 页面是否存在、前端不引用后端 secret 名称、不直接调用 model provider。</p></article>
-          <article class="fact"><b>Shared 到 Pydantic 合约</b><p>test_project_scaffold.py 包含 <code>test_shared_contracts_define_unified_chat_outputs</code> 和 <code>test_backend_pydantic_contracts_validate_request_shape</code>,验证共享 TypeScript 合约和后端 Pydantic 模型在请求和响应形状上一致。</p></article>
+          <article class="fact"><b>Frontend 到 API 合约</b><p>test_frontend_contracts.py 读取前端源码文件,验证前端只调用 OpenAPI 规范中批准的 API 路由。检查 MVP 页面是否存在、前端不引用后端 secret 名称、不直接调用 model provider。</p></article>
+          <article class="fact"><b>Shared 到 Pydantic 合约</b><p>test_project_scaffold.py 包含 <code>test_shared_contracts_define_unified_chat_outputs</code> 和 <code>test_backend_pydantic_contracts_validate_request_shape</code>,验证 OpenAPI schema 和后端 Pydantic 模型在请求和响应形状上一致。</p></article>
           <article class="fact"><b>SQL 到 schema 合约</b><p>test_database_migration_contract.py 读取 migration SQL 文件,验证 additive migration 保留 schema、RLS 和幂等性合约。检查所有计划表已定义、RLS policy 关闭初始缺口、durable run 和 evaluation 幂等键按 owner 唯一。</p></article>
           <article class="fact"><b>Postgres 到 repository 合约</b><p>test_release_safety_contracts.py 验证 Qdrant rerank projection 索引每个过滤字段、evaluation budget 和 fault audit migration 是 fail-closed 的、workflow claim 版本被序列化和递增。</p></article>
           <article class="fact"><b>OpenAPI 到 route 合约</b><p>test_project_scaffold.py 包含 <code>test_openapi_contract_declares_mvp_routes</code>,验证生成的 OpenAPI spec 声明所有 MVP 路由。test_evidence_api.py 包含 <code>test_evidence_routes_are_exposed_in_generated_openapi</code>。</p></article>
@@ -406,7 +397,7 @@ def create_ready_document(client, headers=HEADERS) -> tuple[str, str]:
           <div class="proof-step"><b>单元测试到 researchmate_api.services + schemas</b><small>单元测试导入特定 service(store、object_storage、persistence.postgres)和 schema(common、document)以验证单个模块。它们使用 SimpleNamespace 和 RecordingConnection double 替代真实基础设施。</small></div>
           <div class="proof-step"><b>Worker 测试到 researchmate_worker 模块</b><small>Worker 单元测试从 researchmate_worker.outbox、celery_app、ingestion、config、parsing 和 evaluation 模块导入。它们使用 monkeypatch 避免启动 Celery worker 或连接 Redis。</small></div>
           <div class="proof-step"><b>契约测试到 pathlib.Path</b><small>6 个契约源码检视测试仅依赖文件系统。它们使用 Path.read_text() 读取源码文件、SQL migration、YAML 配置和 Dockerfile,通过字符串匹配和 regex 验证结构合约。</small></div>
-          <div class="proof-step"><b>前端测试到 @researchmate/shared + app/lib</b><small>Vitest 测试从 ../lib/api(从 @researchmate/shared 重新导出)导入类型,测试 app/components 中的组件。Playwright 测试依赖 Next.js dev server 和 demo 模式运行时。</small></div>
+          <div class="proof-step"><b>前端测试到 app/lib</b><small>Vitest 测试从 ../lib/api(直接在本地定义所有类型)导入类型,测试 app/components 中的组件。Playwright 测试依赖 Next.js dev server 和 demo 模式运行时。</small></div>
         </div>
       </section>
 
@@ -416,7 +407,7 @@ def create_ready_document(client, headers=HEADERS) -> tuple[str, str]:
         <div class="doc-index">
           <a class="doc-link" href="../contracts/api/index.zh.html#operations"><b>API 合约</b><span>45 个 REST 操作的完整合约、请求/响应形状和集成状态。</span></a>
           <a class="doc-link" href="../contracts/data/index.zh.html#tables"><b>数据库设计</b><span>31 张表的完整字段、关系、完整性和 RLS 台账,镜像 Pydantic 和 TypeScript 合约。</span></a>
-          <a class="doc-link" href="backend.zh.html"><b>Backend 学习</b><span>逐文件解析 FastAPI router、Pydantic schema、service 和持久化层,它们镜像 contracts.ts。</span></a>
+          <a class="doc-link" href="backend.zh.html"><b>Backend 学习</b><span>逐文件解析 FastAPI router、Pydantic schema、service 和持久化层,它们镜像 OpenAPI 规范。</span></a>
           <a class="doc-link" href="worker.zh.html"><b>Worker 学习</b><span>Celery task、文档摄取、LangGraph workflow、Outbox 模式和 evaluation,由 worker 测试验证。</span></a>
           <a class="doc-link" href="frontend.zh.html"><b>Frontend 学习</b><span>Next.js 组件、API client 和状态管理,由 Vitest 和 Playwright 测试执行。</span></a>
           <a class="doc-link" href="../architecture/index.zh.html#stack"><b>架构与技术栈</b><span>运行时边界、技术栈论证和故障恢复,由契约测试强制执行。</span></a>

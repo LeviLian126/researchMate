@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from typing import cast
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from fastapi import FastAPI
@@ -49,10 +49,13 @@ def _ready_project(client: TestClient, text: str) -> str:
     assert upload.status_code == 200
     completed = client.post(
         f"/api/v1/documents/{upload.json()['document_id']}/complete",
-        json={"extracted_text": text},
+        json={},
         headers=HEADERS,
     )
     assert completed.status_code == 202
+    store = cast(FastAPI, client.app).state.store
+    job = store.dev_complete_with_text(UUID(upload.json()["document_id"]), text)
+    assert job is not None
     return project_id
 
 

@@ -58,7 +58,6 @@ def test_frontend_calls_mvp_api_contracts() -> None:
         "Bearer",
         "/projects",
         "/documents/upload-url",
-        "extracted_text",
         "/ask",
         "/quiz",
         "/dev/traces/",

@@ -300,10 +300,10 @@
         <p class="sub">After a user selects a PDF/DOCX/PPTX file, it goes through 3 steps to complete upload and indexing. Uses a signed URL pattern: the frontend first requests an upload URL, PUTs directly to object storage, then notifies the backend to complete.</p>
         <div class="proof-chain">
           <div class="proof-step"><b>1. File selection</b><small>chat-composer.tsx: <code>&lt;input type="file" accept=".pdf,.docx,.pptx" multiple&gt;</code> <code>onChange</code> → calls <code>onUpload(event)</code> → passed to <code>workspace.uploadFiles</code>. Shows a Loader2 spinner during upload. The Library page also supports drag-and-drop (<code>onDrop</code>).</small></div>
-          <div class="proof-step"><b>2. Upload orchestration</b><small>use-chat-workspace.ts: <code>uploadFiles</code> → validates file extension (<code>/\.(pdf|docx|pptx)$/i</code>) → <code>fileTypeFromName</code> + <code>mimeForFileType</code> resolve type → <code>apiFetch POST /documents/upload-url</code> gets a signed URL → <code>fetch PUT</code> uploads directly to R2 (local fallback reads <code>file.text()</code>) → <code>apiFetch POST /documents/{id}/complete</code> notifies the backend.</small></div>
+          <div class="proof-step"><b>2. Upload orchestration</b><small>use-chat-workspace.ts: <code>uploadFiles</code> → validates file extension (<code>/\.(pdf|docx|pptx)$/i</code>) → <code>fileTypeFromName</code> + <code>mimeForFileType</code> resolve type → <code>apiFetch POST /documents/upload-url</code> gets a signed URL → <code>fetch PUT</code> uploads directly to R2 → <code>apiFetch POST /documents/{id}/complete</code> notifies the backend.</small></div>
           <div class="proof-step"><b>3. State refresh</b><small>use-chat-workspace.ts: project mode dispatches <code>"researchmate:sources-refresh"</code> event → personal mode <code>setDocuments</code> refreshes the document list → if documents are still processing, starts a 2-second polling timer until all documents become ready/failed. The Library page similarly polls <code>loadDocuments</code>.</small></div>
         </div>
-        <div class="notice"><strong>Signed URL pattern:</strong> The frontend does not relay file binary data through the backend but PUTs directly to an R2 presigned URL. This reduces backend bandwidth pressure but requires R2 CORS configuration to allow browser PUT requests. The local development fallback path (<code>/api/v1/dev/upload/</code>) has the backend receive file text directly.</div>
+        <div class="notice"><strong>Signed URL pattern:</strong> The frontend does not relay file binary data through the backend but PUTs directly to an R2 presigned URL. This reduces backend bandwidth pressure but requires R2 CORS configuration to allow browser PUT requests.</div>
       </section>
 
       <section id="deps">
@@ -318,11 +318,11 @@
           <div class="node"><b>Auth component</b><small>auth-gate.tsx → supabase.ts + demo.ts + api.ts(warmApi) + StateNotice + BrandLogo</small></div>
           <div class="node"><b>Lib layer</b><small>api.ts → supabase.ts + demo.ts; supabase.ts (standalone); demo.ts (standalone); idempotent-intent.ts → api.ts; utils.ts (standalone)</small></div>
           <div class="node"><b>ui/ primitives</b><small>15 components → @radix-ui/* + cva + clsx + tailwind-merge + utils.ts(cn)</small></div>
-          <div class="node"><b>External dependencies</b><small>@researchmate/shared (type contracts), next, react, lucide-react, tailwindcss</small></div>
+          <div class="node"><b>External dependencies</b><small>next, react, lucide-react, tailwindcss</small></div>
         </div>
         <div class="grid two" style="margin-top:18px">
           <article class="fact"><b>Key dependency chain</b><p><code>app/app/page.tsx</code> → <code>ChatWorkspace</code> → <code>useChatWorkspace</code> → <code>apiFetch</code> → <code>getAccessToken</code> → <code>getSupabaseSession</code> → <code>fetch</code>. This chain covers the complete path from frontend route to network request.</p></article>
-          <article class="fact"><b>Shared type source</b><p><code>@researchmate/shared</code> provides frontend-backend shared TypeScript type contracts (<code>contracts.ts</code>), but apps/web's <code>api.ts</code> also defines many interfaces (ProjectRecord, AskResponse, Citation, etc.) independently, forming a frontend-specific type layer.</p></article>
+          <article class="fact"><b>Shared type source</b><p>All frontend TypeScript types are defined locally in <code>apps/web/app/lib/api.ts</code>, covering interfaces such as ProjectRecord, AskResponse, and Citation. These types mirror the OpenAPI specification at <code>infra/openapi/openapi.yaml</code>, which is the single source of truth for API contracts.</p></article>
         </div>
       </section>
 

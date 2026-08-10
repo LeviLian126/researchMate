@@ -180,7 +180,7 @@ def get_document(
     return document
 
 
-# Notify upload completion; local development may pass extracted_text, production worker should parse from R2.
+# Notify upload completion and enqueue the asynchronous ingestion job.
 @router.post("/documents/{document_id}/complete", status_code=status.HTTP_202_ACCEPTED)
 def complete_upload(
     document_id: UUID,
@@ -189,10 +189,9 @@ def complete_upload(
     repository: ResearchMateRepository = Depends(get_store),
 ) -> dict[str, str]:
     """Verify an upload and enqueue its asynchronous ingestion job."""
-    extracted_text = payload.extracted_text if payload else None
     checksum_sha256 = payload.checksum_sha256 if payload else None
     try:
-        job = repository.complete_document(user, document_id, extracted_text, checksum_sha256)
+        job = repository.complete_document(user, document_id, None, checksum_sha256)
     except UploadVerificationError as exc:
         raise_api_error(status.HTTP_409_CONFLICT, exc.code, str(exc))
     except ObjectStorageRequestError as exc:

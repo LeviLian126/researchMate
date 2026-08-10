@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8"/>
   <meta content="width=device-width,initial-scale=1" name="viewport"/>
-  <meta content="ResearchMate contracts and tests learning guide: contracts.ts type-by-type breakdown, three-layer contract mirroring, 39 Python test files analyzed, hermetic testing strategy, mock patterns, coverage configuration, frontend Vitest and Playwright tests." name="description"/>
+  <meta content="ResearchMate contracts and tests learning guide: OpenAPI spec as single source of truth, three-layer contract mirroring, 39 Python test files analyzed, hermetic testing strategy, mock patterns, coverage configuration, frontend Vitest and Playwright tests." name="description"/>
   <title>ResearchMate &middot; Contracts &amp; Tests learning</title>
   <link href="../assets/site.css" rel="stylesheet"/>
   <style>
@@ -25,7 +25,7 @@
   <style>.module-nav{border-top:1px solid var(--g200)}.module-nav .shell{padding:6px 0 12px}.module-nav a{font-size:11.5px;padding:5px 11px}</style>
 </head>
 <body>
-  <header class="mast"><div class="shell mast-row"><a class="brand" href="../index.html">ResearchMate documentation</a><div class="mast-right"><span class="stamp">Contracts &amp; Tests &middot; 7 August 2026</span><a class="lang-toggle" href="contracts-tests.zh.html" hreflang="zh" lang="zh">中文</a></div></div></header>
+  <header class="mast"><div class="shell mast-row"><a class="brand" href="../index.html">ResearchMate documentation</a><div class="mast-right"><span class="stamp">Contracts &amp; Tests &middot; 9 August 2026</span><a class="lang-toggle" href="contracts-tests.zh.html" hreflang="zh" lang="zh">中文</a></div></div></header>
   <nav aria-label="Documentation" class="global"><div class="shell">
     <a href="../index.html">Overview</a>
     <a href="../product/index.html">Product &amp; roadmap</a>
@@ -46,10 +46,10 @@
   <main class="shell">
     <div class="hero">
       <p class="eyebrow">TypeScript contracts / Pydantic / pytest / Vitest / Playwright / Hermetic testing</p>
-      <h1>Contracts &amp; Tests &middot; packages/shared + tests</h1>
-      <p class="lede">The ResearchMate test suite is a hermetic, contract-first verification system. A single TypeScript file (contracts.ts) defines 23 shared types that mirror across Pydantic schemas and SQL migrations. The Python test suite contains 36 test_*.py files organized into HTTP integration, unit, worker, workflow, and contract-source-inspection categories. Every test runs without external dependencies, using fake providers, in-memory stores, and source-file inspection. This page walks through every contract type and every test file.</p>
+      <h1>Contracts &amp; Tests &middot; OpenAPI + tests</h1>
+      <p class="lede">The ResearchMate test suite is a hermetic, contract-first verification system. The OpenAPI specification (openapi.yaml) defines 65 schemas that mirror across Pydantic models and SQL migrations. The frontend types live locally in apps/web/app/lib/api.ts. The Python test suite contains 36 test_*.py files organized into HTTP integration, unit, worker, workflow, and contract-source-inspection categories. Every test runs without external dependencies, using fake providers, in-memory stores, and source-file inspection. This page walks through every contract type and every test file.</p>
       <div class="meta">
-        <span class="status local">23 contract types (4 type + 19 interface)</span>
+        <span class="status local">65 OpenAPI schemas</span>
         <span class="status local">39 test_*.py files</span>
         <span class="status local">3 Python infra files + 1 INI config</span>
         <span class="status local">7 Vitest + 1 Playwright frontend tests</span>
@@ -64,8 +64,8 @@
         <h2>7 foundations that power contracts &amp; tests</h2>
         <p class="sub">Each card explains what the technology does in general and how ResearchMate uses it for contract verification.</p>
         <div class="grid two">
-          <article class="fact"><b>TypeScript type contracts</b><p>A single file, packages/shared/src/contracts.ts, defines 23 exported types (4 <code>export type</code> + 19 <code>export interface</code>) that serve as the authoritative API data shape. The frontend imports these types directly via the <code>@researchmate/shared</code> workspace package. No runtime code exists in this file, only type declarations, ensuring zero bundle-size impact.</p></article>
-          <article class="fact"><b>Pydantic</b><p>Python data-validation library. The backend mirrors every TypeScript contract into Pydantic models under apps/api/src/researchmate_api/schemas/. Pydantic enforces field types, optional vs. required, enum constraints, and validator logic at request boundary. test_project_scaffold.py verifies that backend Pydantic contracts validate the request shape defined by contracts.ts.</p></article>
+          <article class="fact"><b>TypeScript type contracts</b><p>The OpenAPI specification at <code>infra/openapi/openapi.yaml</code> defines 65 schemas that serve as the authoritative API data shape. The frontend types are defined locally in <code>apps/web/app/lib/api.ts</code>, mirroring the OpenAPI schemas. The backend mirrors them into Pydantic models. No shared workspace package exists.</p></article>
+          <article class="fact"><b>Pydantic</b><p>Python data-validation library. The backend mirrors every TypeScript contract into Pydantic models under apps/api/src/researchmate_api/schemas/. Pydantic enforces field types, optional vs. required, enum constraints, and validator logic at request boundary. test_project_scaffold.py verifies that backend Pydantic contracts validate the request shape defined by the OpenAPI specification.</p></article>
           <article class="fact"><b>pytest</b><p>Python test framework (pinned to 9.0+). pytest.ini configures <code>-p no:cacheprovider --basetemp=.pytest-temp</code> for deterministic, cache-free runs. conftest.py inserts API and worker source paths into sys.path. Test functions use plain <code>def test_*</code> naming, <code>pytest.raises</code> for expected failures, and <code>pytest.importorskip</code> for optional dependencies like SQLAlchemy.</p></article>
           <article class="fact"><b>Vitest</b><p>Frontend unit-test framework configured in apps/web/vitest.config.ts with jsdom environment and v8 coverage provider. Seven test files cover API client logic, auth gate, presentation components, demo mode, email rate limiting, idempotent intents, and Supabase session handling. Coverage thresholds enforce 40% lines and statements across app/lib and app/components.</p></article>
           <article class="fact"><b>Playwright</b><p>Browser acceptance-test framework. apps/web/playwright.config.ts runs against a local Next.js dev server in demo mode (NEXT_PUBLIC_DEMO_MODE=true) on port 3100. One E2E test file (demo-workspace.e2e.ts) exercises the deterministic client-only demo runtime. CI runs with retries=2 and a single worker; local runs are fully parallel.</p></article>
@@ -75,22 +75,13 @@
       </section>
 
       <section id="shared-package">
-        <p class="eyebrow">packages/shared</p>
+        <p class="eyebrow">OpenAPI specification</p>
         <h2>The single source of truth for API data shapes</h2>
-        <p class="sub">packages/shared is an npm workspace package with no runtime code. Its package.json declares it as a type-only module whose main entry is contracts.ts.</p>
-        <h3>package.json</h3>
-        <pre class="command-block"><code>{
-  "name": "@researchmate/shared",
-  "private": true,
-  "version": "0.1.0",
-  "type": "module",
-  "main": "src/contracts.ts",
-  "types": "src/contracts.ts"
-}</code></pre>
-        <div class="notice">Both <code>main</code> and <code>types</code> point to <code>src/contracts.ts</code>. Because the file contains only type declarations (no executable code), importing it adds zero bytes to the frontend bundle. The frontend resolves <code>@researchmate/shared</code> through npm workspaces, giving every component and API client direct access to the authoritative types.</div>
+        <p class="sub">The OpenAPI 3.1.0 specification at <code>infra/openapi/openapi.yaml</code> (5729 lines) defines 65 schemas covering every API endpoint. The frontend types in <code>apps/web/app/lib/api.ts</code> mirror these schemas locally. The <code>check:openapi</code> CI gate ensures the YAML stays in sync with the FastAPI runtime.</p>
+        <div class="notice">The <code>packages/shared</code> workspace package was removed as unused ghost code (zero imports across the entire repository). All frontend types are now defined directly in <code>apps/web/app/lib/api.ts</code>. The OpenAPI specification is the single source of truth that both frontend and backend mirror.</div>
 
-        <h3>contracts.ts &middot; 23 types, type-by-type</h3>
-        <p class="sub">The file defines 4 <code>export type</code> aliases and 19 <code>export interface</code> declarations. Every comment in the source is written in Chinese; the type names and field names are English. Below is each type with its purpose and key fields.</p>
+        <h3>api.ts &middot; frontend types, type-by-type</h3>
+        <p class="sub">The file defines TypeScript interfaces and types that mirror the OpenAPI specification. Every comment in the source is written in English; the type names and field names are English. Below is each type with its purpose and key fields.</p>
         <div class="grid two">
           <article class="fact"><b>1. TaskType <code>(type)</code></b><p>Union: <code>"answer" | "quiz"</code>. Defines what kind of task a request represents. Task only decides what to do, not how. The router inspects the request to determine whether the user is asking a question or generating a quiz.</p></article>
           <article class="fact"><b>2. ToolName <code>(type)</code></b><p>Union of 8 tool names: <code>query_local_docs</code>, <code>search_web</code>, <code>read_url</code>, <code>crawl_url_optional</code>, <code>rerank_evidence</code>, <code>generate_answer</code>, <code>generate_quiz</code>, <code>save_quiz</code>. The backend uses ExecutionPlan to control which tools are allowed for a given request, enforcing the security boundary.</p></article>
@@ -110,7 +101,7 @@
           <article class="fact"><b>16. DocumentStatus <code>(type)</code></b><p>Union of 8 statuses: <code>uploaded</code>, <code>parsing</code>, <code>parsed</code>, <code>indexing</code>, <code>ready</code>, <code>failed</code>, <code>expired</code>, <code>deleted</code>. Defines the document lifecycle state machine. Only "ready" documents can serve as quiz or answer evidence.</p></article>
           <article class="fact"><b>17. DocumentRecord <code>(interface)</code></b><p>Defines a document record. Fields: <code>id</code>, <code>user_id</code>, <code>project_id</code>, <code>conversation_id?</code>, <code>filename</code>, <code>file_type</code> ("pdf" | "docx" | "pptx" | string), <code>mime_type</code>, <code>size_bytes</code>, <code>status</code> (DocumentStatus), <code>error_message?</code>, <code>expires_at?</code>, <code>created_at</code>, <code>updated_at</code>, <code>deleted_at?</code>.</p></article>
           <article class="fact"><b>18. UploadUrlRequest <code>(interface)</code></b><p>Defines the upload URL request. Fields: <code>project_id</code>, <code>conversation_id?</code>, <code>filename</code>, <code>file_type</code> ("pdf" | "docx" | "pptx"), <code>mime_type</code>, <code>size_bytes</code>. Sent by the frontend to obtain a presigned upload URL from the object storage provider.</p></article>
-          <article class="fact"><b>19. UploadCompleteRequest <code>(interface)</code></b><p>Defines the local development upload completion request. Fields: <code>checksum_sha256?</code>, <code>extracted_text?</code>. In local development, the frontend sends extracted text directly instead of triggering a worker parse job.</p></article>
+          <article class="fact"><b>19. UploadCompleteRequest <code>(interface)</code></b><p>Defines the upload completion request. Fields: <code>checksum_sha256?</code>. The production worker parses uploaded files from R2 object storage; no client-side text extraction is accepted.</p></article>
           <article class="fact"><b>20. UploadUrlResponse <code>(interface)</code></b><p>Defines the upload URL response. Fields: <code>document_id</code>, <code>upload_url</code>, <code>r2_object_key</code>, <code>expires_in_seconds</code>. The frontend uploads the file to <code>upload_url</code> and then calls the complete endpoint with the document_id.</p></article>
           <article class="fact"><b>21. JobRecord <code>(interface)</code></b><p>Defines a job status record. Fields: <code>id</code>, <code>user_id</code>, <code>project_id?</code>, <code>document_id?</code>, <code>type</code> (string), <code>status</code> ("pending" | "running" | "succeeded" | "failed" | "cancelled"), <code>progress</code> (number 0-100), <code>error_message?</code>, <code>created_at</code>, <code>updated_at</code>.</p></article>
           <article class="fact"><b>22. DeveloperTrace <code>(interface)</code></b><p>Defines the developer trace record for debugging and observability. Fields: <code>trace_id</code>, <code>user_id</code>, <code>project_id</code>, <code>run_id</code>, <code>execution_plan</code> (ExecutionPlan), <code>router_reason</code>, <code>retrieved_chunks</code> (Record[]), <code>tool_calls</code> (Record[]), <code>validation_result</code> (Record), <code>created_at</code>. Access is admin-only.</p></article>
@@ -123,11 +114,11 @@
         <h2>TypeScript to Pydantic to SQL</h2>
         <p class="sub">The same data shape is expressed in three layers, each enforcing it at a different boundary.</p>
         <div class="proof-chain">
-          <div class="proof-step"><b>Layer 1 &middot; TypeScript (authoritative)</b><small>packages/shared/src/contracts.ts -- 23 types. The frontend imports these directly. No runtime code, zero bundle cost. This is the single source of truth that the other two layers must mirror.</small></div>
+          <div class="proof-step"><b>Layer 1 &middot; OpenAPI (authoritative)</b><small>infra/openapi/openapi.yaml -- 65 schemas. The CI gate <code>check:openapi</code> verifies it matches the FastAPI runtime. The frontend mirrors these in <code>apps/web/app/lib/api.ts</code>. This is the single source of truth that the other two layers must mirror.</small></div>
           <div class="proof-step"><b>Layer 2 &middot; Pydantic (request boundary)</b><small>apps/api/src/researchmate_api/schemas/ -- Python models that mirror every TypeScript interface. FastAPI uses these for automatic request validation, OpenAPI generation, and response serialization. Field names match exactly.</small></div>
           <div class="proof-step"><b>Layer 3 &middot; SQL (persistence boundary)</b><small>infra/supabase/migrations/ -- PostgreSQL table definitions with RLS policies. Column types and constraints mirror the Pydantic models. test_database_migration_contract.py verifies that migrations preserve schema and RLS contracts.</small></div>
         </div>
-        <div class="notice"><strong>Why three layers?</strong> TypeScript gives the frontend compile-time safety. Pydantic gives the backend runtime validation and automatic OpenAPI docs. SQL gives the database structural integrity and row-level security. A change to contracts.ts must propagate to all three layers, and the contract-source-inspection tests verify this consistency.</div>
+        <div class="notice"><strong>Why three layers?</strong> The OpenAPI spec gives the frontend compile-time safety via local type definitions. Pydantic gives the backend runtime validation and automatic OpenAPI docs. SQL gives the database structural integrity and row-level security. A change to the OpenAPI spec must propagate to all three layers, and the contract-source-inspection tests verify this consistency.</div>
       </section>
 
       <section id="consistency">
@@ -135,8 +126,8 @@
         <h2>How tests enforce the mirror</h2>
         <p class="sub">Six contract-source-inspection tests verify that the three layers stay in sync without running application code.</p>
         <div class="grid two">
-          <article class="fact"><b>Frontend to API contract</b><p>test_frontend_contracts.py reads frontend source files and verifies that the frontend calls only approved API routes from contracts.ts. It checks that MVP pages exist, that the frontend does not reference backend secret names, and that it does not call model providers directly.</p></article>
-          <article class="fact"><b>Shared to Pydantic contract</b><p>test_project_scaffold.py includes <code>test_shared_contracts_define_unified_chat_outputs</code> and <code>test_backend_pydantic_contracts_validate_request_shape</code>, which verify that the shared TypeScript contracts and backend Pydantic models agree on request and response shapes.</p></article>
+          <article class="fact"><b>Frontend to API contract</b><p>test_frontend_contracts.py reads frontend source files and verifies that the frontend calls only approved API routes from the OpenAPI spec. It checks that MVP pages exist, that the frontend does not reference backend secret names, and that it does not call model providers directly.</p></article>
+          <article class="fact"><b>Shared to Pydantic contract</b><p>test_project_scaffold.py includes <code>test_shared_contracts_define_unified_chat_outputs</code> and <code>test_backend_pydantic_contracts_validate_request_shape</code>, which verify that the OpenAPI schemas and backend Pydantic models agree on request and response shapes.</p></article>
           <article class="fact"><b>SQL to schema contract</b><p>test_database_migration_contract.py reads migration SQL files and verifies that additive migrations preserve schema, RLS, and idempotency contracts. It checks that all planned tables are defined, that RLS policies close initial gaps, and that durable run and evaluation idempotency keys are unique per owner.</p></article>
           <article class="fact"><b>Postgres to repository contract</b><p>test_release_safety_contracts.py verifies that Qdrant rerank projection indexes every filter field, that evaluation budget and fault audit migrations are fail-closed, and that workflow claim versions are serialized and incremented.</p></article>
           <article class="fact"><b>OpenAPI to route contract</b><p>test_project_scaffold.py includes <code>test_openapi_contract_declares_mvp_routes</code>, verifying that the generated OpenAPI spec declares all MVP routes. test_evidence_api.py includes <code>test_evidence_routes_are_exposed_in_generated_openapi</code>.</p></article>
@@ -407,7 +398,7 @@ def create_ready_document(client, headers=HEADERS) -> tuple[str, str]:
           <div class="proof-step"><b>Unit tests to researchmate_api.services + schemas</b><small>Unit tests import specific services (store, object_storage, persistence.postgres) and schemas (common, document) to verify individual modules. They use SimpleNamespace and RecordingConnection doubles instead of real infrastructure.</small></div>
           <div class="proof-step"><b>Worker tests to researchmate_worker modules</b><small>Worker unit tests import from researchmate_worker.outbox, celery_app, ingestion, config, parsing, and evaluation modules. They use monkeypatch to avoid starting Celery workers or connecting to Redis.</small></div>
           <div class="proof-step"><b>Contract tests to pathlib.Path</b><small>The 6 contract-source-inspection tests depend only on the filesystem. They read source files, SQL migrations, YAML configs, and Dockerfiles using Path.read_text() and verify structural contracts through string matching and regex.</small></div>
-          <div class="proof-step"><b>Frontend tests to @researchmate/shared + app/lib</b><small>Vitest tests import types from ../lib/api (which re-exports from @researchmate/shared) and test components from app/components. Playwright tests depend on the Next.js dev server and demo mode runtime.</small></div>
+          <div class="proof-step"><b>Frontend tests to app/lib</b><small>Vitest tests import types from ../lib/api (which defines all types locally) and test components from app/components. Playwright tests depend on the Next.js dev server and demo mode runtime.</small></div>
         </div>
       </section>
 
@@ -417,7 +408,7 @@ def create_ready_document(client, headers=HEADERS) -> tuple[str, str]:
         <div class="doc-index">
           <a class="doc-link" href="../contracts/api/index.html#operations"><b>API contracts</b><span>Complete REST operation contracts, request/response shapes, and integration status for 45 operations.</span></a>
           <a class="doc-link" href="../contracts/data/index.html#tables"><b>Database design</b><span>Complete field, relationship, integrity, and RLS ledger for 31 tables, mirroring the Pydantic and TypeScript contracts.</span></a>
-          <a class="doc-link" href="backend.html"><b>Backend learning</b><span>File-by-file walkthrough of FastAPI routers, Pydantic schemas, services, and persistence layer that mirror contracts.ts.</span></a>
+          <a class="doc-link" href="backend.html"><b>Backend learning</b><span>File-by-file walkthrough of FastAPI routers, Pydantic schemas, services, and persistence layer that mirror the OpenAPI specification.</span></a>
           <a class="doc-link" href="worker.html"><b>Worker learning</b><span>Celery tasks, document ingestion, LangGraph workflow, Outbox pattern, and evaluation that the worker tests verify.</span></a>
           <a class="doc-link" href="frontend.html"><b>Frontend learning</b><span>Next.js components, API client, and state management that the Vitest and Playwright tests exercise.</span></a>
           <a class="doc-link" href="../architecture/index.html#stack"><b>Architecture &amp; stack</b><span>Runtime boundaries, stack justification, and failure recovery that the contract tests enforce.</span></a>

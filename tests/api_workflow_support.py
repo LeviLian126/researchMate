@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+from typing import cast
+from uuid import UUID
+
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 HEADERS = {"Authorization": "Bearer dev"}
@@ -29,17 +33,17 @@ def create_ready_document(client: TestClient, headers: dict[str, str] = HEADERS)
     document_id = upload_response.json()["document_id"]
     complete_response = client.post(
         f"/api/v1/documents/{document_id}/complete",
-        json={
-            "extracted_text": (
-                "RAG means retrieval augmented generation.\n"
-                "A retriever selects relevant local chunks before generation.\n"
-                "Citation validation ensures every answer points back to a source chunk."
-            )
-        },
+        json={},
         headers=headers,
     )
     assert complete_response.status_code == 202
-    job_response = client.get(f"/api/v1/jobs/{complete_response.json()['job_id']}", headers=headers)
-    assert job_response.status_code == 200
-    assert job_response.json()["status"] == "succeeded"
+    store = cast(FastAPI, client.app).state.store
+    job = store.dev_complete_with_text(
+        UUID(document_id),
+        "RAG means retrieval augmented generation.\n"
+        "A retriever selects relevant local chunks before generation.\n"
+        "Citation validation ensures every answer points back to a source chunk.",
+    )
+    assert job is not None
+    assert job.status == "succeeded"
     return project_id, document_id
