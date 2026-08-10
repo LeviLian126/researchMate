@@ -206,6 +206,14 @@ describe("AppSidebar navigation", () => {
     expect(manageButton).toBeTruthy();
     expect(manageButton?.className).toContain("shrink-0");
     expect(manageButton?.parentElement?.className).toContain("w-full");
+
+    act(() => manageButton?.click());
+    await flushAsyncQueue();
+
+    expect(document.body.textContent).toContain("Manage chat");
+    expect([...document.body.querySelectorAll("button")].some((button) => button.textContent === "Delete")).toBe(
+      true,
+    );
   });
 
   it("persists keyboard sidebar resizing within the supported desktop bounds", async () => {
