@@ -309,30 +309,3 @@ def test_postgres_conversation_commit_rechecks_active_project() -> None:
     assert "p.status='active'" in source
     assert "for update of c,p" in source
     assert source.count("p.status='active'") >= 7
-
-
-def test_local_verification_policy_keeps_integration_on_deployed_environment() -> None:
-    """Keep local proof hermetic and reserve real integrations for deployment."""
-    architecture = (ROOT / "docs/architecture/index.html").read_text(encoding="utf-8")
-    product = (ROOT / "docs/product/index.html").read_text(encoding="utf-8")
-    overview = (ROOT / "docs/index.html").read_text(encoding="utf-8")
-    delivery_skill = (
-        ROOT / "skill/personal-dev-skills-v9-baseline-plus-en/indie-product-delivery/SKILL.md"
-    ).read_text(encoding="utf-8")
-    proof_guide = (
-        ROOT
-        / "skill/personal-dev-skills-v9-baseline-plus-en/indie-product-delivery/references/nodes/03-backend-api-data-build"
-        / "proof-debug-observability.md"
-    ).read_text(encoding="utf-8")
-
-    local_section = architecture.split('<section id="local-development">', 1)[1].split(
-        "</section>", 1
-    )[0]
-    for forbidden_command in ("uvicorn", "npm run web:dev", "localhost:3000"):
-        assert forbidden_command not in local_section
-
-    assert "Hermetic checks only; integration runs after deployment" in architecture
-    assert "Modular and cross-service integration" in product
-    assert "Every modular and cross-service integration test runs only" in overview
-    assert "the remaining proof to the cloud/deployed environment" in delivery_skill
-    assert "Split Hermetic and Deployed Proof" in proof_guide

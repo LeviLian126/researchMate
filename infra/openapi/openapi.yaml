@@ -5657,8 +5657,7 @@ components:
       additionalProperties: false
       type: object
       title: UploadCompleteRequest
-      description: Accept the upload checksum. The production worker parses uploaded
-        files from R2 object storage; no client-side text extraction is accepted.
+      description: Accept the upload checksum for completion verification.
     UploadUrlRequest:
       properties:
         project_id:
