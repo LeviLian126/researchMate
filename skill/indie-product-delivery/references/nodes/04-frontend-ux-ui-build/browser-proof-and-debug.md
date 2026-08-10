@@ -1,187 +1,197 @@
-﻿# 浏览器验证与调试
+﻿# Browser Proof and Debug
 
-> **目标：** 为用户可见的前端切片建立浏览器证据，诊断渲染和集成失败，并向质量审查者提供
-> 直接观察而非仅截图声明。
+> **Goal:** Establish browser evidence for a user-visible frontend slice, diagnose rendering and
+> integration failures, and hand quality reviewers direct observations rather than screenshot-only claims.
 >
-> **负责：** 验证矩阵（含多分辨率）、密封式浏览器验证、渲染状态侦察、调试工作流、升级路由、状态契约
+> **Owns:** proof matrix (including multi-resolution), hermetic browser proof, rendered-state reconnaissance, debug workflow, escalation routing, status contract
 >
-> **不负责：** 反模式检查清单（`anti-default-directives.md`，但在预检时引用它）
+> **Does NOT own:** anti-pattern checklist (`anti-default-directives.md`, but references it for pre-flight)
 
-## 浏览器验证矩阵
+## Browser Proof Matrix
 
-从体验主轴和已变更的契约开始。浏览器证据补充 lint/type/build 和组件测试；它不替代后端、
-安全或最终 QA 证据。
+Start with the experience spine and changed contracts. Browser evidence complements lint/type/build
+and component tests; it does not replace backend, security, or final QA evidence.
 
-### 验证领域
+### Proof areas
 
-| 验证领域 | 在相关时验证 |
+| Proof area | Verify when relevant |
 |---|---|
-| 主流程 | 入口、理解、操作、结果、下一步操作 |
-| 可见状态 | 加载、空、验证、认证、拒绝、冲突、提供商、成功、过期/部分 |
-| 交互 | 表单提交、对话框/菜单、重试、筛选、分页、破坏性确认 |
-| 响应式 | 桌面端 + 至少 3 个移动分辨率（360px / 390px / 768px）；每个检查：主要操作可见、无组件堆叠、无水平溢出、触摸目标 >= 44x44 CSS px、固定/粘性元素不遮挡内容、导航可达 |
-| 无障碍 | 键盘路径、focus-visible、标签、对话框焦点、对比度/动效基础、触摸目标间距（相邻交互元素 >= 8px 间距） |
-| 集成 | 真实后端或披露的契约 mock、安全错误映射、无私有信息泄露 |
-| 视觉系统 | 层级、可操作性、密度、字体/色彩/间距一致性、真实素材行为 |
-| 运行时 | 控制台错误、失败的网络请求、布局不稳定、相关性能信号 |
+| primary flow | entry, comprehension, action, result, next action |
+| visible states | loading, empty, validation, auth, denied, conflict, provider, success, stale/partial |
+| interaction | form submit, dialog/menu, retry, filter, pagination, destructive confirmation |
+| responsive | desktop + at least 3 mobile resolutions (360px / 390px / 768px); each checks: primary action visible, no component stacking, no horizontal overflow, touch targets >= 44x44 CSS px, fixed/sticky not covering content, navigation reachable |
+| accessibility | keyboard path, focus-visible, labels, dialog focus, contrast/motion basics, touch target spacing (adjacent interactive elements >= 8px apart) |
+| integration | real backend or disclosed contract mock, safe error mapping, no private leakage |
+| visual system | hierarchy, affordance, density, type/color/spacing consistency, real asset behavior |
+| runtime | console errors, failed network requests, layout instability, relevant performance signal |
 
-### 多分辨率响应式验证
+### Multi-resolution responsive proof
 
-窄视口不是单个值。响应式验证领域必须至少覆盖：
+Narrow viewport is not a single value. The responsive proof area must cover at minimum:
 
-| 断点 | 设备 | 检查项 |
+| Breakpoint | Device | Checks |
 |---|---|---|
-| 360px | 小型 Android | 主要操作可见、无堆叠、无溢出、触摸目标、固定/粘性覆盖、导航可达 |
-| 390px | 标准 iPhone | 相同检查 + 表单字段可用键盘操作、对话框/面板视口安全 |
-| 768px | 平板竖屏 | 相同检查 + 布局过渡正确（侧边栏/抽屉）、网格重排、表格水平滚动 |
+| 360px | small Android | primary action visible, no stacking, no overflow, touch targets, fixed/sticky coverage, nav reachable |
+| 390px | standard iPhone | same checks + form fields usable with keyboard, dialog/sheet viewport safety |
+| 768px | tablet portrait | same checks + layout transitions correct (sidebar/drawer), grid reflow, table horizontal scroll |
 
-记录测试了哪些断点以及如何测试（Playwright/Cypress 自动化、DevTools 手动、
-真实设备）。仅声称"在移动端测试过"而不指定视口宽度是不充分的。
+Record which breakpoints were tested and how (Playwright/Cypress automated, DevTools manual, real
+device). A single "tested on mobile" claim without specifying viewport width is insufficient.
 
-### 最强可用路径
+### Strongest available path
 
-使用最强可用路径：浏览器手动、Playwright/Cypress、Storybook/sandbox、组件测试、
-lint/type/build 或静态审查。记录限制而不是声称截图证明了交互流程。
+Use the strongest available path: browser manual, Playwright/Cypress, Storybook/sandbox, component
+tests, lint/type/build, or static review. Record limitations rather than claiming a screenshot proves
+an interactive flow.
 
-## 密封式浏览器验证
+## Hermetic Browser Proof
 
-使自动化浏览器运行拥有其服务器进程、端口、构建输出目录和 fixture 状态。
-除非所选验证明确需要已授权的部署边界，否则为产品旅程使用确定性的本地/演示数据。
-将其构建输出与已运行的开发服务器分开，且仅清理该运行启动的进程。
+Make an automated browser run own its server process, port, build-output directory, and fixture state.
+Use deterministic local/demo data for product journeys unless the selected proof explicitly requires an
+authorized deployed boundary. Keep its build output separate from an already running development
+server, and clean up only processes the run started.
 
-### 失败条件
+### Fail conditions
 
-在以下情况失败运行：
+Fail the run on:
 
-- 未捕获的页面错误
-- 相关的控制台错误
-- 失败的必需请求
-- 意外的外部网络请求
+- uncaught page errors
+- relevant console errors
+- failed required requests
+- unexpected external network requests
 
-当外部素材或端点是已声明测试边界的一部分时，维护一个狭窄的白名单。
-不要让测试通过静默回退到真实云服务、记住的浏览器会话或开发者机器状态而通过。
+Maintain a narrow allowlist when an external asset or endpoint is part of the declared test boundary.
+Do not let a test pass by silently falling back to a real cloud service, remembered browser session, or
+developer machine state.
 
-### 覆盖
+### Coverage
 
-覆盖关键旅程的结果和状态转换：导航或路由、可见结果、相关时的持久化或刷新行为，
-以及恢复/错误路径。优先在失败时使用 trace、截图和视频；仅在服务于已定义审计需求时
-保留常驻制品。
+Cover the result and the state transition around a critical journey: navigation or route, visible
+outcome, persistence or refresh behavior when relevant, and a recovery/error path. Prefer traces,
+screenshots, and video on failure; retain always-on artifacts only when they serve a defined audit need.
 
-## 侦察渲染状态
+## Reconnoiter Rendered State
 
-对于动态应用，在检查 DOM 或选择选择器之前，等待页面已渲染且相关数据/状态稳定。
+For a dynamic application, wait until the page has rendered and the relevant data/state settles before
+inspecting DOM or choosing selectors.
 
-> 导航 -> 等待可用的渲染状态 -> 检查 DOM/截图 -> 识别
-> role/text/test 选择器 -> 交互 -> 检查结果、控制台和网络
+> navigate -> wait for usable rendered state -> inspect DOM/screenshot -> identify
+> role/text/test selector -> interact -> inspect result, console, and network
 
-当因 hydration、认证、数据、视口或待处理状态导致渲染内容不同时，不要从源码猜测选择器。
-当有意义的渲染/网络/元素条件可用时，不要使用任意 sleep。
+Do not guess selectors from source when rendered content differs because of hydration, auth, data,
+viewport, or pending state. Do not use arbitrary sleeps when a meaningful render/network/element
+condition is available.
 
-## 按比例验证可见质量
+## Verify Visible Quality Proportionally
 
-将已变更的界面对照其界面立场进行检查。
+Check the changed surface against its surface stance.
 
-### 公开 / 品牌检查
+### Public / brand check
 
-- 论点/承诺/证明/CTA 在首次扫描中清晰
-- 真实的主题/产品视觉支持声明
-- 标志性动作为主题服务而非装饰
-- 文案具体且无虚假指标/声明
-- 字体/布局/动效支持信任和移动端阅读
+- thesis/promise/proof/CTA are clear in first scan
+- real subject/product visual supports the claim
+- signature move serves subject rather than decoration
+- copy is specific and no fake metrics/claims appear
+- type/layout/motion support trust and mobile reading
 
-### 运营 / 产品检查
+### Operational / product check
 
-- 当前状态、决策上下文和主要操作清晰
-- 密度和层级支持反复扫描/操作
-- 控件和行在不悬停时可见可操作
-- 数据、状态、空/错误/恢复诚实
-- 焦点、键盘、筛选/表单/表格/移动端行为保持可用
+- current state, decision context, and primary action are clear
+- density and hierarchy support repeated scan/action
+- controls and rows are visibly actionable without hover
+- data, status, empty/error/recovery are honest
+- focus, keyboard, filter/form/table/mobile behavior remains usable
 
-对于每个界面，检查导航/寻路、操作可操作性、对比度、焦点、内容噪音、
-移动端优先级、长文本/溢出、实际图像/媒体渲染和相关状态。在修复视觉问题时，
-如果差异有意义，则拍摄前后截图。
+For every surface, examine navigation/wayfinding, action affordance, contrast, focus, content noise,
+mobile priority, long text/overflow, actual image/media rendering, and relevant status states. Take
+before/after screenshots when fixing a visual issue where the difference is meaningful.
 
-## 调试视觉或交互缺陷
+## Debug Visual or Interaction Defects
 
-当前端行为或视觉结果错误时：
+When a frontend behavior or visual result is wrong:
 
-1. **复现** 确切状态并记录视口、路由、数据/认证条件和证据。
-2. **比较** 与最接近的可用组件、token、状态或交互模式。
-3. **追踪** 问题通过页面、功能、基础组件、状态所有者、数据/mock 和 CSS/token 边界。
-4. **陈述** 一个假设并做出测试它的最小变更。
-5. **优先** 在视觉问题中使用 CSS/token/布局修复，当它们保留行为时；不要重构
-   无关代码。
-6. **重新运行** 相同的交互/状态并检查截图、控制台、网络、焦点和视口
-   结果。
+1. **Reproduce** the exact state and record viewport, route, data/auth condition, and evidence.
+2. **Compare** against the nearest working component, token, state, or interaction pattern.
+3. **Trace** the issue through page, feature, primitive, state owner, data/mock, and CSS/token boundary.
+4. **State** one hypothesis and make the smallest change that tests it.
+5. **Prefer** CSS/token/layout fixes for visual issues when they preserve behavior; do not refactor
+   unrelated code.
+6. **Re-run** the same interaction/state and inspect screenshot, console, network, focus, and viewport
+   result.
 
-### 升级路由
+### Escalation routing
 
-| 证据表明 | 路由到 |
+| Evidence says | Route |
 |---|---|
-| 用户任务、主要操作、验收或定位错误 | Node01 |
-| API/认证/错误/权限/异步契约缺失或矛盾 | Node02 |
-| 后端或 mock 行为缺失/不正确 | Node03 |
-| 本地前端原因已知 | 聚焦的 Node04 修复 |
-| 需要跨系统 QA、安全、审查或发布判断 | Node05 |
-| 涉及发布或部署环境行为 | Node06 |
+| user job, primary action, acceptance, or positioning is wrong | Node01 |
+| API/auth/error/permission/async contract is missing or contradictory | Node02 |
+| backend or mock behavior is absent/incorrect | Node03 |
+| local frontend cause is known | focused Node04 repair |
+| cross-system QA, security, review, or ship judgment is needed | Node05 |
+| rollout or deployed environment behavior is implicated | Node06 |
 
-当修复路径停止产生新信息或暴露出矛盾的契约、共享状态或系统级设计问题时，
-尝试另一个假设、路由或证据来源，然后当问题不再属于本地时返回拥有的上游节点。
-不要在 CSS 覆盖或组件重写中隐藏死循环。
+When a repair path stops producing new information or exposes a contradictory contract, shared state,
+or system-wide design problem, try another hypothesis, route, or evidence source, then return to the
+owning upstream node when the issue is no longer local. Do not hide a dead loop inside CSS overrides or
+component rewrites.
 
-## 验证新鲜证据并交接
+## Verify Fresh Evidence and Hand Off
 
-完成声明需要来自当前切片的新鲜证据。在声称完成之前运行 `anti-default-directives.md`
-中的预检清单。
+A completion claim needs fresh evidence from the current slice. Run the pre-flight checklist from
+`anti-default-directives.md` before claiming completion.
 
-### 新鲜证据要求
+### Fresh evidence requirements
 
-| 声明 | 新鲜证据 |
+| Claim | Fresh evidence |
 |---|---|
-| 主要交互工作正常 | 浏览器/组件测试或安全的手动流程并有观察到的结果 |
-| 视觉变更连贯 | 受影响的视口/状态截图或渲染检查 |
-| 响应式行为工作正常 | 360px、390px 和 768px 下主要操作、溢出、堆叠和导航的窄视口检查 |
-| 无障碍交互工作正常 | 已变更控件的键盘/焦点/标签观察 |
-| 集成诚实 | 真实端点或披露的 mock 加错误/认证状态证据 |
-| 无本地运行时回归 | 相关控制台/网络和有针对性的 lint/type/build/测试结果 |
-| 文档最新 | 当变更行为是持久的时更新项目看板或其他持久文档；否则记录为什么没有文档变更 |
-| 无反模式 | `anti-default-directives.md` 中的预检清单通过所有适用框 |
+| primary interaction works | browser/component test or safe manual flow with observed result |
+| visual change is coherent | affected viewport/state screenshot or rendered inspection |
+| responsive behavior works | narrow viewport check at 360px, 390px, AND 768px of primary action, overflow, stacking, and navigation |
+| accessible interaction works | keyboard/focus/label observation for changed control |
+| integration is honest | real endpoint or disclosed mock plus error/auth state evidence |
+| no local runtime regression | relevant console/network and targeted lint/type/build/test result |
+| docs are current | update the project board or another durable document when the changed behavior is durable; otherwise record why no document changed |
+| no anti-patterns | pre-flight checklist from `anti-default-directives.md` passes all applicable boxes |
 
-### 状态契约
+### Status contract
 
-设置一个实现状态：
+Set one implementation status:
 
-| 状态 | 含义 |
+| Status | Meaning |
 |---|---|
-| BUILT | 请求的前端切片和必需的本地验证已完成 |
-| BUILT_WITH_NAMED_GAPS | 实现本地工作正常；有限的浏览器/后端/QA 事实待补 |
-| BLOCKED | 必需的契约、渲染状态、环境或验证不可用 |
-| NEEDS_NODE02_OR_03 | 契约、后端、mock 或系统边界必须更正 |
-| NEEDS_CREDENTIALS_OR_ENVIRONMENT | 必需的浏览器/提供商/环境验证因凭据或环境不可用而无法运行 |
+| BUILT | requested frontend slice and required local proof are complete |
+| BUILT_WITH_NAMED_GAPS | implementation works locally; bounded browser/backend/QA facts remain |
+| BLOCKED | a required contract, rendered state, environment, or proof is unavailable |
+| NEEDS_NODE02_OR_03 | contract, backend, mock, or system boundary must be corrected |
+| NEEDS_CREDENTIALS_OR_ENVIRONMENT | required browser/provider/environment proof cannot run because a credential or environment is unavailable |
 
-### 交接包
+### Handoff package
 
-向 Node05 交接已变更的界面、上游契约、验证矩阵、命令/结果、
-截图/观察、mock 限制、风险以及未验证的安全/发布事实。
+Hand Node05 the changed surface, upstream contracts, proof matrix, commands/results,
+screenshots/observations, mock limitations, risks, and unverified security/release facts.
 
-## 验证渲染契约，不仅是截图
+## Prove the Rendered Contract, Not Only the Screenshot
 
-截图可以展示某一时刻的层级和布局，但它无法证明键盘行为、网络失败、过期状态、刷新恢复、
-深链接、重复操作或控制台清洁。将视觉证据与相关的交互、控制台、网络、URL 和持久化检查配对。
-捕获解释缺陷的最小证据，而不是将浏览器会话变成无结构的巡览。
+A screenshot can show hierarchy and layout at one moment, but it cannot prove keyboard behavior,
+network failure, stale state, refresh recovery, deep links, repeated actions, or console cleanliness.
+Pair visual evidence with the relevant interaction, console, network, URL, and persistence checks.
+Capture the smallest evidence that explains a defect without turning the browser session into an
+unstructured tour.
 
-## 保留可复现路径
+## Preserve a Reproducible Path
 
-为任何其他工程师必须复现的视觉缺陷或验证记录路由、状态、视口、账户或 fixture 边界以及
-相关的构建标识。避免没有上下文的截图。
+Record the route, state, viewport, account or fixture boundary, and relevant build identity for any
+visual defect or proof that another engineer must reproduce. Avoid screenshots with no context.
 
-每当验证意在展示前后变更时，在相同的路由、数据状态、账户边界和视口下重新运行比较。
-如果这些输入中的任何一个发生了变化，说明并视为不同的情况。这避免将实际上由不同数据、
-权限、功能标志、缓存或部署标识引起的成果归功于 CSS 或组件修复。当影响渲染时使用相同的
-区域设置和时间假设。
+Re-run comparisons against the same route, data state, account boundary, and viewport whenever the proof
+is meant to show a before/after change. If any of those inputs changed, say so and treat the observation
+as a different case. This avoids crediting a CSS or component fix for a result actually caused by
+different data, permissions, feature flags, caching, or deployment identity. Use the same locale and
+time assumptions when they affect rendering.
 
 ---
 
-**验收标准：** 阅读本文件后，你能够构建验证矩阵（含 360/390/768 多分辨率测试），运行密封式
-浏览器验证，使用 6 步调试工作流，在受阻时路由到正确的上游节点，并产出带有新鲜证据的
-状态声明交接（含预检清单结果）。
+**Acceptance criteria:** After reading this file, you can construct a proof matrix (including
+multi-resolution testing at 360/390/768), run a hermetic browser proof, use the 6-step debug workflow,
+route to the correct upstream node when blocked, and produce a status-claimed handoff with fresh
+evidence including pre-flight checklist results.

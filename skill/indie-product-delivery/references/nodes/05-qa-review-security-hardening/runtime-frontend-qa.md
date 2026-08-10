@@ -1,125 +1,152 @@
-﻿# 运行时与前端 QA
+# Runtime and Frontend QA
 
-验证应用确实能运行,且前端在真实设备上正常工作。按顺序运行 CP5 到 CP8。此处的每个失败都是用户将会遇到的运行时缺陷。
+Verify the app actually runs and the frontend works across real devices. Run CP5
+through CP8 in order. Every failure here is a runtime defect that users will hit.
 
-## CP5: 启动应用
+## CP5: Start the app
 
-- 启动 dev server 或运行生产 build。
-- 确认无启动错误:无编译错误、无缺失依赖、无端口冲突、无应用所需的环境变量缺失。
-- 如果应用无法启动,则为 Blocker。进入 CP8 调试。
-- 如果缺少所需运行时(例如数据库未安装、Redis 不可用),将 CP5 标记为 NOT_RUN 并准确记录缺少什么。不要在无法启动应用时声称应用可用。
+- Start the dev server or run the production build.
+- Confirm no startup error: no compile error, no missing dependency, no port conflict,
+  no missing environment variable that the app requires.
+- If the app cannot start, this is Blocker. Enter CP8 to debug.
+- If a required runtime is missing (e.g. database not installed, Redis unavailable), mark CP5
+  as NOT_RUN and record exactly what is missing. Do not claim the app works when you could
+  not start it.
 
-## CP6: 核心用户旅程 E2E
+## CP6: Core user journey E2E
 
-从 Node01 验收标准或功能描述中识别关键用户流程。将每个流程端到端走通。
+Identify the key user flows from Node01 acceptance criteria or the feature description.
+Walk each flow end-to-end.
 
-### 对于每个旅程
+### For each journey
 
-1. 入口:用户到达起始路由或页面。
-2. 理解:页面传达下一步该做什么。
-3. 操作:用户执行主要操作(点击、提交、导航)。
-4. 响应:系统作出响应(数据加载、状态变化、导航发生)。
-5. 反馈:用户看到确认信息或错误消息。
-6. 导航:用户可以继续到下一步或返回。
+1. Entry: user arrives at the starting route or screen.
+2. Comprehension: the page communicates what to do next.
+3. Action: user performs the primary action (click, submit, navigate).
+4. Response: the system responds (data loads, state changes, navigation occurs).
+5. Feedback: the user sees confirmation or an error message.
+6. Navigation: the user can proceed to the next step or return.
 
-### 规则
+### Rules
 
-- 对用户可观察的行为进行断言,而非 DOM 实现细节。检查用户看到和能做的事情,而非内部方法调用或 CSS 类名。
-- 在选择元素之前等待页面渲染。使用条件等待(可见文本、网络空闲、元素已挂载),而非任意 `sleep`。
-- 为每个旅程记录:截图、控制台输出、网络请求。
-- 使用独立的测试数据。不要依赖真实用户数据或其他测试会修改的共享 fixture。
-- 每个核心旅程必须至少在一个移动分辨率和一个桌面分辨率上验证。
+- Assert on user-observable behavior, not DOM implementation details. Check what the
+  user sees and can do, not internal method calls or CSS class names.
+- Wait for the page to render before selecting elements. Use condition waits
+  (visible text, network idle, element attached), not arbitrary `sleep`.
+- Record for each journey: screenshot, console output, network requests.
+- Use independent test data. Do not depend on real user data or shared fixtures that
+  other tests mutate.
+- Each core journey must be verified on at least one mobile resolution and one
+  desktop resolution.
 
-### 结果
+### Result
 
-将每个旅程标记为 PASS(端到端通过)或 FAIL(在哪一步中断)。失败的旅程至少为 Major;失败的核心旅程为 Blocker。
+Mark each journey PASS (end-to-end pass) or FAIL (at which step it broke). A failed
+journey is at least Major; a failed core journey is Blocker.
 
-## CP7: 多分辨率前端视觉检查
+## CP7: Multi-resolution frontend visual check
 
-前端必须在完整设备矩阵上正确渲染。一个在桌面端正常但在移动端布局错乱的页面是失败。
+The frontend must render correctly across the full device matrix. A layout that works
+on desktop but breaks on mobile is a fail.
 
-### 6 级设备矩阵
+### 6-level device matrix
 
-| 级别 | 宽度 | 代表设备 | 是否必需 |
+| Level | Width | Representative device | Required |
 | --- | --- | --- | --- |
-| XS 小型手机 | 320px | iPhone SE 1st gen, 较旧的 Android | 是 |
-| S 标准手机 | 390px | iPhone 12-15, Samsung Galaxy S | 是 |
-| M 大型手机 | 430px | iPhone Pro Max, Galaxy Note | 是 |
-| L 平板 | 768px | iPad 竖屏, Android 平板 | 是 |
-| XL 小型笔记本 | 1280px | MacBook Air, 小型笔记本 | 是 |
-| XXL 桌面 | 1920px | 标准显示器 | 是 |
+| XS small mobile | 320px | iPhone SE 1st gen, older Android | yes |
+| S standard mobile | 390px | iPhone 12-15, Samsung Galaxy S | yes |
+| M large mobile | 430px | iPhone Pro Max, Galaxy Note | yes |
+| L tablet | 768px | iPad portrait, Android tablet | yes |
+| XL small laptop | 1280px | MacBook Air, small laptop | yes |
+| XXL desktop | 1920px | standard monitor | yes |
 
-如果项目仅针对特定设备类别(例如仅移动端应用),你可以调整矩阵,但需说明原因,并至少覆盖目标类别的 XS、S 和 M。
+If the project targets a specific device class only (e.g. mobile-only app), you may
+adjust the matrix, but state the reason and cover at least the target class at XS,
+S, and M.
 
-### 每个级别的检查
+### Checks for each level
 
-在每个级别运行每项检查。标注 PASS 或 FAIL 并附截图或描述。至少截图 XS、S、L 和 XXL。
+Run every check at each level. Mark PASS or FAIL with a screenshot or description.
+At minimum, screenshot XS, S, L, and XXL.
 
-| 类别 | 检查项 | 如何验证 |
+| Category | Check | How to verify |
 | --- | --- | --- |
-| 布局 | 元素不重叠 | 截图和视觉检查 |
-| 布局 | 内容不溢出容器 | 长文本或大数据 |
-| 布局 | 无意外的水平滚动条 | 在该宽度检查 |
-| 布局 | 导航栏不换行或溢出 | 在该宽度检查 |
-| 布局 | 卡片、表格、列表不被裁剪 | 在该宽度检查 |
-| 响应式 | 断点过渡平滑,无闪烁 | 跨断点调整窗口大小 |
-| 响应式 | 移动导航正常工作(汉堡菜单、折叠、底部标签栏) | XS, S, M |
-| 响应式 | 桌面导航完全可见 | XL, XXL |
-| 响应式 | grid 和 flex 布局正确堆叠或排列 | 跨级别比较 |
-| 触控 | 点击目标至少 44x44px | XS, S, M |
-| 触控 | 点击目标之间有足够间距,无误触 | XS, S, M |
-| 排版 | 最小屏幕上字体大小可读 | XS |
-| 排版 | 长文本不溢出或被裁剪 | 所有级别 |
-| 图片 | 图片缩放适配,不溢出 | 所有级别 |
-| 图片 | 无破损图片图标 | 所有级别 |
-| 状态 | 显示加载状态,而非空白 | 触发慢请求 |
-| 状态 | 显示空状态,而非空白 | 清除数据 |
-| 状态 | 显示错误状态,而非空白或崩溃 | 触发错误 |
-| 导航 | 所有链接和按钮可点击且指向正确位置 | 逐个点击 |
-| 导航 | 浏览器前进和后退正常工作 | 导航后测试 |
-| 表单 | 空输入、无效输入、边界输入时触发验证 | 提交错误数据 |
-| 表单 | 窄屏幕上表单不溢出,字段可用 | XS, S |
-| 表单 | 提交后有反馈(成功或错误消息) | 提交有效数据 |
-| 控制台 | 无 JavaScript 错误 | devtools 控制台 |
-| 控制台 | 无 CSS 错误或警告 | devtools 控制台 |
-| 网络 | 核心路径上无 4xx 或 5xx | devtools 网络 |
-| 网络 | 无失败的资源加载(图片、CSS、JS) | devtools 网络 |
-| 横屏 | 移动端横屏布局正确 | XS, S, M 横屏 |
-| 一致性 | 间距、对齐、颜色和字体一致 | 视觉检查 |
+| Layout | elements do not overlap | screenshot and visual check |
+| Layout | content does not overflow its container | long text or large data |
+| Layout | no unexpected horizontal scrollbar | check at that width |
+| Layout | navbar does not wrap or overflow | check at that width |
+| Layout | cards, tables, lists are not clipped | check at that width |
+| Responsive | breakpoint transitions are smooth, no flicker | resize window across breakpoint |
+| Responsive | mobile navigation works (hamburger, collapse, bottom tab) | XS, S, M |
+| Responsive | desktop navigation is fully visible | XL, XXL |
+| Responsive | grid and flex layouts stack or arrange correctly | compare across levels |
+| Touch | tap target is at least 44x44px | XS, S, M |
+| Touch | tap targets have enough spacing, no accidental taps | XS, S, M |
+| Typography | font size is readable on smallest screen | XS |
+| Typography | long text does not overflow or get clipped | all levels |
+| Images | images scale to fit, do not overflow | all levels |
+| Images | no broken image icon | all levels |
+| States | loading state is shown, not blank | trigger a slow request |
+| States | empty state is shown, not blank | clear the data |
+| States | error state is shown, not blank or crash | trigger an error |
+| Navigation | all links and buttons are clickable and go to the right place | click each |
+| Navigation | browser back and forward work | navigate then test |
+| Forms | validation fires on empty, invalid, boundary input | submit bad data |
+| Forms | form does not overflow on narrow screens, fields are usable | XS, S |
+| Forms | submission gives feedback (success or error message) | submit valid data |
+| Console | no JavaScript errors | devtools console |
+| Console | no CSS errors or warnings | devtools console |
+| Network | no 4xx or 5xx on core paths | devtools network |
+| Network | no failed resource loads (images, CSS, JS) | devtools network |
+| Landscape | mobile landscape layout is correct | XS, S, M in landscape |
+| Consistency | spacing, alignment, color, and font are consistent | visual check |
 
-### 如何运行
+### How to run
 
-优先使用 Playwright 的 `page.setViewportSize()` 以编程方式切换视口。当自动化不可用时,使用浏览器 devtools 设备工具栏模拟每个宽度。不要依赖物理设备;目标是一致的视口覆盖,而非硬件测试。
+Prefer Playwright `page.setViewportSize()` to switch viewports programmatically. When
+automation is not available, use the browser devtools device toolbar to simulate each
+width. Do not rely on physical devices; the goal is consistent viewport coverage, not
+hardware testing.
 
-### 失败严重级别
+### Failure severity
 
-任何必需级别上的布局重叠或溢出至少为 Major。核心路径上的同一问题(例如移动端主要操作按钮被重叠)为 Blocker。核心路径上的控制台错误或失败的网络请求为 Blocker。
+A layout overlap or overflow on any required level is at least Major. The same issue
+on a core path (e.g. the primary action button is overlapped on mobile) is Blocker.
+A console error or failed network request on a core path is Blocker.
 
-## CP8: 调试
+## CP8: Debug
 
-当 CP5、CP6 或 CP7 失败时,遵循此流程。不要同时进行多个推测性修复。
+When CP5, CP6, or CP7 fails, follow this process. Do not make multiple speculative
+fixes at once.
 
-1. 记录确切状态:路由、视口、设备级别、数据和认证状态、错误消息、截图。
-2. 窄范围复现:确认失败是确定性的、依赖状态的、依赖环境的,还是特定分辨率的。
-3. 追踪链路:浏览器,然后路由,然后 API,然后后端,然后状态,然后渲染结果。找到链路在哪里断裂。
-4. 提出一个可证伪的假设及支持它的证据。
-5. 做出验证该假设的最小修复。
-6. 重新运行原始验证,然后运行相邻的回归路径,再运行可能受影响的任何其他分辨率。
+1. Record the exact state: route, viewport, device level, data and auth state, error
+   message, screenshot.
+2. Reproduce narrowly: confirm whether the failure is deterministic, state-dependent,
+   environment-dependent, or resolution-specific.
+3. Trace the chain: browser, then route, then API, then backend, then state, then
+   rendered result. Find where the chain breaks.
+4. State one falsifiable hypothesis with the evidence that supports it.
+5. Make the smallest fix that tests the hypothesis.
+6. Re-run the original verification, then an adjacent regression path, then any other
+   resolution that might be affected.
 
-### 何时停止并路由
+### When to stop and route
 
-如果证据表明问题不在 QA 本地,则路由到所属节点:
+If the evidence shows the problem is not local to QA, route to the owning node:
 
-| 证据表明 | 路由到 |
+| Evidence says | Route to |
 | --- | --- |
-| 产品或验收问题 | Node01 |
-| 契约或 API 矛盾 | Node02 |
-| 后端或 mock 行为错误 | Node03 |
-| 前端实现缺陷 | Node04 |
-| 环境或发布行为 | Node06 |
+| product or acceptance question | Node01 |
+| contract or API contradiction | Node02 |
+| backend or mock behavior wrong | Node03 |
+| frontend implementation defect | Node04 |
+| environment or release behavior | Node06 |
 
-### QA 可修复的内容
+### What QA may fix
 
-允许窄范围、保持范围的修复:变更代码中明显的守卫或错误消息、前端状态 bug、CSS 布局或响应式断点问题、测试 fixture。不要更改产品流程、公开 API、认证或计费策略,或进行大规模重构。这些应回到其所属节点。
+Narrow, scope-preserving fixes are allowed: an obvious guard or error message in
+changed code, a frontend state bug, a CSS layout or responsive breakpoint issue, a
+test fixture. Do not change product flow, public API, auth or billing policy, or
+perform large refactors. Those go back to their owning node.
 
-任何修复后,重新运行失败的检查点并记录前后对比证据。
+After any fix, re-run the checkpoint that failed and record before-and-after evidence.

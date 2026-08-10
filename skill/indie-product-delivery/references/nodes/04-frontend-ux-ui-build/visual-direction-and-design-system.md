@@ -1,196 +1,213 @@
-﻿# 视觉方向与设计系统
+﻿# Visual Direction and Design System
 
-> **目标：** 给定前端界面需求，决定它应该看起来什么样以及使用哪个设计系统。
+> **Goal:** Given a frontend surface brief, decide what it should look like and which design system to use.
 >
-> **负责：** 需求推断、设计解读、三个视觉参数、设计系统图谱、标志性动作
+> **Owns:** brief inference, design read, three visual dials, design-system map, signature move
 >
-> **不负责：** 反默认检查（`anti-default-directives.md`）、代码模式（`implementation-patterns.md`）、流程/状态设计（`experience-flow-content-and-states.md`）
+> **Does NOT own:** anti-default checks (`anti-default-directives.md`), code patterns (`implementation-patterns.md`), flow/state design (`experience-flow-content-and-states.md`)
 
-在选择颜色、字体、卡片或动效之前使用本指南。首先命名具体的主题、受众、页面任务和视觉语言。
-不要因为某个美学是 LLM 默认或因为另一个产品页面最近使用了它而选择它。
+Use this guide before choosing colors, fonts, cards, or motion. Name the concrete subject, audience,
+page job, and visual language first. Do not select an aesthetic because it is an LLM default or because
+another product page recently used it.
 
-## 设计解读
+## Design Read
 
-在动代码或调整参数之前，先推断用户真正想要什么。大多数 LLM 设计输出之所以差，是因为模型
-跳到了默认美学而不是读懂氛围。
+Before touching code or tweaking dials, infer what the user actually wants. Most LLM design output is
+bad because the model jumps to a default aesthetic instead of reading the room.
 
-### 首先解读这些信号
+### Read these signals first
 
-1. **页面类型** - 落地页（SaaS / 消费者 / 代理商 / 活动）、作品集（开发者 / 设计师 / 工作室）、
-   重新设计（保留 vs 全面翻新）、仪表板、表单、文档、编辑型。
-2. **氛围词** - "极简"、"平静"、"Linear 风格"、"Awwwards"、"粗野主义"、"高端消费"、
-   "Apple 风"、"活泼"、"严肃 B2B"、"编辑型"、"代理商风"、"玻璃感"、"暗黑科技"。
-3. **参考信号** - URL、截图、产品名称、他们竞争的品牌。
-4. **受众** - B2B 采购 vs 注重设计的消费者 vs 招聘者 vs 运营团队。
-   受众决定美学，而不是你的品味。
-5. **已有的品牌素材** - Logo、色彩、字体、摄影。对于重新设计，这些是起始素材，不是可选输入。
-6. **隐性约束** - 无障碍优先的受众、公共部门、受监管行业、信任优先的商务、儿童产品。
-   这些约束凌驾于美学偏好之上。
+1. **Page kind** - landing (SaaS / consumer / agency / event), portfolio (dev / designer / studio),
+   redesign (preserve vs overhaul), dashboard, form, docs, editorial.
+2. **Vibe words** - "minimalist", "calm", "Linear-style", "Awwwards", "brutalist", "premium consumer",
+   "Apple-y", "playful", "serious B2B", "editorial", "agency-y", "glassy", "dark tech".
+3. **Reference signals** - URLs, screenshots, product names, brands they compete with.
+4. **Audience** - B2B procurement vs design-conscious consumer vs recruiter vs operations team.
+   The audience picks the aesthetic, not your taste.
+5. **Brand assets that already exist** - logo, color, type, photography. For redesigns these are
+   starting material, not optional input.
+6. **Quiet constraints** - accessibility-first audiences, public-sector, regulated industries,
+   trust-first commerce, kids products. These constraints override aesthetic preference.
 
-### 氛围词到方向推断
+### Vibe-word to direction inference
 
-| 需求中的信号 | VARIANCE | MOTION | DENSITY | 方向 |
+| Signal in the brief | VARIANCE | MOTION | DENSITY | Direction |
 |---|---|---|---|---|
-| "极简 / 干净 / 平静 / 编辑型 / Linear 风格" | 5-6 | 3-4 | 2-3 | 克制、sans-serif 展示字体、充裕留白 |
-| "高端消费 / Apple 风 / 奢华 / 品牌" | 7-8 | 5-7 | 3-4 | 精致间距、刻意的材质感、一个标志性时刻 |
-| "活泼 / 狂野 / Dribbble / Awwwards / 实验性 / 代理商" | 9-10 | 8-10 | 3-4 | 表现力强、动感运动、不对称布局 |
-| "落地页 / 作品集 / 营销网站（默认）" | 7-9 | 6-8 | 3-5 | 独特但以产品为基础 |
-| "信任优先 / 公共部门 / 受监管 / 无障碍关键" | 3-4 | 2-3 | 4-5 | 官方系统（GOV.UK / USWDS）、克制、高对比度 |
-| "仪表板 / 运营 / 管理 / 数据密集" | 3-4 | 2-3 | 6-7 | 安静实用、真实密度、明确层级 |
-| "重新设计 - 保留" | 匹配现有 | +1 | 匹配现有 | 先审计，后样式 |
-| "重新设计 - 翻新" | +2 | +2 | 匹配现有 | 保留内容重新定位 |
+| "minimalist / clean / calm / editorial / Linear-style" | 5-6 | 3-4 | 2-3 | restrained, sans-serif display, generous whitespace |
+| "premium consumer / Apple-y / luxury / brand" | 7-8 | 5-7 | 3-4 | refined spacing, deliberate materiality, one signature moment |
+| "playful / wild / Dribbble / Awwwards / experimental / agency" | 9-10 | 8-10 | 3-4 | expressive, kinetic motion, asymmetric layout |
+| "landing page / portfolio / marketing site (default)" | 7-9 | 6-8 | 3-5 | distinctive but product-grounded |
+| "trust-first / public-sector / regulated / accessibility-critical" | 3-4 | 2-3 | 4-5 | official system (GOV.UK / USWDS), restrained, high-contrast |
+| "dashboard / operations / admin / data-dense" | 3-4 | 2-3 | 6-7 | quiet utility, truthful density, explicit hierarchy |
+| "redesign - preserve" | match existing | +1 | match existing | audit first, style second |
+| "redesign - overhaul" | +2 | +2 | match existing | reposition with preserved content |
 
-### 生成前输出一行设计解读
+### Output a one-line design read before generating
 
-在任何代码之前，用一行声明：
+Before any code, state in one line:
 
-> "将此解读为：<页面类型> 面向 <受众>，采用 <氛围> 语言，倾向于
-> <设计系统或美学流派>。"
+> "Reading this as: <page kind> for <audience>, with a <vibe> language, leaning toward
+> <design system or aesthetic family>."
 
-解读示例：
+Example reads:
 
-- *"将此解读为：面向技术买家的 B2B SaaS 落地页，采用 Linear 风格极简语言，
-  倾向于 Tailwind utilities + Geist + 克制动效。"*
-- *"将此解读为：面向招聘经理的独立设计师作品集，采用编辑型/动感字体语言，
-  倾向于原生 CSS + 滚动驱动动画 + 自定义字体。"*
-- *"将此解读为：面向值班工程师的运营仪表板，采用实用主义语言，倾向于
-  现有仓库基础组件 + 高密度表格布局 + 仅状态反馈动效。"*
-- *"将此解读为：公共服务网站的重新设计，采用信任优先语言，倾向于 GOV.UK Frontend。"*
+- *"Reading this as: B2B SaaS landing for technical buyers, with a Linear-style minimalist language,
+  leaning toward Tailwind utilities + Geist + restrained motion."*
+- *"Reading this as: solo designer portfolio for hiring managers, with an editorial / kinetic-type
+  language, leaning toward native CSS + scroll-driven animation + custom typography."*
+- *"Reading this as: operational dashboard for on-call engineers, with a utilitarian language, leaning
+  toward existing repo primitives + high-density table layout + state-feedback-only motion."*
+- *"Reading this as: redesign of a public-sector service site, with a trust-first language, leaning
+  toward GOV.UK Frontend."*
 
-### 需求推断规则
+### Brief inference rules
 
-- 如果需求模糊，仅问一个澄清问题 - 绝不多问题轰炸 - 且仅在设计解读确实分叉时。
-  示例：*"这应该更接近 Linear 干净风格还是 Awwwards 实验性风格？"*
-- 如果你能从上下文自信地推断，不要问。声明设计解读并继续。
-- 设计解读必须来自产品事实、真实素材、用户参考和界面上下文。
-  不要因为某个美学是 LLM 默认或因为另一个产品页面最近使用了它而选择它。
+- If the brief is ambiguous, ask exactly one clarifying question - never a multi-question dump - and
+  only when the design read genuinely diverges. Example: *"Should this feel closer to Linear-clean or
+  Awwwards-experimental?"*
+- If you can confidently infer from context, do not ask. Declare the design read and proceed.
+- The design read must come from product facts, real assets, user references, and the surface context.
+  Do not select an aesthetic because it is an LLM default or because another product page recently
+  used it.
 
-## 视觉参数
+## Visual Dials
 
-设计解读之后，设置三个参数。以下每个布局、动效和密度决策都由这些参数约束。将它们视为
-页面或活跃界面的共享约束，而非独立的逐组件选择。局部变化需要内容、状态或交互理由。
+After the design read, set three dials. Every layout, motion, and density decision below is gated by
+these. Treat them as shared constraints for the page or active surface, not independent per-component
+choices. Local variation needs a content, state, or interaction reason.
 
-### 三个参数
+### The three dials
 
-- **VARIANCE (1-10)：** 1 = 完美对称，10 = 艺术性混乱。控制布局实验性。
-- **MOTION (1-10)：** 1 = 静态，10 = 电影感/物理感。控制动画深度。
-- **DENSITY (1-10)：** 1 = 美术馆/空灵，10 = 驾驶舱/数据密集。控制每视口信息量。
+- **VARIANCE (1-10):** 1 = perfect symmetry, 10 = artsy chaos. Controls layout experimentation.
+- **MOTION (1-10):** 1 = static, 10 = cinematic / physics. Controls animation depth.
+- **DENSITY (1-10):** 1 = art gallery / airy, 10 = cockpit / packed data. Controls information per viewport.
 
-### 界面预设
+### Surface presets
 
-这些预设超越营销页面，延伸到专用设计技能经常跳过的运营界面。除非设计解读覆盖，
-否则使用这些预设。
+These presets extend beyond marketing pages into operational surfaces that dedicated design skills
+often skip. Use these unless the design read overrides them.
 
-| 界面 | VARIANCE | MOTION | DENSITY | 优先级 |
+| Surface | VARIANCE | MOTION | DENSITY | Priority |
 |---|---|---|---|---|
-| 公开 / 品牌 | 7 | 6 | 4 | 承诺、信任、差异化 |
-| 引导 | 5 | 4 | 3 | 首次成功、渐进式披露 |
-| 仪表板 / 运营 | 3 | 2 | 6 | 决策、扫描、重复操作 |
-| 表单 / 交易 | 3 | 2 | 4 | 清晰、后果、恢复 |
-| 文档 / 当前状态 | 4 | 2 | 5 | 证据、导航、结构化事实 |
+| public / brand | 7 | 6 | 4 | promise, trust, differentiation |
+| onboarding | 5 | 4 | 3 | first success, progressive disclosure |
+| dashboard / operations | 3 | 2 | 6 | decision, scan, repeated action |
+| form / transaction | 3 | 2 | 4 | clarity, consequence, recovery |
+| docs / current-state | 4 | 2 | 5 | evidence, navigation, structured truth |
 
-### 参数原则
+### Dial principles
 
-- 高变化度并不更优。一个精致的运营工具通过清晰、节奏、字体层级和有纪律的密度赢得独特性 -
-  而非奇观。不要将落地页的美术指导应用于高频管理工作流。
-- 如果两个用户任务争夺首要注意力，返回 Node01 而不是使两者同等突出。
-- 仅在视觉工作有意义时记录方向；局部变化继承邻近系统，不需要新的美术指导演练。
+- High variance is not superior. A refined operational tool earns distinctiveness through clarity,
+  rhythm, type hierarchy, and disciplined density - not spectacle. Do not apply landing-page art
+  direction to a high-frequency admin workflow.
+- If two user jobs compete for first attention, return to Node01 rather than making both equally
+  prominent.
+- Record the direction only when visual work is meaningful; local changes inherit the nearby system
+  and do not require a new art-direction exercise.
 
-## 设计系统图谱
+## Design System Map
 
-有了设计解读和参数后，选择正确的基础。不要为有官方包的东西发明 CSS。不要假装美学趋势
-是官方系统。
+Once you have the design read and dials, pick the right foundation. Do not invent CSS for things that
+have an official package. Do not pretend an aesthetic trend is an official system.
 
-### 何时选择真正的设计系统
+### When to reach for a real design system
 
-| 需求解读为 | 选择 | 安装 |
+| Brief reads as | Reach for | Install |
 |---|---|---|
-| Microsoft / 企业 SaaS / 仪表板 | Fluent UI React | `npm i @fluentui/react-components` |
-| Google 风格 UI，Material 风味产品 | Material Web | `npm i @material/web` |
-| IBM 风格 B2B / 企业分析 | Carbon | `npm i @carbon/react @carbon/styles` |
-| Shopify 应用界面 | Polaris | `polaris.js` web components |
-| Atlassian / Jira 风格产品 | Atlaskit | `yarn add @atlaskit/css-reset @atlaskit/tokens` |
-| GitHub 风格开发者工具 / 社区页面 | Primer | `npm i @primer/css` |
-| 英国公共服务 | GOV.UK Frontend | `npm i govuk-frontend` |
-| 美国公共服务 / 信任优先 | USWDS | `npm i uswds` |
-| 现代无障碍 React 基础 | Radix Themes | `npm i @radix-ui/themes` |
-| 你自己拥有组件的现代 SaaS | shadcn/ui | `npx shadcn@latest init` |
-| 快速本地商家 / 代理商 MVP | Bootstrap 5.3 | `npm i bootstrap` |
-| 基于 Tailwind 的现代 SaaS / AI 营销 | Tailwind v4 utilities | `@tailwindcss/postcss` |
+| Microsoft / enterprise SaaS / dashboards | Fluent UI React | `npm i @fluentui/react-components` |
+| Google-ish UI, Material-flavored product | Material Web | `npm i @material/web` |
+| IBM-style B2B / enterprise analytics | Carbon | `npm i @carbon/react @carbon/styles` |
+| Shopify app surfaces | Polaris | `polaris.js` web components |
+| Atlassian / Jira-style product | Atlaskit | `yarn add @atlaskit/css-reset @atlaskit/tokens` |
+| GitHub-style devtool / community page | Primer | `npm i @primer/css` |
+| UK public-sector service | GOV.UK Frontend | `npm i govuk-frontend` |
+| US public-sector / trust-first | USWDS | `npm i uswds` |
+| Modern accessible React foundation | Radix Themes | `npm i @radix-ui/themes` |
+| Modern SaaS where you own the components | shadcn/ui | `npx shadcn@latest init` |
+| Fast local-business / agency MVP | Bootstrap 5.3 | `npm i bootstrap` |
+| Tailwind-based modern SaaS / AI marketing | Tailwind v4 utilities | `@tailwindcss/postcss` |
 
-**诚实规则：** 如果需求解读为上述系统之一，安装并使用官方包。不要手动重建其 CSS。
-不要导入系统 token 然后覆盖 90%。
+**Honesty rule:** if the brief reads as one of the systems above, install and use the official package.
+Do not recreate its CSS by hand. Do not import a system tokens but then override 90% of them.
 
-**每个项目一个系统。** 不要在同一树中混用 Fluent React 和 Carbon。不要将 shadcn/ui 组件
-导入 Material 3 应用。新系统或依赖项仍需 Node02 批准。
+**One system per project.** Do not mix Fluent React with Carbon in the same tree. Do not import
+shadcn/ui components into a Material 3 app. A new system or dependency still requires Node02 approval.
 
-### 当需求是美学而非系统时
+### When the brief is an aesthetic, not a system
 
-对于这些方向没有单一官方包。使用原生 CSS + Tailwind + 维护中的组件库构建。
-在代码注释中诚实标注什么是借鉴灵感 vs 官方素材。
+For these directions there is no single official package. Build with native CSS + Tailwind + a
+maintained component library. Be honest in code comments about what is borrowed inspiration vs
+official material.
 
-| 美学 | 诚实实现 |
+| Aesthetic | Honest implementation |
 |---|---|
-| Glassmorphism / 磨砂玻璃 | `backdrop-filter`、分层边框、高光叠加。为 `prefers-reduced-transparency` 提供实色填充回退。 |
-| Bento（Apple 风格瓦片网格） | 混合单元格尺寸的 CSS Grid。无单一库拥有此模式。 |
-| 粗野主义 | 原生 CSS、等宽字体、原始边框。无库。 |
-| 编辑型 / 杂志 | Serif 字体、不对称网格、充裕留白。无库。 |
-| 暗黑科技 / 黑客 | Mono + 霓虹强调色、终端母题。无库。 |
-| Aurora / 网格渐变 | SVG 或分层径向渐变。无库。 |
-| 动感字体 | 原生 CSS 动画、滚动驱动动画、GSAP 用于劫持。无库。 |
-| Apple Liquid Glass | Apple 仅为其平台记录此效果。不存在官方 `liquid-glass.css`。Web 实现是使用 `backdrop-filter` + 分层边框 + 高光的近似。明确标注为近似。 |
+| Glassmorphism / frosted glass | `backdrop-filter`, layered borders, highlight overlays. Provide solid-fill fallback for `prefers-reduced-transparency`. |
+| Bento (Apple-style tile grids) | CSS Grid with mixed cell sizes. No single library owns this. |
+| Brutalism | Native CSS, monospace, raw borders. No library. |
+| Editorial / magazine | Serif type, asymmetric grid, generous whitespace. No library. |
+| Dark tech / hacker | Mono + accent neon, terminal motifs. No library. |
+| Aurora / mesh gradients | SVG or layered radial gradients. No library. |
+| Kinetic typography | Native CSS animations, scroll-driven animations, GSAP for hijacks. No library. |
+| Apple Liquid Glass | Apple documents this for Apple platforms only. No official `liquid-glass.css` exists. Web implementations are approximations using `backdrop-filter` + layered borders + highlights. Label clearly as approximation. |
 
-### 系统保留规则
+### System preservation rules
 
-- 首先检查现有 token、基础组件、素材、字体、图标、响应式约定和设计文档。
-  除非变更已获批准且有理由，否则保留连贯的系统。
-- 区分设计系统与视觉语言。当仓库已采用成熟系统时，使用其真正支持的基础组件、token 和
-  交互约定。每个界面保持一个主要系统；不要混用组件语法或在仅近似其外观时声称采用了官方系统。
-- 当不存在系统时，仅定义活跃界面所需的 token 决策。
+- Inspect existing tokens, primitives, assets, fonts, icons, responsive conventions, and design docs
+  first. Preserve a coherent system unless a change is approved and justified.
+- Distinguish a design system from a visual language. When the repository already adopts a mature
+  system, use its actual supported primitives, tokens, and interaction conventions. Keep one primary
+  system per surface; do not mix component grammars or claim official system adoption when only
+  approximating its appearance.
+- When no system exists, define only the token decisions needed by the active surface.
 
-### 视觉系统元素
+### Visual system elements
 
-构建或扩展系统时，对每个元素做出刻意的决策。每个都必须为页面任务服务，而非装饰它。
+When building or extending a system, make deliberate decisions for each element. Each must serve the
+page job, not decorate it.
 
-| 元素 | 决策 |
+| Element | Decision |
 |---|---|
-| 色彩 | 语义角色、对比度、一个层级；无无产品目的的装饰性方案 |
-| 字体 | 可读正文、有目的的展示/实用角色、层级、行宽、字重 |
-| 间距 / 布局 | 节奏、容器规则、grid/stack 选择、区块含义、稳定尺寸 |
-| 圆角 / 高度 | 交互层级和界面含义，而非统一装饰 |
-| 图标 | 操作的熟悉符号、一致风格、无障碍标签/tooltip |
-| 素材 | 真实产品/主题图像、品牌素材、仅在有用且可检查时使用生成素材 |
-| 动效 | 状态变化、定向或一个标志性时刻；减少动效回退 |
-| 响应式意图 | 在窄屏上什么保持主要、堆叠、滚动、折叠或改变模式 |
+| color | semantic roles, contrast, one hierarchy; no decorative palette without product purpose |
+| type | readable body, purposeful display/utility roles, hierarchy, measure, weights |
+| spacing / layout | rhythm, container rules, grid/stack choice, section meaning, stable dimensions |
+| radius / elevation | interaction hierarchy and surface meaning, not uniform decoration |
+| iconography | familiar symbols for actions, consistent style, accessible labels/tooltips |
+| assets | real product/subject imagery, brand material, generated asset only when useful and inspectable |
+| motion | state change, orientation, or one signature moment; reduced-motion fallback |
+| responsive intent | what stays primary, stacks, scrolls, collapses, or changes mode on narrow screens |
 
-字体和布局应编码重要性。编号、eyebrow、分隔线、标签和装饰性结构必须表达真实的序列、
-类别或关系。不要仅为让屏幕看起来有设计感而引入它们。
+Typography and layout should encode importance. Numbering, eyebrows, dividers, labels, and decorative
+structures must express a real sequence, category, or relationship. Do not introduce them merely to
+make a screen look designed.
 
-## 标志性动作
+## Signature Move
 
-标志性动作是一个服务于产品的字体、图像、布局、节奏或交互决策。它不是装饰的集合。
-在一个令人难忘的地方投入大胆，并保持周围 UI 足够安静，使任务保持明显。
+A signature move is one product-serving typography, imagery, layout, rhythm, or interaction decision.
+It is not a collection of decorations. Spend boldness in one memorable place and keep surrounding UI
+quiet enough for the job to remain obvious.
 
-- 对于公开/品牌界面，真实/生成的可检查视觉或沉浸式产品时刻可能是合理的。
-  对于运营屏幕，装饰性图像通常是噪音。
-- 动效应信号状态变化、引导注意力、定向过渡或承载标志性动作。
-  优先选择一个协调的时刻而非分散的动画。
-- 克制不意味着无聊。克制的界面通过间距、层级、字体、状态设计和精确对齐赢得其品质；
-  它不需要装饰性代码。
-- 表现力强的方向可以证明自定义素材或动效的合理性，但仍必须满足性能、
-  无障碍、响应式和维护要求。独特不意味着使用上不可预测。
+- For public/brand surfaces, a real/generated inspectable visual or an immersive product moment may
+  be warranted. For an operational screen, decorative imagery is usually noise.
+- Motion should signal a state change, guide attention, orient a transition, or carry the signature
+  move. Prefer one coordinated moment over scattered animation.
+- Restraint does not mean boring. A restrained interface earns its quality through spacing, hierarchy,
+  typography, state design, and precise alignment; it does not need ornamental code.
+- An expressive direction may justify custom assets or motion, but must still meet performance,
+  accessibility, responsive, and maintenance requirements. Distinctive does not mean unpredictable to use.
 
-## 承诺一个上下文特定的方向
+## Commit to one context-specific direction
 
-在编码新的视觉界面之前，命名预期的调性、用户和场景、最强的记忆元素和实现约束。
-仅在方向确实未解决时探索替代方案。一旦选定，执行一个连贯的视角而不是混合多个
-时尚母题。
+Before coding a new visual surface, name the intended tone, the user and setting, the strongest
+remembered element, and the implementation constraints. Explore alternatives only when the direction is
+genuinely unresolved. Once selected, execute one coherent point of view instead of blending several
+fashionable motifs.
 
-对于 Brownfield 工作，现有设计系统和产品标识是证据，不是障碍。
-仅在请求是重新设计或当前系统无法支持所需的层级和状态时更改它们。
+For brownfield work, the existing design system and product identity are evidence, not obstacles.
+Change them only when the request is a redesign or the current system cannot support the required
+hierarchy and states.
 
 ---
 
-**验收标准：** 阅读本文件后，你能够输出一行设计解读、三个有理由的参数值（VARIANCE / MOTION /
-DENSITY）、一个设计系统选择（或诚实标注的美学方向）和一个标志性动作 - 全部基于产品事实
-而非 LLM 默认。
+**Acceptance criteria:** After reading this file, you can output a one-line design read, three
+justified dial values (VARIANCE / MOTION / DENSITY), one design-system choice (or honestly labeled
+aesthetic direction), and one signature move - all grounded in product facts rather than LLM defaults.

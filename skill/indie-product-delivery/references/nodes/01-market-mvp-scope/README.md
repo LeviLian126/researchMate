@@ -1,27 +1,32 @@
-﻿# 市场与 MVP 范围
+# Market and MVP Scope
 
-将模糊的产品想法转化为单人开发者或极小团队可直接实施的规格说明。通过聚焦的质询轮次区分事实与假设，将范围裁剪至仅测试最高风险假设的程度，并产出一份 Node02 无需重新提问即可消费的文档。
+Turn a vague product idea into an implementation-ready spec for a solo developer or
+very small team. Grill in focused rounds to separate facts from assumptions, cut scope
+to what tests the riskiest hypothesis, and produce a document Node02 can consume
+without re-asking questions.
 
-## 阅读相关工作流
+## Read the relevant workflow
 
-| 需求 | 阅读 |
+| Need | Read |
 | --- | --- |
-| 将模糊想法转化为清晰的问题定义、受众和替代方案 | `discovery-and-grilling.md` |
-| 裁剪 MVP 边界并编写可直接实施的规格说明 | `scope-cut-and-spec.md` |
-| 挑战假设并决定 BUILD、VALIDATE 或 STOP | `challenge-and-validate.md` |
+| turn a vague idea into a clear problem definition, audience, and alternatives | `discovery-and-grilling.md` |
+| cut MVP boundary and write the implementation-ready spec | `scope-cut-and-spec.md` |
+| challenge assumptions and decide BUILD, VALIDATE, or STOP | `challenge-and-validate.md` |
 
-Node01 是一个线性流程：发现，然后范围裁剪，然后挑战。并非每个阶段都必须运行。一个清晰的小功能可以跳过发现阶段直接进入范围裁剪。已有的 PRD 可能只需要将挑战作为审计来运行。
+Node01 is a linear flow: discovery, then scope-cut, then challenge. Not every stage
+must run. A clear small feature may skip discovery and enter scope-cut directly. An
+existing PRD may only need challenge as an audit.
 
-## 输出契约
+## Output contract
 
-最终输出是一份规格说明文档，包含：
+The final output is a spec document containing:
 
-- 问题陈述：谁、什么痛点、目前如何应对。
-- 目标受众：基于行为特征，而非人口统计。
-- 核心用户旅程：触发、进入、行动、结果、下一步。
-- 范围：在范围内、在范围外、非目标。
-- 验收标准：可测试、通过或失败，不含"正常工作"。
-- 风险假设：每条附带"如果错误会怎样"和"最廉价的测试"。
-- 一个决策：GO（前往 Node02）、VALIDATE（先运行最廉价测试）或 NO_GO（停止）。
+- Problem statement: who, what pain, how they cope today.
+- Target audience: behavior-specific, not demographic.
+- Core user journey: trigger, entry, action, result, next step.
+- Scope: in scope, out of scope, non-goals.
+- Acceptance criteria: testable, pass or fail, no "works correctly".
+- Risk assumptions: each with "what happens if wrong" and "cheapest test".
+- One decision: GO (to Node02), VALIDATE (run cheapest test first), or NO_GO (stop).
 
-Node02 应当能够消费此规格说明而无需重新询问产品问题。
+Node02 should be able to consume the spec without re-asking product questions.

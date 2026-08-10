@@ -1,158 +1,158 @@
-# 项目看板内容模型与证据
+# Project Board Content Model and Evidence
 
-使用此参考将 Node01 产品事实和 Node02 架构事实转化为完整的 HTML 文档集。立即显示当前摘要；将密集记录放在聚焦的链接页面上，并使用披露控件保持长页面可导航。
+Use this reference to turn Node01 product truth and Node02 architecture truth into a complete HTML documentation set. Show the current summary immediately; put dense records on focused linked pages and use disclosure controls to keep long pages navigable.
 
-## 章节
+## Sections
 
-- [文档拓扑](#文档拓扑)
+- [Documentation topology](#documentation-topology)
 - [Workflow](#workflow)
-- [覆盖清单](#覆盖清单)
-- [证据记录](#证据记录)
-- [项目摘要与市场现实](#1-项目摘要与市场现实--node01)
-- [能力图与交付](#2-能力图与交付--node01-及实现证据)
-- [架构与运行时形态](#3-架构与运行时形态--node02)
-- [技术与数据契约](#4-技术与数据契约--node02)
-- [控制室](#5-控制室)
+- [Coverage manifest](#coverage-manifest)
+- [Evidence record](#evidence-record)
+- [Project summary and market reality](#1-project-summary-and-market-reality--node01)
+- [Capability map and delivery](#2-capability-map-and-delivery--node01-with-implementation-evidence)
+- [Architecture and runtime shape](#3-architecture-and-runtime-shape--node02)
+- [Technology and data contracts](#4-technology-and-data-contracts--node02)
+- [Control room](#5-control-room)
 
-## 文档拓扑
+## Documentation topology
 
-按信息职责选择页面边界：
+Choose page boundaries by information responsibility:
 
-| 界面 | 职责 |
+| Surface | Responsibility |
 | --- | --- |
-| 当前快照 | 项目标识、已验证的发布边界、商业状态、能力摘要、主要风险、下一步行动、新鲜度和导航 |
-| 产品 | 受众、买方、受益者、问题、承诺、场景、首次成功、市场证据、替代方案、分发、定价、信任和非目标 |
-| 交付 | 完整能力图、用户旅程、MVP/MAP 边界、验收、实现证据、验证、依赖项、负责人、风险和路线图状态 |
-| 架构 | 前端/后端/数据/集成/工作执行/运行时边界、请求和数据流、所有权、失败/恢复和决策 |
-| 数据库契约 | 实体图和每个有证据的表、重要字段、类型、可空性、默认值、键、约束、索引、租户规则、RLS、生命周期和关系 |
-| API 契约 | 每个有证据的 endpoint/操作及其调用方、认证、权限、请求、验证、响应、状态、失败、幂等/异步、来源和测试证明 |
-| 运营与决策 | 环境/发布状态、运行命令、可观测性、安全、成本、阻塞项、风险、决策台账和有序行动 |
-| 活动 | 仅限重大历史发布、迁移、事件、安全评审、实验和批准的里程碑 |
+| current snapshot | project identity, verified release boundary, commercial state, capability summary, top risks, next action, freshness, and navigation |
+| product | audience, buyer, beneficiary, problem, promise, scenarios, first success, market evidence, alternatives, distribution, pricing, trust, and non-goals |
+| delivery | full capability map, user journeys, MVP/MAP boundary, acceptance, implementation evidence, validation, dependency, owner, risk, and roadmap status |
+| architecture | frontend/backend/data/integration/work-execution/runtime boundaries, request and data flows, ownership, failure/recovery, and decisions |
+| database contracts | entity map and every evidenced table, material field, type, nullability, default, key, constraint, index, tenant rule, RLS, lifecycle, and relation |
+| API contracts | every evidenced endpoint/action with caller, auth, permission, request, validation, response, status, failure, idempotency/asynchrony, source, and test proof |
+| operations and decisions | environment/release state, run commands, observability, security, costs, blockers, risks, decision ledger, and ordered actions |
+| activity | material historical releases, migrations, incidents, security reviews, experiments, and approved milestones only |
 
-当改善阅读时合并低量主题。当单个页面会将完整台账隐藏在概述之后、强制过度滚动或将契约细节缩减为示例时，拆分主题。保持页面名称描述性且导航一致；不要引入模式或客户端路由器。
+Combine low-volume topics when that improves reading. Split a topic when a single page would hide complete ledgers behind an overview, force excessive scrolling, or reduce contract detail to examples. Keep page names descriptive and navigation consistent; do not introduce modes or a client-side router.
 
 ## Workflow
 
-从最强的可用 Node01/Node02 和仓库证据填充以下章节。摘要可以仅保留与决策相关的事实，但数据库和 API 契约台账必须保留范围内每个有证据的字段和操作。
+Populate the sections below from the strongest available Node01/Node02 and repository evidence. Summaries may retain only decision-relevant facts, but database and API contract ledgers must preserve every evidenced field and operation in scope.
 
-## 覆盖清单
+## Coverage manifest
 
-在撰写页面之前构建可计数的清单。这是完成边界，不是可选的规划注释。
+Build a countable inventory before composing pages. This is a completion boundary, not an optional planning note.
 
-| 来源界面 | 清单单元 |
+| Source surface | Inventory unit |
 | --- | --- |
-| 产品和路线图文档 | 范围内每个维护的能力、需求/故事 ID、验收条件、带状态项、价格/套餐事实、风险和决策 |
-| 前端和后端 | 每个用户可见的路由/界面和每个重要操作、处理器、集成、后台任务和授权边界 |
-| OpenAPI、路由 schema 或操作契约 | 每个操作加上每个引用的请求、响应、错误、权限和异步/幂等语义 |
-| 迁移和维护的 schema | 每个表/实体、每个有证据的字段、PK/FK、唯一/索引/检查/枚举约束、引用操作、RLS/租户规则和生命周期规则 |
-| 测试和配置 | 用于支持已发布、已验证、环境、依赖项或运营声明的每个结果或设置 |
-| 架构和决策记录 | 每个重要组件、边界、交接、失败/恢复路径、选定选项、被拒绝的替代方案和重新审视触发条件 |
+| product and roadmap documents | every maintained capability, requirement/story ID, acceptance condition, status-bearing item, price/package fact, risk, and decision in scope |
+| frontend and backend | every user-visible route/surface and every material action, handler, integration, background job, and authorization boundary |
+| OpenAPI, route schemas, or action contracts | every operation plus every referenced request, response, error, permission, and asynchronous/idempotency semantic |
+| migrations and maintained schemas | every table/entity, every evidenced field, PK/FK, unique/index/check/enum constraint, referential action, RLS/tenant rule, and lifecycle rule |
+| tests and configuration | every result or setting used to support a shipped, validated, environment, dependency, or operational claim |
+| architecture and decision records | every material component, boundary, handoff, failure/recovery path, selected option, rejected alternative, and revisit trigger |
 
-按类别记录预期和渲染计数。在完整台账中包含每个清单项，或记录明确的排除及其原因和来源。图表或摘要可以置于台账之前但不能替代它。
+Record expected and rendered counts by category. Include every inventory item in a full ledger, or record an explicit exclusion with its reason and source. A diagram or summary may precede the ledger but cannot replace it.
 
-仅在完整覆盖存在后使用示例来解释模式。如果证据量大，将其拆分到链接页面上或生成紧凑的可展开记录，而不是将其缩减为演示。
+Use examples to explain a pattern only after complete coverage exists. If the evidence volume is large, split it across linked pages or generate compact expandable records instead of sampling it down to a demo.
 
-## 证据记录
+## Evidence record
 
-将此紧凑记录附加到重要事实、带状态行、图表和决策：
+Attach this compact record to material facts, status-bearing rows, diagrams, and decisions:
 
-| 字段 | 记录 |
+| Field | Record |
 | --- | --- |
-| 状态 | `shipped`、`in-progress`、`candidate`、`deferred`、`blocked`、`unknown` 或验证状态 |
-| 证据 | 精确的来源路径、测试、配置、迁移、路由、命令结果、维护的文档或批准的外部来源 |
-| 置信度 | 已确认、部分、推断或缺失 |
-| 差距 | 缺失的事实、冲突、风险或限制条件 |
-| 下一步行动 | 具体的检查、决策、实现或验证步骤；已知时包含负责人 |
+| status | `shipped`, `in-progress`, `candidate`, `deferred`, `blocked`, `unknown`, or a validation state |
+| evidence | precise source path, test, config, migration, route, command result, maintained document, or approved external source |
+| confidence | confirmed, partial, inferred, or absent |
+| gap | missing fact, conflict, risk, or limiting condition |
+| next action | concrete check, decision, implementation, or validation step; owner when known |
 
-## 1. 项目摘要与市场现实 — Node01
+## 1. Project summary and market reality — Node01
 
-在顶部附近显示这些事实，因为产品范围赋予架构和进度以意义：
+Show these facts near the top because product scope gives architecture and progress their meaning:
 
-| 领域 | 捕获 |
+| Area | Capture |
 | --- | --- |
-| 标识 | 项目名称、简洁描述、生命周期/发布状态和已知时的当前负责人 |
-| 人员 | 目标用户、买方、受益者、角色、情境和首批可触达的受众/渠道 |
-| 问题 | 当前变通方法/现状、痛点、不作为的成本和切换触发条件 |
-| 承诺 | 窄化的结果、价值路径、为什么是现在，以及首个可观察的成功时刻 |
-| 市场证据 | 支持和反对的证据、置信度、替代方案和最危险的假设 |
-| 商业模式 | 价格、货币、计费周期、套餐/权益、试用/限制、支付状态和证据；显示 `unknown` 而非猜测的定价 |
-| 信任 | 隐私、安全、可靠性、迁移、支持、合法性和其他采纳异议 |
+| identity | project name, concise description, lifecycle/release state, and current owner when known |
+| people | target user, buyer, beneficiary, role, situation, and first reachable audience/channel |
+| problem | current workaround/status quo, pain, cost of doing nothing, and switching trigger |
+| promise | narrow outcome, value path, why now, and the first observable success moment |
+| market evidence | supporting and opposing evidence, confidence, alternatives, and riskiest assumption |
+| commercial model | price, currency, billing cadence, package/entitlement, trial/limits, payment state, and evidence; show `unknown` rather than guessed pricing |
+| trust | privacy, security, reliability, migration, support, legitimacy, and other adoption objections |
 
-当受众、买方和受益者不同时，将它们分开。保留非目标和已拒绝的范围，因为它们解释了为什么一个看似缺失的能力是有意的。
+Keep audience, buyer, and beneficiary separate when they differ. Preserve non-goals and rejected scope because they explain why an apparently absent capability is intentional.
 
-## 2. 能力图与交付 — Node01 及实现证据
+## 2. Capability map and delivery — Node01 with implementation evidence
 
-按用户结果或旅程阶段分组能力，而不是按仓库文件夹。每个能力使用一行/卡片：
+Group capabilities by user outcome or journey stage, not by repository folder. Use one row/card per capability with:
 
-| 字段 | 捕获 |
+| Field | Capture |
 | --- | --- |
-| 能力 | 面向用户的结果和相关需求/故事 ID |
-| 旅程 | 触发条件、关键状态、首次成功和重要时的失败/恢复状态 |
-| 范围 | MVP/MAP、后续候选、已推迟、已拒绝或非目标 |
-| 交付 | 已发布、进行中、已阻塞、未开始或未知 |
-| 验收 | 可观察的成功标准和验证状态 |
-| 实现 | 负责模块/界面、依赖项和证据 |
-| 风险与行动 | 命名的差距/阻塞项、决策触发条件、负责人和下一步行动 |
+| capability | user-facing outcome and related requirement/story ID |
+| journey | trigger, key states, first success, and failure/recovery state when material |
+| scope | MVP/MAP, later candidate, deferred, rejected, or non-goal |
+| delivery | shipped, in-progress, blocked, not-started, or unknown |
+| acceptance | observable success criterion and validation state |
+| implementation | responsible module/surface, dependency, and evidence |
+| risk and action | named gap/blocker, decision trigger, owner, and next action |
 
-将已发布、进行中、候选、已推迟/已拒绝和未知的工作渲染为不同的标注车道或时间线。不要仅使用颜色，也不要将候选工作承诺为已提交的交付。
+Render shipped, in-progress, candidate, deferred/rejected, and unknown work as distinct labeled lanes or a timeline. Do not use color alone, and do not promise candidate work as committed delivery.
 
-## 3. 架构与运行时形态 — Node02
+## 3. Architecture and runtime shape — Node02
 
-绘制从用户意图到持久结果的标注流程。每个节点或边界应陈述职责、输入/输出、负责人、依赖项、证据和重要的失败/恢复行为。
+Draw a labeled flow from user intent to durable result. Each node or boundary should state responsibility, input/output, owner, dependencies, evidence, and material failure/recovery behavior.
 
-仅包含适用的组件，但明确标记缺失/未知的核心层：
+Include only applicable components, but explicitly mark absent/unknown core layers:
 
-| 层 | 捕获 |
+| Layer | Capture |
 | --- | --- |
-| 前端 | 用户界面、客户端状态、路由、渲染和客户端不得强制执行的内容 |
-| 后端/领域 | 操作/用例、不变量、授权强制和模块所有权 |
-| 数据 | 仓库/存储、持久记录、查询/变更边界、租户、保留和并发关注 |
-| 集成 | 提供商、webhook、导入/导出、契约负责人、超时/重试/对账行为 |
-| 工作执行 | 任务、队列、调度、事件生命周期、验收状态、执行器、重试负责人和可见进度 |
-| 信任与运行时 | 认证/会话模型、权限、环境/部署边界、可观测性、运营成本和恢复权限 |
+| frontend | user surfaces, client state, routes, rendering, and what the client must not enforce |
+| backend/domain | actions/use cases, invariants, authorization enforcement, and module ownership |
+| data | repositories/stores, durable records, query/mutation boundaries, tenancy, retention, and concurrency concerns |
+| integration | providers, webhooks, imports/exports, contract owner, timeout/retry/reconciliation behavior |
+| work execution | jobs, queues, schedules, event lifecycle, acceptance state, executor, retry owner, and visible progress |
+| trust and runtime | auth/session model, permissions, environment/deploy boundary, observability, operating cost, and recovery authority |
 
-对于重要的架构选择，显示选定选项、被拒绝的替代方案、理由/证据、后果、成本/可逆性以及应重新开启决策的条件。
+For material architecture choices, show the selected option, alternatives rejected, rationale/evidence, consequences, cost/reversibility, and the condition that should reopen the decision.
 
-## 4. 技术与数据契约 — Node02
+## 4. Technology and data contracts — Node02
 
-### 技术栈台账
+### Stack ledger
 
-列出前端、后端、数据、基础设施、测试、CI/CD、分析/可观测性和第三方组件。对于每个组件，显示有证据时的版本、职责、存在原因、来源/配置位置、运营成本和退出/重新审视触发条件。
+List frontend, backend, data, infrastructure, testing, CI/CD, analytics/observability, and third-party components. For each, show version when evidenced, responsibility, why it exists, source/configuration location, operating cost, and exit/revisit trigger.
 
-### 数据库台账
+### Database ledger
 
-首先显示紧凑的实体图。使每个表/实体可展开并包含：
+Show a compact entity map first. Make each table/entity expandable and include:
 
-| 字段 | 捕获 |
+| Field | Capture |
 | --- | --- |
-| 实体 | 表/集合名称、业务用途、负责人和生命周期 |
-| 字段契约 | 字段名、类型、可空/必填、默认/生成规则和业务含义 |
-| 完整性 | 主/外/唯一键、索引、枚举/检查规则、引用行为和迁移证据 |
-| 访问 | 租户/用户边界、授权相关性、保留/删除、敏感分类和审计影响 |
-| 关系 | 基数、依赖记录、一致性/并发行为和来源证据 |
+| entity | table/collection name, business purpose, owner, and lifecycle |
+| field contract | field name, type, nullable/required, default/generated rule, and business meaning |
+| integrity | primary/foreign/unique keys, index, enum/check rule, referential behavior, and migration evidence |
+| access | tenant/user boundary, authorization relevance, retention/deletion, sensitive classification, and audit implications |
+| relation | cardinality, dependent records, consistency/concurrency behavior, and source evidence |
 
-不要泄露实际的密钥值或个人记录。使用字段名和契约语义，而非生产样本。
+Do not reveal actual secret values or personal records. Use field names and contract semantics, not production samples.
 
-### API 与操作台账
+### API and action ledger
 
-显示紧凑的 endpoint/操作索引并使每条记录可展开：
+Show a compact endpoint/action index and make each record expandable:
 
-| 字段 | 捕获 |
+| Field | Capture |
 | --- | --- |
-| 标识 | 方法/事件、路径或操作名、用途、调用方和所属模块 |
-| 访问 | 认证、权限/租户规则、适用时的速率/权益规则 |
-| 请求 | 必填/可选字段、类型、验证、幂等/关联行为 |
-| 响应 | 成功形态/状态、异步接受和进度语义以及消费者影响 |
-| 失败 | 错误码/形态、重试/超时行为、安全恢复和用户可见状态 |
-| 证明 | 来源路由/处理器、schema/OpenAPI、契约测试、集成测试或明确差距 |
+| identity | method/event, path or action name, purpose, caller, and owning module |
+| access | authentication, permission/tenant rule, rate/entitlement rule when applicable |
+| request | required/optional fields, types, validation, idempotency/correlation behavior |
+| response | success shape/status, asynchronous acceptance and progress semantics, and consumer impact |
+| failure | error codes/shapes, retry/timeout behavior, safe recovery, and user-visible state |
+| proof | source route/handler, schema/OpenAPI, contract test, integration test, or explicit gap |
 
-## 5. 控制室
+## 5. Control room
 
-以决策就绪的快照结束：
+End with a decision-ready snapshot:
 
-- 按环境或当前已验证边界的发布和验证状态；
-- 主要风险、阻塞项、未知项和冲突证据及其严重程度/后果；
-- 重要决策台账：上下文、决策、替代方案、后果、负责人和重新审视触发条件；
-- 按优先排序的下一步行动，命名受影响的能力/契约和将关闭该项的证据。
+- release and validation state by environment or current verified boundary;
+- top risks, blockers, unknowns, and conflicting evidence with severity/consequence;
+- material decision ledger: context, decision, alternatives, consequence, owner, and revisit trigger;
+- ordered next actions that name the affected capability/contract and the evidence that will close the item.
 
-原地替换被取代的当前事实。对于重大发布、版本、事件、迁移、安全评审、实验或批准的里程碑，向链接的活动子页面添加紧凑记录：日期/版本、范围、证据、影响和后续行动。活动页面仅作为历史上下文；当前看板保持权威。
+Replace superseded current truth in place. For major releases, versions, incidents, migrations, security reviews, experiments, or approved milestones, add a compact record to the linked activity subpage: date/version, scope, evidence, impact, and follow-up. The activity page is historical context only; the current board remains authoritative.

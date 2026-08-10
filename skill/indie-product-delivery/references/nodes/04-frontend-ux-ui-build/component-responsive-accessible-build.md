@@ -1,238 +1,257 @@
-﻿# 组件、响应式与无障碍构建
+﻿# Component, Responsive, and Accessible Build
 
-> **目标：** 实现正确的组件边界、完整的交互状态、语义化无障碍、响应式行为、防重叠/防堆叠规则
-> 和性能健康。
+> **Goal:** Implement correct component boundaries, complete interaction states, semantic accessibility,
+> responsive behavior, anti-overlap/anti-stacking rules, and performance health.
 >
-> **负责：** 组件层、契约驱动的交互、语义化无障碍、响应式行为、多分辨率适配、防重叠规则、触摸目标、性能/样式健康
+> **Owns:** component layers, contract-backed interactions, semantic accessibility, responsive behavior, multi-resolution adaptation, anti-overlap rules, touch targets, performance/style health
 >
-> **不负责：** 代码模式如导入路径（`implementation-patterns.md`）、反模式（`anti-default-directives.md`）、视觉方向（`visual-direction-and-design-system.md`）
+> **Does NOT own:** code patterns like import paths (`implementation-patterns.md`), anti-patterns (`anti-default-directives.md`), visual direction (`visual-direction-and-design-system.md`)
 
-在实现或重构生产前端代码时使用本指南。
+Use this guide while implementing or refactoring production frontend code.
 
-## 组件边界
+## Component Boundaries
 
-恢复仓库命名、文件夹、基础组件、数据客户端、表单约定、token、图标、样式方式、
-lint/type/build 命令和最接近的可用功能。扩展最小的合适所有者。
+Recover repository naming, folders, primitives, data client, form convention, tokens, icons, styling
+approach, lint/type/build commands, and nearest working feature. Extend the smallest suitable owner.
 
-### 层职责
+### Layer responsibilities
 
-| 层 | 负责 | 不应负责 |
+| Layer | Owns | Must not own |
 |---|---|---|
-| 页面 / 路由 | 界面协调、路由状态、组合、高层加载边界 | 重复的后端策略或可复用基础组件细节 |
-| 功能 | 一个用户可见的任务、局部交互/状态组合 | 无关的页面布局或全局权威 |
-| 基础组件 | 可访问的重复交互/视觉行为 | 领域/API 策略 |
-| hook / 数据客户端 | 现有的请求/缓存/订阅约定 | 展示特定的文案/布局 |
-| 表单所有者 | 草稿、验证显示、提交生命周期、保留输入 | 服务器授权或规范权益 |
-| token / 样式 | 语义视觉角色和系统一致性 | 页面特定的产品策略 |
-| 工具函数 | 纯格式化/推导 | 远程副作用或隐藏状态 |
+| page / route | surface coordination, route state, composition, high-level loading boundary | duplicated backend policy or reusable primitive details |
+| feature | one user-visible job, local interaction/state composition | unrelated page layout or global authority |
+| primitive | accessible repeated interaction/visual behavior | domain/API policy |
+| hook / data client | existing request/cache/subscription convention | presentation-specific copy/layout |
+| form owner | draft, validation display, submit lifecycle, preserved input | server authorization or canonical entitlement |
+| token / style | semantic visual role and system consistency | page-specific product policy |
+| utility | pure formatting/derivation | remote side effects or hidden state |
 
-### 拆分规则
+### Split rules
 
-当组件拥有不相关的用户任务、重复的状态分支、分散的 API 调用、变得晦涩的访问逻辑，
-或无法独立验证的布局和领域行为时拆分组件。不要仅为满足文件大小规则而提取组件。
+Split a component when it owns unrelated user jobs, repeated state branches, scattered API calls,
+access logic that becomes obscure, or layout and domain behavior that cannot be independently verified.
+Do not extract components merely to satisfy a file-size rule.
 
-仅在创建或扩展真正的跨页面视觉块时，定义其支持和排除的上下文、公共 props、状态覆盖、
-响应式回退、token/主题假设、动效和减少动效行为、无障碍契约和已知失败模式。一个单页面
-组合不证明需要块库。
+Only when creating or extending a genuinely cross-page visual block, define its supported and excluded
+contexts, public props, state coverage, responsive fallback, token/theme assumptions, motion and
+reduced-motion behavior, accessibility contract, and known failure patterns. A one-page composition
+does not justify a block library.
 
-## 契约驱动的状态与交互
+## Contract-Backed State and Interactions
 
-使用 `experience-flow-content-and-states.md` 中的流程/状态图。仅渲染已批准的 API、认证、
-权限、待处理、冲突、提供商和恢复行为。本地 mock 必须在检查点中标识并遵循契约的结果/错误形状。
+Use the flow/state map from `experience-flow-content-and-states.md`. Render only approved API, auth,
+permission, pending, conflict, provider, and recovery behavior. A local mock must be identified in the
+checkpoint and follow the contracted result/error shape.
 
-### 交互行为
+### Interaction behavior
 
-| 交互 | 必需行为 |
+| Interaction | Required behavior |
 |---|---|
-| 提交 | 防止意外重复操作，在可恢复失败时保留输入，显示待处理/成功 |
-| 破坏性操作 | 揭示范围/后果，仅在设计中确认，显示最终或可恢复结果 |
-| 列表 / 筛选 | 同步已批准的 URL/本地状态，限定结果，保留有意义的选择 |
-| 乐观更新 | 明确的回滚/刷新路径和可见的临时状态 |
-| 对话框 / 菜单 | 焦点管理、escape/关闭行为、返回焦点、无隐藏的必需操作 |
-| 异步 / 提供商 | 待处理状态、重试/恢复操作、无原始内部/提供商错误 |
-| 访问 / 认证 | 渲染契约支持的恢复；绝不从隐藏控件推断权限 |
-| 生成 / 长内容 | 加载/缺失/错误/溢出行为和安全的可读边界 |
+| submit | prevent accidental duplicate action, preserve input on recoverable failure, show pending/success |
+| destructive action | reveal scope/consequence, confirm only when designed, display final or recoverable result |
+| list / filter | synchronize approved URL/local state, bound results, preserve meaningful selection |
+| optimistic update | explicit rollback/refresh path and visible temporary state |
+| dialog / menu | focus management, escape/close behavior, return focus, no hidden required action |
+| async / provider | pending status, retry/recovery action, no raw internal/provider error |
+| access / auth | render contract-backed recovery; never infer authority from hidden controls |
+| generated / long content | loading/missing/error/overflow behavior and safe readable bounds |
 
-不要从浏览器直接调用提供商、暴露密钥/token、记录私有载荷，或使用客户端状态作为执行权威。
-UI 隐藏不是安全。
+Do not call providers directly from the browser, expose secrets/tokens, log private payloads, or use
+client-side state as the enforcement authority. UI hiding is not security.
 
-## 语义化与无障碍交互
+## Semantic and Accessible Interaction
 
-在 ARIA 之前使用语义化 HTML。仅在原生元素无法表达交互时添加 ARIA。检查活跃界面，
-而非抽象的合规清单。
+Use semantic HTML before ARIA. Add ARIA only where native elements cannot express the interaction.
+Check the active surface, not an abstract compliance checklist.
 
-| 关注点 | 实现检查 |
+| Concern | Implementation check |
 |---|---|
-| 结构 | 有意义的标题、landmark、列表/表格关系、合理的 DOM 顺序 |
-| 控件 | 真实的 button/link 语义、标签/名称、可见可操作性、disabled 含义 |
-| 键盘 | 可达的主要操作、合理的 tab 顺序、相关的 escape/enter 行为 |
-| 焦点 | focus-visible 指示器、对话框焦点管理、关闭/提交后返回焦点 |
-| 对比度 | 文字/图标/状态区分在不依赖颜色的情况下可读 |
-| 动效 | 减少动效回退且无仅在动画中传达的关键含义 |
-| 媒体 | 有用的 alt 文本、装饰性媒体排除在阅读顺序外、有界布局 |
-| 更新 | 在有意义时通知状态/错误/进度，无干扰性噪音 |
-| 触摸 | 足够的目标尺寸且无仅悬停的关键发现 |
+| structure | meaningful headings, landmarks, list/table relationships, logical DOM order |
+| controls | real button/link semantics, label/name, visible affordance, disabled meaning |
+| keyboard | reachable primary action, sensible tab order, escape/enter behavior where relevant |
+| focus | focus-visible indicator, dialog focus management, focus return after close/submit |
+| contrast | text/icon/status distinctions readable without color alone |
+| motion | reduced-motion fallback and no essential meaning only in animation |
+| media | useful alt text, decorative media excluded from reading order, bounded layout |
+| updates | status/error/progress announced when meaningful without disruptive noise |
+| touch | adequate target size and no hover-only critical discovery |
 
-无法用指针操作或理解的交互是不完整的，特别是在移动端。
+An interaction that cannot be operated or understood without a pointer is incomplete, especially on
+mobile.
 
-## 响应式行为
+## Responsive Behavior
 
-将窄视口视为一种交互模式，而非更小的桌面截图。对于每个相关界面，说明什么保持主要、堆叠、
-滚动、折叠、变为对话框/面板或移到显式可操作性之后。
+Treat narrow viewport as an interaction mode, not a smaller desktop screenshot. For each relevant
+surface, state what remains primary, stacks, scrolls, collapses, becomes a dialog/sheet, or moves
+behind an explicit affordance.
 
-### 界面响应式决策
+### Surface responsive decisions
 
-| 界面 | 响应式决策 |
+| Surface | Responsive decision |
 |---|---|
-| 外壳 / 侧边栏 | 持久、可折叠、抽屉或简化导航并保持当前位置可见 |
-| 表格 / 列表 | 优先列、水平滚动、详情视图、筛选器位置、行操作访问 |
-| 表单 | 字段分组、键盘/触摸间距、提交可见性、错误包裹 |
-| 对话框 / 面板 | 视口安全尺寸、滚动、关闭可操作性、焦点和 escape 行为 |
-| 仪表板 | 信息优先级、摘要/详情过渡、图表/表格回退 |
-| 网格 / 卡片 | 稳定的最小尺寸、无挤压不可读的卡片、有意义的重排 |
-| 编辑器 / 聊天 | 输入在键盘下保持可用、长消息溢出、状态反馈 |
-| CTA | 主要操作保持可见且不模糊，无需悬停 |
+| shell / sidebar | persistent, collapsible, drawer, or simplified nav with current location visible |
+| table / list | priority columns, horizontal scroll, detail view, filter placement, row action access |
+| form | field grouping, keyboard/touch spacing, submit visibility, error wrapping |
+| dialog / sheet | viewport-safe sizing, scroll, close affordance, focus and escape behavior |
+| dashboard | information priority, summary/detail transition, chart/table fallback |
+| grid / cards | stable minimum sizes, no squeezed unreadable cards, meaningful reflow |
+| composer / chat | input stays usable with keyboard, long message overflow, state feedback |
+| CTA | primary action stays visible and unambiguous without hover |
 
-### 密集表格和台账指南
+### Dense table and ledger guidance
 
-对于密集表格和台账，选择一种刻意的回退：通过水平滚动保留可读列、缩减为优先列加详情视图，
-或将每行渲染为带标签的记录。当每列都包含散文时使用记录；当跨行比较是读者的任务时使用表格。
+For dense tables and ledgers, choose one deliberate fallback: preserve readable columns with horizontal
+scrolling, reduce to priority columns plus a detail view, or render each row as a labelled record. Use
+records when every column contains prose; use a table when cross-row comparison is the reader job.
 
-保留正常的单词和标识符边界：永远不要仅为使列适合而拆分单词。让单元格保持其固有单词宽度；
-仅为真正不可断的过长 token 保留断行，除非是有意的编辑选择，否则禁用自动连字符。
-`nowrap` chip 可以换行、用可访问的完整值截断或扩大表格；它绝不能与相邻单元格重叠。
-当表格必须滚动时，使水平滚动条可见且可用。
+Preserve normal word and identifier boundaries: never split a word merely to make a column fit. Let
+cells retain their intrinsic word width; reserve breaking for a genuinely unbroken overlong token, and
+disable automatic hyphenation unless it is an intentional editorial choice. A `nowrap` chip may wrap,
+truncate with an accessible full value, or grow the table; it must never overlap an adjacent cell. When
+a table must scroll, make the horizontal scrollbar visible and usable.
 
-在饿死主要阅读列之前，减少或折叠辅助栏（如目录）。在声称响应式验证之前，在目标桌面宽度
-和窄视口下测试最宽的真实单元格内容，包括徽章、代码和长生成文本。
+Reduce or collapse secondary rails, such as a table of contents, before starving the main reading
+column. Test the widest real cell content, including badges, code, and long generated text, at the
+target desktop width and narrow viewports before claiming responsive proof.
 
-### 多分辨率适配
+### Multi-resolution adaptation
 
-窄视口不是单个值。至少测试三个移动断点：
+Narrow viewport is not a single value. Test at minimum three mobile breakpoints:
 
-| 断点 | 代表设备 | 检查项 |
+| Breakpoint | Representative device | What to check |
 |---|---|---|
-| 360px | 小型 Android（Galaxy S10 SE、Pixel 5） | 主要操作可见、无组件堆叠、无水平溢出、触摸目标 >= 44x44 CSS px、固定/粘性不遮挡内容 |
-| 390px | 标准 iPhone（iPhone 14/15） | 相同检查 + 导航可达、表单字段可用键盘操作 |
-| 768px | 平板竖屏（iPad mini） | 相同检查 + 布局过渡（侧边栏可见或抽屉）、网格重排正确 |
+| 360px | small Android (Galaxy S10 SE, Pixel 5) | primary action visible, no component stacking, no horizontal overflow, touch targets >= 44x44 CSS px, fixed/sticky not covering content |
+| 390px | standard iPhone (iPhone 14/15) | same checks + navigation reachable, form fields usable with keyboard |
+| 768px | tablet portrait (iPad mini) | same checks + layout transitions (sidebar visible or drawer), grid reflow correct |
 
-如果项目有浏览器测试基础设施，其中至少一个必须是 Playwright/Cypress 自动化检查。
-其他可以是手动 DevTools 设备模拟。记录测试了哪些断点以及如何测试。
+At least one of these must be a Playwright/Cypress automated check if the project has browser testing
+infrastructure. The others may be manual DevTools device simulation. Record which breakpoints were
+tested and how.
 
-永远不要仅为保留桌面构图而隐藏主要操作、将正文缩小到不可读或让固定宽度组件造成水平溢出。
+Never hide a primary action, reduce body text until unreadable, or let a fixed-width component create
+horizontal overflow merely to preserve a desktop composition.
 
-## 防重叠与防堆叠
+## Anti-Overlap and Anti-Stacking
 
-这些规则防止最常见的移动和响应式失败：组件视觉碰撞、重叠或堆叠成不可用的混乱。
-每条规则适用于每个测试视口（360 / 390 / 768），不仅是桌面端。
+These rules prevent the most common mobile and responsive failure: components visually colliding,
+overlapping, or stacking into an unusable mess. Every rule applies at every tested viewport (360 / 390 /
+768), not just desktop.
 
-### 固定 / 粘性元素碰撞
+### Fixed / sticky element collision
 
-粘性头部、底部导航栏、浮动操作按钮（FAB）和固定工具栏不得遮挡主要操作或交互内容。
+Sticky headers, bottom navigation bars, floating action buttons (FAB), and fixed toolbars must not
+cover primary actions or interactive content.
 
-- 内容区域必须预留与粘性元素高度匹配的 `padding-top` / `padding-bottom`，或
-  在锚目标上使用 `scroll-margin-top`。
-- FAB 不得与最后一个列表项的操作按钮重叠。要么在可滚动容器中添加底部间距，
-  要么将 FAB 放在不会碰撞的位置。
-- 测试：在每个断点下滚动到每个可滚动区域的底部。验证没有固定元素遮挡可见的交互元素。
+- Content regions must reserve `padding-top` / `padding-bottom` matching the sticky element height, or
+  use `scroll-margin-top` on anchor targets.
+- A FAB must not overlap the last list item's action buttons. Either add bottom padding to the
+  scrollable container or position the FAB where it cannot collide.
+- Test: scroll to the bottom of every scrollable region at every breakpoint. Verify no fixed element
+  covers a visible interactive element.
 
-### 绝对定位重排碰撞
+### Absolute positioning reflow collision
 
-重排（缩小视口）后，检查所有 `position: absolute` 或 `position: fixed` 元素是否与
-相邻内容视觉重叠。
+After reflow (narrowing viewport), check all `position: absolute` or `position: fixed` elements for
+visual overlap with adjacent content.
 
-- 窄屏：优先使用文档流 + flex/grid 重排。仅在元素不影响重排时使用 `absolute` 定位
-  （装饰性叠加、卡片角落的徽章）。
-- 如果绝对定位元素必须保留，在所有断点测试其位置。如果它在任何宽度下碰撞，
-  切换到文档流或添加响应式覆盖。
+- Narrow screens: prefer document flow + flex/grid reordering. Use `absolute` positioning only when the
+  element does not affect reflow (decorative overlay, badge on a card corner).
+- If an absolute element must remain, test its position at all breakpoints. If it collides at any
+  width, switch to document flow or add a responsive override.
 
-### 网格和卡片重排
+### Grid and cards reflow
 
-- 窄屏重排必须使用显式网格降级：移动端 `grid-cols-1`，`md:grid-cols-2`，
-  `lg:grid-cols-3`。不要依赖 `flex-wrap` 来"自动解决" - 换行可能产生不均匀、堆叠的
-  卡片布局，看起来是坏的。
-- 每个网格项必须保持一个 `min-width` 以防止卡片塌缩成不可读的薄片。使用 `min-w-0`
-  （允许 flex/grid 缩小）结合内部 `overflow` 处理。
-- "有意义的重排"意味着每个项在每个断点下保持可读和可操作。它不意味着
-  "视觉上压缩成一堆"。
-- 卡片必须有稳定的最小尺寸。无挤压不可读的卡片。如果内容无法放下，用可访问的完整值
-  （`title` 属性或 `aria-label`）截断而不是重叠。
+- Narrow-screen reflow must use explicit grid degradation: `grid-cols-1` at mobile, `md:grid-cols-2`,
+  `lg:grid-cols-3`. Do not rely on `flex-wrap` to "figure it out" - wrapping can produce uneven, stacked
+  card layouts that look broken.
+- Every grid item must maintain a `min-width` that prevents the card from collapsing into an unreadable
+  sliver. Use `min-w-0` (to allow flex/grid shrinking) combined with internal `overflow` handling.
+- "Meaningful reflow" means each item remains readable and actionable at every breakpoint. It does not
+  mean "visually compressed into a pile."
+- Cards must have stable minimum sizes. No squeezed unreadable cards. If content cannot fit, truncate
+  with accessible full value (`title` attribute or `aria-label`) rather than overlap.
 
-### 触摸目标
+### Touch targets
 
-- 相邻交互元素的最小触摸目标为 44 x 44 CSS 像素（WCAG 2.5.5）。
-- 相邻触摸目标之间的间距必须至少为 8px 以防止误触。
-- 在交互元素上使用 `min-w-[44px] min-h-[44px]`，或用更大的可点击区域包裹小目标
-  并使用正确的 `aria` 标注。
-- 仅图标按钮必须包含 `aria-label` 供屏幕阅读器使用。
+- Adjacent interactive elements must have a minimum touch target of 44 x 44 CSS pixels (WCAG 2.5.5).
+- Spacing between adjacent touch targets must be at least 8px to prevent mis-taps.
+- Use `min-w-[44px] min-h-[44px]` on interactive elements, or wrap small targets in a larger
+  clickable area with proper `aria` labeling.
+- Icon-only buttons must include `aria-label` for screen readers.
 
-### 模态 / 对话框视口安全
+### Modal / dialog viewport safety
 
-- 模态框在小屏幕上不得超过视口边界。使用 `max-h-[90vh]` 并在内部滚动。
-- 关闭控件（X 按钮、背景点击、escape 键）必须在所有视口下可达。
-- 在模态框主体上应用 `overscroll-behavior: contain` 以防止滚动链到底层页面。
-  参见 `implementation-patterns.md` 中的 overscroll 隔离模式。
-- 在非常窄的视口上，考虑使用底部面板（`slide-up` 面板）而不是居中模态框 -
-  它使用全宽且在移动端更易触达。
+- Modals must not exceed viewport bounds on small screens. Use `max-h-[90vh]` with internal scrolling.
+- Close controls (X button, backdrop click, escape key) must remain reachable at all viewports.
+- Apply `overscroll-behavior: contain` to the modal body to prevent scroll chaining to the underlying
+  page. See `implementation-patterns.md` for the overscroll containment pattern.
+- On very narrow viewports, consider a bottom sheet (`slide-up` panel) instead of a centered modal -
+  it uses the full width and is easier to reach on mobile.
 
-### 长内容溢出
+### Long content overflow
 
-长文本、长 URL、长标识符和长生成内容不得破坏容器布局或与相邻元素重叠。
+Long text, long URLs, long identifiers, and long generated content must not break container layout or
+overlap adjacent elements.
 
-- 使用 `overflow-wrap: break-word` 或 `word-break: break-all`（仅用于 URL/标识符）来防止
-  内容强制水平溢出。
-- 在 flex/grid 子元素上使用 `min-width: 0` 结合 `truncate`（`overflow: hidden;
-  text-overflow: ellipsis; white-space: nowrap`）进行单行截断。始终通过 `title` 属性或
-  可访问的展开机制提供完整值。
-- 用最长的实际内容测试：最长的用户名、最长的错误消息、最长的 URL、最长的生成文本。
-  如果其中任何一个破坏布局，在发布前修复溢出处理。
+- Use `overflow-wrap: break-word` or `word-break: break-all` (for URLs/identifiers only) to prevent
+  content from forcing horizontal overflow.
+- Use `min-width: 0` on flex/grid children combined with `truncate` (`overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap`) for single-line truncation. Always provide the full
+  value via `title` attribute or an accessible expand mechanism.
+- Test with the longest realistic content: longest username, longest error message, longest URL, longest
+  generated text. If any of these breaks layout, fix the overflow handling before shipping.
 
-### z-index 管理
+### z-index management
 
-不要使用裸 `z-9999` 或任意 z-index 值。使用定义为 token 或 CSS 变量的分层 z-index 层级。
-参见 `implementation-patterns.md` 中的完整 z-index 层级定义。
+Do not use bare `z-9999` or arbitrary z-index values. Use a layered z-index scale defined as tokens or
+CSS variables. See `implementation-patterns.md` for the full z-index scale definition.
 
-- 每个 z-index 层必须来自 token：`z-base`、`z-dropdown`、`z-sticky`、`z-drawer`、`z-modal`、
-  `z-toast`。
-- 永远不要内联 `z-index: 9999` 或类似的魔法数字。
-- 如果出现堆叠冲突，添加一个 token 层而不是升级数字。
+- Each z-index layer must come from a token: `z-base`, `z-dropdown`, `z-sticky`, `z-drawer`, `z-modal`,
+  `z-toast`.
+- Never inline `z-index: 9999` or similar magic numbers.
+- If a stacking conflict appears, add a token layer rather than escalating the number.
 
-### 水平溢出禁止
+### Horizontal overflow prohibition
 
-`body` 或容器上的 `overflow-x: hidden` 是最后手段，不是修复。它掩盖了真正的问题：
-固定宽度组件或未包含的内容强制水平滚动。
+`overflow-x: hidden` on `body` or a container is a last resort, not a fix. It masks the real problem:
+a fixed-width component or uncontained content forcing horizontal scroll.
 
-- 首先修复根本原因：约束固定宽度组件，在特定元素上添加 `max-w-full` / `overflow-hidden`，
-  或使用响应式宽度单位（`%`、`rem`、`vw` 而不是 `px`）。
-- 仅当溢出来自真正不可避免的装饰元素（例如超出视口的背景图案）时才使用 `overflow-x: hidden`。
-- 测试：在每个断点下水平滚动。如果可以水平滚动，找到并修复源元素。
+- First fix the root cause: constrain the fixed-width component, add `max-w-full` / `overflow-hidden`
+  to the specific element, or use responsive width units (`%`, `rem`, `vw` instead of `px`).
+- Only use `overflow-x: hidden` when the overflow is from a genuinely unavoidable decorative element
+  (e.g., a background pattern extending beyond viewport).
+- Test: scroll horizontally at every breakpoint. If horizontal scroll is possible, find and fix the
+  source element.
 
-## 性能与样式健康
+## Performance and Style Health
 
-测试长名称、零结果、最大错误、缺失图像、生成输出、混合权限、大型数组、慢数据和窄视口。
-仅检查该切片实际引入的性能风险。
+Test long names, zero results, maximum errors, missing images, generated output, mixed permissions,
+large arrays, slow data, and narrow viewports. Check only performance risks the slice actually
+introduces.
 
-| 风险 | 检查 |
+| Risk | Check |
 |---|---|
-| 图像 / 字体 / 素材 | 本地/仓库安全加载、正确尺寸、无不必要的重量 |
-| 动效 | 有界工作量、无分散注意力的循环、减少动效路径 |
-| 布局偏移 | 媒体、控件、网格、加载状态的预留/稳定尺寸 |
-| 渲染 | 避免重复的昂贵推导、不稳定的列表 key、不必要的重渲染 |
-| 集合 | 分页/虚拟化触发、有界渲染、无隐藏的提供商扇出 |
-| 状态 | 无重复的真实来源或分散的请求/访问行为 |
-| CSS | token/本地约定、可控的特异性、无全面覆盖或样式膨胀 |
-| 依赖项 | 优先现有技术栈；新库/框架/系统返回 Node02 |
+| image / font / asset | local/repo-safe loading, correct dimensions, no unnecessary weight |
+| motion | bounded work, no distracting loops, reduced-motion path |
+| layout shift | reserved/stable dimensions for media, controls, grids, loading states |
+| rendering | avoid repeated expensive derivation, unstable list keys, unnecessary rerenders |
+| collection | pagination/virtualization trigger, bounded rendering, no hidden provider fanout |
+| state | no duplicate source of truth or scattering of request/access behavior |
+| CSS | tokens/local conventions, manageable specificity, no blanket overrides or style bloat |
+| dependency | existing stack first; new library/framework/system returns to Node02 |
 
-对于非简单的动画，将连续的指针、滚动和时间线值保留在浏览器或动画层中，而不是导致连续组件
-重渲染的普通应用状态中。关于具体的动画实现模式（Motion API、`useMotionValue`、`useScroll`、
-IntersectionObserver、减少动效回退），参见 `implementation-patterns.md`。
+For non-trivial animation, keep continuous pointer, scroll, and timeline values in the browser or
+animation layer instead of ordinary application state that causes continuous component rerenders.
+For specific animation implementation patterns (Motion API, `useMotionValue`, `useScroll`,
+IntersectionObserver, reduced-motion fallback), see `implementation-patterns.md`.
 
-仅在持久行为、状态覆盖、视觉方向或 API/认证流程变更时更新模块/前端当前状态文档。
-不要为私有布局清理创建文档变动。
+Update module/frontend current-state docs only for durable behavior, state coverage, visual direction,
+or API/auth flow changes. Do not create documentation churn for private layout cleanup.
 
 ---
 
-**验收标准：** 阅读本文件后，你能够将每个组件分配到正确的层，实现所有必需的交互状态，通过无障碍
-检查表，定义每个界面的响应式行为（含 360/390/768 多分辨率测试），识别并修复每个重叠/堆叠风险
-（固定/粘性碰撞、网格重排、触摸目标、模态视口安全、长内容溢出、z-index 管理、水平溢出），
-并识别性能风险。
+**Acceptance criteria:** After reading this file, you can assign each component to the correct layer,
+implement all required interaction states, pass the accessibility check table, define per-surface
+responsive behavior (including multi-resolution testing at 360/390/768), identify and fix every
+overlap/stacking risk (fixed/sticky collision, grid reflow, touch targets, modal viewport safety, long
+content overflow, z-index management, horizontal overflow), and identify performance risks.

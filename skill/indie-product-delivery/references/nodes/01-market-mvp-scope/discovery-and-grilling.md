@@ -1,69 +1,91 @@
-﻿# 发现与质询
+# Discovery and Grilling
 
-将模糊的想法转化为清晰的问题定义、可触达的受众，以及产品必须超越的一组替代方案。通过聚焦的质询轮次来完成，而非问卷式轰炸。
+Turn a vague idea into a clear problem definition, a reachable audience, and a set of
+alternatives the product must beat. Do this through focused grilling rounds, not a
+questionnaire dump.
 
-## 质询规则
+## Grilling rules
 
-- 每轮最多问 5 个问题。等待用户回答后再继续。
-- 当一个答案会改变下一个问题时，只问 1 到 3 个问题。不要批量提问有依赖关系的问题。
-- 对于每个问题，基于你已知的信息提供推荐答案。用户确认、修正或细化它。
-- 在提问之前先查找 repo、文档或环境中能找到的事实。只问决策、偏好或你无法安全发现的信息。
-- 当用户无法回答时，将该条目记录为假设并继续。不要因为单个未知项而停滞发现过程。
-- 在质询达成共识理解之前，不要对想法采取行动。
+- Ask at most 5 questions per round. Wait for the user to answer before continuing.
+- When an answer will change the next question, ask only 1 to 3 questions. Do not
+  batch dependent questions.
+- For each question, provide your recommended answer based on what you already know.
+  The user confirms, corrects, or refines it.
+- Look up facts you can find in the repo, docs, or environment before asking. Ask only
+  for decisions, preferences, or information you cannot discover safely.
+- When the user cannot answer, record the item as an assumption and continue. Do not
+  stall the discovery on a single unknown.
+- Do not act on the idea until grilling reaches a shared understanding.
 
-## 第 1 轮：问题定义
+## Round 1: Problem definition
 
-此处问 1 到 3 个问题，因为后续问题依赖于前面的答案。
+Ask 1 to 3 questions here because later questions depend on earlier answers.
 
-在讨论功能之前，将想法重写为中性的问题框架：
+Rewrite the idea into a neutral problem frame before discussing features:
 
-> 对于**[特定用户]**，他试图在**[情境]**中**[完成某项任务]**，当前方法导致**[可衡量的痛点]**。产品应帮助他实现**[期望结果]**，而不必**[重要权衡]**。
+> For **[specific user]** who is trying to **[complete a job]** in **[situation]**,
+> the current approach causes **[measurable pain]**. The product should help them
+> achieve **[desired outcome]** without **[important trade-off]**.
 
-如果用户说"构建一个 AI 摘要工具"，不要接受它。追问：摘要什么、为谁做、他们现在怎么做、为什么那还不够好？
+If the user says "build an AI summarization tool," do not accept it. Ask: summarize
+what, for whom, what do they do today, why is that not good enough?
 
-提供你对想法的推荐解读，明确标记推断。不要编造事实、市场规模、用户引用或需求。
+Provide your recommended reading of the idea, marking inferences explicitly. Do not
+invent facts, market sizes, user quotes, or demand.
 
-## 第 2 轮：受众触达与替代方案
+## Round 2: Audience reach and alternatives
 
-这些问题大多相互独立，因此最多可以一起问 5 个。
+These questions are mostly independent, so up to 5 can be asked together.
 
-- 目标受众聚集在哪里？说出社区、平台或搜索行为。
-- 你能触达他们吗？你是否有现成的受众、渠道或网络？
-- 他们愿意改变吗？迁移成本或习惯阻力是什么？
-- 他们今天用什么替代？列出竞品、电子表格、手动流程、外包或不做任何事。
-- 对于每个替代方案，用户为什么还没有切换？那个原因就是你的差异化机会。
+- Where does the target audience congregate? Name communities, platforms, or search
+  behavior.
+- Can you reach them? Do you have an existing audience, channel, or network?
+- Are they willing to change? What is the migration cost or habit resistance?
+- What do they do today instead? List competitors, spreadsheets, manual flows,
+  outsourcing, or doing nothing.
+- For each alternative, why have users not switched already? That reason is your
+  differentiation opportunity.
 
-如果受众是"所有人"或"所有开发者"，这是受众过于宽泛的信号。建议更窄的细分群体。
+If the audience is "everyone" or "all developers," that is a signal the audience is
+too broad. Recommend a narrower segment.
 
-## 第 3 轮：最高风险假设与投入预算
+## Round 3: Riskiest assumption and investment budget
 
-- 产品成功取决于什么？哪个单一假设如果为假，会使整个产品毫无意义？那就是最高风险假设。
-- 你能投入多少时间？周末、一个月、全职？
-- 你的月度运营成本上限是多少？
-- 可接受多少维护负担？每天、每周、完全自动化？
+- What does product success depend on? Which single assumption, if false, makes the
+  whole product pointless? That is the riskiest assumption.
+- How much time can you invest? Weekends, one month, full-time?
+- What is your monthly operating cost ceiling?
+- What maintenance burden is acceptable? Daily, weekly, fully automated?
 
-用以下框架表述最高风险假设：
+Frame the riskiest assumption:
 
-> 如果**[假设]**为假，则**[对产品的后果]**，因为**[为什么这个假设是基础性的]**。
+> If **[assumption]** is false, then **[consequence for the product]**, because
+> **[why this assumption is foundational]**.
 
-基于你已知的信息提供推荐的最高风险假设，标记为推断。
+Provide your recommended riskiest assumption based on what you know, marked as an
+inference.
 
-## 质询完成时
+## When grilling is complete
 
-当以下全部为真时，发现即完成：
+Discovery is done when all of the following are true:
 
-- 问题符合一句话框架，包含特定用户、痛点和结果。
-- 受众基于行为特征具体化且可通过命名的渠道触达。
-- 至少识别了 2 个替代方案，每个都有用户未切换的原因。
-- 命名了一个最高风险假设。
-- 时间和预算约束已知。
+- The problem fits the one-sentence frame with specific user, pain, and outcome.
+- The audience is behaviorally specific and reachable through a named channel.
+- At least 2 alternatives are identified, each with a reason users have not switched.
+- One riskiest assumption is named.
+- Time and budget constraints are known.
 
-如果任何条目缺失，继续质询。如果用户不确定，将其记录为假设并继续。不要因为后续可以测试的未知项而阻塞。
+If any item is missing, continue grilling. If the user is uncertain, record it as an
+assumption and proceed. Do not block on unknowns that can be tested later.
 
-## 不应做的事
+## What not to do
 
-- 不要在问题定义之前产出功能列表。
-- 不要接受"所有人"作为受众。
-- 不要编造市场规模、需求、用户引用或竞品事实。当市场或竞品数据重要时使用 web 搜索，并标注哪些是研究的、哪些是推断的。
-- 不要将 AI 或技术栈加入问题框架。陈述任务，而非机制。
-- 不要跳过"他们为什么还没有切换"这个问题。没有它，差异化就是猜测。
+- Do not produce a feature list before the problem is defined.
+- Do not accept "everyone" as an audience.
+- Do not invent market size, demand, user quotes, or competitor facts. Use web
+  search when market or competitor data matters, and label what is researched versus
+  inferred.
+- Do not add AI or a technology stack to the problem frame. State the job, not the
+  mechanism.
+- Do not skip the "why have they not switched" question. Without it, differentiation
+  is a guess.

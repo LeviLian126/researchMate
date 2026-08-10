@@ -1,136 +1,170 @@
-﻿# 系统发现与模块设计
+# System Discovery and Module Design
 
-理解现有系统，找到可复用路径，定义模块边界和依赖方向，选择部署拓扑。使用 deep-module 词汇而非抽象分类表。
+Understand the existing system, find reusable paths, define module boundaries and
+dependency direction, and choose deployment topology. Use deep-module vocabulary
+instead of abstract classification tables.
 
-## 步骤 1：阅读 Node01 规格说明
+## Step 1: Read the Node01 spec
 
-从 Node01 交接文档中提取：目标用户、核心任务、验收标准、范围（在范围内、在范围外、非目标）和风险假设。
+Extract from the Node01 handoff: target user, core job, acceptance criteria, scope
+(in, out, non-goals), and risk assumptions.
 
-用一句话陈述架构问题：
-> 什么系统能力现在必须存在，为谁存在，在哪些约束下，什么结果必须保持可观察？
+State the architecture question in one sentence:
+> What system capability must now exist, for whom, under which constraints, and what
+> outcome must remain observable?
 
-确认变更不会悄然改变产品承诺（用户、定价、隐私立场）。如果产品决策未决，路由回 Node01。
+Confirm the change does not silently alter product promise (user, pricing, privacy
+stance). If a product decision is unresolved, route back to Node01.
 
-## 步骤 2：审计已有代码
+## Step 2: Audit existing code
 
-仅审计与此变更相关的内容。不要做全仓库调查。
+Audit only what is relevant to this change. Do not do a full-repository survey.
 
-**定位热点（来自 improve-codebase-architecture）：**
-- 如果用户指定了方向（模块、子系统、痛点），直接去那里。
-- 否则，运行 `git log --oneline` 找到在最近提交中反复出现的文件和区域。让那些路径优先吸引你的注意力。
+**Locate hot spots:**
+- If the user named a direction (module, subsystem, pain point), go there directly.
+- Otherwise, run `git log --oneline` to find files and areas that keep coming up in
+  recent commits. Let those paths pull your attention first.
 
-**检查内容：**
-- 入口点：routes、actions、CLI commands、events
-- 领域：use-case 所有者、state 规则、事务风格
-- 数据：repositories、schema、query 过滤器、约束
-- 访问：session、signature、role、tenant 强制执行
-- 外部：adapters、jobs、callbacks、timeout 和 retry 约定
-- 测试：framework、helpers、fixtures、断言风格
-- 配置：env 名称、feature flags、当前 diff
+**What to inspect:**
+- Entry points: routes, actions, CLI commands, events
+- Domain: use-case owners, state rules, transaction style
+- Data: repositories, schema, query filters, constraints
+- Access: session, signature, role, tenant enforcement
+- External: adapters, jobs, callbacks, timeout and retry conventions
+- Tests: framework, helpers, fixtures, assertion style
+- Config: env names, feature flags, current diff
 
-对于每个区域，记录：它现在拥有什么？谁调用它？它能改变什么数据？哪种模式已经在运作且应被保持？
+For each area, record: what does it own now? Who calls it? What data can it change?
+Which pattern is already working and should be preserved?
 
-**在问用户之前先查找事实。** 可发现的事实（代码、配置、文档）不是问题。仅在产品或业务决策时路由到 Node01 或用户。
+**Look up facts before asking the user.** Discoverable facts (code, config, docs) are
+not questions. Route to Node01 or the user only for product or business decisions.
 
-## 步骤 3：构建复用地图
+## Step 3: Build the reuse map
 
-对于每个子问题，在提出新层之前先找到最强的已有路径。
+For each sub-problem, find the strongest existing path before proposing new layers.
 
-| 子问题 | 已有路径 | 决策 | 原因 |
+| Sub-problem | Existing path | Decision | Reason |
 |---|---|---|---|
-| 能力或流程 | module、route、job、provider 或 none | reuse / extend / replace / new | repo 和产品匹配度 |
+| capability or flow | module, route, job, provider, or none | reuse / extend / replace / new | repo and product fit |
 
-- **Reuse**：一条完整且合适的路径。直接使用它。
-- **Extend**：改变一个经过验证的所有者，不创建平行概念。
-- **Replace**：有已命名的缺陷和演化路径。
-- **New**：检查后不存在合适的路径。
+- **Reuse**: a complete suitable path. Use it directly.
+- **Extend**: change a proven owner without creating a parallel concept.
+- **Replace**: has a named deficiency and an evolution path.
+- **New**: no suitable path exists after inspection.
 
-不要仅因为局部方便就创建第二个事实来源、第二个授权路径或第二个 provider adapter。
+Do not create a second source of truth, a second authorization path, or a second
+provider adapter merely because it is locally convenient.
 
-## 步骤 4：定义模块边界
+## Step 4: Define module boundaries
 
-使用 deep-module 词汇（来自 codebase-design）：
+Use deep-module vocabulary:
 
-- **Module**：有 interface 和 implementation 的东西 — 函数、类、包或跨层切片。
-- **Interface**：调用方正确使用 module 必须知道的一切：类型签名、不变量、顺序约束、error 模式、所需配置和性能特征。
-- **Seam**：你可以在不编辑该处的情况下改变行为的地方 — interface 所在之处。
-- **Depth**：interface 处的杠杆。调用方每学习一个单位的 interface 能行使多少行为。Deep = 小 interface 背后的大行为。
-- **Adapter**：在 seam 处满足 interface 的具体事物。
+- **Module**: something with an interface and an implementation — a function, class,
+  package, or cross-tier slice.
+- **Interface**: everything a caller must know to use the module correctly: type
+  signature, invariants, ordering constraints, error modes, required configuration,
+  and performance characteristics.
+- **Seam**: the place where you can alter behavior without editing in that place —
+  where the interface lives.
+- **Depth**: leverage at the interface. How much behavior can a caller exercise per
+  unit of interface they must learn. Deep = large behavior behind a small interface.
+- **Adapter**: a concrete thing that satisfies an interface at a seam.
 
-**对于每个 module，问：**
-- 我能减少方法数量吗？
-- 我能简化参数吗？
-- 我能在内部隐藏更多复杂性吗？
-- 如果我删除这个 module，复杂性是消失了（pass-through，应合并到调用方）还是扩散到 N 个调用方（它在发挥作用，保留它）？
+**For each module, ask:**
+- Can I reduce the number of methods?
+- Can I simplify the parameters?
+- Can I hide more complexity inside?
+- If I delete this module, does complexity vanish (pass-through, should merge into
+  caller) or spread to N callers (it is earning its keep, keep it)?
 
-**删除测试（强制）：** 对于每个新建或变更的 module，想象删除它。如果复杂性消失，它是 pass-through — 合并到其调用方。如果复杂性扩散到多个调用方，它在发挥作用 — 保留它。删除测试不是可选的修饰。LLM 生成的代码典型地过度产生 pass-through module、过早抽象和浅 interface。删除测试在实现开始之前捕获最常见的架构失败模式。
+**Deletion test (mandatory):** For every new or changed module, imagine deleting it.
+If complexity vanishes, it is a pass-through — merge it into its caller. If complexity
+spreads to multiple callers, it is earning its keep — keep it. The deletion test is
+not optional polish. LLM-generated code characteristically over-produces pass-through
+modules, premature abstractions, and shallow interfaces. The deletion test catches the
+most common architecture failure mode before implementation begins.
 
-**Seam 纪律（来自 DEEPENING）：**
-- 一个 adapter 意味着假设性的 seam。两个 adapter 意味着真实的 seam。不要引入 port，除非至少有两个 adapter 是合理的（通常是生产加测试）。单 adapter 的 seam 只是间接层。
-- 内部 seam（module 私有，供其自身测试使用）不会因为测试使用而通过外部 interface 暴露。
+**Seam discipline:**
+- One adapter means a hypothetical seam. Two adapters means a real one. Do not
+  introduce a port unless at least two adapters are justified (typically production
+  plus test). A single-adapter seam is just indirection.
+- Internal seams (private to the module, used by its own tests) are not exposed through
+  the external interface just because tests use them.
 
-**Module 层级和依赖方向：**
+**Module layers and dependency direction:**
 
-| 层 | 拥有 | 可以依赖 | 不得拥有 |
+| Layer | Owns | May depend on | Must not own |
 |---|---|---|---|
-| UI/view | 可见状态和用户意图 | client contract | 业务真相或 authz 强制执行 |
-| entry/controller | 传输转换和请求边界 | service/domain | provider 特定策略 |
-| service/domain | use-case 编排和不变量 | repository/provider contract | transport/UI 细节 |
-| repository/data | 持久化和查询映射 | database/store | 调用方策略或外部工作流 |
-| provider adapter | 外部规范化和凭证 | provider SDK/protocol | 产品或业务所有权 |
-| job/script/realtime | 调度或事件生命周期 | service 和 adapter contract | 重复的领域规则 |
+| UI/view | visible state and user intent | client contract | business truth or authz enforcement |
+| entry/controller | transport conversion and request boundary | service/domain | provider-specific policy |
+| service/domain | use-case orchestration and invariants | repository/provider contract | transport/UI details |
+| repository/data | persistence and query mapping | database/store | caller policy or external workflow |
+| provider adapter | external normalization and credentials | provider SDK/protocol | product or business ownership |
+| job/script/realtime | scheduled or event lifecycle | service and adapter contract | duplicate domain rules |
 
-不要仅为了让此表看起来完整而引入 framework。在边界真正重要的地方保持 interface 稳定、机制可替换。
+Do not introduce a framework merely to make this table look complete. Keep interfaces
+stable and mechanisms replaceable where the boundary actually matters.
 
-## 步骤 5：分类依赖，决定测试策略
+## Step 5: Classify dependencies, decide test strategy
 
-对于每个 module 的依赖，分类以决定如何测试（来自 DEEPENING）：
+For each module's dependencies, classify to determine how to test:
 
-| 类别 | 示例 | 测试策略 |
+| Category | Example | Test strategy |
 |---|---|---|
-| In-process | 纯计算、内存状态、无 I/O | 直接通过 interface 测试，不需要 adapter |
-| Local-substitutable | PGLite 替代 Postgres、内存文件系统 | 在测试套件中使用替代物 |
-| Remote but owned | 你自己的 microservice、内部 API | 定义 port，生产用 HTTP/gRPC adapter，测试用 in-memory adapter |
-| True external | Stripe、Twilio、第三方服务 | 注入 port，测试用 mock adapter |
+| In-process | pure computation, in-memory state, no I/O | test directly through the interface, no adapter needed |
+| Local-substitutable | PGLite for Postgres, in-memory filesystem | use the stand-in in the test suite |
+| Remote but owned | your own microservice, internal API | define a port, prod uses HTTP/gRPC adapter, test uses in-memory adapter |
+| True external | Stripe, Twilio, third-party services | inject a port, test uses a mock adapter |
 
-**替换，不要叠加（来自 DEEPENING）：**
-- 浅 module 上的旧单元测试在深化 module 的 interface 处有测试后变为废料 — 删除它们。
-- 在深化 module 的 interface 处编写新测试。interface 是测试面。
-- 测试通过 interface 断言可观察的结果，而非内部状态。
-- 测试应能在内部重构后存活 — 它们描述行为，而非实现。
+**Replace, do not layer:**
+- Old unit tests on shallow modules become waste once tests at the deepened module's
+  interface exist — delete them.
+- Write new tests at the deepened module's interface. The interface is the test surface.
+- Tests assert on observable outcomes through the interface, not internal state.
+- Tests should survive internal refactors — they describe behavior, not implementation.
 
-## 步骤 6：当存在真正的架构分叉时进行比较
+## Step 6: Compare architecture forks when there is a real one
 
-并非每个变更都需要这一步。仅当合理的工程师可能选择不同的系统形态时。
+Not every change needs this. Only when reasonable engineers could select different
+system shapes.
 
-- 始终将当前、原生或最小路径作为其中一个选项。
-- 仅当更持久路径的天花板或退出价值可信时才添加它。
-- 对于每个选项：repo 匹配度、契约覆盖、复杂性、运营成本、可逆性、验证负担。
-- 推荐一个。说明被拒绝的选项为何现在不被选择，以及它们如何可以被重新审视。
-- 不要制造虚假选择以显得全面。
+- Always include the current, native, or minimal path as one option.
+- Add a more durable path only when its ceiling or exit value is credible.
+- For each option: repo fit, contract coverage, complexity, operating cost,
+  reversibility, proof burden.
+- Recommend one. State why the rejected options are not selected now and how they can
+  be revisited.
+- Do not manufacture false choices to appear thorough.
 
-## 步骤 7：选择部署拓扑
+## Step 7: Choose deployment topology
 
-部署拓扑是架构决策，不是执行细节。Node06 执行配置，但拓扑形态在此决定。
+Deployment topology is an architecture decision, not an execution detail. Node06
+executes the configuration, but the topology shape is decided here.
 
-**应用独立开发者基线**（仅当现有约定不安全或过时时）：
+**Apply the indie baseline** (only when existing conventions are unsafe or stale):
 
-| 层 | 基线 | 重新考虑的条件 |
+| Layer | Baseline | Reconsider when |
 |---|---|---|
-| hosting | 小型 VPS、Nginx | hosting、控制或合规需求不同 |
-| data | SQLite with PRAGMAs、备份、迁移 | 写入争用、多实例、搜索或分析压力 |
-| backend | 原生 PHP 或 Python services、repositories、cron | 重复的 middleware、validation 或 auth 需要更强支持 |
-| frontend | 原生 CSS/JS | 真实的共享状态、组件或路由需要构建栈 |
-| realtime | 仅在 request/response 不适用时使用原生 Node.js | realtime 或长生命周期协议实际上不需要 |
-| external | 适配 Stripe、R2、OpenFreeMap（当匹配时） | 产品、合规、能力或退出需求不同 |
+| hosting | small VPS, Nginx | hosting, control, or compliance needs differ |
+| data | SQLite with PRAGMAs, backups, migrations | write contention, multi-instance, search or analytics pressure |
+| backend | vanilla PHP or Python services, repositories, cron | repeated middleware, validation, or auth needs stronger support |
+| frontend | vanilla CSS/JS | real shared state, components, or routing needs a build stack |
+| realtime | vanilla Node.js only where request/response is the wrong fit | realtime or long-lived protocol is not actually needed |
+| external | adapters for Stripe, R2, OpenFreeMap when fit | product, compliance, capability, or exit requirements differ |
 
-记录使变更有必要的条件，而非用"未来规模"作为模糊理由。当写入争用、多实例、分析或搜索需求被证明时考虑 Postgres。当需要重试、长任务、并行或持久状态时考虑 queue。当重复的路由、middleware、validation 或 auth 开销是真实的时考虑 framework。
+Record the condition that makes a change necessary, not "future scale" as a vague
+justification. Consider Postgres when write contention, multi-instance, analytics, or
+search needs are proven. Consider a queue when retries, long jobs, parallelism, or
+durable status are needed. Consider a framework when repeated routing, middleware,
+validation, or auth overhead is real.
 
-## 发现完成时
+## When discovery is complete
 
-- 现有系统和变更边界可以用一句话陈述。
-- 复用地图完整（每个子问题有 reuse、extend、replace 或 new 决策）。
-- 每个新建或变更的 module 已通过删除测试。
-- 依赖已分类（每个外部依赖有已知的测试策略）。
-- 部署拓扑已选择或确认为现有。
-- 如果存在真正的架构分叉，已比较 2 到 3 个选项并选定一个。
+- The existing system and the change boundary can be stated in one sentence.
+- The reuse map is complete (every sub-problem has a reuse, extend, replace, or new
+  decision).
+- Every new or changed module has passed the deletion test.
+- Dependencies are classified (every external dependency has a known test strategy).
+- Deployment topology is chosen or confirmed as existing.
+- If there was a real architecture fork, 2 to 3 options were compared and one selected.

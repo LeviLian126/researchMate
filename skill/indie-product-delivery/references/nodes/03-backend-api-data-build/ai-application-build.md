@@ -1,46 +1,62 @@
-﻿# AI 应用构建
+﻿# AI Application Build
 
-## 章节
+## Sections
 
-- [目的和入口条件](#目的和入口条件)
-- [在 prompt 之前定义 AI contract](#在-prompt-之前定义-ai-contract)
-- [构建结构化模型调用](#构建结构化模型调用)
-- [将检索和引用构建为独立阶段](#将检索和引用构建为独立阶段)
-- [构建有界 agent loop](#构建有界-agent-loop)
-- [刻意设计记忆](#刻意设计记忆)
-- [在实现前后评估](#在实现前后评估)
-- [观察和发布 AI 路径](#观察和发布-ai-路径)
-- [反模式:AI 输出作为可信权威](#反模式ai-输出作为可信权威)
+- [Purpose and entry conditions](#purpose-and-entry-conditions)
+- [Define the AI contract before prompts](#define-the-ai-contract-before-prompts)
+- [Build structured model calls](#build-structured-model-calls)
+- [Build retrieval and citations as separate stages](#build-retrieval-and-citations-as-separate-stages)
+- [Build bounded agent loops](#build-bounded-agent-loops)
+- [Design memory deliberately](#design-memory-deliberately)
+- [Evaluate before and after implementation](#evaluate-before-and-after-implementation)
+- [Observe and release the AI path](#observe-and-release-the-ai-path)
+- [Anti-Pattern: AI Output as Trusted Authority](#anti-pattern-ai-output-as-trusted-authority)
+## Purpose and entry conditions
 
-## 目的和入口条件
+Use this branch when the selected backend slice contains an LLM, retrieval pipeline, agent
+loop, tool call, MCP boundary, model provider, prompt contract, or AI-specific evaluation.
+Keep ordinary authentication, tenancy, persistence, jobs, provider adapters, and API behavior
+in the other backend guides. AI does not create a second architecture; it adds probabilistic
+components to the same product and trust boundaries.
 
-当选定的后端切片包含 LLM、retrieval pipeline、agent loop、tool call、MCP 边界、model provider、prompt contract 或 AI 特定的 evaluation 时,使用此分支。将普通的认证、tenancy、persistence、job、provider adapter 和 API 行为保留在其他后端指南中。AI 不会创建第二套架构;它向相同的产品和信任边界添加概率性组件。
+Start from the user-visible decision the model is meant to improve. If a deterministic rule,
+search query, parser, state machine, or ordinary workflow can meet the acceptance more
+reliably and cheaply, use it as the baseline. Introduce model judgment only where ambiguity,
+synthesis, semantic retrieval, or open-ended generation earns the variance and operating cost.
 
-从模型旨在改善的用户可见决策开始。如果确定性规则、搜索查询、解析器、状态机或普通 workflow 能更可靠、更廉价地满足验收标准,就将其作为基线。只在歧义、综合、语义检索或开放式生成值得其方差和运营成本时引入模型判断。
+## Define the AI contract before prompts
 
-## 在 prompt 之前定义 AI contract
+Describe the component through observable inputs, outputs, authority, evidence, and failure
+behavior. The prompt is only one implementation artifact.
 
-通过可观察的输入、输出、权威、证据和失败行为来描述组件。prompt 只是一个实现产物。
-
-| Contract 面 | 实现前决定 |
+| Contract surface | Decide before implementation |
 |---|---|
-| task | 被支持的用户或系统决策;什么算作有用的结果 |
-| input | 可信指令、不可信内容、检索到的证据、对话状态和大小限制 |
-| output | schema、引用、confidence 或 refusal 行为、streaming 规则和稳定的 error mapping |
-| authority | tool、数据、副作用、tenant scope、spend、迭代预算和需要人工的操作 |
-| quality | golden case、negative case、确定性 invariant 和代表成功的 metric 或 rubric |
-| operations | 延迟预算、token 和 cost 限制、provider fallback、trace 身份、取消、retry 和降级 |
+| task | the user or system decision being supported; what counts as a useful result |
+| input | trusted instructions, untrusted content, retrieved evidence, conversation state, and size limits |
+| output | schema, citations, confidence or refusal behavior, streaming rules, and stable error mapping |
+| authority | tools, data, side effects, tenant scope, spend, iteration budget, and actions that require a human |
+| quality | golden cases, negative cases, deterministic invariants, and the metric or rubric that represents success |
+| operations | latency budget, token and cost limits, provider fallback, trace identity, cancellation, retry, and degradation |
 
-将行为变更的输入一起版本化:model 和 provider、prompt、output schema、retrieval 配置、tool 定义、memory 策略和 evaluation 集。在 trace 或发布证据中记录足够的指纹,以解释为什么两次运行不同。
+Version the behavior-changing inputs together: model and provider, prompt, output schema,
+retrieval configuration, tool definitions, memory policy, and evaluation set. Record enough
+of this fingerprint in traces or release evidence to explain why two runs differ.
 
-## 构建结构化模型调用
+## Build structured model calls
 
-当应用必须精确执行策略时,将策略保持在模型之外。authorization、计费限制、破坏性权限、tenant 边界、必填字段、状态转换和法律或安全规则属于确定性代码。模型可以分类或推荐;拥有的 service 验证并决策。
+Keep policy outside the model when the application must enforce it exactly. Authorization,
+billing limits, destructive permissions, tenant boundaries, required fields, state
+transitions, and legal or safety rules belong in deterministic code. The model may classify
+or recommend; the owning service validates and decides.
 
-当下游代码消费结果时,优先使用结构化输出。验证返回的 schema,显式处理 refusal 和 truncation,并将 provider 特定的错误映射到稳定的应用 contract。将模型文本视为不可信,直到验证通过。retry 可以解决传输或临时 provider 失败;它不会自动修复未充分定义的任务或无效的 output contract。
+Prefer structured outputs when downstream code consumes the result. Validate the returned
+schema, handle refusal and truncation explicitly, and map provider-specific errors into the
+stable application contract. Treat model text as untrusted until validated. A retry may
+address transport or transient provider failure; it does not automatically fix an
+underspecified task or invalid output contract.
 
 ```typescript
-// 带有 schema 验证、refusal、truncation 和 error mapping 的结构化模型调用
+// structured model call with schema validation, refusal, truncation, and error mapping
 async function classifyTicket(
   content: string,
   tenantId: string,
@@ -59,23 +75,23 @@ async function classifyTicket(
 
     const raw = response.choices[0];
 
-    // 显式处理 refusal
+    // handle refusal explicitly
     if (raw.message.refusal) {
       return { kind: 'refused', reason: raw.message.refusal };
     }
 
-    // 显式处理 truncation
+    // handle truncation explicitly
     if (raw.finish_reason === 'length') {
       return { kind: 'truncated', partial: raw.message.content };
     }
 
-    // 在信任输出之前验证 schema
+    // validate schema before trusting the output
     const parsed = ClassifySchemaValidator.parse(JSON.parse(raw.message.content));
-    // parsed 现在已类型化并验证 -- 下游使用安全
+    // parsed is now typed and validated -- safe to use downstream
 
     return { kind: 'ok', category: parsed.category, confidence: parsed.confidence };
   } catch (e) {
-    // 将 provider 特定的错误映射到稳定 contract
+    // map provider-specific errors into stable contract
     if (e instanceof OpenAITimeoutError) {
       return { kind: 'provider_error', retryable: true, code: 'timeout' };
     }
@@ -90,11 +106,15 @@ async function classifyTicket(
 }
 ```
 
-prompt 应该陈述结果、改变结果的上下文、所需输出和防止真正损害的少数边界。仅在序列影响质量、安全或可复现性时添加序列。使用示例来定义难以解释的行为,而不是装饰 prompt 或将模型过拟合到一个 fixture。
+Prompts should state the result, the context that changes it, the required output, and the
+few boundaries that prevent real damage. Add a sequence only when the sequence affects
+quality, safety, or reproducibility. Use examples to define hard-to-explain behavior, not to
+decorate the prompt or overfit the model to one fixture.
 
-## 将检索和引用构建为独立阶段
+## Build retrieval and citations as separate stages
 
-RAG pipeline 不是一次模型调用。保留可检查的阶段,使一个薄弱的回答可以追溯到实际的失败。
+A RAG pipeline is not one model call. Preserve inspectable stages so a weak answer can be
+traced to the actual failure.
 
 ```
 1. Ingest        2. Chunk         3. Embed         4. Retrieve
@@ -130,11 +150,17 @@ RAG pipeline 不是一次模型调用。保留可检查的阶段,使一个薄弱
   from retrieval     boundary         unsafe content    not supported
 ```
 
-在回答风格之前衡量检索。一个精美的回答无法恢复从未被检索到的证据。将 corpus 覆盖率、retrieval recall、ranking 质量、引用正确性、groundedness、任务有用性、延迟和成本分开衡量。这使回归可诊断,并防止单一主观分数隐藏失败的阶段。
+Measure retrieval before answer style. A polished answer cannot recover evidence that was
+never retrieved. Separate corpus coverage, retrieval recall, ranking quality, citation
+correctness, groundedness, task usefulness, latency, and cost. This makes regressions
+diagnosable and prevents a single subjective score from hiding the stage that failed.
 
-## 构建有界 agent loop
+## Build bounded agent loops
 
-将 agent 表示为具有命名状态、允许操作、预算、停止条件、checkpoint 和恢复的显式状态机。loop 必须在成功、安全 refusal、人工决策或定义的预算上终止。"模型会知道何时停止"不是操作性 contract。
+Represent an agent as an explicit state machine with named state, allowed actions, budgets,
+stop conditions, checkpoints, and recovery. The loop must terminate on success, a safe
+refusal, a human decision, or a defined budget. "The model will know when to stop" is not an
+operational contract.
 
 ```
                     +----------+
@@ -176,69 +202,94 @@ RAG pipeline 不是一次模型调用。保留可检查的阶段,使一个薄弱
                               +----------+   budget exhausted)
 ```
 
-Tool 描述陈述能力和输入语义;确定性代码执行权威。验证 tool 参数,在模型之外绑定身份和 tenant 上下文,并返回区分成功、可重试失败、终态失败和部分进展的结构化结果。永远不要让检索到的文本、网页、文档或 tool 输出重写系统权威。即使它包含命令式语言,也将其视为数据。
+Tool descriptions state capability and input semantics; deterministic code enforces
+authority. Validate tool arguments, bind identity and tenant context outside the model, and
+return structured results that distinguish success, retryable failure, terminal failure, and
+partial progress. Never let retrieved text, a webpage, a document, or tool output rewrite
+system authority. Treat it as data even when it contains imperative language.
 
-仅在产品 contract 要求该操作时使用人工 checkpoint。持久化足够的状态以在中断后安全恢复。使重复的 tool 调用 idempotent 或附加稳定的操作 key,使 retry 不能复制副作用。
+Use a human checkpoint only when the product contract requires one for the action. Persist
+enough state to resume safely after interruption. Make repeated tool calls idempotent or
+attach a stable operation key so retries cannot duplicate side effects.
 
-## 刻意设计记忆
+## Design memory deliberately
 
-按产品需求选择记忆,而非 agent 时尚。
+Choose memory by product need rather than agent fashion.
 
-| 记忆类型 | 必需的控制 |
+| Memory type | Required controls |
 |---|---|
-| conversation state | scope、truncation 或 compaction、删除以及与当前用户指令的冲突 |
-| project knowledge | provenance、tenant 所有权、version、permission 检查和刷新策略 |
-| user preference | 同意、可编辑性、confidence、过期和遗忘方式 |
-| workflow checkpoint | 确定性状态、操作身份、恢复和重放安全 |
+| conversation state | scope, truncation or compaction, deletion, and conflict with current user instructions |
+| project knowledge | provenance, tenant ownership, version, permission checks, and refresh policy |
+| user preference | consent, editability, confidence, expiry, and a way to forget it |
+| workflow checkpoint | deterministic state, operation identity, recovery, and replay safety |
 
-不要将推断的个人事实作为真相存储。不要混合 tenant、环境或信任级别。当旧记忆与当前显式输入冲突时,当前输入优先,且冲突应该是可观察的。
+Do not store inferred personal facts as truth. Do not mix tenants, environments, or trust
+levels. When old memory conflicts with current explicit input, current input wins and the
+conflict should be observable.
 
-## 在实现前后评估
+## Evaluate before and after implementation
 
-在优化之前创建一个有代表性的小集合。包括普通成功、歧义输入、缺失证据、冲突证据、内容中的恶意指令、permission 边界、长输入、provider 失败和 refusal 正确的情况。仅在移除敏感数据并确认它们代表可复用行为后,才将生产失败保留为新 case。
+Create a small representative set before optimizing. Include ordinary successes, ambiguous
+inputs, missing evidence, conflicting evidence, malicious instructions inside content,
+permission boundaries, long inputs, provider failure, and cases where refusal is correct.
+Preserve production failures as new cases only after removing sensitive data and confirming
+that they represent a reusable behavior.
 
-对 schema、引用、permission、停止条件、tool 参数和状态变更使用确定性断言。对有用性、清晰度、综合和写作质量使用 rubric 或盲比较。在相同输入下与非 AI 或先前生产基线进行比较。不要从几个精心挑选的演示中声称改进。
+Use deterministic assertions for schemas, citations, permissions, stop conditions, tool
+arguments, and state changes. Use a rubric or blind comparison for usefulness, clarity,
+synthesis, and writing quality. Compare against the non-AI or previous-production baseline
+under the same inputs. Do not claim improvement from a few cherry-picked demonstrations.
 
-## 观察和发布 AI 路径
+## Observe and release the AI path
 
-trace 解释行为的阶段,但不记录 secret 或私有源内容:request 身份、tenant 安全的关联、model 指纹、retrieval 计数、选定的 source 标识符、tool 名称和结果、延迟、token、cost、fallback、refusal 和 evaluation 版本。在有助于事件诊断时捕获 provider request 标识符。
+Trace the stages that explain behavior without logging secrets or private source content:
+request identity, tenant-safe correlation, model fingerprint, retrieval counts, selected
+source identifiers, tool names and outcomes, latency, tokens, cost, fallback, refusal, and
+evaluation version. Capture provider request identifiers where useful for incident diagnosis.
 
-在最小可控接口之后发布。在 rollout 之前定义 fallback 和禁用行为。fallback 必须保留产品 contract,而不是静默返回一个自信但更弱的结果。在生产验证期间,使用安全的合成或授权数据,并确认成功路径和选定的降级路径。当 AI contract、证据状态、provider 边界或运营限制变更时,更新维护的 HTML board 和 API 或 schema 文档。
+Release behind the smallest controllable surface. Define fallback and disable behavior before
+rollout. A fallback must preserve the product contract rather than silently returning a
+confident but weaker result. During production verification, use safe synthetic or authorized
+data and confirm both the successful path and the chosen degradation path. Update the
+maintained HTML board and API or schema documents when the AI contract, evidence status,
+provider boundary, or operational limitation changes.
 
-## 反模式:AI 输出作为可信权威
+## Anti-Pattern: AI Output as Trusted Authority
 
-LLM 输出是概率性的。将其视为可信权威——让它直接触发副作用、绕过访问检查或设置持久状态——是最危险的 AI 实现错误。
+LLM output is probabilistic. Treating it as trusted authority -- letting it directly trigger
+side effects, bypass access checks, or set durable state -- is the most dangerous AI
+implementation mistake.
 
 ```typescript
-// 错误的做法:模型输出直接触发副作用
+// bad: model output directly triggers a side effect
 async function autoApproveRefund(ticketId: string) {
   const classification = await classifyTicket(ticketContent);
   if (classification.category === 'refund_approved') {
     await billingAdapter.processRefund(ticketId, classification.amount);
-    // 模型决定了金额并触发了退款 -- 无服务端验证
-    // prompt injection 或 hallucination 可以抽走资金
+    // model decided the amount and triggered the refund -- no server-side validation
+    // prompt injection or hallucination can drain money
   }
 }
 
-// 好的做法:模型推荐,服务端验证并决策
+// good: model recommends, server validates and decides
 async function handleRefundRequest(ticketId: string, userId: string) {
   const classification = await classifyTicket(ticketContent, tenantId);
   if (classification.kind !== 'ok') return { kind: 'provider_error', ... };
 
-  // 模型分类了 -- 但服务端重新确立身份、scope 和策略
+  // model classified -- but server re-establishes identity, scope, and policy
   const ticket = await ticketRepo.findById(ticketId);
-  if (ticket.userId !== userId) return { kind: 'denied' };           // auth 检查
+  if (ticket.userId !== userId) return { kind: 'denied' };           // auth check
   const order = await orderRepo.findById(ticket.orderId);
-  const maxRefund = order.amount * 0.5;                                // 策略限制
+  const maxRefund = order.amount * 0.5;                                // policy limit
   const refundAmount = Math.min(classification.suggestedAmount, maxRefund);
 
-  // 大额退款的人工 checkpoint
+  // human checkpoint for large refunds
   if (refundAmount > HUMAN_REVIEW_THRESHOLD) {
     await reviewQueue.enqueue({ ticketId, amount: refundAmount });
     return { kind: 'pending_review' };
   }
 
-  // provider 调用之前创建持久意图(参见 provider-async-build.md)
+  // durable intent before provider call (see provider-async-build.md)
   await tx.refunds.insert({ ticketId, amount: refundAmount, status: 'pending' });
   const result = await billingAdapter.processRefund(ticketId, refundAmount);
   await tx.refunds.update(ticketId, { status: result.ok ? 'completed' : 'failed' });
@@ -247,4 +298,7 @@ async function handleRefundRequest(ticketId: string, userId: string) {
 }
 ```
 
-模型分类并推荐。服务端验证 schema,重新确立身份和 scope,执行策略限制,对大额应用人工 checkpoint,记录持久意图,然后才调用 provider。prompt injection 或 hallucination 无法绕过服务端护栏。
+The model classifies and recommends. The server validates the schema, re-establishes
+identity and scope, enforces policy limits, applies a human checkpoint for large amounts,
+records durable intent, and only then calls the provider. Prompt injection or hallucination
+cannot bypass the server-side guardrails.

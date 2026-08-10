@@ -1,90 +1,127 @@
-# 生产健康与信号完整性
+# Production Health and Signal Integrity
 
-使用本指南来恢复实际发布的内容、验证运营信号、区分事件与学习问题，并在分析或实验之前路由主动伤害。
+Use this guide to recover what actually shipped, validate operational signals, distinguish incidents from learning questions, and route active harm before analysis or experiments.
 
-## 章节
+## Sections
 
-- [发布后发现与信号完整性](#发布后发现与信号完整性)
-- [健康、事件与恢复路由](#健康事件与恢复路由)
+- [Post-Launch Discovery and Signal Integrity](#post-launch-discovery-and-signal-integrity)
+- [Health, Incident, and Recovery Routing](#health-incident-and-recovery-routing)
 
-## 发布后发现与信号完整性
+## Post-Launch Discovery and Signal Integrity
 
-#### 1. 恢复实际发布上下文
+#### 1. Recover the actual release context
 
-1. 阅读 Node06 发布状态记录、源/目标、即时观察结果、已知关注、回滚或禁用态势、预期早期信号、支持路径，以及发布后仍然相关的任何 Node05 局限。
-2. 分类当前模式：发布后即时观察、稳定运营评审、活跃事件/支持调查、学习问题、实验读数或定期创始人评审。
-3. 在基于事实行动之前，根据当前证据验证事实。计划的 rollout、假定的采用、过时的 dashboard 或记忆中的 metric 不是当前事实。
-4. 当发布关注、关键路径、支付、提供商、任务、隐私或数据完整性信号暗示主动伤害时，停止增长分析。
+1. Read the Node06 release-state record, source/target, immediate watch result,
+   known concerns, rollback or disable posture, expected early signal, support path,
+   and any Node05 limitation that remains relevant after release.
+2. Classify current mode: immediate post-release watch, stable operating review,
+  active incident/support investigation, learning question, experiment readout, or
+  periodic founder review.
+3. Verify facts against current evidence before acting on them. A planned rollout,
+   assumed adoption, stale dashboard, or remembered metric is not current fact.
+4. Stop growth analysis when a release concern, critical path, payment, provider, job,
+   privacy, or data-integrity signal suggests active harm.
 
-#### 2. 提出一个能改变决策的问题
+#### 2. Ask one decision-changing question
 
-1. 在打开 dashboard 之前陈述决策：如果证据向任一方向移动，什么应该继续、停止、改变、调查或下一步构建？
-2. 命名目标细分、用户任务、发布/来源上下文、队列规则、时间窗口、基线或比较、预期价值信号和安全护栏。
-3. 优先选择能改变近期决策的问题。"一切进展如何？"是广泛扫描的提示，不是声明或实验目标。
-4. 在证据支持因果联系之前，将获客、激活、留存、转化、支持和成本分开。
+1. State the decision before opening a dashboard: what should continue, stop, change,
+   investigate, or be built next if the evidence moves in either direction?
+2. Name the target segment, user job, release/source context, cohort rule, time window,
+   baseline or comparison, expected value signal, and safety guardrail.
+3. Prefer a question that can change a near-term decision. "How is everything doing?"
+   is a prompt for a wide scan, not a claim or experiment objective.
+4. Keep acquisition, activation, retention, conversion, support, and cost separate
+   until evidence supports a causal connection.
 
-#### 3. 构建最小信号卡
+#### 3. Build the minimal signal card
 
-在做出发布后声明之前使用此记录：
+Use this record before making a post-launch claim:
 
-`决策问题 -> 队列/时间窗口 -> 信号或证据 -> 来源 -> 混淆因素 -> 置信度 -> 负责人 -> 下一步行动`
+`decision question -> cohort/time window -> signal or evidence -> source -> confounds -> confidence -> owner -> next action`
 
-| 证据质量 | 含义 | 适当的声明 |
+| Evidence quality | Meaning | Appropriate claim |
 | --- | --- | --- |
-| 观察到的 | 带日期的事件、可信日志、提供商记录或可重现路径 | 陈述测量结果和范围 |
-| 估计的 | 不完整计数、代理指标或手动重建样本 | 陈述估计及其局限 |
-| 自述的 | 用户、支持、销售或创始人陈述 | 陈述是谁报告的，而不是它是普遍的 |
-| 不完整的 | 缺失事件、不可访问来源或样本不足 | 陈述差距并路由埋点/研究 |
+| observed | dated event, trusted log, provider record, or reproducible path | state the measured result and scope |
+| estimated | incomplete count, proxy, or manually reconstructed sample | state the estimate and its limitation |
+| self-reported | user, support, sales, or founder statement | state who reported it, not that it is universal |
+| incomplete | missing event, inaccessible source, or insufficient sample | state the gap and route instrumentation/research |
 
-1. 注意混淆因素，如发布年龄、流量来源、队列混合、季节性、支持干预、事件、外部活动、样本量或提供商变更。
-2. 在安全且适当时，将比率或计数与至少一个具体的账户/会话/支持示例配对。从持久记录中隐去私人标识符。
-3. 当来源无法支持时，不要强加分。数、精度、趋势或因果叙事。
+1. Note confounds such as release age, traffic source, cohort mix, seasonality, support
+   intervention, incident, external campaign, sample size, or provider changes.
+2. Pair a rate or count with at least one concrete account/session/support example when
+   safe and proportionate. Redact private identifiers from durable records.
+3. Do not force a score, precision, trend, or causal story when the source cannot support it.
 
-#### 4. 在缺少埋点时安全工作
+#### 4. Work safely with missing instrumentation
 
-1. 首先检查安全的现有证据：关键路径、日志、提供商/任务状态、支持主题、隐去会话证据、销售笔记、退款/流失原因，以及少量可选式访谈。
-2. 将最小缺失测量定义为参与者、对象、事件、安全属性、时间戳、存储/保留、负责人和隐私边界。
-3. 将事件 schema、同意、身份或保留设计路由到 Node02；后端捕获路由到 Node03；前端交互捕获路由到 Node04；质量/安全证据路由到 Node05。
-4. 在该路由产生证据之前，使用 `NEEDS_INSTRUMENTATION` 或 `NEEDS_USER_RESEARCH`，而不是自信的产品结论。
+1. Inspect safe existing evidence first: critical path, logs, provider/job status,
+   support themes, redacted session evidence, sales notes, refund/churn reasons, and
+   a small number of opt-in interviews.
+2. Define the smallest missing measurement as actor, object, event, safe properties,
+   timestamp, storage/retention, owner, and privacy boundary.
+3. Route event schema, consent, identity, or retention design to Node02; backend capture
+   to Node03; frontend interaction capture to Node04; quality/security evidence to Node05.
+4. Until that route produces evidence, use `NEEDS_INSTRUMENTATION` or
+   `NEEDS_USER_RESEARCH`, not a confident product conclusion.
 
-## 健康、事件与恢复路由
+## Health, Incident, and Recovery Routing
 
-#### 1. 确立当前健康状况
+#### 1. Establish current health
 
-1. 恢复 Node06 交接、发布状态、当前环境、依赖项、已知关注、预期观察信号、支持渠道和回滚/禁用权限。
-2. 仅检查能改变运营决策的信号：主要用户路径、可用性、错误/正确性、体感延迟、任务/webhook 成功率、支付完整性、数据持久性、提供商配额/成本和支持负担。
-3. 使用现有项目工具和原始输出。将不可用的来源标记为 `unknown`、`skipped` 或 `unavailable`；不要用通用健康分数替代它们。
-4. 告警必须暗示一个具体行动。好奇心或长期观察属于后续评审，不是即时事件门控。
+1. Recover the Node06 handoff, release state, current environment, dependencies, known
+   concerns, expected watch signal, support channel, and rollback/disable authority.
+2. Check only signals that can change an operating decision: primary user path,
+   availability, error/correctness, felt latency, job/webhook success, payment integrity,
+   data durability, provider quota/cost, and support burden.
+3. Use existing project tools and raw outputs. Mark unavailable sources `unknown` or
+   `skipped` or `unavailable`; do not replace them with a generic health score.
+4. Alerts must imply a concrete action. Curiosity or long-term observation belongs in a
+   later review, not an immediate incident gate.
 
-#### 2. 分诊影响并分配严重程度
+#### 2. Triage impact and assign severity
 
-1. 分类问题及其边界：主动用户伤害、安全/隐私、主要路径/认证/支付/数据故障、重要路径降级/支持激增、次要 UX bug 或低优先级边缘情况。
-2. 记录受影响细分/路径、首次已知时间、发布/提供商/任务上下文、观察到的证据、当前用户影响和遏制权限。将客户标识符、密钥、支付详情和原始私人载荷排除在持久文档之外。
-3. 使用简短的严重程度模型：
+1. Classify the problem and its boundary: active user harm, security/privacy, primary
+   path/auth/payment/data failure, degraded important path/support spike, minor UX bug,
+   or low-priority edge case.
+2. Record affected segment/path, first known time, release/provider/job context, observed
+   evidence, current user impact, and containment authority. Keep customer identifiers,
+   secrets, payment details, and raw private payloads out of durable docs.
+3. Use a short severity model:
 
-| 严重程度 | 含义 | 首要路由 |
+| Severity | Meaning | First route |
 | --- | --- | --- |
-| `SEV0` | 安全、隐私、数据或计费完整性风险 | 立即 Node05 和 Node06 |
-| `SEV1` | 主要路径、认证、支付或数据故障 | Node06 遏制，然后 Node03/04/05 |
-| `SEV2` | 重要降级、提供商/任务故障、支持激增 | 负责人修复并活跃观察 |
-| `SEV3` | 次要 bug、信任/UX 困惑、有界变通方法 | Node03/04 或 Node01 证据路由 |
-| `SEV4` | 低影响边缘或孤立请求 | 分类、搁置或添加到学习评审 |
+| `SEV0` | security, privacy, data, or billing integrity risk | Node05 and Node06 immediately |
+| `SEV1` | primary path, auth, payment, or data failure | Node06 containment, then Node03/04/05 |
+| `SEV2` | important degradation, provider/job failure, support spike | owner repair with active watch |
+| `SEV3` | minor bug, trust/UX confusion, bounded workaround | Node03/04 or Node01 evidence route |
+| `SEV4` | low-impact edge or isolated request | classify, park, or add to learning review |
 
-#### 3. 在广泛分析之前遏制
+#### 3. Contain before broad analysis
 
-1. 对于 `SEV0`/`SEV1`，保留隐去的证据并通过 Node06 的发布 workflow 调用禁用、回滚、任务暂停、提供商切换或流量控制。
-2. Node07 可以确认影响并准备安全的支持上下文，但它永远不部署、回滚、更改生产配置或编辑提供商状态。
-3. 将实现路由到 Node03/04，质量/安全证明路由到 Node05，合同、恢复或共享运行时不确定性路由到 Node02。
-4. 仅沟通已确认的影响、安全的变通方法、下次更新负责人/时间以及任何所需的客户行动。不要在没有证据的情况下承诺根因或恢复时间。
+1. For `SEV0`/`SEV1`, preserve redacted evidence and call the Node06 release workflow for
+   disable, rollback, job pause, provider switch, or traffic control through Node06's release workflow.
+2. Node07 may acknowledge impact and prepare safe support context, but it never deploys,
+   rolls back, changes production configuration, or edits provider state.
+3. Route implementation to Node03/04, quality/security proof to Node05, and contract,
+   recovery, or shared runtime uncertainty to Node02.
+4. Communicate only confirmed impact, safe workaround, next update owner/time, and any
+   required customer action. Do not promise a root cause or recovery time without evidence.
 
-#### 4. 遏制后系统性地调查
+#### 4. Investigate systematically after containment
 
-1. 尽可能安全地重现，阅读完整错误，比较最近的工作路径或先前发布，并追踪相关的请求/数据/提供商边界。
-2. 陈述一个假设："我认为 X 导致了 Y，因为 Z。"选择能反驳它的最小证据收集或聚焦修复。
-3. 每次变更后重新检查受影响路径和相邻回归。保留原始证据，并区分症状变通方法与根因解决。
-4. 当另一次尝试不会添加新证据，或证据暴露了共享耦合、合同冲突或错误的运行时前提时，停止本地修复并返回 Node02/03/04/05。
+1. Reproduce safely when possible, read the complete error, compare the nearest working
+   path or prior release, and trace the relevant request/data/provider boundary.
+2. State one hypothesis: "I think X caused Y because Z." Choose the smallest evidence
+   collection or a focused repair that could disprove it.
+3. Recheck the affected path and adjacent regression after each change. Preserve original
+   evidence and distinguish a symptom workaround from root-cause resolution.
+4. When another attempt would add no new evidence, or the evidence exposes shared coupling,
+   a contract conflict, or a false runtime premise, stop local repair and return to
+   Node02/03/04/05.
 
-#### 5. 将重复支持转化为学习候选
+#### 5. Turn repeated support into a learning candidate
 
-1. 按用户任务、细分、频率、影响、变通方法、成本和根本原因分组已解决或有界的报告，而不是仅按请求措辞。
-2. 单一报告可以保持为支持工作。重复的、高成本的或改变行为的证据可以在健康状况稳定后进入客户综合或下一个切片决策。
+1. Group resolved or bounded reports by user job, segment, frequency, impact, workaround,
+   cost, and underlying cause, not by request wording alone.
+2. A single report may remain support work. Repeated, costly, or behavior-changing evidence
+   can enter customer synthesis or a next-slice decision after health is stable.

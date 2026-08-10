@@ -1,23 +1,29 @@
-﻿# 接口构建
+﻿# Interface Build
 
-使用本指南实现 HTTP、CLI、event 或 webhook 入口边界:输入 validation、身份强制执行、稳定的结果和错误映射。如果尚未框架化切片,请先阅读 `slice-framing.md`。
+Use this guide to implement HTTP, CLI, event, or webhook entry boundaries: input validation,
+identity enforcement, stable result and error mapping. Read `slice-framing.md` first if you
+have not framed the slice.
 
-Node02 定义 interface contract(字段、auth、错误、演进)。本文件实现它。不要因为实现捷径方便而改变状态码、公共字段名、错误结构、分页行为、认证要求、时序或 idempotency 语义——这些是需要 Node02 的 contract 变更。
+Node02 defines the interface contract (fields, auth, errors, evolution). This file
+implements it. Do not alter status codes, public field names, error shape, pagination
+behavior, authentication requirement, timing, or idempotency semantics because an
+implementation shortcut is convenient -- those are contract changes requiring Node02.
 
-## 章节
+## Sections
 
-- [恢复 Interface Contract](#恢复-interface-contract)
-- [在不可信边界处规范化和验证](#在不可信边界处规范化和验证)
-- [在服务端强制执行身份和访问](#在服务端强制执行身份和访问)
-- [映射稳定的结果和失败](#映射稳定的结果和失败)
-- [反模式:静默错误吞没](#反模式静默错误吞没)
-- [面向查询的接口行为](#面向查询的接口行为)
+- [Recover the Interface Contract](#recover-the-interface-contract)
+- [Normalize and Validate at the Untrusted Boundary](#normalize-and-validate-at-the-untrusted-boundary)
+- [Enforce Identity and Access at the Server](#enforce-identity-and-access-at-the-server)
+- [Map Stable Results and Failures](#map-stable-results-and-failures)
+- [Anti-Pattern: Silent Error Swallowing](#anti-pattern-silent-error-swallowing)
+- [Query-Facing Interface Behavior](#query-facing-interface-behavior)
 
-## 恢复 Interface Contract
+## Recover the Interface Contract
 
-对于每个变更的入口,捕获 contract 字段并在 handler 中实现。使用现有的路由或 action 模式,除非 Node02 明确批准了新接口。
+For every changed entry, capture the contract fields and implement them in the handler. Use
+the existing route or action pattern unless Node02 explicitly approved a new surface.
 
-一个完整的 handler 在代码中展示每个 contract 字段:
+A complete handler shows every contract field in code:
 
 ```typescript
 // PATCH /subscriptions/:id/cancel
@@ -33,7 +39,7 @@ Node02 定义 interface contract(字段、auth、错误、演进)。本文件实
 //   proof:      behavior test through SubscriptionService with in-process fake
 
 async function cancelSubscription(req: AuthedRequest, res: Response) {
-  // 1. 验证输入结构
+  // 1. validate input shape
   const id = req.params.id;
   if (!id || typeof id !== 'string') {
     return res.status(400).json({ error: 'invalid_id' });
@@ -43,13 +49,13 @@ async function cancelSubscription(req: AuthedRequest, res: Response) {
     return res.status(400).json({ error: 'invalid_reason' });
   }
 
-  // 2. 可信身份(来自 middleware,不是 request body)
+  // 2. trusted identity (from middleware, not request body)
   const userId = req.auth.userId;
 
-  // 3. 调用 domain(所有权在内部检查)
+  // 3. call domain (ownership checked inside)
   const result = await subscriptionService.cancel(id, userId, { reason });
 
-  // 4. 将 domain 结果映射为稳定的 HTTP 响应
+  // 4. map domain result to stable HTTP response
   mapCancelResult(res, result);
 }
 
@@ -78,15 +84,19 @@ function mapCancelResult(res: Response, result: CancelResult) {
 }
 ```
 
-handler 不包含业务规则。它解析、验证结构、调用领域用例并映射结果。
+The handler does not contain business rules. It parses, validates shape, invokes the domain
+use case, and maps the result.
 
-## 在不可信边界处规范化和验证
+## Normalize and Validate at the Untrusted Boundary
 
-将 request body、query/path 值、cookie、header、CLI 参数、webhook payload、上传文件、模型输出和导入文件视为不可信,直到边界验证它们。validation 防止格式错误的意图;它不决定 actor 是否被允许。
+Treat request bodies, query/path values, cookies, headers, CLI args, webhook payloads,
+uploads, model output, and imported files as untrusted until a boundary validates them.
+Validation prevents malformed intent; it does not decide whether the actor is allowed.
 
-### 结构验证
+### Shape validation
 
-在值到达领域逻辑之前,验证类型、必填/可选字段、嵌套结构和大小。
+Validate type, required/optional fields, nested shape, and size before the value reaches
+domain logic.
 
 ```typescript
 function parseCancelBody(body: unknown): { reason?: string } | { error: string } {
@@ -103,12 +113,13 @@ function parseCancelBody(body: unknown): { reason?: string } | { error: string }
 }
 ```
 
-### Allowlist:只接受客户端可设置的字段
+### Allowlist: accept only client-settable fields
 
-按 contract 拒绝或忽略未知字段。永远不要将原始 request body 直接传递给领域方法或 repository。
+Reject or ignore unknown fields as contracted. Never pass the raw request body directly to
+a domain method or repository.
 
 ```typescript
-// 好的做法:显式 allowlist
+// good: explicit allowlist
 const ALLOWED_FIELDS = ['reason'] as const;
 function sanitizeCancelBody(body: Record<string, unknown>) {
   const picked: Record<string, unknown> = {};
@@ -118,28 +129,30 @@ function sanitizeCancelBody(body: Record<string, unknown>) {
   return picked;
 }
 
-// 错误的做法:展开整个 body,让调用方可以设置服务端拥有的字段
+// bad: spreads entire body, lets caller set server-owned fields
 const subscription = { ...req.body, userId: req.auth.userId };
 await repo.save(subscription);
-// 调用方可以通过在 body 中包含 userId、price、state 或任何列来覆盖它们
+// caller can override userId, price, state, or any column by including it in the body
 ```
 
-### 服务端拥有的值:从可信状态派生
+### Server-owned values: derive from trusted state
 
-owner、tenant、role、price、quota、entitlement、provider ID、时间戳和受控状态必须从服务端可信状态派生,而不是从请求输入。
+Owner, tenant, role, price, quota, entitlement, provider ID, timestamp, and controlled state
+must be derived from server-side trusted state, never from request input.
 
 ```typescript
-// 好的做法:price 和 plan 来自服务端查找
+// good: price and plan come from server-side lookup
 const plan = await planRepo.findById(subscription.planId);
-const amount = plan.price;   // 服务端,可信
+const amount = plan.price;   // server-side, trusted
 
-// 错误的做法:price 来自 request body
-const amount = req.body.price;   // 不可信,调用方可以设置任意价格
+// bad: price comes from request body
+const amount = req.body.price;   // untrusted, caller can set any price
 ```
 
-### 动态查询:allowlist 排序和过滤 token
+### Dynamic query: allowlist sort and filter tokens
 
-当客户端控制排序或过滤表达式时,将公共 token 映射到已知列和操作符。永远不要将原始输入插值到查询字符串中。
+When the client controls sort or filter expressions, map public tokens to known columns and
+operators. Never interpolate raw input into a query string.
 
 ```typescript
 const SORT_COLUMNS: Record<string, string> = {
@@ -149,82 +162,89 @@ const SORT_COLUMNS: Record<string, string> = {
 };
 
 function resolveSort(sortParam: string | undefined): { column: string; dir: 'asc' | 'desc' } {
-  if (!sortParam) return { column: 'created_at', dir: 'desc' };   // 安全默认值
+  if (!sortParam) return { column: 'created_at', dir: 'desc' };   // safe default
   const [token, dir] = sortParam.split(':');
   const column = SORT_COLUMNS[token];
   if (!column) throw new ValidationError('invalid_sort_field');
   if (dir !== 'asc' && dir !== 'desc') throw new ValidationError('invalid_sort_dir');
   return { column, dir };
 }
-// 使用解析后的列进行参数化查询 -- 参见 persistence-build.md
+// Use parameterized queries with the resolved column -- see persistence-build.md
 ```
 
-### 规范化
+### Normalization
 
-只在 contract 允许且保留有意义的区别时进行 trim 或 canonicalize。不要静默规范化掉有意义的差异。
+Trim or canonicalize only when the contract allows and when it preserves meaningful
+distinctions. Do not silently normalize away differences that carry meaning.
 
 ```typescript
-// 安全:email 按约定是大小写不敏感的
+// safe: email is case-insensitive by convention
 const email = req.body.email.trim().toLowerCase();
 
-// 不安全:trim 一个可能有前导零或重要空格的 code
-const code = req.body.code.trim();   // '  007' 变成 '007' -- 可能破坏验证
+// unsafe: trimming a code that may have leading zeros or significant whitespace
+const code = req.body.code.trim();   // '  007' becomes '007' -- may break validation
 ```
 
-## 在服务端强制执行身份和访问
+## Enforce Identity and Access at the Server
 
-在实际执行点实现 Node02 的信任链:
+Implement the Node02 trust chain at the actual enforcement point:
 
 ```
 subject -> resource -> action -> scope -> enforcement -> safe failure -> evidence
 ```
 
-在受保护访问之前进行认证。从可信身份和服务端查找解析 resource scope,然后在读取、变更、导出、provider action 或私有字段披露之前进行授权。UI guard、调用方提供的 owner ID 或隐藏路由不是执行点。
+Authenticate before protected access. Resolve resource scope from trusted identity and
+server-side lookup, then authorize before read, mutation, export, provider action, or
+private-field disclosure. A UI guard, caller-provided owner ID, or hidden route is not an
+enforcement point.
 
-### Tenant-scoped 查询:安全 vs 不安全
+### Tenant-scoped query: safe vs unsafe
 
 ```typescript
-// 安全:tenant scope 来自已认证的 session,在查询中应用
+// safe: tenant scope comes from authenticated session, applied in the query
 async function listSubscriptions(userId: string, tenantId: string) {
   return await db.subscriptions.findMany({
-    where: { userId, tenantId },   // scope 在数据查询中强制执行
+    where: { userId, tenantId },   // scope enforced in the data query
     limit: 50,
   });
 }
 
-// 不安全:信任调用方提供的 tenant_id,无服务端验证
+// unsafe: trusts caller-provided tenant_id, no server-side verification
 async function listSubscriptions(req: Request) {
   return await db.subscriptions.findMany({
-    where: { tenant_id: req.query.tenant_id },   // 不可信,绕过 scope
+    where: { tenant_id: req.query.tenant_id },   // untrusted, bypasses scope
   });
 }
 ```
 
-### 不存在 vs 被拒绝:保护隐私
+### Absent vs denied: preserve privacy
 
-当用户请求一个不属于他们的 resource 时,返回与 resource 不存在相同的响应。不要泄漏存在性。
+When a user requests a resource they do not own, return the same response as if the resource
+did not exist. Do not leak existence.
 
 ```typescript
-// 好的做法:404 同时用于"未找到"和"找到但不属于你"
+// good: 404 for both "not found" and "found but not yours"
 case 'not_found':
 case 'denied':
-  res.status(404).json({ error: 'not_found' });   // 两者返回相同响应
+  res.status(404).json({ error: 'not_found' });   // same response for both
   break;
 
-// 错误的做法:403 暴露 resource 存在
+// bad: 403 reveals the resource exists
 case 'denied':
-  res.status(403).json({ error: 'forbidden' });   // 调用方得知 resource 存在
+  res.status(403).json({ error: 'forbidden' });   // caller learns the resource exists
   break;
 ```
 
-例外:当 contract 明确要求 403 时(例如 admin 操作),遵循 contract。这是 Node02 的决策,不是实现默认值。
+Exception: when the contract explicitly requires a 403 (e.g., admin operations), follow the
+contract. This is a Node02 decision, not an implementation default.
 
-## 映射稳定的结果和失败
+## Map Stable Results and Failures
 
-在一个已建立的地方将领域结果转换为当前公共表示。将传输格式化排除在领域 service 和 provider adapter 之外。
+Convert domain results into the current public representation in one established place. Keep
+transport formatting out of domain services and provider adapters.
 
 ```typescript
-// 中央 error mapper -- 整个模块的一个地方
+// central error mapper -- one place for the entire module
 function mapDomainError(res: Response, error: DomainError) {
   const MAPPINGS: Record<string, { status: number; body: (e: DomainError) => object }> = {
     validation:   { status: 400, body: e => ({ error: 'validation', field: e.field, message: e.message }) },
@@ -233,7 +253,7 @@ function mapDomainError(res: Response, error: DomainError) {
     not_found:    { status: 404, body: () => ({ error: 'not_found' }) },
     conflict:     { status: 409, body: e => ({ error: 'conflict', current_state: e.currentState }) },
     provider_error: { status: 502, body: e => ({ error: 'provider_error', retryable: e.retryable, correlation_id: e.correlationId }) },
-    internal:     { status: 500, body: () => ({ error: 'internal' }) },   // 不暴露 stack、SQL、内部信息
+    internal:     { status: 500, body: () => ({ error: 'internal' }) },   // no stack, no SQL, no internals
   };
 
   const mapping = MAPPINGS[error.kind] ?? MAPPINGS.internal;
@@ -241,61 +261,71 @@ function mapDomainError(res: Response, error: DomainError) {
 }
 ```
 
-每个错误响应传达发生了什么、为什么、以及如何修复或安全恢复——不暴露内部细节。internal 错误情况返回通用消息;真正的诊断信息进入日志,而不是给调用方。
+Every error response communicates what happened, why, and how to fix or safely recover --
+without exposing internal details. The internal error case returns a generic message; the
+real diagnostic goes to logs, not to the caller.
 
-## 反模式:静默错误吞没
+## Anti-Pattern: Silent Error Swallowing
 
-LLM 经常将不同的失败模式折叠为单一的 catch-all,对调用方和调试隐藏实际问题。
+LLMs frequently collapse distinct failure modes into a single catch-all, hiding the actual
+problem from the caller and from debugging.
 
 ```typescript
-// 错误的做法:吞没一切,调用方对所有失败类型得到 500
+// bad: swallows everything, caller gets 500 for all failure types
 async function cancelSubscription(req: Request, res: Response) {
   try {
     const result = await subscriptionService.cancel(req.params.id, req.auth.userId);
     res.status(200).json(result);
   } catch (e) {
     res.status(500).json({ error: 'something went wrong' });
-    // validation 错误、auth 失败、conflict、provider timeout -- 全部变成 500
-    // 调用方无法区分"输入错误"和"服务器坏了"
-    // 日志可能不会捕获真正的错误类型
+    // validation error, auth failure, conflict, provider timeout -- all become 500
+    // caller cannot distinguish "bad input" from "server is broken"
+    // logs may not capture the real error type
   }
 }
 
-// 更糟:返回 null,调用方不知道发生了什么
+// worse: returns null, caller has no idea what happened
 async function cancelSubscription(req: Request, res: Response) {
   try {
     const result = await subscriptionService.cancel(req.params.id, req.auth.userId);
     res.status(200).json(result);
   } catch (e) {
-    res.status(200).json({ error: null });   // 看起来像成功,隐藏了失败
+    res.status(200).json({ error: null });   // looks like success, hides failure
   }
 }
 ```
 
-修复:领域方法返回类型化结果(对于预期结果不 throw),handler 通过中央 error mapper 映射每个变体。意外 exception 仍然进入 500 handler,但它们是例外,不是默认值。
+The fix: domain methods return typed results (not throws for expected outcomes), and the
+handler maps each variant through the central error mapper. Unexpected exceptions still go to
+a 500 handler, but they are the exception, not the default.
 
 ```typescript
-// 好的做法:domain 返回类型化结果,handler 映射每个变体
+// good: domain returns typed results, handler maps each variant
 const result = await subscriptionService.cancel(id, userId, { reason });
-mapCancelResult(res, result);   // 处理 ok、not_found、denied、conflict、provider_error
+mapCancelResult(res, result);   // handles ok, not_found, denied, conflict, provider_error
 ```
 
-## 面向查询的接口行为
+## Query-Facing Interface Behavior
 
-当公共入口读取集合时,实现商定的过滤、排序、分页、权限过滤、空状态和速率/成本边界。
+When a public entry reads collections, implement the agreed filter, sort, pagination,
+permission filter, empty state, and rate/cost boundary.
 
-- 在数据查询中应用权限过滤,而不是在获取所有行之后。参见上面的 tenant-scoped 查询示例。
-- 不要承诺 persistence 层无法安全支持的 total count、cursor、page size 或过滤能力。
-- 检查无界响应、用户控制的排序表达式、逐项查询序列化和嵌套私有字段。
-- 将存储、index 或一致性决策路由回 Node02;在 `persistence-build.md` 中实现选定的查询结构。
+- Apply the permission filter in the data query, not after fetching all rows. See the
+  tenant-scoped query example above.
+- Do not promise a total count, cursor, page size, or filtering capability the persistence
+  layer cannot support safely.
+- Check for unbounded responses, user-controlled sort expressions, query-per-item
+  serialization, and nested private fields.
+- Route storage, index, or consistency decisions back to Node02; implement the chosen query
+  shape in `persistence-build.md`.
 
 ```typescript
-// 好的做法:有界、scoped、参数化
+// good: bounded, scoped, parameterized
 async function listOrders(req: AuthedRequest, res: Response) {
   const userId = req.auth.userId;
   const page = clamp(parseInt(req.query.page) || 1, 1, 1000);
   const limit = clamp(parseInt(req.query.limit) || 20, 1, 100);
-  const sort = resolveSort(req.query.sort);   // allowlist 映射
+  const sort = resolveSort(req.query.sort);   // allowlist-mapped
 
   const orders = await orderRepo.findMany({ userId, page, limit, sort });
   res.status(200).json({
@@ -307,4 +337,5 @@ async function listOrders(req: AuthedRequest, res: Response) {
 }
 ```
 
-`has_more` 是安全信号。除非 contract 要求且 persistence 层能高效计算,否则不返回 `total_count`。
+`has_more` is a safe signal. Do not return `total_count` unless the contract requires it and
+the persistence layer can compute it efficiently.

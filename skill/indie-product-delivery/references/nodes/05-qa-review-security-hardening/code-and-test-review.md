@@ -1,78 +1,101 @@
-﻿# 代码与测试审查
+# Code and Test Review
 
-在运行时验证之前对 LLM 生成的代码进行静态审查。按顺序运行 CP1 到 CP4;每个检查点产出的发现将汇入最终结论。
+Static review of LLM-generated code before runtime verification. Run CP1 through CP4
+in order; each checkpoint produces findings that feed the final verdict.
 
-## CP1: 理解变更
+## CP1: Understand the change
 
-在评判代码之前,先确认变更了什么以及为什么变更。
+Before judging code, confirm what changed and why.
 
-- 获取 diff:`git diff <base>...HEAD`。从 PR 元数据、CI 配置或远程跟踪分支中确定 base。不要在不检查的情况下默认使用 `main`。
-- 从需求、issue 文本、PR 描述或验收标准中恢复意图。commit message 是弱证据;不要将其视为事实来源。
-- 扫描无关变更:与需求无关的侧边修改、调试代码(`console.log`、`print`、`debugger`)、临时标志或大量重格式化噪声。将每一项标记为发现;它们会膨胀 diff 并隐藏真正的变更。
-- 扫描变更代码中的占位信号:搜索 `TODO`、`FIXME`、`pass`、`return None`、`return True`、`return []`,或函数在不参考输入的情况下返回固定值。将每一项视为可疑,除非契约确实要求 stub。LLM 编写的代码可能具有正确的结构和类型,但决策逻辑缺失。
+- Get the diff: `git diff <base>...HEAD`. Determine base from PR metadata, CI config,
+  or the remote tracking branch. Do not default to `main` without checking.
+- Recover intent from requirements, issue text, PR description, or acceptance criteria.
+  A commit message is weak evidence; do not treat it as the source of truth.
+- Scan for unrelated changes: side modifications not tied to the requirement, debug
+  code (`console.log`, `print`, `debugger`), temporary flags, or mass reformatting
+  noise. Flag each as a finding; they inflate the diff and hide real changes.
+- Scan for placeholder signals in changed code: search for `TODO`, `FIXME`, `pass`,
+  `return None`, `return True`, `return []`, or a function returning a fixed value
+  without consulting its inputs. Treat each as suspicious unless the contract
+  genuinely requires a stub. LLM-authored code can carry correct structure and types
+  while the decision logic is absent.
 
-## CP2: LLM 代码审计
+## CP2: LLM code audit
 
-LLM 生成的代码有一些典型的失败模式,仅靠编译和测试无法发现。对每个变更文件检查以下每种模式。
+LLM-generated code has characteristic failure modes that compilation and tests alone
+do not catch. Check every changed file for each pattern below.
 
-| 检查项 | 要发现什么 | 为什么是 LLM 特有的 |
+| Check | What to find | Why it is LLM-specific |
 | --- | --- | --- |
-| 虚构 API | 调用不存在的方法、函数或字段,或使用了与已安装版本不匹配的参数签名 | LLM 会混合不同版本或库的记忆 |
-| 占位返回值 | `return None`、`return True`、`pass` 或忽略输入的固定值 | LLM 生成正确的结构但决策逻辑为空 |
-| 硬编码数据 | 伪装成真实逻辑的假数据,例如 `return [{"name": "test"}]` | LLM 使用示例数据来"让代码跑起来" |
-| 静默降级 | try/except 吞没异常并返回默认值,既不记录日志也不重新抛出 | LLM 偏好"不报错的代码"而非正确的错误处理 |
-| 测试削弱 | 删除、跳过或削弱现有测试,或在没有理由的情况下更新 snapshot/golden 文件 | LLM 可能更改断言来让测试通过 |
-| 过宽权限 | 默认允许逻辑,缺少租户或所有者范围,无防护的 admin 路由 | LLM 经常跳过多租户隔离 |
-| 缺失错误处理 | 无界循环、N+1 查询、无超时或重试、资源未关闭 | LLM 编写正常路径并跳过资源管理 |
-| 虚构依赖 | 导入不存在的包,或假设一个从未定义的配置键 | LLM 记忆中包含过时或虚构的包名 |
+| Hallucinated API | calls a method, function, or field that does not exist, or uses a parameter signature that does not match the installed version | LLMs mix memories from different versions or libraries |
+| Placeholder return | `return None`, `return True`, `pass`, or a fixed value that ignores the inputs | LLMs produce correct structure but leave decision logic empty |
+| Hardcoded data | fake data disguised as real logic, e.g. `return [{"name": "test"}]` | LLMs use sample data to "make the code run" |
+| Silent fallback | try/except that swallows the exception and returns a default without logging or re-raising | LLMs prefer "code that does not error" over correct error handling |
+| Test weakening | deleted, skipped, or weakened existing tests, or updated snapshot/golden files without a reason | LLMs may change assertions to make tests pass |
+| Over-broad permission | default-allow logic, missing tenant or owner scope, admin routes without guards | LLMs often skip multi-tenant isolation |
+| Missing error handling | unbounded loops, N+1 queries, no timeout or retry, resources not closed | LLMs write happy paths and skip resource management |
+| Fabricated dependency | imports a package that does not exist, or assumes a config key that was never defined | LLM memories contain outdated or invented package names |
 
-对于每个发现,记录:文件、行号、问题、预期行为和严重级别。根据已安装版本和官方文档验证 API 是否存在,而非依赖模型记忆。在将导入标记为虚构之前,先检查该包是否列在 lockfile 中或已安装在 `node_modules` 或虚拟环境中。
+For each finding, record: file, line, the problem, the expected behavior, and severity.
+Verify API existence against the installed version and official documentation, not
+model memory. Before flagging an import as fabricated, check whether the package is
+listed in the lockfile or installed in `node_modules` or the virtual environment.
 
-## CP3: 测试质量审查
+## CP3: Test quality review
 
-通过的测试不能证明代码是正确的。验证测试是否真正测试了契约。
+Tests that pass do not prove the code is correct. Verify that tests actually test the
+contract.
 
-- 测试是执行了目标代码,还是仅验证了 mock 调用和固定返回值?一个只断言 `mock.called` 而不检查真实行为的测试是 mock 表演。
-- 覆盖维度:正常输入、无效输入、边界值、空输入、错误传播。对于任何新行为,至少必须覆盖前两个。
+- Does the test execute the target code, or only verify mock calls and fixed return
+  values? A test that asserts `mock.called` without checking real behavior is mock
+  theater.
+- Coverage dimensions: normal input, invalid input, boundary values, empty input,
+  error propagation. At least the first two must be covered for any new behavior.
 
-### Bug 修复证据链
+### Bug-fix evidence chain
 
-| Bug 修复证据链 |
+For a bug fix, all five steps are required. Missing any step lowers verdict confidence.
 
-对于 bug 修复,以下五个步骤都是必需的。缺少任何一步都会降低结论的可信度。
+1. Reproduce the failure on the baseline.
+2. Add a minimal regression test.
+3. Prove that test fails on the baseline.
+4. Prove that test passes on the patched version.
+5. Run the relevant regression suite to confirm no side effect.
 
-1. 在基线上复现失败。
-2. 添加最小回归测试。
-3. 证明该测试在基线上失败。
-4. 证明该测试在修复版本上通过。
-5. 运行相关回归套件以确认无副作用。
+### Test anti-patterns
 
-### 测试反模式
+Flag any of these as Major severity:
 
-将以下任何一项标记为 Major 严重级别:
+- Shared mutable state or execution-order dependence between tests.
+- Arbitrary `sleep` used where a condition wait or deterministic fixture is available.
+- Mock that completely replaces the integration behavior being verified.
+- Test that depends on a real external side effect (live API call, real database write
+  that is not cleaned up).
+- Snapshot or golden file updated without human review of the semantic change.
+- Test that was deleted, skipped, or had its assertions weakened without a reason.
 
-- 测试之间的共享可变状态或执行顺序依赖。
-- 在可以使用条件等待或确定性 fixture 的地方使用任意 `sleep`。
-- 完全替换被验证集成行为的 mock。
-- 依赖真实外部副作用的测试(实时 API 调用、未清理的真实数据库写入)。
-- 未经人工审查语义变更就更新的 snapshot 或 golden 文件。
-- 在没有理由的情况下被删除、跳过或断言被削弱的测试。
+## CP4: Static gates
 
-## CP4: 静态门禁
+Run the repository's own commands. Do not invent commands that do not exist.
 
-运行仓库自身的命令。不要发明不存在的命令。
+Discover commands in this order:
 
-按以下顺序发现命令:
+1. `AGENTS.md`, `CONTRIBUTING.md`, `README`
+2. `Makefile`, `justfile`, `Taskfile.yml`
+3. `package.json` scripts, `pyproject.toml`, `tox.ini`, `go.mod`, `Cargo.toml`
+4. `.github/workflows`, pre-commit config
 
-1. `AGENTS.md`、`CONTRIBUTING.md`、`README`
-2. `Makefile`、`justfile`、`Taskfile.yml`
-3. `package.json` scripts、`pyproject.toml`、`tox.ini`、`go.mod`、`Cargo.toml`
-4. `.github/workflows`、pre-commit 配置
+Execute in order: format check, then lint, then type check, then build, then targeted
+unit tests for affected modules. Record the exact command and its exit code or result
+for each.
 
-按顺序执行:格式检查,然后 lint,然后类型检查,然后 build,然后针对受影响模块的单元测试。记录每个命令的确切命令及其退出码或结果。
+When no standard command exists: describe what you searched, propose the minimum
+viable command, and mark it as NOT_RUN until it actually executes. Do not guess a
+command and report it as passed.
 
-当没有标准命令时:描述你搜索了什么,提出最小可行命令,并将其标记为 NOT_RUN 直到实际执行。不要猜测一个命令然后报告为通过。
+## Findings to record
 
-## 需记录的发现
-
-对于每个检查点,记录:检查了什么、发现了什么、证据(命令、输出、文件、行号)以及严重级别。将所有发现汇入 `README.md` 中的最终结论。静态门禁失败至少为 Major;核心路径上的虚构 API 或占位返回值为 Blocker。
+For each checkpoint, record: what was checked, what was found, the evidence (command,
+output, file, line), and the severity. Feed all findings into the final verdict in
+`README.md`. A static gate failure is at least Major; a hallucinated API or placeholder
+return on a core path is Blocker.

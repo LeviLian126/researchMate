@@ -1,75 +1,76 @@
-# HTML 验证与交接
+# HTML Validation and Handoff
 
-在生成或刷新项目 HTML 文档集之后使用此清单。只有当新读者无需重读对话或源码树即可区分事实、差距、契约和决策时，它才有用。
+Use this checklist after generating or refreshing a project HTML documentation set. It is useful only if a new reader can distinguish facts, gaps, contracts, and decisions without re-reading the conversation or source tree.
 
 ## Workflow
 
-在写作之后运行以下内容、证据和浏览器检查；在交接之前修复阻塞项，并声明任何未能执行的检查。
+Run the content, evidence, and browser checks below after writing; repair blockers before handoff and state any check that could not be performed.
 
-## 内容覆盖
+## Content coverage
 
-- 确认着陆页保持为紧凑的当前快照，且重要的产品、交付、架构、数据库、API 或运营细节有清晰的主题页面，而不是被缩减为肤浅的摘要。
-- 确认全局导航能到达每个主题页面，每个子页面链接回当前快照，页面标题明确无歧义，且同一事实不会跨页面漂移。
-- 按渲染顺序阅读每个页面。移除标题重述、通用介绍或结论、重复的章节开头、机械的标签列表和每事实一张卡片的布局，这些使读者重建简单解释。
-- 确认散文使用稳定的项目术语、具体的主语和动作、有来源支撑的声明和可见的界限。不要将标点、技术词汇、表格或列表本身视为缺陷。
+- Confirm the landing page remains a compact current snapshot and substantial product, delivery, architecture, database, API, or operations detail has a clear topic page instead of being reduced to a superficial summary.
+- Confirm global navigation reaches every topic page, each child page links back to the current snapshot, page titles are unambiguous, and the same fact does not drift across pages.
+- Read each page in rendered order. Remove heading restatements, generic introductions or conclusions, repeated section openings, mechanical label lists, and card-per-fact layouts that make the reader reconstruct a simple explanation.
+- Confirm prose uses stable project terms, concrete subjects and actions, source-backed claims, and visible limits. Do not treat punctuation, technical vocabulary, tables, or lists as defects by themselves.
 
-检查每个必需区域是否包含有证据支撑的内容或明确的 unknown 状态：
+Check that each required region contains evidence-backed content or an explicit unknown state:
 
-- 项目描述、目标用户/买方/受益者、问题、承诺、首次成功、商业状态和价格/权益；
-- 能力图、MVP/MAP 边界、已发布/进行中/候选/已推迟/未知的交付状态、验收和验证；
-- 带所有权、依赖项和重要失败/恢复行为的前端/后端/数据/集成/运行时流程；
-- 技术决策、数据库实体和字段、API/操作、认证/权限和契约证明；
-- 发布/验证状态、风险、阻塞项、决策、证据置信度和下一步行动。
+- project description, target user/buyer/beneficiary, problem, promise, first success, commercial state, and price/entitlement;
+- capability map, MVP/MAP boundary, shipped/in-progress/candidate/deferred/unknown delivery state, acceptance, and validation;
+- frontend/backend/data/integration/runtime flow with ownership, dependencies, and material failure/recovery behavior;
+- technology decisions, database entities and fields, API/actions, authentication/permission, and contract proof;
+- release/validation state, risks, blockers, decisions, evidence confidence, and next actions.
 
-对于数据库和 API 页面，将渲染的台账与维护的迁移/schema 和 OpenAPI/路由进行比较。当完整契约可用时，抽样几个实体或 endpoint 是不够的。
+For database and API pages, compare the rendered ledgers with the maintained migration/schema and OpenAPI/routes. Sampling a few entities or endpoints is insufficient when complete contracts are available.
 
-在交接之前核对覆盖清单：
+Reconcile the coverage manifest before handoff:
 
-- 来源能力/状态记录 = 渲染的能力/状态记录加明确排除；
-- 来源操作/动作 = endpoint/操作索引和详情记录；
-- 来源实体和所有有证据的字段 = 数据库实体和字段记录；
-- 来源关系、约束、索引和访问策略 = 渲染的完整性/访问记录；
-- 来源架构组件、决策、风险和行动 = 渲染的图或台账。
+- source capability/status records = rendered capability/status records plus explicit exclusions;
+- source operations/actions = endpoint/action index and detail records;
+- source entities and all evidenced fields = database entity and field records;
+- source relationships, constraints, indexes, and access policies = rendered integrity/access records;
+- source architecture components, decisions, risks, and actions = rendered maps or ledgers.
 
-调查每个计数不匹配。当页面仅包含代表性、典型的、关键的或示例记录时，不要将其描述为完整，除非用户明确要求样本。
+Investigate every count mismatch. Do not describe a page as complete when it contains only representative, typical, key, or example records unless the user explicitly requested a sample.
 
-当活动页面存在时，检查它是否从看板链接、仅包含重要历史记录，并且不矛盾或替代当前快照。
+When an activity page exists, check that it is linked from the board, contains only material historical records,
+and does not contradict or replace the current snapshot.
 
-检查缺失的价格、schema、路由、部署事实或验证结果是否以 `unknown` 和具体解决路径可见。不要默默省略强制类别。
+Check that a missing price, schema, route, deployment fact, or validation result is visible as `unknown` with a concrete path to resolve it. Do not silently omit a mandatory category.
 
-## 证据与安全
+## Evidence and safety
 
-- 针对路径、测试、配置、命令结果、维护的契约或授权观察，验证每个 `shipped`、`done`、`validated` 或等效声明。
-- 验证每个 `in-progress`、`partial`、`blocked`、`candidate`、`unknown` 或 `untested` 项命名了其差距、依赖项、决策或下一步行动。
-- 检查来源标签解释了为什么链接的来源重要。明确标记推断和冲突。
-- 在相关证明达到稳定结果后同步持久 HTML。分别标记本地、托管 CI、预览/暂存和生产证据；不要将一种证据类别呈现为另一种，也不要将部分容器/构建证明变成完整的发布声明。
-- 排除凭证、token、个人数据、原始生产载荷、私人 URL 和漏洞利用详情；仅保留理解系统所需的契约、风险或控制。
+- Verify every `shipped`, `done`, `validated`, or equivalent claim against a path, test, configuration, command result, maintained contract, or authorized observation.
+- Verify every `in-progress`, `partial`, `blocked`, `candidate`, `unknown`, or `untested` item names its gap, dependency, decision, or next action.
+- Check source labels explain why the linked source matters. Mark inference and conflicts explicitly.
+- Synchronize durable HTML after the relevant proof reaches a stable result. Label local, hosted-CI, preview/staging, and production evidence separately; do not present one evidence class as another or turn partial container/build proof into a complete release claim.
+- Exclude credentials, tokens, personal data, raw production payloads, private URLs, and exploit details; preserve only the contract, risk, or control needed to understand the system.
 
-## HTML 与浏览器检查
+## HTML and browser checks
 
-- 直接打开看板并确认其基本内容在禁用 JavaScript 的情况下渲染。
-- 确认每个独立 HTML 页面（含着陆页、子页面和归档页）都有一个且仅一个 `<aside class="toc">` 目录区块，标题文案为英文版 `On this page` / 中文版 `本页目录`，无 `Contents`、`本页导航`、`本页内容`、`目录` 等变体，且目录中每个片段锚点对应正文真实 `id`。规则定义见 `visual-interaction-and-accessibility.md` 的"页面目录与导航一致性"。
-- 在桌面、受限桌面、平板和移动宽度下，检查水平溢出、长来源路径（包括在窄单元格中堆叠文本的反斜杠风格 Windows 路径）、密集表格、代码块、粘性导航、details 控件和图表。
-- 确认长页面使用可折叠 disclosure，使第一屏展示当前真相而不迫使立即滚动。一次性打开所有 toggle，验证展开后的页面仍然是结构化段落，而非一堵无形的墙。
-- 通过键盘操作目录、筛选器、披露控件、复制控件和架构链接。确认可见焦点、有意义的标签和没有键盘陷阱。
-- 检查对比度、超越颜色的状态文本/标记、减少动效行为、语义标题/地标以及非文本视觉的标签或替代。
-- 当参考站点约束前端时，在匹配的视口尺寸下将实现与选定的参考原型进行比较。检查内容宽度、字号/行高、章节节奏、导航、面板几何、边框/圆角、密度、披露行为、断点过渡和焦点/交互状态。仅调色板相似不能通过。
-- 检查每个重复的组件实例，而不仅是第一个示例。包括半宽卡片内的嵌套网格、最长的标题/路径、最密集的表格、每个图表系列以及过滤/展开状态。拒绝裁剪的文本、重叠的标签或箭头、普通卡片滚动条和页面级水平溢出。
+- Open the board directly and confirm its essential content renders with JavaScript disabled.
+- Confirm every standalone HTML page (landing, child, and archive) has exactly one `<aside class="toc">` TOC block with the unified heading text — English `On this page` / Chinese `本页目录` — and no variants such as `Contents`, `本页导航`, `本页内容`, or `目录`, and that every fragment anchor in the TOC maps to a real `id` in the body. The rule is defined in `visual-interaction-and-accessibility.md` under "Page table of contents and navigation consistency".
+- At desktop, constrained desktop, tablet, and mobile widths, inspect horizontal overflow, long source paths (including backslash-style Windows paths that stack text inside narrow cells), dense tables, code blocks, sticky navigation, details controls, and diagrams.
+- Confirm long pages use collapsible disclosures so the first viewport shows the current truth without forcing an immediate scroll. Open every toggle at once and verify the expanded page still reads as structured sections, not a formless wall.
+- Exercise the table of contents, filters, disclosure controls, copy controls, and architecture links by keyboard. Confirm visible focus, meaningful labels, and no keyboard traps.
+- Check contrast, status text/markers beyond color, reduced-motion behavior, semantic headings/landmarks, and labels or alternatives for non-text visuals.
+- When a reference site governs the frontend, compare the implementation with the selected reference archetype at matching viewport sizes. Check content width, type scale/line height, section rhythm, navigation, panel geometry, borders/radii, density, disclosure behavior, breakpoint transitions, and focus/interaction states. A palette-only resemblance does not pass.
+- Inspect every repeated component instance, not only the first example. Include nested grids inside half-width cards, the longest heading/path, the densest table, every diagram family, and filtered/expanded states. Reject clipped text, overlapping labels or arrows, ordinary-card scrollbars, and page-level horizontal overflow.
 
-## 交接记录
+## Handoff record
 
-报告看板路径、已检查的事实/证据、已运行的验证、高风险未知项或冲突以及推荐的下一步行动。不要声称执行了未执行的浏览器验证。
+Report the board path, facts/evidence inspected, validations run, high-risk unknowns or conflicts, and the next recommended action. Do not claim browser validation that was not performed.
 
-## 将看板作为产品界面验证
+## Verify the board as a product surface
 
-对格式错误的 HTML、缺失标题或语言、重复 ID、损坏的相对链接、缺失片段、不可访问的图像和引用不存在资产的情况运行确定性检查。然后在环境允许时在真实浏览器中打开页面。验证键盘导航、焦点、窄和宽布局、溢出、表格、图表、details 控件、过滤器和无脚本阅读路径。
+Run deterministic checks for malformed HTML, missing titles or language, duplicate IDs, broken relative links, missing fragments, inaccessible images, and references to absent assets. Then open the pages in a real browser when the environment permits. Verify keyboard navigation, focus, narrow and wide layouts, overflow, tables, diagrams, details controls, filters, and the no-script reading path.
 
-证据质量是与标记质量分开的门控。对每个状态类别进行采样并将其追溯到其负责人。确认确切的 commit、CI、部署、迁移、计数、日期、提供商和性能声明是有支撑且有范围的。一个有效的页面在将计划变为完成状态或将孤立观察变为通用 metric 时仍然可能是危险的错误。
+Evidence quality is a separate gate from markup quality. Sample each status category and trace it back to its owner. Confirm that exact commit, CI, deployment, migration, count, date, provider, and performance statements are supported and scoped. A valid page can still be dangerously wrong when it turns a plan into a completed state or an isolated observation into a general metric.
 
-在交接之前，识别已更新的页面、已变更的事实、已运行的检查和剩余的未知项。当看板是维护的项目事实来源时，将其纳入与实现相同的变更和验证周期，而不是将其视为可选的发布打磨。
+Before handoff, identify the pages updated, the facts changed, the checks run, and the remaining unknowns. When the board is a maintained project source of truth, include it in the same change and verification cycle as the implementation rather than treating it as optional release polish.
 
-## 检查信息密度与阅读顺序
+## Check information density and reading order
 
-在预期视口下打开每个页面并遵循新读者会走的路径。页面应在次要证据之前揭示主要状态和决策。密集台账需要过滤器、锚点或分组来降低搜索成本而不隐藏行。图表需要标签和对其所证明边界的文本解释。
+Open each page at its intended viewport and follow the path a new reader would take. The page should reveal the main state and decision before secondary evidence. Dense ledgers need filters, anchors, or grouping that reduce search cost without hiding rows. Diagrams need labels and a textual explanation of the boundary they prove.
 
-移除不改变读者理解或能做到什么的控件。具有清晰关系的静态页面通常比状态难以链接、打印或检查的交互式页面更好。保留稳定的 URL 和片段目标，以便另一个 agent 可以在后续任务中引用确切的证据面。
+Remove controls that do not change what the reader can understand or do. A static page with clear relationships is often better than an interactive page whose state is hard to link, print, or inspect. Preserve stable URLs and fragment targets so another agent can cite the exact evidence surface in a later task.

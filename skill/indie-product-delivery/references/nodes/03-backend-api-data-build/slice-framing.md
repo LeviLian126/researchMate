@@ -1,78 +1,102 @@
-﻿# 切片框架
+﻿# Slice Framing
 
-在编写代码之前使用本指南。它将已批准的后端切片框架化为一个紧凑的实现计划,使后续的 workflow 文件(domain、interface、persistence、provider、proof)拥有它们所需的一切。
+Use this guide before writing code. It frames an approved backend slice into a compact
+implementation plan so the later workflow files (domain, interface, persistence, provider,
+proof) have everything they need.
 
-对于平凡的修复(单行变更,无 contract 影响),跳过本文件并直接进入相关的构建文件。对于任何涉及 contract、状态、数据或外部边界的变更,先进行框架化。
+For a trivial fix (one-line change, no contract impact), skip this file and go directly to
+the relevant build file. For anything that touches a contract, state, data, or external
+boundary, frame first.
 
-## 章节
+## Sections
 
-- [恢复实现真相](#恢复实现真相)
-- [构建实现主干](#构建实现主干)
-- [选择构建模式](#选择构建模式)
-- [挑战范围](#挑战范围)
-- [框架化构建](#框架化构建)
+- [Recover Implementation Truth](#recover-implementation-truth)
+- [Build the Implementation Spine](#build-the-implementation-spine)
+- [Select a Build Mode](#select-a-build-mode)
+- [Challenge Scope](#challenge-scope)
+- [Frame the Build](#frame-the-build)
 
-## 恢复实现真相
+## Recover Implementation Truth
 
-阅读 Node01/02 的交接文档,将切片重述为一个可观察的结果。然后检查 repository,在基于事实实现之前验证每一个关键事实。不要把这变成一个全 repository 的考古项目——只审计相关路径的入口点、直接调用方、领域所有者、repository、访问强制执行、error mapper 和测试工具。
+Read the Node01/02 handoff and restate the slice as one observable outcome. Then inspect
+the repo to verify every material fact before implementing on it. Do not turn this into a
+whole-repository archaeology project -- audit only the entry point, direct callers, domain
+owner, repository, access enforcement, error mapper, and test harness for the relevant path.
 
-通过一个具体示例来说明。假设切片是"用户取消订阅"。
+Walk through a concrete example to make this real. Suppose the slice is "user cancels
+subscription."
 
-**重述结果**:一个已认证的用户取消自己的订阅。订阅进入 `cancelling` 状态。计费在周期结束时停止。用户看到确认信息。发送一封取消确认邮件。
+**Restate the outcome**: An authenticated user cancels their own subscription. The
+subscription moves to `cancelling` state. Billing stops at period end. The user sees a
+confirmation. A cancellation confirmation email is sent.
 
-**在 repository 中验证**(阅读实际代码,不要假设):
+**Verify in the repo** (read the actual code, do not assume):
 
-1. **入口**:找到现有的订阅路由。它有 `PATCH /subscriptions/:id` 还是 `POST /subscriptions/:id/cancel`?阅读路由文件及其 handler。注意传输约定(REST、RPC、event-driven)。
+1. **Entry**: Find the existing subscriptions route. Does it have a `PATCH /subscriptions/:id`
+   or a `POST /subscriptions/:id/cancel`? Read the route file and its handler. Note the
+   transport convention (REST, RPC, event-driven).
 
-2. **领域所有者**:哪个模块拥有订阅状态?寻找 `SubscriptionService`、`SubscriptionDomain` 或类似模块。如果没有所有者,这是一个设计信号——切片可能需要一个新的所有者,这意味着返回 Node02。
+2. **Domain owner**: Which module owns subscription state? Look for a `SubscriptionService`,
+   `SubscriptionDomain`, or similar. If no owner exists, that is a design signal -- the
+   slice may need a new owner, which means returning to Node02.
 
-3. **Repository**:订阅数据如何访问?找到 repository 或数据访问模块。存在哪些查询模式?是否已有 tenant/owner scoping?
+3. **Repository**: How is subscription data accessed? Find the repository or data access
+   module. What query patterns exist? Is there tenant/owner scoping already?
 
-4. **访问强制执行**:authorization 在哪里检查?寻找 middleware、decorator 或 handler 内检查。是否有类似 `requireOwnership(subscriptionId, userId)` 的模式?
+4. **Access enforcement**: Where is authorization checked? Look for middleware, decorators,
+   or in-handler checks. Is there a pattern like `requireOwnership(subscriptionId, userId)`?
 
-5. **Error mapper**:错误如何返回?找到错误处理模式。是否有中央 mapper,还是 handler 临时构造错误响应?
+5. **Error mapper**: How are errors returned? Find the error handling pattern. Is there a
+   central mapper or do handlers ad-hoc construct error responses?
 
-6. **测试**:使用什么测试框架?找到最近的订阅行为测试。存在哪些 fixture 和 helper?
+6. **Tests**: What test framework is used? Find the nearest behavior test for subscriptions.
+   What fixtures and helpers exist?
 
-对每个事实进行分类:**从代码验证**(你读过)、**从 contract 验证**(Node02 文档记录了)、或**假设**(你推断的)。关于公共字段、schema 语义、tenancy、authorization、provider 行为或恢复的假设,必须在实现前对照已批准的来源确认。本地命名、fixture 值和日志措辞可以使用可逆的默认值。
+Classify each fact: **verified from code** (you read it), **verified from contract** (Node02
+documented it), or **assumption** (you inferred it). Assumptions about public fields, schema
+semantics, tenancy, authorization, provider behavior, or recovery must be confirmed against
+an approved source before implementing. Local naming, fixture values, and log wording may use
+a reversible default.
 
-## 构建实现主干
+## Build the Implementation Spine
 
-在选择文件或类之前,先追踪已批准的行为。主干通过每个所有者将能力连接到验证:
+Trace the approved behavior before choosing files or classes. The spine connects capability
+to proof through every owner:
 
 ```
 capability -> entry -> interface/access -> domain policy -> data/provider
            -> observable result or recoverable failure -> local proof
 ```
 
-对于每个箭头,命名现有的所有者或明确标记为 `[NEW]`。缺失的所有者是一个设计信号,不是将所有行为放入 controller 的许可。
+For each arrow, name the existing owner or explicitly mark it `[NEW]`. A missing owner is a
+design signal, not permission to put all behavior in a controller.
 
-"用户取消订阅"的主干示例:
+Example spine for "user cancels subscription":
 
 ```
 [Cancel subscription]
     |
     v
-PATCH /subscriptions/:id/cancel          <-- entry (现有路由)
+PATCH /subscriptions/:id/cancel          <-- entry (existing route)
     |
     v
-validate input + authenticate user       <-- interface (现有 auth middleware)
+validate input + authenticate user       <-- interface (existing auth middleware)
     |
     v
-resolve subscription + check ownership   <-- access (现有 requireOwnership)
+resolve subscription + check ownership   <-- access (existing requireOwnership)
     |
     v
-SubscriptionService.cancel()             <-- domain [现有所有者上的新方法]
+SubscriptionService.cancel()             <-- domain [NEW method on existing owner]
   - verify current state is 'active'
   - transition to 'cancelling'
   - schedule billing stop at period end
   - enqueue cancellation email
     |
     v
-SubscriptionRepository.update()          <-- data (现有 repo)
+SubscriptionRepository.update()          <-- data (existing repo)
     |
     v
-return { status: 'cancelling',           <-- result (稳定响应)
+return { status: 'cancelling',           <-- result (stable response)
           cancelsAt: periodEndDate }
     |
     v
@@ -83,54 +107,84 @@ test: cancel active subscription         <-- proof
       -> cancel already-cancelled -> conflict
 ```
 
-这个主干不是逐文件的代码计划。它防止实现者在变更已经扩散到 repository 之后才发现 contract。
+This spine is not a file-by-file code plan. It keeps the implementer from discovering the
+contract only after changes have spread across the repository.
 
-## 选择构建模式
+## Select a Build Mode
 
-使用覆盖实现风险的最窄模式。
+Use the narrowest mode that covers the implementation risk.
 
-**扩展现有模块**——最常见的模式。一个现有模块已经拥有相关行为;你向它添加一个方法或分支。示例:向已有的 `SubscriptionService`(已有 `create()` 和 `renew()`)添加 `cancel()`。阅读 `domain-build.md` 了解所有者放置,如果入口变更则阅读 `interface-build.md`。
+**Extend existing module** -- the most common mode. An existing module already owns a
+related behavior; you add a method or branch to it. Example: adding `cancel()` to an
+existing `SubscriptionService` that already has `create()` and `renew()`. Read
+`domain-build.md` for owner placement and `interface-build.md` if the entry changes.
 
-**新边界**——一个真正的新能力,没有现有模块拥有。示例:当没有导出模块时添加导出功能。这需要证据证明不存在合适的路径,以及 Node02 批准的模块边界。阅读 `domain-build.md` 了解所有者设计,`interface-build.md` 了解入口,如果需要新数据访问则阅读 `persistence-build.md`。
+**New boundary** -- a genuinely new capability that no existing module owns. Example: adding
+export functionality when no export module exists. This requires evidence that no suitable
+path exists and a Node02-approved module boundary. Read `domain-build.md` for owner design,
+`interface-build.md` for the entry, and `persistence-build.md` if new data access is needed.
 
-**回归修复**——观察到的行为错误或测试失败。在修改代码之前先复现。阅读 `proof-debug-observability.md` 了解调试 workflow,然后 在最窄的所有者处修复。
+**Regression fix** -- observed behavior is wrong or a test fails. Reproduce before changing
+code. Read `proof-debug-observability.md` for the debug workflow, then fix at the narrowest
+owner.
 
-当切片真正跨越多个边界时,模式可以组合。如果变更扩展为多个独立结果、信任模型、数据生命周期或发布风险,返回 Node02 做切片决策,而不是悄悄扩大实现。
+Modes may combine when a slice truly crosses multiple boundaries. If a change expands into
+multiple independent outcomes, trust models, data lifecycles, or release risks, return to
+Node02 for a slice decision rather than silently widening the implementation.
 
-## 挑战范围
+## Challenge Scope
 
-在实现之前,回答这五个问题。它们防止范围蔓延和不必要的抽象:
+Before implementing, answer these five questions. They prevent scope creep and unnecessary
+abstraction:
 
-1. **实现已批准结果的最小垂直变更是什么?**如果答案涉及多个用户可见结果,切片太宽了。
+1. **What is the smallest vertical change that achieves the approved outcome?** If the
+   answer involves more than one user-visible outcome, the slice is too wide.
 
-2. **现有的路由、service、repository、adapter、job 或测试是否已经解决了部分问题?**在创建之前先复用。命名你正在扩展的具体模块和方法。
+2. **Does an existing route, service, repository, adapter, job, or test already solve part
+   of it?** Reuse before creating. Name the specific module and method you are extending.
 
-3. **提议的抽象是在保护一个真实的边界还是在隐藏不确定性?**应用删除测试:如果你删除了抽象,复杂度会消失(它只是一个 pass-through)还是会在 N 个调用方中重新出现(它在发挥作用)?
+3. **Is a proposed abstraction protecting a real boundary or hiding uncertainty?** Apply the
+   deletion test: if you deleted the abstraction, would complexity vanish (it was a
+   pass-through) or reappear across N callers (it was earning its keep)?
 
-4. **哪些工作明确不在范围内,应该保持延迟?**命名它,这样它就不会在实现过程中悄然混入。
+4. **Which work is explicitly not in scope and should remain deferred?** Name it so it does
+   not creep in during implementation.
 
-5. **这条新路径在生产中可能造成什么现实故障,之后的哪个验证能将它与猜测区分开?**命名故障模式和能捕获它的测试。
+5. **What realistic failure can this new path create in production, and which later proof
+   will distinguish it from a guess?** Name the failure mode and the test that catches it.
 
-## 框架化构建
+## Frame the Build
 
-在编辑之前生成一个紧凑的实现框架。这不是逐文件计划——它记录防止实现者猜测的决策。
+Produce a compact implementation frame before editing. This is not a file-by-file plan --
+it records the decisions that prevent the implementer from guessing.
 
-- **outcome**:正在实现的可观察行为(一句话)
-- **owners**:现有或新的 entry、domain、data 和 docs 所有者(命名的模块)
-- **invariant**:在变更之前、期间和之后必须保持为真的条件
-- **allowed change**:可能变更的文件或模块及原因(命名它们)
-- **non-goals**:刻意保留不动相关工作
-- **local proof**:展示 contract 的针对性测试、复现或安全观察
-- **side-effect limit**:此切片不得跨越的凭证、数据、provider、migration 或环境边界
-- **escalation**:需要 Node01(产品含义)、Node02(contract)、Node05(质量/安全)或 Node06(发布)重新介入的证据
+- **outcome**: the observable behavior being implemented (one sentence)
+- **owners**: existing or new entry, domain, data, and docs owners (named modules)
+- **invariant**: the condition that must remain true before, during, and after the change
+- **allowed change**: files or modules likely to change and why (name them)
+- **non-goals**: related work deliberately left untouched
+- **local proof**: the targeted test, reproduction, or safe observation that demonstrates
+  the contract
+- **side-effect limit**: credentials, data, provider, migration, or environment boundaries
+  this slice must not cross
+- **escalation**: evidence that would require Node01 (product meaning), Node02 (contract),
+  Node05 (quality/security), or Node06 (release) re-entry
 
-"用户取消订阅"的框架示例:
+Example frame for "user cancels subscription":
 
-- **outcome**:已认证用户取消自己的活跃订阅;状态转为 `cancelling`;计费在周期结束时停止;发送确认邮件
-- **owners**:`SubscriptionService`(domain,新方法)、`SubscriptionController`(entry,新 handler)、`SubscriptionRepository`(data,现有)、`EmailQueue`(async,现有)
-- **invariant**:订阅只能从 `active` 转换到 `cancelling`;计费不得在周期结束日期之后收费;取消是 idempotent 的(取消一个已经在取消中的订阅返回当前状态,而非错误)
-- **allowed change**:`SubscriptionService`(添加 `cancel` 方法)、`SubscriptionController`(添加 cancel 路由)、订阅测试文件(添加行为测试)
-- **non-goals**:退款逻辑、计划降级、UI 变更、邮件模板变更
-- **local proof**:通过 `SubscriptionService.cancel` 的单元测试,使用进程内 fake repository;验证状态转换、计费停止、邮件入队和 idempotent 重复取消
-- **side-effect limit**:测试中不发送真实邮件;不调用真实 billing provider;不进行 schema migration
-- **escalation**:如果 billing provider 没有"在周期结束时停止"的 API,返回 Node02 做 contract 决策;如果取消需要退款,返回 Node01 做产品决策
+- **outcome**: authenticated user cancels their own active subscription; state moves to
+  `cancelling`; billing stops at period end; confirmation email sent
+- **owners**: `SubscriptionService` (domain, new method), `SubscriptionController` (entry,
+  new handler), `SubscriptionRepository` (data, existing), `EmailQueue` (async, existing)
+- **invariant**: a subscription can only transition from `active` to `cancelling`; billing
+  must not charge after the period end date; cancellation is idempotent (cancelling an
+  already-cancelling subscription returns the current state, not an error)
+- **allowed change**: `SubscriptionService` (add `cancel` method), `SubscriptionController`
+  (add cancel route), subscription test file (add behavior tests)
+- **non-goals**: refund logic, plan downgrade, UI changes, email template changes
+- **local proof**: unit test through `SubscriptionService.cancel` with in-process fake
+  repository; verify state transition, billing stop, email enqueue, and idempotent re-cancel
+- **side-effect limit**: no real email sent in tests; no real billing provider called; no
+  schema migration
+- **escalation**: if billing provider has no "stop at period end" API, return to Node02 for
+  contract decision; if cancellation needs refund, return to Node01 for product decision

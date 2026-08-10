@@ -1,25 +1,31 @@
-﻿# Provider、Async 和对账构建
+﻿# Provider, Async, and Reconciliation Build
 
-使用本指南处理 provider adapter、queue、job、webhook、cron task、callback 和对账。如果尚未框架化切片,请先阅读 `slice-framing.md`。
+Use this guide for provider adapters, queues, jobs, webhooks, cron tasks, callbacks, and
+reconciliation. Read `slice-framing.md` first if you have not framed the slice.
 
-Node02 定义外部边界 contract(trigger、adapter owner、retry、recovery、cost、evolution)。本文件实现机制。如果远程行为、恢复结果、price/quota 策略或 provider 替换决策未知,返回 Node02。不要在 retry 循环中编码猜测。
+Node02 defines the external boundary contract (trigger, adapter owner, retry, recovery,
+cost, evolution). This file implements the mechanics. If a remote behavior, recovery
+outcome, price/quota policy, or provider replacement decision is unknown, return to Node02.
+Do not encode a guess in a retry loop.
 
-## 章节
+## Sections
 
-- [恢复外部边界](#恢复外部边界)
-- [Adapter 优先构建](#adapter-优先构建)
-- [Async 生命周期](#async-生命周期)
-- [Callback 和 Idempotency](#callback-和-idempotency)
-- [特殊风险规则](#特殊风险规则)
+- [Recover the External Boundary](#recover-the-external-boundary)
+- [Build Adapter-First](#build-adapter-first)
+- [Async Lifecycle](#async-lifecycle)
+- [Callbacks and Idempotency](#callbacks-and-idempotency)
+- [Special-Risk Rules](#special-risk-rules)
 
-## 恢复外部边界
+## Recover the External Boundary
 
-在触碰 provider SDK、queue、callback 或 job 之前,识别已批准的能力、本地所有者、规范化的输入/输出、secret 边界、provider 身份、timeout、cost/quota、retry/idempotency、用户可见状态、恢复所有者和证据义务。
+Before touching a provider SDK, queue, callback, or job, identify the approved capability,
+local owner, normalized input/output, secret boundary, provider identity, timeout, cost/quota,
+retry/idempotency, user-visible state, recovery owner, and evidence obligation.
 
-一个具体的 adapter 在代码中展示这些决策:
+A concrete adapter shows these decisions in code:
 
 ```typescript
-// port(interface)-- 定义 domain 需要什么,不是 provider 如何工作
+// The port (interface) -- defines what the domain needs, not how the provider works
 interface BillingAdapter {
   scheduleCancellation(subscriptionId: string, periodEndDate: Date): Promise<BillingResult>;
   requestRefund(subscriptionId: string, amount: number): Promise<BillingResult>;
@@ -29,7 +35,7 @@ type BillingResult =
   | { ok: true; providerRef: string }
   | { ok: false; retryable: boolean; code: string };
 
-// production adapter -- 拥有 provider 协议、凭证、error mapping
+// The production adapter -- owns provider protocol, credentials, error mapping
 class StripeBillingAdapter implements BillingAdapter {
   constructor(private client: StripeClient, private timeout: number = 5000) {}
 
@@ -52,11 +58,11 @@ class StripeBillingAdapter implements BillingAdapter {
   }
 
   async requestRefund(subscriptionId: string, amount: number): Promise<BillingResult> {
-    // ... 类似模式
+    // ... similar pattern
   }
 }
 
-// test double -- 满足相同 port,无网络,确定性
+// The test double -- satisfies the same port, no network, deterministic
 class FakeBillingAdapter implements BillingAdapter {
   scheduledCancellations: string[] = [];
 
@@ -71,29 +77,33 @@ class FakeBillingAdapter implements BillingAdapter {
 }
 ```
 
-领域 service 依赖 `BillingAdapter`,不是 `StripeBillingAdapter`。测试注入 `FakeBillingAdapter`。production 注入 `StripeBillingAdapter`。两个 adapter 意味着 seam 是真实的。
+The domain service depends on `BillingAdapter`, not `StripeBillingAdapter`. Tests inject
+`FakeBillingAdapter`. Production injects `StripeBillingAdapter`. Two adapters means the seam
+is real.
 
-## Adapter 优先构建
+## Build Adapter-First
 
-仅在 provider 协议、凭证、失败映射或替换边界确实需要保护时,才扩展现有 adapter 或创建一个。Service 接收规范化的值和领域结果,不是 SDK 对象或原始 callback payload。
+Extend the existing adapter or create one only when provider protocol, credentials, failure
+mapping, or replacement boundary actually needs protection. Services receive normalized
+values and domain outcomes, not SDK objects or raw callback payloads.
 
-### 好的做法:adapter 规范化,domain 接收干净类型
+### Good: adapter normalizes, domain receives clean types
 
 ```typescript
-// adapter 将 SDK 响应转换为 domain 结果
+// adapter converts SDK response to domain result
 class StripeBillingAdapter implements BillingAdapter {
   async scheduleCancellation(id: string, date: Date): Promise<BillingResult> {
     const stripeResult = await this.client.subscriptions.update(id, { cancel_at_period_end: true });
-    return { ok: true, providerRef: stripeResult.id };   // 规范化,无 SDK 类型泄漏
+    return { ok: true, providerRef: stripeResult.id };   // normalized, no SDK types leak
   }
 }
 
-// domain service 使用 port,从不看到 Stripe 类型
+// domain service uses the port, never sees Stripe types
 class SubscriptionService {
   constructor(private billing: BillingAdapter) {}
 
   async cancel(id: string, userId: string): Promise<CancelResult> {
-    // ... 状态转换 ...
+    // ... state transition ...
     const billingResult = await this.billing.scheduleCancellation(id, periodEndDate);
     if (!billingResult.ok && !billingResult.retryable) {
       return { kind: 'provider_error', retryable: false, correlationId: id };
@@ -103,35 +113,36 @@ class SubscriptionService {
 }
 ```
 
-### 错误的做法:SDK 对象泄漏到 domain
+### Bad: SDK objects leak into the domain
 
 ```typescript
-// domain 直接调用 Stripe SDK -- 无 adapter
+// domain directly calls the Stripe SDK -- no adapter
 class SubscriptionService {
   async cancel(id: string, userId: string): Promise<CancelResult> {
-    const stripe = new Stripe(process.env.STRIPE_KEY);   // secret 在领域层
+    const stripe = new Stripe(process.env.STRIPE_KEY);   // secret in domain layer
     const result = await stripe.subscriptions.update(id, { cancel_at_period_end: true });
-    // domain 现在知道 Stripe 类型、响应结构和错误码
-    // 测试需要 mock Stripe SDK 或调用真实 API
-    // 切换 provider 意味着重写 domain service
+    // domain now knows about Stripe types, response shape, and error codes
+    // testing requires mocking the Stripe SDK or hitting the real API
+    // switching providers means rewriting the domain service
   }
 }
 ```
 
-### Secret 在边缘
+### Secrets at the edge
 
-将凭证排除在源码、URL、响应 body 和日志之外。adapter 从环境变量读取配置;domain service 从不看到 secret。
+Keep credentials out of source, URLs, response bodies, and logs. The adapter reads
+configuration from environment variables; the domain service never sees the secret.
 
 ```typescript
-// adapter 构造函数读取配置
+// adapter constructor reads config
 class StripeBillingAdapter implements BillingAdapter {
   constructor(
-    private client: StripeClient,   // 已用 key 配置
+    private client: StripeClient,   // already configured with the key
     private timeout: number = 5000,
   ) {}
 }
 
-// composition root 处的工厂 -- 唯一读取 secret 的地方
+// factory at the composition root -- the only place that reads the secret
 function createBillingAdapter(): BillingAdapter {
   const key = process.env.STRIPE_SECRET_KEY;
   if (!key) throw new Error('STRIPE_SECRET_KEY not configured');
@@ -139,11 +150,13 @@ function createBillingAdapter(): BillingAdapter {
 }
 ```
 
-不要因为可以想象第二个 provider 就创建抽象 provider factory。创建保护实际外部边界的最小 adapter。
+Do not create an abstract provider factory because a second provider is imaginable. Create
+the smallest adapter that protects the actual external boundary.
 
-## Async 生命周期
+## Async Lifecycle
 
-对于 job、queue、webhook、cron、realtime 工作和 provider callback,保留此生命周期。每个阶段有具体的实现职责:
+For jobs, queues, webhooks, cron, realtime work, and provider callbacks, preserve this
+lifecycle. Each stage has a specific implementation responsibility:
 
 ```
 trigger -> durable acceptance -> execution -> callback/status
@@ -152,11 +165,11 @@ trigger -> durable acceptance -> execution -> callback/status
 
 ### Trigger
 
-在接受工作之前验证资格、身份、scope 和重复 key。
+Verify eligibility, identity, scope, and duplicate key before accepting work.
 
 ```typescript
 async function enqueueEmailJob(payload: EmailPayload, requestId: string) {
-  // 按 request ID 去重
+  // dedupe by request ID
   const existing = await db.query(
     'SELECT id FROM email_jobs WHERE request_id = $1', [requestId]
   );
@@ -171,18 +184,19 @@ async function enqueueEmailJob(payload: EmailPayload, requestId: string) {
 }
 ```
 
-### 持久接受
+### Durable acceptance
 
-当 contract 要求时,在工作开始之前存储 pending 或 intent 状态。如果 app 在 trigger 之后崩溃,job 记录保留且可以重试。
+Store pending or intent state before work begins when the contract requires it. If the app
+crashes after the trigger, the job record survives and can be retried.
 
-### 执行
+### Execution
 
-使用规范化输入、timeout、有界 retry 和安全的速率/成本控制。
+Use normalized input, timeout, bounded retry, and safe rate/cost controls.
 
 ```typescript
 async function processEmailJob(jobId: string) {
   const job = await db.query('SELECT * FROM email_jobs WHERE id = $1 FOR UPDATE', [jobId]);
-  if (job.rows[0].status !== 'pending') return;   // 已处理或正在处理
+  if (job.rows[0].status !== 'pending') return;   // already processed or in progress
 
   await db.query('UPDATE email_jobs SET status = $1, started_at = NOW() WHERE id = $2', ['processing', jobId]);
 
@@ -192,7 +206,7 @@ async function processEmailJob(jobId: string) {
   } catch (e) {
     await db.query(
       'UPDATE email_jobs SET status = $1, error = $2, attempts = attempts + 1 WHERE id = $3',
-      ['failed', e.message, jobId]
+      ['failed', e.message, jobId
     );
     if (isRetryable(e) && job.rows[0].attempts < 3) {
       await queue.publish('email', { jobId }, { delay: backoff(job.rows[0].attempts) });
@@ -203,33 +217,42 @@ async function processEmailJob(jobId: string) {
 
 ### Callback
 
-验证签名/来源、安全关联、容忍重放和乱序送达。参见下方的[Callback 和 Idempotency](#callback-和-idempotency)。
+Verify signature/source, correlate safely, tolerate replay and out-of-order delivery. See
+[Callbacks and Idempotency](#callbacks-and-idempotency) below.
 
-### 状态
+### Status
 
-只持久化有效的状态转换。暴露已批准的用户可见结果。
+Persist only valid state transitions. Expose the approved user-visible result.
 
 ### Retry
 
-命名 retry 所有者、尝试限制、backoff、终止条件和重放安全。除非 provider 和本地持久 key 使重放安全,否则不要重试非 idempotent 的远程操作。
+Name the retry owner, attempt limit, backoff, terminal condition, and replay safety. Do not
+retry non-idempotent remote actions unless the provider and local durable key make replay
+safe.
 
-### 对账
+### Reconciliation
 
-比较本地和远程权威。记录不匹配。调用设计的修复路径。不要在实现期间发明对账逻辑——如果不匹配处理未被 Node02 定义,带着证据返回。
+Compare local and remote authority. Record mismatch. Invoke the designed repair path. Do
+not invent reconciliation logic during implementation -- if the mismatch handling is not
+defined by Node02, return with the evidence.
 
-### 手动恢复
+### Manual recovery
 
-暴露最小的运维证据,没有隐藏的绕过路径。运维人员应该能看到当前状态、最后一次尝试和安全的下一步操作——没有跳过 contract 的秘密后门。
+Expose minimal operator evidence without a hidden bypass path. An operator should be able
+to see the current state, the last attempt, and the safe next action -- without a secret
+backdoor that skips the contract.
 
-## Callback 和 Idempotency
+## Callbacks and Idempotency
 
-一个无法验证、关联、去重或映射到允许状态的 callback 必须安全失败。除非 provider 和本地持久 key 使重放安全,否则不要重试非 idempotent 的远程操作。
+A callback that cannot be verified, correlated, deduplicated, or mapped to a permitted state
+must fail safely. Do not retry non-idempotent remote actions unless the provider and local
+durable key make replay safe.
 
-### Callback 验证
+### Callback verification
 
 ```typescript
 async function handleStripeWebhook(req: Request, res: Response) {
-  // 1. 验证签名 -- 拒绝未验证的 callback
+  // 1. verify signature -- reject unverified callbacks
   const sig = req.headers['stripe-signature'];
   let event: StripeEvent;
   try {
@@ -238,28 +261,28 @@ async function handleStripeWebhook(req: Request, res: Response) {
     return res.status(400).json({ error: 'invalid_signature' });
   }
 
-  // 2. 关联到本地记录
+  // 2. correlate to local record
   const localPayment = await paymentRepo.findByExternalId(event.data.object.id);
   if (!localPayment) {
     return res.status(404).json({ error: 'unmatched_event' });
   }
 
-  // 3. 去重 -- 检查此 event 是否已处理
+  // 3. dedupe -- check if this event was already processed
   const alreadyProcessed = await webhookEventRepo.exists(event.id);
   if (alreadyProcessed) {
-    return res.status(200).json({ received: true });   // idempotent 确认
+    return res.status(200).json({ received: true });   // idempotent acknowledgment
   }
 
-  // 4. 记录 event
+  // 4. record the event
   await webhookEventRepo.insert({ eventId: event.id, type: event.type, status: 'processing' });
 
-  // 5. 应用前检查当前状态(参见 persistence-build.md)
+  // 5. check current state before applying (see persistence-build.md)
   if (localPayment.status === 'completed') {
     await webhookEventRepo.update(event.id, { status: 'completed', note: 'already_completed' });
     return res.status(200).json({ received: true });
   }
 
-  // 6. 应用变更
+  // 6. apply the change
   await db.transaction(async (tx) => {
     await tx.payments.update(localPayment.id, { status: 'completed', completedAt: new Date() });
     await tx.webhookEvents.update(event.id, { status: 'completed' });
@@ -269,38 +292,44 @@ async function handleStripeWebhook(req: Request, res: Response) {
 }
 ```
 
-关键点:签名验证发生在任何可能泄漏信息的数据库查找之前。Event ID 去重防止重复处理。当前状态检查防止重新应用已完成的支付。
+Key points: signature verification happens before any database lookup that could leak
+information. Event ID dedupe prevents double-processing. Current-state check prevents
+re-applying a completed payment.
 
-### 重放处理
+### Replay handling
 
-当同一个 callback 到达两次时(Stripe 重试 webhook),第二次到达必须是安全的。Event ID 去重(步骤 3)和当前状态检查(步骤 5)的组合处理了这种情况。callback 两次都返回 200,但支付只更新一次。
+When the same callback arrives twice (Stripe retries webhooks), the second arrival must be
+safe. The combination of event ID dedupe (step 3) and current-state check (step 5) handles
+this. The callback returns 200 both times, but the payment is only updated once.
 
-## 特殊风险规则
+## Special-Risk Rules
 
-这些接口有额外的实现约束,因为它们的失败模式是不可逆的或影响信任的。
+These surfaces have additional implementation constraints because their failure modes are
+irreversible or trust-affecting.
 
-### 支付
+### Payment
 
-- 在服务端查找 plan 和 price;永远不信任客户端提供的 price 或 amount
-- 尽可能使用托管流程(Stripe Checkout、PayPal)-- 不要处理原始卡数据
-- 在处理支付 event 之前验证 webhook 签名
-- 按 provider event ID 去重 event
-- 在标记 completed 之前验证 amount、recipient 和 provider 状态与本地记录匹配
-- Entitlement 状态必须足够确定才能授予访问权限
+- Look up the plan and price server-side; never trust client-provided price or amount
+- Use hosted flows (Stripe Checkout, PayPal) when possible -- do not handle raw card data
+- Verify webhook signatures before processing payment events
+- Dedupe events by provider event ID
+- Verify amount, recipient, and provider state match the local record before marking
+  completed
+- Entitlement state must be sufficiently final before granting access
 
 ```typescript
-// 支付验证:amount 必须与本地记录匹配
+// payment verification: amount must match local record
 if (callback.amount !== localPayment.amount) {
   throw new ConflictError('amount_mismatch');
-  // 不标记 completed -- 支付金额不匹配
+  // do not mark completed -- the payment is for a different amount
 }
 ```
 
-### 上传
+### Upload
 
-- 在存储之前验证文件类型、大小、内容和所有权
-- 在服务端生成存储 key;不信任客户端提供的文件名或路径
-- 保留可见性和生命周期 contract(谁可以访问,保留多久)
+- Validate file type, size, content, and ownership before storing
+- Generate the storage key server-side; do not trust client-provided filenames or paths
+- Preserve the visibility and lifecycle contract (who can access, how long it persists)
 
 ```typescript
 async function handleUpload(req: AuthedRequest, res: Response) {
@@ -308,7 +337,7 @@ async function handleUpload(req: AuthedRequest, res: Response) {
   const file = req.file;
   if (!ALLOWED_MIME_TYPES.has(file.mimetype)) throw new ValidationError('invalid_file_type');
   if (file.size > MAX_UPLOAD_SIZE) throw new ValidationError('file_too_large');
-  const key = `uploads/${userId}/${uuid()}-${sanitizedFilename}`;   // 服务端生成的 key
+  const key = `uploads/${userId}/${uuid()}-${sanitizedFilename}`;   // server-generated key
   await storage.put(key, file.buffer, { contentType: file.mimetype });
   await fileRepo.insert({ key, userId, size: file.size, expiresAt: expiryDate });
 }
@@ -316,22 +345,26 @@ async function handleUpload(req: AuthedRequest, res: Response) {
 
 ### Webhook
 
-- 在处理之前验证签名、时间戳和来源
-- 按 event 身份去重
-- 避免调用方控制的 resource 查找 -- 不要在未验证关联的情况下使用 webhook payload 字段查找 resource
+- Verify signature, timestamp, and origin before processing
+- Dedupe by event identity
+- Avoid caller-controlled resource lookup -- do not use a webhook payload field to look up
+  a resource without verifying the correlation
 
-### 定时 Job
+### Scheduled job
 
-- 明确调度资格(运行时必须满足什么条件)
-- 处理重叠:防止同一个 job 的两个实例同时运行(使用 lock 或去重 key)
-- 设置显式 timeout
-- 处理过期运行:如果 job 已调度但状态自调度以来已改变,执行前检查当前状态
+- Make schedule eligibility explicit (what conditions must hold to run)
+- Handle overlap: prevent two instances of the same job from running simultaneously (use a
+  lock or dedupe key)
+- Set an explicit timeout
+- Handle stale runs: if a job was scheduled but the state has changed since scheduling, check
+  current state before executing
 
 ### Realtime
 
-- 认证连接
-- 将 subscription scope 限制在已认证用户的 tenant/owner
-- 限制 fanout:限制接收广播的连接数量
-- 按 Node02 的设计保留有序和重复语义
+- Authenticate the connection
+- Scope subscriptions to the authenticated user's tenant/owner
+- Bound fanout: limit how many connections receive a broadcast
+- Preserve ordered and duplicate semantics as designed by Node02
 
-这些是实现保障措施。将 secret 和 API key 排除在代码和日志之外,在将金钱相关效果视为成功之前进行验证。
+These are implementation safeguards. Keep secrets and API keys out of code and logs, and
+verify money-related effects before treating them as successful.

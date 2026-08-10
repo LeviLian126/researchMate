@@ -1,70 +1,75 @@
-# HTML 作为 Agent 上下文与项目看板
+# HTML as an Agent Context and Project Board
 
-构建可在浏览器中打开的项目文档，使创始人、开发者或接手的 agent 无需从聊天、Markdown 和源码树中重建项目即可理解。着陆看板是权威的、有证据支撑的快照。将持久细节放在聚焦的子页面上，将重大版本变更放在单独的活动页面上。
+Build browser-openable project documentation that a founder, developer, or incoming agent can understand without reconstructing the project from chat, Markdown, and source trees. The landing board is the authoritative, evidence-backed snapshot. Put durable detail on focused child pages and material version changes on a separate activity page.
 
-## 默认看板目标与覆盖范围
+## Default board goal and coverage
 
-每个项目在 `docs/` 下都有一个完整的 HTML 看板。其目标是让新的人类或 agent 直接获得证据，以快速理解和启动项目。以完整台账风格保持看板：覆盖核心数据库表和核心业务字段、重要路由/操作、能力、关系、架构、状态、风险、决策和发布证据。不要用低价值的 UI 琐事（如按钮尺寸）来填充它，除非某个特定值是有意义的设计契约。
+Every project has a complete HTML board under `docs/`. Its goal is to give a new human or
+agent direct evidence for quickly understanding and starting the project. Keep the board in
+the full-ledger style: cover the core database tables and core business fields, material
+routes/actions, capabilities, relationships, architecture, status, risks, decisions, and
+release evidence. Do not fill it with low-value UI trivia such as button dimensions unless a
+specific value is a meaningful design contract.
 
-| 读者任务 | 有用的 HTML 形式 |
+| Reader task | Useful HTML form |
 |---|---|
-| 比较方法或视觉方向 | 对齐的列、共享标准、内联权衡和清晰的选择状态 |
-| 理解架构或代码路径 | 标注的框和箭头、高亮的热路径和指向入口点的直接链接 |
-| 评审实现或发布 | 状态和证据卡片、带注释的变更导览、风险、检查和确切标识 |
-| 检查设计系统 | 实时 token、组件变体、响应式状态和可复制的值 |
-| 调整动效或交互 | 一个带有控件和重置行为的小型可用原型 |
-| 监控项目事实 | 一个可导航的看板，涵盖产品、架构、契约、状态、证据和历史 |
+| compare approaches or visual directions | aligned columns, shared criteria, inline trade-offs, and a clear selection state |
+| understand architecture or a code path | labelled boxes and arrows, a highlighted hot path, and direct links to entry points |
+| review implementation or a release | status and evidence cards, an annotated change tour, risks, checks, and exact identities |
+| inspect a design system | live tokens, component variants, responsive states, and copyable values |
+| tune motion or interaction | a small working prototype with controls and reset behavior |
+| monitor project truth | a navigable board for product, architecture, contracts, status, evidence, and history |
 
-## 加载正确的参考
+## Load the right reference
 
-在构建看板的相应部分之前，阅读以下文件：
+Read these files before building the corresponding part of a board:
 
-| 需求 | 阅读 |
+| Need | Read |
 | --- | --- |
-| 可读的技术散文和文档结构 | 默认运行 `humanizer` skill |
-| 看板契约、章节细化、读者测试和交接 | 本 workflow 加上 `validation-and-handoff.md` |
-| 项目、市场、功能、路线图、架构、数据库或 API 覆盖 | `project-board-content-and-evidence.md` |
-| HTML Effectiveness 重建、空间形式、布局安全和交互 | `visual-interaction-and-accessibility.md` |
-| 证据、完整性、隐私、浏览器和可访问性检查 | `validation-and-handoff.md` |
+| readable technical prose and document structure | run the `humanizer` skill by default |
+| board contract, section refinement, reader testing, and handoff | this workflow plus `validation-and-handoff.md` |
+| project, market, feature, roadmap, architecture, database, or API coverage | `project-board-content-and-evidence.md` |
+| HTML Effectiveness reconstruction, spatial forms, layout safety, and interaction | `visual-interaction-and-accessibility.md` |
+| evidence, completeness, privacy, browser, and accessibility checks | `validation-and-handoff.md` |
 
-对于默认的 HTML Effectiveness 文档系统，将 `assets/document-system.css` 复制到输出中并对其进行调整，而不是重新生成通用的 dashboard 样式表。该文件包含已检查的调色板、排版、文档几何、空间组件、契约探索器和嵌套布局修复。
+For the default HTML Effectiveness document system, copy `assets/document-system.css` into the output and adapt it instead of regenerating a generic dashboard stylesheet. The file contains the inspected palette, typography, document geometry, spatial components, contract explorers, and nested-layout fixes.
 
-当用户提供另一个参考时，仅将此资产用作布局安全基础。用从所提供参考中检查到的值替换其视觉参数。
+When the user supplies another reference, use this asset only as a layout-safety base. Replace its visual parameters with values inspected from the supplied reference.
 
-使用 Node01 作为产品含义、目标用户、买方、价值、MVP/MAP 边界、定价、验收和需求证据的权威。使用 Node02 作为系统边界、契约、数据、信任、运行时形态、技术决策和架构交接的权威。不要仅因为看板需要简洁摘要就用简化假设替代其中任何一个。
+Use Node01 as the authority for product meaning, target user, buyer, value, MVP/MAP boundary, pricing, acceptance, and demand evidence. Use Node02 as the authority for system boundaries, contracts, data, trust, runtime shape, technology decisions, and architecture handoff. Do not replace either with a simplified assumption merely because the board needs a concise summary.
 
 ## Workflow
 
-1. 确立持久文档契约：目标读者和决策、维护负责人、现有模板/术语、事实来源、未知项/冲突、披露边界、必需章节和读者测试可用性。对完整草稿、章节细化、写作审计和读者测试记录使用共享的写作和质量协议。
-2. 检查完整的相关证据面：代码、测试、配置、迁移/schema、路由或 OpenAPI、维护的产品文档、运行时安全的观察和批准的外部来源。当声明冲突时，按该顺序优先使用它们。
-3. 在写作之前构建来源清单。统计范围内的能力、路由/操作、schema、数据库实体和有证据的字段、关系、策略、架构组件、决策、风险和路线图记录。将此清单用作覆盖清单。渲染每个项，标记为 unknown，或附带原因排除。
-4. 使用内容模型组装看板事实。记录每个重要声明及其证据路径或明确的 `unknown`；保留使验证成为可能的 ID、字段名、命令、版本、路由和说明。不要用一两个说明性示例替代可用的完整台账。
-5. 按以下阅读顺序组织文档：
-   - **项目摘要** — 产品是什么、服务谁、当前问题、承诺的结果、首次成功、商业状态和定价。
-   - **产品与交付** — 能力图、旅程/MVP 边界、验收和验证，加上已发布、进行中、候选、已推迟、已阻塞和未知的工作。
-   - **架构** — 用户到系统/数据流、前端和后端职责、模块边界、集成、后台工作和恢复/失败路径。
-   - **技术与契约** — 技术栈和重要决策；数据库实体和字段；API/操作及其请求、响应、权限和失败语义。
-   - **控制室** — 发布/验证状态、决策记录、证据置信度、风险、阻塞项和优先排序的下一步行动。
-6. 保持着陆页面向决策：标识、发布边界、商业状态、能力摘要、主要风险、下一步行动、新鲜度和指向每个主题页面的链接。将字段级契约、完整的 endpoint 行为、详细架构、验收台账和决策历史放在其主题页面上。
-7. 为每个必需区域提供基于来源的内容或可见的 unknown 状态。不要仅因为项目还没有证据就省略定价、API、数据库或交付覆盖。优先使用完整台账而非说明性样本：记录范围内每个有证据的路由、实体、字段、能力、风险和决策。
-8. 保持每个当前状态页面同步。在每次 commit 或 push 之前，将最新源码和配置与看板进行比较并更新过时的事实。对于重大发布、版本、迁移、事件、安全评审或里程碑，创建或更新本地活动页面，包含日期/版本、变更范围、证据、影响和后续行动。不要在那里添加例行刷新或重复的当前状态散文。
-9. 应用视觉和交互参考。当用户提供参考站点时，检查其真实 DOM、计算样式、尺寸、断点、组件状态和交互，而不是凭记忆近似其感觉。忠实地重建选定的页面原型，同时将其主题替换为项目文档。在没有 JavaScript 的情况下保持基本内容可见。
-10. 运行验证参考和默认 humanizer 通道。将来源清单计数与渲染计数进行核对。当可用时，在浏览器中打开着陆页和已变更或高风险的页面；对其余页面使用确定性检查。纠正缺失的记录、溢出、嵌套网格冲突、键盘陷阱、跨页面漂移、误导性状态措辞、无依据的声明和通用填充内容。将渲染页面作为整体阅读，移除重复的章节开头、标题重述、每事实一张卡片的布局和其他模板残留。记录是否运行了独立读者测试，并在未运行时陈述局限。
+1. Establish the durable-document contract: target reader and decision, maintenance owner, existing template/terminology, fact sources, unknowns/conflicts, disclosure boundaries, required sections, and reader-test availability. Use the shared writing and quality protocols for the complete draft, section refinement, writing audit, and reader-test record.
+2. Inspect the complete relevant evidence surfaces: code, tests, configuration, migrations/schema, routes or OpenAPI, maintained product documents, runtime-safe observations, and approved external sources. Prefer them in that order when claims conflict.
+3. Build a source inventory before writing. Count the capabilities, routes/actions, schemas, database entities and evidenced fields, relationships, policies, architecture components, decisions, risks, and roadmap records in scope. Use this inventory as the coverage manifest. Render every item, mark it unknown, or exclude it with a reason.
+4. Assemble the board facts using the content model. Record each material claim with an evidence path or an explicit `unknown`; preserve IDs, field names, commands, versions, routes, and caveats that make verification possible. Do not substitute one or two illustrative examples for an available complete ledger.
+5. Organize the documentation in this reading order:
+   - **Project summary** — what the product is, who it serves, the current problem, promised outcome, first success, commercial state, and pricing.
+   - **Product and delivery** — capability map, journey/MVP boundary, acceptance and validation, plus shipped, in-progress, candidate, deferred, blocked, and unknown work.
+   - **Architecture** — user-to-system/data flow, frontend and backend responsibilities, module boundaries, integrations, background work, and recovery/failure paths.
+   - **Technology and contracts** — stack and material decisions; database entities and fields; API/actions with request, response, permission, and failure semantics.
+   - **Control room** — release/validation state, decision record, evidence confidence, risks, blockers, and prioritized next actions.
+6. Keep the landing page decision-oriented: identity, release boundary, commercial state, capability summary, top risks, next action, freshness, and links to every topic page. Put field-level contracts, complete endpoint behavior, detailed architecture, acceptance ledgers, and decision history on their topic pages.
+7. Give every required region either source-grounded content or a visible unknown state. Do not omit pricing, API, database, or delivery coverage merely because the project has no evidence yet. Prefer complete ledgers over illustrative samples: document every evidenced route, entity, field, capability, risk, and decision in scope.
+8. Keep every current-state page synchronized. Before every commit or push, compare the latest source and configuration with the board and update stale facts. For a major release, version, migration, incident, security review, or milestone, create or update the local activity page with date/version, changed scope, evidence, impact, and follow-up. Do not add routine refreshes or duplicate current-state prose there.
+9. Apply the visual and interaction reference. When the user supplies a reference site, inspect its real DOM, computed styles, dimensions, breakpoints, component states, and interactions instead of approximating its mood from memory. Reconstruct the selected page archetype faithfully while replacing its subject matter with project documentation. Keep essential content visible without JavaScript.
+10. Run the validation reference and the default humanizer pass. Reconcile source-inventory counts against rendered counts. Open the landing page and changed or high-risk pages in a browser when available; use deterministic checks for the rest. Correct missing records, overflow, nested-grid collisions, keyboard traps, cross-page drift, misleading status wording, unsupported claims, and generic filler. Read the rendered page as a whole and remove repeated section openings, heading restatements, card-per-fact layouts, and other template residue. Record whether independent reader testing ran and state the limitation when it did not.
 
-## 状态与证据纪律
+## Status and evidence discipline
 
-- `shipped`、`done` 或 `validated` 需要直接的实现、部署、测试、配置或维护的契约证据。
-- `in-progress`、`partial`、`blocked`、`candidate`、`deferred`、`unknown` 和 `untested` 必须命名能推动它们的缺失证明、决策、依赖项或行动。
-- 将推断的声明醒目地标记为推断。当来源不一致时，展示冲突并降低置信度，而不是默默地选择一个版本。
-- 使"实时"意味着最新检查的证据快照。在没有现有数据源的情况下，永远不要模拟实时遥测或自动进度更新。
-- 排除凭证、token、原始个人数据、私人载荷和漏洞利用详情。改为总结其契约或安全后果。
+- `shipped`, `done`, or `validated` require direct implementation, deployment, test, configuration, or maintained-contract evidence.
+- `in-progress`, `partial`, `blocked`, `candidate`, `deferred`, `unknown`, and `untested` must name the missing proof, decision, dependency, or action that would move them.
+- Keep an inferred claim visibly marked as inferred. When sources disagree, show the conflict and lower confidence rather than silently selecting a version.
+- Make “real-time” mean the latest inspected evidence snapshot. Never simulate live telemetry or automatic progress updates without an existing data source.
+- Exclude credentials, tokens, raw personal data, private payloads, and exploit details. Summarize their contract or security consequence instead.
 
-## 实现与交接
+## Implementation and handoff
 
-默认使用语义化 HTML、内联或本地 CSS、内联 SVG 和最少的原生 JavaScript。避免远程运行时依赖、框架、远程字体和网络调用，除非现有项目或用户明确要求。
+Use semantic HTML, inline or local CSS, inline SVG, and minimal vanilla JavaScript by default. Avoid remote runtime dependencies, frameworks, remote fonts, and network calls unless the existing project or user explicitly requires them.
 
-仅更改颜色、字体或卡片样式并不能完成参考驱动的任务。匹配参考的信息几何：内容宽度、章节节奏、字号比例、导航、边框、圆角、间距、组件组合、披露模式、响应式过渡和焦点或交互状态。
+Changing only colors, fonts, or card styling does not complete a reference-driven task. Match the reference's information geometry: content width, section rhythm, type scale, navigation, borders, radii, spacing, component composition, disclosure patterns, responsive transitions, and focus or interaction states.
 
-仅在源代码或资产的许可证或用户授权允许时重用它们。否则以等效的视觉保真度独立实现所观察到的设计。
+Reuse source code or assets only when their license or the user's authorization permits it. Otherwise implement the observed design independently at equivalent visual fidelity.
 
-在最终回复中，命名已变更的看板、文档类型、已检查的证据和验证、已完成的写作审计、读者测试状态、可见的高风险未知项或读者理解风险，以及推荐的下一步行动。不要将生成的 HTML 粘贴到聊天中。
+In the final response, name the changed board, document type, evidence and validation checked, completed writing audit, reader-test status, visible high-risk unknowns or reader-comprehension risks, and the next recommended action. Do not paste the generated HTML into chat.

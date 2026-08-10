@@ -1,87 +1,97 @@
-﻿# QA 节点
+# QA Node
 
-在 LLM 生成的代码上线前验证其是否真正可用:应用能正常启动、核心用户流程端到端通过、前端在移动端和桌面端各分辨率下正确渲染且无布局或视觉缺陷、LLM 特有的代码缺陷在此阶段而非生产环境中被发现,以及数据库、数据隐私、API 和认证安全达到独立产品标准。
+Verify LLM-generated code actually works before it ships: the app starts, core user
+flows pass end-to-end, the frontend renders correctly across mobile and desktop
+resolutions without layout or visual bugs, LLM-specific code defects are caught here
+rather than in production, and database, data-privacy, API, and auth security meet
+indie-product standards.
 
-## 阅读相关工作流
+## Read the relevant workflow
 
-| 需求 | 阅读 |
+| Need | Read |
 | --- | --- |
-| 审查 diff、审计 LLM 代码质量、检查测试有效性、运行静态门禁 | `code-and-test-review.md` |
-| 启动应用、运行 E2E 用户旅程、验证多分辨率前端视觉、调试运行时问题 | `runtime-frontend-qa.md` |
-| 安全审查(threat model、数据库、数据隐私、API、认证、依赖、前端、SSRF、business logic、AI)和可靠性检查 | `security-and-reliability.md` |
+| review diff, audit LLM code quality, check test validity, run static gates | `code-and-test-review.md` |
+| start the app, run E2E user journeys, verify multi-resolution frontend visuals, debug runtime issues | `runtime-frontend-qa.md` |
+| security review (threat model, database, data privacy, API, auth, dependencies, frontend, SSRF, business logic, AI) and reliability checks | `security-and-reliability.md` |
 
-运行所有适用于本次变更的检查点。仅跳过确实无关的检查,并记录原因。不要仅仅因为麻烦而跳过某个检查点。
+Run every checkpoint that applies to the change. Skip only genuinely irrelevant
+checks and record why. Do not skip a checkpoint merely because it is inconvenient.
 
-## 风险分类
+## Classify risk
 
-| 风险 | 触发条件 | 变更内容 |
+| Risk | Trigger | What changes |
 | --- | --- | --- |
-| STANDARD | 未触及认证、支付、migration、公开 API、数据 schema 或文件上传 | 运行 CP9 基线项(无密钥泄露、无 XSS、无已知高风险依赖)+ CP11 基本扫描 |
-| HIGH_RISK | 触及上述任何一项,或 AI/LLM 功能(prompt、tool calling、RAG、agent) | 运行 CP9 全部安全域 + CP10 可靠性 + CP11 完整扫描 |
+| STANDARD | no auth, payment, migration, public API, data schema, or file upload touched | run CP9 baseline items (no secret leak, no XSS, no known-high-risk dependency) + CP11 basic scan |
+| HIGH_RISK | any of the above touched, or AI/LLM features (prompt, tool calling, RAG, agent) | run CP9 in full across all security domains + CP10 reliability + CP11 full scan |
 
-即使是 STANDARD 变更也必须运行基本安全检查。无密钥泄露、无 XSS、无已知高风险依赖是独立产品基线,不可省略。
+Even STANDARD changes must run basic security checks. No secret leak, no XSS, and
+no known high-risk dependency are indie-product baselines, not optional.
 
-## 检查点
+## Checkpoints
 
-| CP | 文件 | 检查内容 |
+| CP | File | What it checks |
 | --- | --- | --- |
-| CP1 | code-and-test-review | 变更理解:diff、意图、无关变更、TODO/stub |
-| CP2 | code-and-test-review | LLM 代码审计:虚构 API、占位返回值、静默降级、吞没异常 |
-| CP3 | code-and-test-review | 测试质量:真实契约测试、正向/负向/边界覆盖 |
-| CP4 | code-and-test-review | 静态门禁:lint、类型检查、build、针对性单元测试 |
-| CP5 | runtime-frontend-qa | 应用启动:dev server 或 build 无错误运行 |
-| CP6 | runtime-frontend-qa | E2E 用户旅程:核心流程端到端通过 |
-| CP7 | runtime-frontend-qa | 多分辨率前端:6 级设备矩阵全覆盖 |
-| CP8 | runtime-frontend-qa | 调试:CP5-CP7 失败时根因定位并修复 |
-| CP9 | security-and-reliability | 完整安全审查:threat model、数据库、隐私、API、认证、依赖、前端、SSRF、business logic、AI |
-| CP10 | security-and-reliability | 可靠性:错误处理、重试、幂等性、并发、数据一致性 |
-| CP11 | security-and-reliability | 安全验证:非破坏性负向检查和工具扫描 |
+| CP1 | code-and-test-review | change understanding: diff, intent, unrelated changes, TODO/stub |
+| CP2 | code-and-test-review | LLM code audit: hallucinated API, placeholder returns, silent fallback, swallowed exceptions |
+| CP3 | code-and-test-review | test quality: real contract testing, positive/negative/boundary coverage |
+| CP4 | code-and-test-review | static gates: lint, type check, build, targeted unit tests |
+| CP5 | runtime-frontend-qa | app startup: dev server or build runs without error |
+| CP6 | runtime-frontend-qa | E2E user journeys: core flows pass end-to-end |
+| CP7 | runtime-frontend-qa | multi-resolution frontend: 6-level device matrix fully covered |
+| CP8 | runtime-frontend-qa | debug: root-cause and fix when CP5-CP7 fail |
+| CP9 | security-and-reliability | full security review: threat model, database, privacy, API, auth, dependencies, frontend, SSRF, business logic, AI |
+| CP10 | security-and-reliability | reliability: error handling, retry, idempotency, concurrency, data consistency |
+| CP11 | security-and-reliability | security verification: non-destructive negative checks and tool scans |
 
-## 严重级别
+## Severity
 
-| 严重级别 | 含义 | 对结论的影响 |
+| Severity | Meaning | Effect on verdict |
 | --- | --- | --- |
-| Blocker | 应用无法启动、核心流程中断、安全漏洞、数据丢失风险 | 必须 FIX,不能 PASS |
-| Major | 重大 UX 问题、非核心流程中断、测试质量问题、中等风险安全问题 | 强烈建议 FIX |
-| Minor | 外观问题、边界情况、可有可无的改进 | 记录即可,可接受 |
+| Blocker | app cannot start, core flow broken, security hole, data loss risk | must FIX, cannot PASS |
+| Major | significant UX issue, non-core flow broken, test quality issue, medium-risk security issue | strongly recommend FIX |
+| Minor | cosmetic, edge case, nice-to-have | record, acceptable |
 
-## 结论
+## Verdict
 
-| 结论 | 条件 |
+| Verdict | Condition |
 | --- | --- |
-| PASS | 所有适用检查点通过,无 Blocker,应用端到端可用 |
-| FIX | 发现 Blocker 或 Major,在当前范围内可修复;修复后重新验证 |
-| BLOCKED | 无法验证(缺少环境或凭证)或无法修复(需要上游节点) |
+| PASS | all applicable checkpoints pass, no Blocker, app works end-to-end |
+| FIX | Blocker or Major found, fixable within current scope; re-verify after fix |
+| BLOCKED | cannot verify (missing environment or credentials) or cannot fix (needs upstream node) |
 
-## 输出契约
+## Output contract
 
-QA 报告必须包含以下全部内容才能声称项目通过了 QA:
+A QA report must contain all of the following to claim the project passed QA:
 
-1. **审查范围**:revision、base、变更文件列表。
-2. **检查点矩阵**:每个 CP 标注 PASS、FAIL 或 NOT_RUN,并附上使用的命令或观察结果。
-3. **缺陷列表**:每个缺陷标注严重级别、文件和行号、描述和修复方向。
-4. **安全结果**:数据库、数据隐私、API、认证、依赖、前端各给一个结论,以及本次变更运行的任何条件域(SSRF、business logic、AI)各给一个结论。
-5. **多分辨率结果**:6 个设备级别各附截图或观察结果。
-6. **结论**:PASS、FIX 或 BLOCKED。
+1. **Review scope**: revision, base, changed file list.
+2. **Checkpoint matrix**: each CP marked PASS, FAIL, or NOT_RUN, with the command or observation used.
+3. **Defect list**: each defect with severity, file and line, description, and fix direction.
+4. **Security results**: one conclusion each for database, data privacy, API, auth, dependency, frontend, and any conditional domain (SSRF, business logic, AI) run for this change.
+5. **Multi-resolution results**: screenshot or observation for each of the 6 device levels.
+6. **Verdict**: PASS, FIX, or BLOCKED.
 
-### PASS 的硬性条件
+### Hard PASS conditions
 
-发布 PASS 必须满足以下所有条件:
+All of the following must be satisfied to issue PASS:
 
-- 应用无错误启动。
-- 所有核心用户旅程端到端通过。
-- 前端在 6 种设备分辨率下无布局重叠、溢出或视觉缺陷。
-- 核心路径上无控制台错误或失败的网络请求。
-- 无 LLM 代码缺陷:无虚构 API、无 stub 或占位返回值、无吞没异常、无测试削弱。
-- 静态门禁通过:lint、类型检查、build。
-- 测试验证真实契约,而非 mock 表演。
-- 数据库安全通过:无 SQL 注入、连接安全、最小权限访问。
-- 数据隐私通过:PII 未泄露、强制 HTTPS、仓库中无密钥。
-- 认证和授权通过:无认证绕过、无 IDOR、session 安全。
-- 无已知高风险依赖漏洞。
-- 对于 HIGH_RISK 变更:完整安全审查通过。
-- 本次变更触发的所有条件安全域通过。
+- The app starts without errors.
+- All core user journeys pass end-to-end.
+- The frontend has no layout overlap, overflow, or visual bug across 6 device resolutions.
+- No console errors or failed network requests on core paths.
+- No LLM code defects: no hallucinated API, no stub or placeholder return, no swallowed exception, no test weakening.
+- Static gates pass: lint, type check, build.
+- Tests exercise the real contract, not mock theater.
+- Database security passes: no SQL injection, connection secured, least-privilege access.
+- Data privacy passes: PII not leaked, HTTPS enforced, no secret in repo.
+- Auth and authorization pass: no auth bypass, no IDOR, session secured.
+- No known high-risk dependency vulnerabilities.
+- For HIGH_RISK changes: full security review passes.
+- All conditional security domains triggered by this change pass.
 
-## 与其他节点的边界
+## Boundaries with other nodes
 
-QA 验证已经构建完成的代码。它不设计 UI、不更改公开契约、不执行部署、不编写实现代码。将这些工作路由到 Node01(产品)、Node02(契约)、Node03(后端)、Node04(前端)或 Node06(发布)。QA 期间发现的窄范围 bug 修复是允许的;但更改产品流程、公开 API、认证或计费策略,或大规模重构则不被允许。
+QA verifies code that is already built. It does not design UI, change public contracts,
+execute deployment, or write implementation code. Route those to Node01 (product),
+Node02 (contracts), Node03 (backend), Node04 (frontend), or Node06 (release). Narrow
+bug fixes found during QA are allowed; changing product flow, public API, auth or
+billing policy, or large refactors are not.

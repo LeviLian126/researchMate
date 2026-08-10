@@ -1,255 +1,262 @@
-﻿# 反默认指令
+﻿# Anti-Default Directives
 
-> **目标：** 在发布前验证界面不包含已命名的反模式。这是一个跨阶段参考，可用于方向设定、
-> 实现和验证。
+> **Goal:** Verify a surface contains no named anti-patterns before shipping. This is a cross-stage
+> reference usable during direction-setting, implementation, and verification.
 >
-> **负责：** 反 AI 平庸设计哲学、带覆盖条件的已命名反模式、预检清单
+> **Owns:** anti-AI-average-design philosophy, named anti-patterns with override conditions, pre-flight checklist
 >
-> **不负责：** 方向选择（`visual-direction-and-design-system.md`）、浏览器验证（`browser-proof-and-debug.md`）
+> **Does NOT own:** direction selection (`visual-direction-and-design-system.md`), browser verification (`browser-proof-and-debug.md`)
 
-## 反 AI 平庸设计哲学
+## Anti-AI-Average Design Philosophy
 
-两种反模式逻辑，统一于一个原则：不要因为某个美学是 LLM 默认或因为另一个产品页面最近
-使用了它而选择它。
+Two anti-pattern logics, unified by one principle: do not select an aesthetic because it is an LLM
+default or because another product page recently used it.
 
-### 1. 公开 / 品牌界面：拒绝模板化装饰
+### 1. Public / brand surfaces: reject templated decoration
 
-主动拒绝这些默认值，除非需求使其合理：通用居中 hero、紫色/蓝色渐变氛围、三个等宽功能卡片、
-装饰性图标圆圈、统一的泡泡圆角、卡片套卡片的区块、假仪表板、库存风格的视觉裁剪、填充式徽章、
-编造的指标和无意义的动效。
+Actively reject these defaults unless the brief makes them right: generic centered hero, purple/blue
+gradient atmosphere, three equal feature cards, decorative icon circles, uniform bubbly radii,
+card-on-card sections, fake dashboards, stock-like visual crops, filler badges, invented metrics, and
+motion without meaning.
 
-### 2. 运营界面：拒绝虚假密度和隐藏可见性
+### 2. Operational surfaces: reject fake density and hidden visibility
 
-拒绝：等宽指标卡、每组周围的装饰性面板、隐藏的操作可操作性、小到不可读的文字、仅悬停可发现、
-不一致的间距、数据形状的层级（不改变决策的指标占据主要位置）和运营屏幕上的装饰性图像
-（通常是噪音）。
+Reject: equal metric cards, decorative panels around every group, hidden action affordance, small
+unreadable text, hover-only discovery, inconsistent spacing, data-shaped hierarchy (metrics that do not
+change a decision occupying primary position), and decorative imagery on operational screens (usually
+noise).
 
-一个精致的运营工具通过清晰、节奏、字体层级和有纪律的密度赢得独特性 - 而非奇观。
+A refined operational tool earns distinctiveness through clarity, rhythm, type hierarchy, and
+disciplined density - not spectacle.
 
-## Brownfield vs Greenfield 覆盖
+## Brownfield vs Greenfield Override
 
-- **Brownfield：** 现有设计系统和产品标识是证据，不是障碍。仅在请求是重新设计或当前系统
-  无法支持所需的层级和状态时更改它们。"避免 AI 默认"不意味着因为附近样式看起来过时而
-  重新设计现有系统。保留可用价值；提升清晰度。
-- **Greenfield：** 这是"避免可互换卡片、通用系统字体、紫色白底渐变、装饰性玻璃和无产品意义
-  的动效"的主战场。根据设计解读刻意超越 LLM 默认。
+- **Brownfield:** the existing design system and product identity are evidence, not obstacles. Change
+  them only when the request is a redesign or the current system cannot support the required hierarchy
+  and states. "Avoid AI defaults" does not mean redesigning an existing system because a nearby style
+  looks dated. Preserve working value; improve clarity.
+- **Greenfield:** this is the main battlefield for "avoid interchangeable cards, generic system
+  typography, purple-on-white gradients, decorative glass, and motion with no product meaning." Reach
+  past LLM defaults deliberately based on the design read.
 
-## 已命名反模式
+## Named Anti-Patterns
 
-每个条目：它看起来什么样、为什么不好、何时可接受（覆盖）以及用什么代替。
+Each entry: what it looks like, why it is bad, when it is acceptable (override), and what to use instead.
 
-### 色彩
+### Color
 
-| 反模式 | 外观 | 覆盖条件 | 替代方案 |
+| Anti-pattern | What it looks like | Override | Use instead |
 |---|---|---|---|
-| AI 紫色 / 蓝色光晕 | 紫色按钮发光、随机霓虹渐变、紫色白底氛围 | 品牌或需求明确要求紫色；以意图和协调的中性色执行 | 中性底色（Zinc / Slate / Stone）加一个高对比度强调色（Emerald、Electric Blue、Deep Rose、Burnt Orange） |
-| 高端消费米色+黄铜+浓缩咖啡色 | 背景色 `#f5f1ea` `#f7f5f1` `#fbf8f1` `#efeae0`；强调色 `#b08947` `#b6553a` `#9a2436` `#9c6e2a`；文字 `#1a1714` `#1b1814` | 品牌需求明确命名这些颜色，或品牌标识确实是复古/手工艺/温暖工艺风格 | 轮换：冷奢华（银灰+铬）、森林（深绿+骨白+琥珀）、黑棕（近黑+暖棕）、钴蓝+奶油、赤陶+石板灰、橄榄+砖红、纯单色+单一饱和度跳色 |
-| 混合暖灰和冷灰 | 同一项目中暖灰文字配冷灰边框 | 在一个项目中永远不可接受 | 坚持一个灰色系。用一致的色相为所有灰色调色。 |
-| 多种强调色 | 同一页面上玫瑰色 CTA、青色徽章、蓝色链接、橙色高亮 | 真正的多类别数据可视化需要不同的色相 | 一个强调色，在整个页面上锁定。一个暖灰网站不应在第 7 节出现蓝色 CTA。 |
+| AI-purple / blue glow | Purple button glows, random neon gradients, purple-on-white atmosphere | Brand or brief explicitly asks for purple; execute with intent and harmonized neutrals | Neutral bases (Zinc / Slate / Stone) with one high-contrast accent (Emerald, Electric Blue, Deep Rose, Burnt Orange) |
+| Premium-consumer beige+brass+espresso | Backgrounds `#f5f1ea` `#f7f5f1` `#fbf8f1` `#efeae0`; accents `#b08947` `#b6553a` `#9a2436` `#9c6e2a`; text `#1a1714` `#1b1814` | Brand brief explicitly names those colors, or brand identity is genuinely vintage / artisan / warm-craft | Rotate: Cold Luxury (silver-grey + chrome), Forest (deep green + bone + amber), Black and Tan (off-black + warm tan), Cobalt + Cream, Terracotta + Slate, Olive + Brick, Pure monochrome + single saturated pop |
+| Mixed warm and cool grays | Warm gray text with cool gray borders in the same project | Never acceptable within one project | Stick to one gray family. Tint all grays with a consistent hue. |
+| Multiple accent colors | Rose CTA, teal badge, blue link, orange highlight on the same page | A genuinely multi-category data visualization requires distinct hues | One accent color, locked across the whole page. A warm-grey site does not get a blue CTA in section 7. |
 
-### 字体
+### Typography
 
-| 反模式 | 外观 | 覆盖条件 | 替代方案 |
+| Anti-pattern | What it looks like | Override | Use instead |
 |---|---|---|---|
-| Inter 作为默认 sans | 到处使用 Inter 无品牌理由 | 用户明确要求中性/标准/Linear 风格感，或公共部门/无障碍优先网站 | 优先 Geist、Outfit、Satoshi、Cabinet Grotesk |
-| Fraunces 或 Instrument_Serif 作为默认 serif | 创意需求自动触发 serif 默认 | 品牌需求明确命名该 serif，或美学流派确实是编辑型/奢华/出版物且你能说明为何此特定 serif 合适 | 轮换：PP Editorial New、GT Sectra Display、Cardinal Grotesque、Reckless Neue、Tiempos Headline、Recoleta、Cormorant Garamond、Playfair Display、EB Garamond、IvyPresto、Migra、Editorial Old、Saol Display、Domaine Display、Canela、Schnyder |
-| 混合字族强调 | 在 sans 标题中随机插入 serif 单词以增加视觉趣味 | 永远不可接受 | 同一字族的斜体或粗体 |
-| 斜体下伸笔画裁剪 | 带下伸字母（y g j p q）的斜体展示文字使用 `leading-none` 或 `leading-[1]` | 永远不可接受 | 最小 `leading-[1.1]` + 在包裹元素上预留 `pb-1` 或 `mb-1` |
-| 到处全大写子标题 | 每个区块标签都是 `uppercase tracking-widest` | 真正的 small-caps 设计系统或法规/法律标签惯例 | 小写斜体、句子大小写或带正字间距的 small-caps |
+| Inter as default sans | Inter everywhere with no brand justification | User explicitly asks for neutral / standard / Linear-style feel, or public-sector / accessibility-first site | Geist, Outfit, Satoshi, Cabinet Grotesk first |
+| Fraunces or Instrument_Serif as default serif | Creative brief triggers serif default automatically | Brand brief literally names that serif, or aesthetic family is genuinely editorial / luxury / publication AND you can articulate why this specific serif fits | Rotate from: PP Editorial New, GT Sectra Display, Cardinal Grotesque, Reckless Neue, Tiempos Headline, Recoleta, Cormorant Garamond, Playfair Display, EB Garamond, IvyPresto, Migra, Editorial Old, Saol Display, Domaine Display, Canela, Schnyder |
+| Mixed-family emphasis | Random serif word injected into a sans headline for visual interest | Never acceptable | Italic or bold of the same font family |
+| Italic descender clipping | Italic display text with descender letters (y g j p q) at `leading-none` or `leading-[1]` | Never acceptable | `leading-[1.1]` minimum + `pb-1` or `mb-1` reserve on wrapping element |
+| All-caps subheaders everywhere | Every section label is `uppercase tracking-widest` | Genuine small-caps design system or regulatory/legal labeling convention | Lowercase italics, sentence case, or small-caps with positive tracking |
 
-### 布局
+### Layout
 
-| 反模式 | 外观 | 覆盖条件 | 替代方案 |
+| Anti-pattern | What it looks like | Override | Use instead |
 |---|---|---|---|
-| VARIANCE > 4 时居中 hero | 通用居中 H1 + 副文本 + 两个 CTA 堆叠 | 编辑型/宣言/发布公告，消息本身即是设计 | 分屏（50/50）、左对齐内容/右对齐素材、不对称留白、滚动固定结构 |
-| 三个等宽功能卡片 | 一行中三个等宽卡片作为功能区块 | 需求恰好有三个等权重功能且无更好构图 | 2 列锯齿、不对称网格、混合单元格尺寸的 bento、水平滚动、瀑布流 |
-| 卡片套卡片的区块 | 卡片在更大的卡片内，卡片在外层面板内 | 真正的嵌套数据层级，每层传达不同抽象级别 | 使用 `border-t`、`divide-y` 或留白的开放布局。仅在高度传达真实层级时使用卡片。 |
-| `h-screen` 用于全高区块 | `height: 100vh` 在移动端导致布局跳动（iOS Safari 地址栏） | 永远不可接受 | `min-h-[100dvh]` |
-| Flexbox 百分比计算 | 多列布局使用 `w-[calc(33%-1rem)]` | 永远不可接受 | CSS Grid：`grid grid-cols-1 md:grid-cols-3 gap-6` |
-| 无 max-width 容器 | 内容在宽屏上拉伸到边缘 | 真正的全幅沉浸式 hero 或地图 | `max-w-[1400px] mx-auto` 或 `max-w-7xl` |
-| 所有元素统一圆角 | 按钮、卡片、输入框、容器使用相同的 `rounded-lg` | 有文档记录的规则且一致应用（例如"按钮全圆角、卡片 16px、输入框 8px"） | 按元素类型变化圆角：内部元素更紧、容器更柔和 |
-| 纯黑投影 | 浅色背景上 `box-shadow: 0 4px 12px rgba(0,0,0,0.15)` | 在浅色背景上永远不可接受 | 将阴影色调与背景色相匹配。使用彩色阴影（蓝色背景上的深蓝阴影）。 |
-| 到处装饰性玻璃 | 每个表面上都使用 `backdrop-blur` 无层级理由 | 真正的 glassmorphism 美学并为 `prefers-reduced-transparency` 提供回退 | 仅在一个提升层（导航栏、一个模态框）上使用玻璃。其他地方使用不透明表面。 |
+| Centered hero when VARIANCE > 4 | Generic centered H1 + subtext + two CTAs stacked | Editorial / manifesto / launch-announcement where the message itself is the design | Split screen (50/50), left-aligned content / right-aligned asset, asymmetric whitespace, scroll-pinned structures |
+| Three equal feature cards | Three identical-width cards in a row as the feature section | Brief has exactly three equal-weight features and no better composition exists | 2-column zig-zag, asymmetric grid, bento with mixed cell sizes, horizontal scroll, masonry |
+| Card-on-card sections | Cards inside larger cards inside outer panels | Genuine nested data hierarchy where each layer communicates a different abstraction level | Open layouts with `border-t`, `divide-y`, or negative space. Use cards only when elevation communicates real hierarchy. |
+| `h-screen` for full-height sections | `height: 100vh` causing layout jump on mobile (iOS Safari address bar) | Never acceptable | `min-h-[100dvh]` |
+| Flexbox percentage math | `w-[calc(33%-1rem)]` for multi-column layouts | Never acceptable | CSS Grid: `grid grid-cols-1 md:grid-cols-3 gap-6` |
+| No max-width container | Content stretches edge-to-edge on wide screens | Genuine full-bleed immersive hero or map | `max-w-[1400px] mx-auto` or `max-w-7xl` |
+| Uniform border-radius on everything | Same `rounded-lg` on buttons, cards, inputs, containers | Documented rule with consistent application (e.g. "buttons are full-pill, cards are 16px, inputs are 8px") | Vary radius by element type: tighter on inner elements, softer on containers |
+| Pure-black drop shadows | `box-shadow: 0 4px 12px rgba(0,0,0,0.15)` on light backgrounds | Never acceptable on light backgrounds | Tint shadows to the background hue. Use colored shadows (dark blue shadow on blue background). |
+| Decorative glass everywhere | `backdrop-blur` on every surface with no hierarchy reason | Genuine glassmorphism aesthetic with fallback for `prefers-reduced-transparency` | Use glass only on one elevated layer (navbar, one modal). Use opaque surfaces elsewhere. |
 
-### 内容
+### Content
 
-| 反模式 | 外观 | 覆盖条件 | 替代方案 |
+| Anti-pattern | What it looks like | Override | Use instead |
 |---|---|---|---|
-| 通用名称 | "John Doe"、"Jane Smith"、"Acme Corp"、"Nexus"、"SmartFlow"、"Flowbit" | 永远不可接受 | 多样化、听起来真实的名称。上下文化的、可信的品牌名称。 |
-| AI 文案套话 | "Elevate"、"Seamless"、"Unleash"、"Next-Gen"、"Game-changer"、"Delve"、"Tapestry"、"In the world of..." | 永远不可接受 | 平实、具体的语言。主动语态。具体动词。 |
-| 虚假整数 | 99.99%、50%、$100.00、1M 用户 | 永远不可接受 | 有机的、杂乱的数据：47.2%、$99.00、+1 (312) 847-1928、12,847 用户 |
-| 被动语态 | "Mistakes were made"、"Your request was processed" | 法规或法律文本要求被动语态 | 主动语态："We couldn't save your changes"、"We processed your request" |
-| Lorem Ipsum | 拉丁语占位文本 | 永远不可接受 | 真实的草稿文案。如果没有，以产品语调编写功能性占位文本。 |
-| 每个标题都用 Title Case | 每个标题使用 Title Case | 已确立的风格指南要求 Title Case | 大多数标题使用句子大小写。Title Case 保留给专有名词。 |
+| Generic names | "John Doe", "Jane Smith", "Acme Corp", "Nexus", "SmartFlow", "Flowbit" | Never acceptable | Diverse, realistic-sounding names. Contextual, believable brand names. |
+| AI copywriting cliches | "Elevate", "Seamless", "Unleash", "Next-Gen", "Game-changer", "Delve", "Tapestry", "In the world of..." | Never acceptable | Plain, specific language. Active voice. Concrete verbs. |
+| Fake round numbers | 99.99%, 50%, $100.00, 1M users | Never acceptable | Organic, messy data: 47.2%, $99.00, +1 (312) 847-1928, 12,847 users |
+| Passive voice | "Mistakes were made", "Your request was processed" | Regulatory or legal text requiring passive voice | Active voice: "We couldn't save your changes", "We processed your request" |
+| Lorem Ipsum | Latin placeholder text | Never acceptable | Real draft copy. If none exists, write functional placeholder text in the product voice. |
+| Title Case On Every Header | Every heading uses Title Case | Established style guide requires Title Case | Sentence case for most headings. Reserve Title Case for proper nouns. |
 
-### 运营 UI（Node04 专属）
+### Operational UI (node04 exclusive)
 
-| 反模式 | 外观 | 覆盖条件 | 替代方案 |
+| Anti-pattern | What it looks like | Override | Use instead |
 |---|---|---|---|
-| 虚假密度 | 一行中等宽指标卡、每组周围的装饰性面板 | 真正的仪表板，每个指标都能改变决策 | 简洁布局。指标有呼吸空间。用 `border-t` 或 `divide-y` 分组。 |
-| 仅悬停可发现操作 | 行操作、删除按钮或设置仅悬停可见 | 在触摸或运营界面上永远不可接受 | 操作不悬停即可见。使用带标签的图标按钮。在表格中，在专用列中显示操作。 |
-| 不可读的小字 | 主要信息使用 `text-xs` 或更小 | 脚注/法律声明/次要元数据 | 运营文字最小 `text-sm`。主要信息 `text-base`。 |
-| 不一致间距 | 随机的 padding 值，无节奏 | 永远不可接受 | 一致的间距比例。使用基于 token 的间距。 |
-| 数据形状层级 | 不改变决策的指标占据主要屏幕位置 | 某个指标确实是主要决策驱动因素 | 决策/操作优先。仅在指标能改变决策时显示。 |
-| 隐藏操作可操作性 | 按钮样式为文字、链接样式为静态文字、无可见交互提示 | 设计系统使用纯文字按钮并有文档记录的悬停/聚焦状态 | 按钮不悬停即看起来可操作。使用背景填充、边框或图标作为可操作性提示。 |
-| 运营屏幕上的装饰性图像 | 管理面板上的库存照片、插图或渐变色块 | 有明确目的的引导或空状态插图 | 无装饰性图像。使用真实数据、状态指示器和可操作 UI。 |
+| Fake density | Equal-size metric cards in a row, decorative panels around every group | Genuine dashboard where every metric changes a decision | Plain layout. Metrics breathe. Group with `border-t` or `divide-y`. |
+| Hover-only action discovery | Row actions, delete buttons, or settings only visible on hover | Never acceptable on touch or operational surfaces | Actions visible without hover. Use icon buttons with labels. On tables, show actions in a dedicated column. |
+| Unreadable small text | `text-xs` or smaller for primary information | Fine print / legal disclaimers / secondary metadata | `text-sm` minimum for operational text. `text-base` for primary information. |
+| Inconsistent spacing | Random padding values, no rhythm | Never acceptable | Consistent spacing scale. Use token-based spacing. |
+| Data-shaped hierarchy | Metrics that do not change a decision occupying primary screen position | A metric is genuinely the primary decision driver | Decision/action first. Show metrics only when they change a decision. |
+| Hidden action affordance | Buttons styled as text, links styled as static text, no visible interactive cue | Design system uses text-only buttons with documented hover/focus states | Buttons look actionable without hover. Use background fill, border, or icon for affordance. |
+| Decorative imagery on operational screens | Stock photos, illustrations, or gradient blobs on admin panels | Onboarding or empty-state illustration with clear purpose | No decorative imagery. Use real data, status indicators, and actionable UI. |
 
-### 组件
+### Components
 
-| 反模式 | 外观 | 覆盖条件 | 替代方案 |
+| Anti-pattern | What it looks like | Override | Use instead |
 |---|---|---|---|
-| 通用卡片外观 | 每个分组都使用 `border + shadow + white background` | 永远不可作为默认 | 移除边框，仅使用背景色或仅使用间距。卡片仅在高度传达层级时存在。 |
-| 总是一个填充 + 一个幽灵按钮 | 每个 CTA 组都有一个主填充 + 一个次级描边 | 真正同等重要的次要操作 | 使用文字链接或三级样式以减少视觉噪音。 |
-| 药丸形 "New" / "Beta" 徽章 | 状态标签使用圆角药丸徽章 | 已确立的设计系统一致使用药丸徽章 | 方形徽章、标志或纯文字标签。 |
-| 手风琴 FAQ 区块 | 每个 FAQ 都使用可展开手风琴 | 简短 FAQ 仅 3-5 项 | 并排列表、可搜索帮助或内联渐进式披露。 |
-| 3 卡轮播推荐 | 三个推荐卡片配圆点导航 | 永远不可作为默认 | 瀑布流墙、嵌入式社交帖子或单个轮换引言。 |
-| 3 塔定价表 | 三个等高定价列 | 真正的 3 档定价且有明确差异化 | 用颜色和强调高亮推荐档位，而不仅是额外高度。 |
-| 万物皆模态 | 简单操作使用弹出模态框 | 破坏性确认或需要焦点的复杂表单 | 内联编辑、滑出面板或可展开区块。 |
-| 手工搭建的假仪表板 | 装饰性仪表板 mockup 作为产品证明 | 永远不可作为证明 | 真实截图、实际的迷你组件或在页面任务更清晰时不用视觉。 |
-| 任意渐变色块作为产品证明 | 抽象渐变形状假装展示产品 | 永远不可作为证明 | 真实产品图像、相关摄影或不用视觉。 |
+| Generic card look | `border + shadow + white background` on every grouping | Never acceptable as default | Remove border, use only background color, or use only spacing. Cards exist only when elevation communicates hierarchy. |
+| Always one filled + one ghost button | Every CTA group has one primary filled + one secondary outline | Genuine secondary action that is equally important | Text links or tertiary styles to reduce visual noise. |
+| Pill "New" / "Beta" badges | Rounded pill badges for status labels | Established design system uses pill badges consistently | Square badges, flags, or plain text labels. |
+| Accordion FAQ sections | Expandable accordion for every FAQ | Short FAQ with 3-5 items | Side-by-side list, searchable help, or inline progressive disclosure. |
+| 3-card carousel testimonials | Three testimonial cards with dot navigation | Never acceptable as default | Masonry wall, embedded social posts, or a single rotating quote. |
+| Pricing table with 3 towers | Three pricing columns of equal height | Genuine 3-tier pricing with clear differentiation | Highlight the recommended tier with color and emphasis, not just extra height. |
+| Modals for everything | Popup modal for simple actions | Destructive confirmation or complex form requiring focus | Inline editing, slide-over panels, or expandable sections. |
+| Hand-built fake dashboard | Decorative dashboard mockup as product proof | Never acceptable as proof | Real screenshot, actual mini-component, or no visual when the page job is clearer without one. |
+| Arbitrary gradient blob as product proof | Abstract gradient shape pretending to show the product | Never acceptable as proof | Real product image, relevant photography, or no visual. |
 
-### 图标
+### Iconography
 
-| 反模式 | 外观 | 覆盖条件 | 替代方案 |
+| Anti-pattern | What it looks like | Override | Use instead |
 |---|---|---|---|
-| 仅用 Lucide / Feather | 默认图标集无考虑 | 项目已依赖 Lucide，或用户明确要求 | Phosphor Icons、HugeIcons、Radix UI Icons 或 Tabler Icons。每个项目一个图标族。全局统一 `strokeWidth`（1.5 或 2.0）。 |
-| 陈词滥调比喻图标 | "Launch"用火箭、"Security"用盾牌、"Idea"用灯泡 | 永远不可作为默认 | 不太明显的图标：闪电、指纹、火花、保险库。 |
-| 不一致描边宽度 | 同一项目中图标混用 `strokeWidth` 值 | 永远不可接受 | 审计所有图标。统一到一个描边宽度。 |
-| 手绘 SVG 图标 | 为标准操作自定义绘制图标路径 | 所有库中确实缺少某个字形且有理由自定义设计 | 安装第二个库或从基础元素组合。永远不要从头绘制图标路径。 |
-| 缺少 favicon | 无 favicon 或默认浏览器图标 | 永远不可接受 | 始终包含品牌化的 favicon。 |
+| Lucide / Feather exclusively | Default icon set with no consideration | Project already depends on Lucide, or user explicitly asks for it | Phosphor Icons, HugeIcons, Radix UI Icons, or Tabler Icons. One family per project. Standardize `strokeWidth` globally (1.5 or 2.0). |
+| Cliche metaphor icons | Rocketship for "Launch", shield for "Security", lightbulb for "Idea" | Never acceptable as default | Less obvious icons: bolt, fingerprint, spark, vault. |
+| Inconsistent stroke widths | Mixed `strokeWidth` values across icons in the same project | Never acceptable | Audit all icons. Standardize to one stroke weight. |
+| Hand-rolled SVG icons | Custom-drawn icon paths for standard actions | A glyph is genuinely missing from all libraries and custom design is warranted | Install a second library or compose from primitives. Never draw icon paths from scratch. |
+| Missing favicon | No favicon or default browser icon | Never acceptable | Always include a branded favicon. |
 
-### 素材
+### Assets
 
-| 反模式 | 外观 | 覆盖条件 | 替代方案 |
+| Anti-pattern | What it looks like | Override | Use instead |
 |---|---|---|---|
-| 库存风格视觉裁剪 | 模糊、裁剪、氛围性库存照片不展示真实产品 | 品牌英雄的氛围背景配其他位置的真实产品视觉 | 真实截图、实际迷你组件、生成素材、相关摄影或不用视觉。 |
-| 填充式徽章 | 不真实的装饰性徽章、信任印章或认证 | 带可验证链接的真实认证 | 移除填充式徽章。仅展示真实的、可验证的信任信号。 |
-| 编造的指标 | "99.99% uptime"、"1M+ users"、"Trusted by Fortune 500" 无证据 | 有证据的真实指标 | 移除不可验证的声明。仅展示你能证明的指标。 |
-| 摄影署名作为装饰 | 营销页面上的 "Field study no. 12 - Ines Caetano" 风格署名 | 有真实摄影署名的真正编辑出版物 | 移除装饰性署名。 |
-| 营销页面上的版本号页脚 | 营销或落地页上的 "v1.4.2"、"Build 0048" | 开发者文档或内部工具 | 移除营销页面上的版本标签。 |
+| Stock-like visual crops | Blurred, cropped, atmospheric stock photos that do not show the real product | Atmospheric background for a brand hero with real product visual elsewhere | Real screenshot, actual mini-component, generated asset, relevant photography, or no visual. |
+| Filler badges | Decorative badges, trust seals, or certifications that are not real | Real certifications with verifiable links | Remove filler badges. Show only real, verifiable trust signals. |
+| Invented metrics | "99.99% uptime", "1M+ users", "Trusted by Fortune 500" without evidence | Real metrics with evidence | Remove unverifiable claims. Show only metrics you can prove. |
+| Photo-credit captions as decoration | "Field study no. 12 - Ines Caetano" style captions on marketing pages | Genuine editorial publication with real photography credits | Remove decorative captions. |
+| Version footers on marketing pages | "v1.4.2", "Build 0048" on marketing or landing pages | Developer documentation or internal tool | Remove version labels from marketing pages. |
 
-## 预检清单
+## Pre-Flight Checklist
 
-在输出代码之前运行此矩阵。这是最后一道筛选。如果任何框未通过，输出未完成。
+Run this matrix before outputting code. This is the last filter. If any box fails, the output is not done.
 
-**这不是可选的。运行每个框。如果任何框未通过，在交付前修复它。**
+**This is not optional. Run every box. If any box fails, fix it before delivering.**
 
-### 需求与方向
+### Brief and direction
 
-- [ ] 需求推断已声明（来自 `visual-direction-and-design-system.md` 的一行设计解读）？
-- [ ] 参数值明确且基于需求推理，而非静默使用基线？
-- [ ] 设计系统从系统图谱中选择，或美学诚实标注？
-- [ ] 重新设计模式已检测并执行审计（如适用，参见 `prototype-and-redesign.md`）？
+- [ ] Brief inference declared (one-line design read from `visual-direction-and-design-system.md`)?
+- [ ] Dial values explicit and reasoned from the brief, not silently using baseline?
+- [ ] Design system chosen from the system map, or aesthetic labeled honestly?
+- [ ] Redesign mode detected and audit performed (if applicable, see `prototype-and-redesign.md`)?
 
-### 色彩与主题
+### Color and theme
 
-- [ ] 无 AI 紫色/蓝色光晕作为默认美学？
-- [ ] 一个强调色在所有区块中一致使用（色彩一致性锁定）？
-- [ ] 整个页面一个主题（浅色、深色或自动）- 无页面中途区块切换？
-- [ ] 如果是高端消费需求：方案不是米色+黄铜+浓缩咖啡色系？
-- [ ] 同一项目中无暖灰和冷灰混用？
-- [ ] 阴影色调与背景色匹配，浅色背景上无纯黑投影？
+- [ ] No AI-purple / blue glow as default aesthetic?
+- [ ] One accent color used identically across all sections (color consistency lock)?
+- [ ] One theme (light, dark, or auto) for the whole page - no mid-page section flips?
+- [ ] If premium-consumer brief: palette is NOT the beige+brass+espresso family?
+- [ ] No mixing warm and cool grays within the same project?
+- [ ] Shadows tinted to background hue, no pure-black drop shadows on light backgrounds?
 
-### 字体
+### Typography
 
-- [ ] 默认 sans 不是 Inter（或 Inter 有明确理由）？
-- [ ] 如果使用 serif：不是 Fraunces 或 Instrument_Serif（或明确有品牌理由）？
-- [ ] 与上一个项目使用不同的 serif（轮换）？
-- [ ] 无混合字族强调（改为同字族的斜体/粗体）？
-- [ ] 每个带下伸字母（y g j p q）的斜体单词都有 `leading-[1.1]` 最小值 + `pb-1`？
-- [ ] 无到处全大写子标题（改为句子大小写或有意的 small-caps）？
+- [ ] Default sans is NOT Inter (or Inter is explicitly justified)?
+- [ ] If serif is used: NOT Fraunces or Instrument_Serif (or explicitly brand-justified)?
+- [ ] Different serif from your previous project (rotation)?
+- [ ] No mixed-family emphasis (italic/bold of same family instead)?
+- [ ] Every italic word with descender letters (y g j p q) has `leading-[1.1]` min + `pb-1`?
+- [ ] No all-caps subheaders everywhere (sentence case or intentional small-caps instead)?
 
-### 布局
+### Layout
 
-- [ ] VARIANCE > 4 时无居中 hero（除非编辑型/宣言）？
-- [ ] 无作为默认的三个等宽功能卡片？
-- [ ] 无卡片套卡片区块（仅在高度传达层级时使用卡片）？
-- [ ] 使用 `min-h-[100dvh]`，不是 `h-screen`？
-- [ ] 多列使用 CSS Grid，不是 flexbox 百分比计算？
-- [ ] 存在 `max-w` 容器（无边缘到边缘拉伸）？
-- [ ] 一套圆角系统一致应用（或有文档记录的混合规则）？
-- [ ] 无页面中途区块切换到反转模式？
-- [ ] 无 3 个以上连续区块使用相同的图文分屏布局？
+- [ ] No centered hero when VARIANCE > 4 (unless editorial/manifesto)?
+- [ ] No three equal feature cards as default?
+- [ ] No card-on-card sections (cards only when elevation communicates hierarchy)?
+- [ ] `min-h-[100dvh]` used, not `h-screen`?
+- [ ] CSS Grid used for multi-column, not flexbox percentage math?
+- [ ] `max-w` container present (no edge-to-edge stretch)?
+- [ ] One corner-radius system applied consistently (or documented mixed rule)?
+- [ ] No section flips to inverted mode mid-page?
+- [ ] No 3+ consecutive sections with the same image+text-split layout?
 
-### 内容
+### Content
 
-- [ ] 无通用名称（John Doe、Acme Corp、Nexus、Flowbit）？
-- [ ] 无 AI 文案套话（Elevate、Seamless、Unleash、Next-Gen）？
-- [ ] 无虚假整数（99.99%、50%、$100.00）？
-- [ ] 无 Lorem Ipsum？
-- [ ] 大多数标题使用句子大小写（不是到处 Title Case）？
-- [ ] 可见 UI 文本中无 AI 风格的 em-dash 标点？
-- [ ] 每个可见字符串已重读检查含糊声明、勉强比喻、未验证数字？
+- [ ] No generic names (John Doe, Acme Corp, Nexus, Flowbit)?
+- [ ] No AI copywriting cliches (Elevate, Seamless, Unleash, Next-Gen)?
+- [ ] No fake round numbers (99.99%, 50%, $100.00)?
+- [ ] No Lorem Ipsum?
+- [ ] Sentence case for most headings (not Title Case everywhere)?
+- [ ] No em-dashes used as AI-style punctuation in visible UI text?
+- [ ] Every visible string re-read for vague claims, forced metaphors, unverified numbers?
 
-### 运营 UI（如适用）
+### Operational UI (if applicable)
 
-- [ ] 无虚假密度（等宽指标卡、每组周围的装饰性面板）？
-- [ ] 操作不悬停即可见（无仅悬停可发现）？
-- [ ] 运营文字最小 `text-sm`（无不可读的 `text-xs`）？
-- [ ] 指标仅在能改变决策时显示？
-- [ ] 按钮和行不悬停即可见可操作？
-- [ ] 运营屏幕上无装饰性图像？
+- [ ] No fake density (equal metric cards, decorative panels around every group)?
+- [ ] Actions visible without hover (no hover-only discovery)?
+- [ ] `text-sm` minimum for operational text (no unreadable `text-xs`)?
+- [ ] Metrics only shown when they change a decision?
+- [ ] Buttons and rows visibly actionable without hover?
+- [ ] No decorative imagery on operational screens?
 
-### 移动端与多分辨率（参见 `component-responsive-accessible-build.md`）
+### Mobile and multi-resolution (see `component-responsive-accessible-build.md`)
 
-- [ ] 在 360px（小型 Android）、390px（标准 iPhone）、768px（平板竖屏）下测试？
-- [ ] 任何测试视口下无组件堆叠/重叠？
-- [ ] 任何测试视口下无水平溢出？
-- [ ] 触摸目标 >= 44x44 CSS px 且相邻目标间距 >= 8px？
-- [ ] 固定/粘性元素不遮挡主要操作或交互内容？
-- [ ] 所有视口下主要操作不悬停即可见？
-- [ ] 所有视口下导航可达？
-- [ ] 未使用 `overflow-x: hidden` 掩盖布局问题（已修复根本原因）？
+- [ ] Tested at 360px (small Android), 390px (standard iPhone), 768px (tablet portrait)?
+- [ ] No component stacking/overlap at any tested viewport?
+- [ ] No horizontal overflow at any tested viewport?
+- [ ] Touch targets >= 44x44 CSS px with >= 8px spacing between adjacent targets?
+- [ ] Fixed/sticky elements do not cover primary actions or interactive content?
+- [ ] Primary action visible without hover on all viewports?
+- [ ] Navigation reachable on all viewports?
+- [ ] No `overflow-x: hidden` used to mask a layout problem (fixed the root cause instead)?
 
-### 组件与图标
+### Components and icons
 
-- [ ] 图标来自允许的库（Phosphor / HugeIcons / Radix / Tabler），无手绘 SVG 路径？
-- [ ] 每个项目一个图标族，统一的 strokeWidth？
-- [ ] 无陈词滥调比喻图标（火箭=发布、盾牌=安全）？
-- [ ] 包含 favicon？
-- [ ] 无作为默认的手风琴 FAQ（除非简短 3-5 项 FAQ）？
-- [ ] 无作为默认的 3 卡轮播推荐？
-- [ ] 提供空状态 / 加载状态 / 错误状态？
+- [ ] Icons from an allowed library (Phosphor / HugeIcons / Radix / Tabler), no hand-rolled SVG paths?
+- [ ] One icon family per project, standardized strokeWidth?
+- [ ] No cliche metaphor icons (rocket=launch, shield=security)?
+- [ ] Favicon included?
+- [ ] No accordion FAQ as default (unless short 3-5 item FAQ)?
+- [ ] No 3-card carousel testimonials as default?
+- [ ] Empty / loading / error states provided?
 
-### 动效
+### Motion
 
-- [ ] 每个动画可用一句话说明理由（层级 / 叙事 / 反馈 / 状态转换）？
-- [ ] 无使用 `top` / `left` / `width` / `height` 的动画（仅 transform 和 opacity）？
-- [ ] 无 `window.addEventListener('scroll')`（使用 `useScroll()` / IntersectionObserver / CSS 滚动驱动）？
-- [ ] MOTION > 3 的所有动画提供减少动效回退？
-- [ ] `useEffect` 动画有严格的清理函数？
+- [ ] Every animation justified in one sentence (hierarchy / storytelling / feedback / state transition)?
+- [ ] No animation using `top` / `left` / `width` / `height` (transform and opacity only)?
+- [ ] No `window.addEventListener('scroll')` (using `useScroll()` / IntersectionObserver / CSS scroll-driven)?
+- [ ] Reduced motion fallback provided for everything with MOTION > 3?
+- [ ] `useEffect` animations have strict cleanup functions?
 
-### 素材
+### Assets
 
-- [ ] 使用真实图像（优先生成工具，其次 Picsum-seed，最后明确占位符）？
-- [ ] 无 div 假截图？
-- [ ] 无手绘装饰性 SVG？
-- [ ] 图像有必要时不用纯文字极简主义？
-- [ ] 无库存风格视觉裁剪？
-- [ ] 无填充式徽章或编造的指标？
-- [ ] 无手工假仪表板或渐变色块作为产品证明？
+- [ ] Real images used (gen-tool first, then Picsum-seed, then explicit placeholder slots)?
+- [ ] No div-based fake screenshots?
+- [ ] No hand-rolled decorative SVGs?
+- [ ] No pure-text minimalism when images are warranted?
+- [ ] No stock-like visual crops?
+- [ ] No filler badges or invented metrics?
+- [ ] No hand-built fake dashboard or gradient blob as product proof?
 
-### 无障碍
+### Accessibility
 
-- [ ] 按钮文字在按钮背景上可读（正文 WCAG AA 4.5:1，大文字 3:1）？
-- [ ] 表单输入、占位符、聚焦环、标签通过 WCAG AA？
-- [ ] 存在 focus-visible 指示器？
-- [ ] 已变更控件的键盘路径已测试？
-- [ ] 对话框焦点管理和关闭后返回焦点？
-- [ ] 在 ARIA 之前使用语义化 HTML？
-- [ ] 有意义的图像上有 `alt` 文本？
+- [ ] Button text readable against button background (WCAG AA 4.5:1 for body, 3:1 for large text)?
+- [ ] Form inputs, placeholders, focus rings, labels pass WCAG AA?
+- [ ] Focus-visible indicators present?
+- [ ] Keyboard path tested for changed controls?
+- [ ] Dialog focus management and return focus after close?
+- [ ] Semantic HTML used before ARIA?
+- [ ] `alt` text on meaningful images?
 
-### 系统完整性
+### System integrity
 
-- [ ] 每个项目一个设计系统（无 Material + shadcn 混用）？
-- [ ] 无嵌套盒布局（卡片套卡片套卡片）？
-- [ ] 无围绕一切的巨大圆角包裹区块？
-- [ ] 无虚假技术药丸和装饰性微标签？
-- [ ] 无滚动提示（"Scroll"、"scroll to explore"）？
-- [ ] 无区块编号 eyebrow（"00 / INDEX"、"001 - Capabilities"）？
-- [ ] hero 底部无装饰文字条（"BRAND. MOTION. SPATIAL."）？
+- [ ] One design system per project (no Material + shadcn mixed)?
+- [ ] No nested-box layouts (cards inside cards inside cards)?
+- [ ] No giant rounded wrapper sections around everything?
+- [ ] No fake technical pills and decorative micro-labels?
+- [ ] No scroll cues ("Scroll", "scroll to explore")?
+- [ ] No section-numbering eyebrows ("00 / INDEX", "001 - Capabilities")?
+- [ ] No decoration text strip at hero bottom ("BRAND. MOTION. SPATIAL.")?
 
 ---
 
-**验收标准：** 阅读本文件后，你能够通过具体标识符（hex 值、字体名称、布局模式）识别每个反模式，
-说明覆盖条件（Brownfield vs Greenfield / 品牌明确要求），并在交付前运行预检清单验证所有框通过。
+**Acceptance criteria:** After reading this file, you can identify each anti-pattern by its concrete
+identifier (hex values, font names, layout patterns), state the override condition (brownfield vs
+greenfield / brand explicitly requires it), and run the pre-flight checklist to verify all boxes pass
+before delivering.

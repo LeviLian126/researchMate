@@ -1,132 +1,143 @@
-﻿# 原型与重新设计
+﻿# Prototype and Redesign
 
-> **目标：** 处理外部设计素材、审计现有工作，并在不破坏受保护事实的前提下安全地进行现代化。
+> **Goal:** Handle external design material, audit existing work, and modernize safely without breaking
+> protected facts.
 >
-> **负责：** 素材分类、重新设计审计、现代化优先级、图像优先工作流、变体探索、受保护事实
+> **Owns:** material classification, redesign audit, modernization priority, image-first workflow, variant exploration, protected facts
 >
-> **不负责：** 视觉方向（`visual-direction-and-design-system.md`）、浏览器验证（`browser-proof-and-debug.md`）
+> **Does NOT own:** visual direction (`visual-direction-and-design-system.md`), browser verification (`browser-proof-and-debug.md`)
 
-## 分类提供的素材
+## Classify Supplied Material
 
-将外部素材视为有局限性的证据。截图、Figma 画板、导出文件或原型是候选输入，绝非高于产品范围、
-系统契约、现有无障碍性或仓库真实状态的权威。
+Treat external material as evidence with limits. A screenshot, Figma frame, export, or prototype is a
+candidate input, never an authority above product scope, system contracts, existing accessibility, or
+repo truth.
 
-| 素材 | 适用于 | 绝非权威用于 |
+| Material | Useful for | Never authoritative for |
 |---|---|---|
-| 截图 | 层级、密度、构图、视觉氛围 | 行为、隐藏状态、无障碍性、数据/认证真实状态 |
-| Figma / Stitch / v0 | 信息架构实验、内容清点、组件意图 | 生产代码、依赖项、后端或权限行为 |
-| 导出的 HTML | 结构/文案/素材清点 | 仓库架构、安全性、响应式/无障碍完整性 |
-| 品牌素材 | 现有标识、色彩/字体/图片方向 | 自动页面布局或交互策略 |
-| 生成的图像 / 参考图 | 主题/美术方向和素材探索 | 事实性产品证明或实时 UI 状态 |
-| 现有站点 | 可用的路由、转化、内容、需保留的行为 | 替换品牌/产品含义的许可 |
+| screenshot | hierarchy, density, composition, visual mood | behavior, hidden states, accessibility, data/auth truth |
+| Figma / Stitch / v0 | IA experiment, content inventory, component intent | production code, dependencies, backend or permission behavior |
+| exported HTML | structure/copy/assets inventory | repo architecture, security, responsive/accessibility completeness |
+| brand asset | existing identity, color/type/photo direction | automatic page layout or interaction policy |
+| generated image / reference | subject/art direction and asset exploration | factual product proof or live UI state |
+| existing site | working routes, conversion, content, behavior to preserve | permission to replace brand/product meaning |
 
-当素材与 Node01 范围、Node02 契约、Node03 行为、当前仓库系统或无障碍要求冲突时，
-保留有用的意图并重建不安全的细节。
+When material conflicts with Node01 scope, Node02 contract, Node03 behavior, current repo system, or
+accessibility requirements, preserve the useful intention and rebuild the unsafe detail.
 
-## 审计现有工作
+## Audit Existing Work
 
-将工作分类为目标演进、广泛重新设计或已批准的重新定位。
+Classify the work as targeted evolution, broad redesign, or approved repositioning.
 
-- **目标演进：** 仅审计受影响的页面及其直接路径。风险较低，交付更快。以约 40% 的风险
-  获取约 70% 的价值。
-- **广泛重新设计：** 在实施前建立保留/废弃/改进记录。风险较高，需要明确批准。
-- **已批准的重新定位：** 品牌或产品标识正在变化。采用 Greenfield 方式并保留内容。
+- **Targeted evolution:** audit only the affected page and its direct paths. Lower risk, faster
+  delivery. ~70% of value at ~40% of risk.
+- **Broad redesign:** build a preserve/retire/improve record before implementation. Higher risk,
+  requires explicit approval.
+- **Approved repositioning:** brand or product identity is changing. Greenfield approach with
+  preserved content.
 
-### 保留检查清单
+### Preservation checklist
 
-| 领域 | 样式变更前需保留 / 检查 |
+| Area | Preserve / check before style change |
 |---|---|
-| 路由 / 导航 | URL、锚点、深链接、导航标签、激活状态、搜索/寻路 |
-| 转化 / 表单 | 字段、名称、顺序、验证、同意、主要 CTA、确认 |
-| 内容 / 证明 | 已批准的声明、定价、法律文案、推荐、证据、品牌语调 |
-| 分析 / SEO | 事件名称、元数据、canonical/OG、相关结构化数据 |
-| 行为 / 状态 | 认证、权限、加载、空状态、错误、移动端、无障碍优势 |
-| 品牌 | Logo、文字标识、已批准的色彩/字体/素材、信任标记 |
-| 实现 | 框架、token、基础组件、素材路径、性能约束 |
+| routes / navigation | URL, anchors, deep links, nav labels, active state, search/wayfinding |
+| conversion / forms | fields, names, order, validation, consent, primary CTA, confirmation |
+| content / proof | approved claims, pricing, legal copy, testimonials, evidence, brand voice |
+| analytics / SEO | event names, metadata, canonical/OG, structured data where relevant |
+| behavior / states | auth, permission, loading, empty, error, mobile, accessibility wins |
+| brand | logo, wordmark, approved colors/type/assets, trust markers |
+| implementation | framework, tokens, primitives, asset path, performance constraints |
 
-## 现代化优先级
+## Modernization Priority
 
-按以下顺序应用变更，以最小的风险获得最大的视觉影响。当需求满足时停止。
+Apply changes in this order for maximum visual impact with minimum risk. Stop when the brief is
+satisfied.
 
-1. **字体刷新** - 单位风险下最大的视觉提升。替换默认字体，收紧字距，
-   增大展示字号，引入 Medium/SemiBold 字重。
-2. **色彩重新校准** - 降低强调色饱和度，统一中性色（一个灰色系），保留品牌强调色，
-   将阴影色调与背景色相匹配。
-3. **悬停和激活状态** - 添加背景位移、轻微缩放（`scale(0.98)`）或按下位移
-   （`-translate-y-[1px]`）。添加可见的聚焦环。使界面感觉鲜活。
-4. **布局和间距** - 正确的 CSS Grid、`max-w` 容器、一致的间距、视觉对齐、
-   营销页面加倍留白。
-5. **替换通用组件** - 将陈词滥调的模式（3 个等宽卡片、手风琴 FAQ、3 塔定价）
-   替换为现代替代方案（bento 网格、可搜索帮助、高亮推荐档位）。
-6. **添加加载、空状态和错误状态** - 匹配最终布局的骨架屏、包含下一步操作的组合空状态、
-   内联错误消息。使界面感觉完整。
-7. **字体比例和间距打磨** - 高级的最终触感。可变字体动画、描边到填充过渡、文本遮罩揭示。
+1. **Typography refresh** - biggest visual lift per unit of risk. Swap default fonts, tighten tracking,
+   increase display size, introduce Medium/SemiBold weights.
+2. **Color recalibration** - desaturate accents, unify neutrals (one gray family), keep brand accent,
+   tint shadows to background hue.
+3. **Hover and active states** - add background shift, slight scale (`scale(0.98)`), or translate
+   (`-translate-y-[1px]`) on press. Add visible focus rings. Makes the interface feel alive.
+4. **Layout and spacing** - proper CSS Grid, `max-w` container, consistent padding, optical alignment,
+   double the whitespace for marketing pages.
+5. **Replace generic components** - swap cliche patterns (3 equal cards, accordion FAQ, 3-tower
+   pricing) for modern alternatives (bento grid, searchable help, highlighted tier).
+6. **Add loading, empty, and error states** - skeleton loaders matching final layout, composed empty
+   states with next actions, inline error messages. Makes the surface feel finished.
+7. **Typography scale and spacing polish** - the premium final touch. Variable font animation,
+   outlined-to-fill transitions, text mask reveals.
 
-## 图像优先工作流
+## Image-First Workflow
 
-对于视觉关键页面（公开 hero、落地页、作品集、视觉质量至关重要的重新设计），
-当图像生成可用时，遵循图像优先工作流：
+For visually critical pages (public heroes, landing pages, portfolios, redesigns where visual quality
+matters), follow an image-first workflow when image generation is available:
 
-1. **先生成或获取参考图像** - 不要从自由编码开始。图像是设计源头；代码是翻译层。
-2. **一个区块 = 一张图像**（在 Codex 中）- 不要将太多区块压缩到一张不可读的看板中。
-   为每个区块生成独立的大图，以便文字、间距和字体保持可分析性。
-3. **不要裁剪旧图像来提取区块** - 裁剪会破坏间距精度、字体比例关系和布局比例。
-   为每个区块生成全新的独立图像。
-4. **实现前深入分析** - 从每张图像中提取可见文字、字体关系、间距节奏、按钮样式、
-   色彩方案、组件结构和布局逻辑。
-5. **按参考实现** - 不要在实现过程中漂移到通用的编码布局。保留布局逻辑、间距节奏、
-   字体氛围和组件样式。
-6. **重新生成不清晰的区块** - 如果某个区块图像不够清晰，生成一张全新的独立图像而不是猜测。
-   在所有图像中保持相同的视觉语言。
+1. **Generate or obtain reference images first** - do not begin with freeform coding. The image is the
+   design source; the code is the translation layer.
+2. **One section = one image** (in Codex) - do not compress too many sections into one unreadable
+   board. Generate separate large images per section so text, spacing, and typography stay analyzable.
+3. **Do not crop old images for section extraction** - cropping destroys spacing accuracy, type scale
+   relationships, and layout proportions. Generate a fresh standalone image for each section.
+4. **Deeply analyze before implementing** - extract visible text, typography relationships, spacing
+   rhythm, button styling, color palette, component structure, and layout logic from each image.
+5. **Implement to match the reference** - do not drift into a generic coded layout during
+   implementation. Preserve layout logic, spacing rhythm, typography mood, and component style.
+6. **Regenerate unclear sections** - if a section image is not clear enough, generate a fresh
+   standalone image rather than guessing. Preserve the same visual language across all images.
 
-### 防漂移规则
+### Anti-drift rule
 
-一种常见的失败模式是设计漂移：生成的图像看起来很强，但编码结果变得通用。严格避免这种情况。
-在实现过程中：
-- 不要简化为默认模板。
-- 不要用通用行替换独特的区块。
-- 不要将充裕的间距压缩为密集布局。
-- 不要用平淡的层级替换强字体。
-- 不要为方便而移除页面的视觉标识。
+A common failure mode is design drift: the generated images look strong, but the coded result becomes
+generic. Strictly avoid this. During implementation:
+- Do not simplify into default templates.
+- Do not replace distinctive sections with generic rows.
+- Do not compress generous spacing into dense layout.
+- Do not replace strong typography with plain hierarchy.
+- Do not remove the page visual identity for convenience.
 
-## 变体探索
+## Variant Exploration
 
-变体探索是可选的，仅限于公开的视觉关键页面、方向确实不确定的重要重新设计或明确的用户请求。
-它不适用于仪表板打磨、常规 UI 错误或由成熟设计系统管理的界面。
+Variant exploration is optional and limited to public visual-critical pages, an important redesign with
+real direction uncertainty, or explicit user request. It is not for dashboard polish, a routine UI bug,
+or a surface governed by a mature design system.
 
-当请求新的前端页面或用户要求更改当前视觉方向时，创建 2-3 个简单、明显不同的演示供用户选择。
-如果前端方向已经确立，跳过此探索并遵循现有系统。
+When a new frontend page is requested or the user asks to change the current visual direction, create
+2-3 simple, visibly different demos for the user to choose from. If the frontend direction is already
+established, skip this exploration and follow the existing system.
 
-- 展示 2-3 个简单、明显不同的方向。
-- 让用户在生产实现前选择方向。
-- 提取所选方向的可复用约束并遵循现有系统。
-- 不要创建对比服务器、持久的品味档案、遥测、自主生成循环或项目本地设计素材系统。
-  输出是一个已批准的方向和实现约束，而不是一个独立的产品。
+- Show 2-3 simple, visibly different directions.
+- Let the user select the direction before production implementation.
+- Extract the selected direction reusable constraints and follow the existing system.
+- Do not create comparison servers, persistent taste profiles, telemetry, autonomous generation loops,
+  or project-local design artifact systems. The output is an approved direction and implementation
+  constraints, not a separate product.
 
-## 受保护事实
+## Protected Facts
 
-未经用户明确批准，绝不修改：
+Never modify without explicit user approval:
 
-- URL 结构 / 路由 slug
-- 主要导航标签
-- 表单字段名称或顺序（会破坏分析和自动填充）
-- 品牌 Logo 或文字标识
-- 现有法律 / 同意 / Cookie 文案
-- 分析事件名称
-- 已批准的声明、定价、推荐
+- URL structure / route slugs
+- Primary nav labels
+- Form field names or order (breaks analytics + autofill)
+- Brand logo or wordmark
+- Existing legal / consent / cookie copy
+- Analytics event names
+- Approved claims, pricing, testimonials
 
-按以下顺序现代化：清晰度和层级、字体/节奏、状态/反馈、色彩校准、
-布局构图，然后是区块或组件的替换。不要静默更改路由 slug、
-分析事件、表单含义、法律文案或品牌标识。
+Modernize in order: clarity and hierarchy, typography/rhythm, states/feedback, color calibration,
+layout composition, then replacement of a section or block. Do not silently change route slugs,
+analytics events, form meaning, legal copy, or brand identity.
 
-## 交接受保护事实
+## Hand Off Protected Facts
 
-声明保留、废弃、改进和延迟项。仅在持久的方向、行为、状态覆盖或素材/系统选择发生变化时
-更新当前状态前端文档。更新长期 HTML 项目看板时使用
-`../08-agent-context-html/README.md`。
+State preserve, retire, improve, and deferred items. Update current-state frontend docs only when
+durable direction, behavior, state coverage, or asset/system choices changed. Use
+`../08-agent-context-html/README.md` when updating a long-lived HTML project board.
 
 ---
 
-**验收标准：** 阅读本文件后，你能够按证据局限性分类任何外部素材，对现有工作运行保留/废弃/改进
-审计，按正确的优先级顺序应用现代化，对视觉关键页面遵循图像优先工作流，仅在合理时探索变体，
-并识别每一个不能静默更改的受保护事实。
+**Acceptance criteria:** After reading this file, you can classify any external material by its
+evidence limits, run a preserve/retire/improve audit on existing work, apply modernization in the
+correct priority order, follow the image-first workflow for visually critical pages, explore variants
+only when justified, and identify every protected fact that must not change silently.

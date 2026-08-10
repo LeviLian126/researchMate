@@ -1,39 +1,44 @@
-﻿# 范围裁剪与规格说明
+# Scope Cut and Spec
 
-将已完成的发现裁剪至能测试最高风险假设的最小产品。然后编写 Node02 将消费的规格说明。
+Take the completed discovery and cut it to the smallest product that tests the
+riskiest hypothesis. Then write the spec Node02 will consume.
 
-## MVP 纳入规则
+## MVP inclusion rule
 
-一个功能进入 MVP 仅当以下至少一项为真：
+A feature enters the MVP only when at least one is true:
 
-1. 没有它，核心任务无法完成。
-2. 没有它，最高风险假设无法测试。
-3. 没有它，产品不安全、不合法或不可信。
-4. 没有它，测量的用户行为会产生误导。
+1. Without it, the core job cannot be completed.
+2. Without it, the riskiest assumption cannot be tested.
+3. Without it, the product is unsafe, illegal, or untrustworthy.
+4. Without it, measured user behavior would be misleading.
 
-如果功能不满足任何一项，它归入范围外或非目标。
+If a feature satisfies none, it goes to out-of-scope or non-goals.
 
-## 范围裁剪质询
+## Scope-cut grilling
 
-对于每个候选功能，问：
+For each candidate feature, ask:
 
-> 如果移除它，用户还能完成核心任务吗？
+> If this is removed, can the user still complete the core job?
 
-- 能：范围外，可能以后做。
-- 不能，但存在手动替代方案：范围外，使用替代方案。
-- 不能且无替代方案：在范围内。
+- Yes: out of scope, possibly later.
+- No, but a manual workaround exists: out of scope, use the workaround.
+- No and no workaround: in scope.
 
-然后问：
+Then ask:
 
-> 此功能是否引入了新的用户类型、平台、数据类型、集成或商业模式？
+> Does this feature introduce a new user type, platform, data type, integration, or
+> business model?
 
-如果是，重新考虑。它可能是扩大产品边界的范围泄漏。
+If yes, reconsider. It may be scope leakage that expands the product boundary.
 
-当这些选择能保持被测试的价值主张时，优先选择临时手动操作、单一平台、单一语言、单一工作流和受控的入门流程。不要在信任、安全、隐私、法律、支付或不可逆数据行为上造假。
+Prefer temporary manual operations, one platform, one language, one workflow, and
+controlled onboarding when these choices preserve the tested value proposition. Do
+not fake trust, safety, privacy, legal, payment, or irreversible data behavior.
 
-## 编写规格说明
+## Write the spec
 
-将质询综合为以下文档。当证据薄弱时保持各节简洁。不要用通用语言填充篇幅。
+Synthesize the grilling into the following document. Keep sections concise when
+evidence is thin. Do not fill space with generic language.
 
 ```markdown
 # Product Spec: [Name]
@@ -85,14 +90,17 @@ No "works correctly" or "handles edge cases." State the observable behavior.
 - [ ] NO_GO: current evidence does not support continuing
 ```
 
-## 需求变更
+## Requirement changes
 
-当用户在 Node01 期间变更需求时，不要对变更进行分类。问它影响哪些已决定的条目：受众、核心旅程或范围。只对受影响的部分重新质询。更新规格说明。保持简单。
+When the user changes a requirement during Node01, do not classify the change. Ask
+which already-decided items it affects: audience, core journey, or scope. Re-grill
+only the affected parts. Update the spec. Keep it simple.
 
-## 不应做的事
+## What not to do
 
-- 不要在未指明满足哪条纳入规则的情况下纳入功能。
-- 不要将"快"、"简单"、"安全"或"直观"列为需求。替换为可衡量或可观察的条件。
-- 不要在规格说明中规定架构。陈述任务和约束。
-- 不要让验收标准保持主观。
-- 不要跳过非目标。没有它们，范围会悄然漂移。
+- Do not include a feature without naming which inclusion rule it satisfies.
+- Do not list "fast," "easy," "secure," or "intuitive" as requirements. Replace with
+  measurable or observable conditions.
+- Do not prescribe architecture in the spec. State the job and the constraints.
+- Do not leave acceptance criteria subjective.
+- Do not skip non-goals. Without them, scope drifts silently.

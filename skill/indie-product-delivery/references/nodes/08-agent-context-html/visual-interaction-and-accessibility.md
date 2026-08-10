@@ -1,126 +1,126 @@
-# 视觉、交互与可访问性系统
+# Visual, Interaction, and Accessibility System
 
-将 HTML 用作难以作为线性 Markdown 文档理解的信息的工作面。使用 [HTML Effectiveness](https://thariqs.github.io/html-effectiveness/) 作为默认前端参考：以让读者一眼看出其形态的方式渲染比较、流程、时间线、依赖图、带注释的证据和状态车道。保持当前快照可直接打开，并使用普通本地导航链接聚焦的主题页面。
+Use HTML as a working surface for information that is hard to understand as a linear Markdown document. Use [HTML Effectiveness](https://thariqs.github.io/html-effectiveness/) as the default frontend reference: render comparisons, flows, timelines, dependency maps, annotated evidence, and status lanes in the form that lets a reader see their shape at a glance. Keep the current snapshot directly openable and link focused topic pages with ordinary local navigation.
 
 ## Workflow
 
-选择与每种信息关系匹配的空间形式，重建选定的 HTML Effectiveness 页面原型，然后仅添加改善导航或密度的交互，同时保留无 JavaScript 阅读路径。
+Choose the spatial form that matches each information relationship, reconstruct the selected HTML Effectiveness page archetype, then add only interactions that improve navigation or density while preserving a no-JavaScript reading path.
 
-## 参考驱动的保真度
+## Reference-driven fidelity
 
-当用户提供参考网站并要求接近或一对一复现时，将该站点视为实现规范，而非情绪板。
+When the user provides a reference website and requests close or one-to-one reproduction, treat the site as an implementation specification, not a mood board.
 
-1. 当可用时，使用浏览器开发者工具检查实际页面。记录 DOM 层次结构、计算颜色、字体、字号和行高、最大内容宽度、水平内边距、章节间距、边框、圆角、阴影、网格轨道、响应式断点、溢出行为、焦点状态和交互状态变化。
-2. 在构建之前识别匹配的页面原型：文档索引、实现计划、功能说明器、报告、流程图、比较、编辑器或其他已展示的形式。复现该原型的组合，而不是将不相关的示例混合成通用 dashboard。
-3. 创建紧凑的重建规范和共享设计 token。匹配几何和行为以及调色板：页眉、导航、阅读度量、标题节奏、图表面、表格、披露、说明和移动端过渡。
-4. 用项目事实替换参考主题，同时保留其前端语法。不要止步于"相似的颜色和卡片"。
-5. 在桌面、受限桌面、平板和移动尺寸下将渲染截图与参考进行比较。在交接之前纠正对齐、比例、密度、换行和交互方面的有意义差异。
+1. Inspect the actual page with browser developer tools when available. Record the DOM hierarchy, computed colors, fonts, type sizes and line heights, maximum content width, horizontal padding, section gaps, borders, radii, shadows, grid tracks, responsive breakpoints, overflow behavior, focus states, and interactive state changes.
+2. Identify the matching page archetype before building: documentation index, implementation plan, feature explainer, report, flowchart, comparison, editor, or another demonstrated form. Reproduce that archetype's composition rather than blending unrelated examples into a generic dashboard.
+3. Create a compact reconstruction specification and shared design tokens. Match geometry and behavior as well as palette: masthead, navigation, reading measure, heading rhythm, diagram surfaces, tables, disclosures, captions, and mobile transitions.
+4. Replace the reference subject matter with project facts while preserving its frontend grammar. Do not stop at “similar colors and cards.”
+5. Compare rendered screenshots at desktop, constrained desktop, tablet, and mobile sizes with the reference. Correct meaningful differences in alignment, scale, density, wrapping, and interaction before handoff.
 
-仅在源代码、字体、图标或其他资产的许可证或用户授权允许重用时使用它们。否则在尽可能匹配可见结果和行为的情况下独立重建所观察到的前端。
+Use source code, fonts, icons, or other assets only when their license or the user's authorization permits reuse. Otherwise reconstruct the observed frontend independently while matching the visible result and behavior as closely as practical.
 
-## 默认 HTML Effectiveness 系统
+## Default HTML Effectiveness system
 
-使用 `../assets/document-system.css` 作为实现基础。它是一个独立实现、经过验证的样式表，源自对 HTML Effectiveness 文档示例的检查，已包含项目看板组件的安全响应式行为。
+Use `../assets/document-system.css` as the implementation base. It is an independently implemented, validated stylesheet derived from inspection of the HTML Effectiveness documentation examples and already includes safe responsive behavior for the project-board components.
 
-当实时参考可用时，检查其索引页面以了解导航和文档索引组合，`16-implementation-plan.html` 以了解计划、里程碑、图表、比较、风险和问题，`14-research-feature-explainer.html` 以了解披露、标签页、标注、文件映射和 FAQ 行为。使用最接近的原型；不要在每个页面上组合所有模式。
+When the live reference is available, inspect its index page for navigation and document-index composition, `16-implementation-plan.html` for plans, milestones, diagrams, comparisons, risks, and questions, and `14-research-feature-explainer.html` for disclosures, tabs, callouts, file maps, and FAQ behavior. Use the closest archetype; do not combine all patterns on every page.
 
-除非选定参考页面展示了另一个值，否则保留以下检查到的默认值：
+Keep these inspected defaults unless the selected reference page demonstrates another value:
 
-| 层 | 默认值 |
+| Layer | Default |
 | --- | --- |
-| 画布 | 象牙色 `#FAF9F5`；纸白色内容面；近黑色 `#141413` 文本 |
-| 强调色 | 陶土色 `#D97757` / 深陶土色 `#B85C3E`；燕麦色 `#E3DACC`；橄榄色 `#788C5D`；低饱和度灰色元数据 |
-| 排版 | 系统无衬线正文，Georgia 兼容衬线标题，系统等宽契约和路径 |
-| 几何 | 居中 `1120px` 最大页面，`32px` 桌面侧边距，慷慨的章节节奏，`12–14px` 面板圆角，精细 `#D1CFC5` 边框 |
-| 索引原型 | 约 `62px` 衬线展示标题，药丸状文本导航，宽度允许时三列示例/索引网格 |
-| 详情原型 | 约 `38px` 衬线页面标题，约 `26–27px` 章节标题，prompt/摘要块，白色图表，密集台账，披露和本地导航 |
-| 响应式行为 | 在约 `880–900px` 附近折叠摘要和模拟网格；在约 `780px` 附近折叠密集行布局；在约 `640px` 附近使用单列阅读顺序 |
+| canvas | ivory `#FAF9F5`; paper-white content surfaces; near-black `#141413` text |
+| accents | clay `#D97757` / dark clay `#B85C3E`; oat `#E3DACC`; olive `#788C5D`; low-saturation gray metadata |
+| typography | system sans body, Georgia-compatible serif headings, system monospace contracts and paths |
+| geometry | centered `1120px` maximum page, `32px` desktop side padding, generous section rhythm, `12–14px` panel radius, fine `#D1CFC5` borders |
+| index archetype | serif display title around `62px`, pill-like text navigation, three-column example/index grid when width allows |
+| detail archetype | serif page title around `38px`, section headings around `26–27px`, prompt/summary blocks, white diagrams, dense ledgers, disclosures, and local navigation |
+| responsive behavior | collapse summary and mock grids near `880–900px`; collapse dense row layouts near `780px`; use one-column reading order near `640px` |
 
-当索引和详情原型需要不同的标题比例时，添加页面级 class。保留克制的文档特征：无渐变、玻璃效果、彩色团块、装饰性插图、远程字体导入、通用营销 hero 或相同浮动卡片的墙壁。让排版、对齐、规则和留白来解释层次。颜色强化文本标签和标记；它本身永远不提供状态含义。
+Add a page-level class when the index and detail archetypes need different title scales. Preserve the restrained document character: no gradients, glass effects, colored blobs, decorative illustrations, remote font imports, generic marketing hero, or wall of identical floating cards. Let typography, alignment, rules, and whitespace explain hierarchy. Color reinforces a text label and marker; it never supplies status meaning by itself.
 
-## 看板组合
+## Board composition
 
-在着陆页上保持紧凑摘要：项目名称、当前发布/交付状态、关键决策或风险、证据新鲜度和最重要的下一步行动。随后是文档索引，暴露每个主题页面及其证据/状态职责。在子页面上重复紧凑、一致的全局导航，并始终提供返回当前快照的直接路径。
+Keep a compact summary on the landing page: project name, current release/delivery state, key decision or risk, evidence freshness, and the most important next action. Follow it with a documentation index that exposes every topic page and its evidence/status responsibility. Repeat a compact, consistent global navigation on child pages and always provide a direct path back to the current snapshot.
 
-将页面视为专业工程文档，而非预告。使用选定原型的标题比例和间距，然后用密集台账、锚定章节、图表、定义、来源路径和完整契约表格填充它。不要将完整的文档任务变成稀疏的摘要卡片，使读者从源代码中重建缺失的细节。
+Treat the pages as professional engineering documentation, not a teaser. Use the selected archetype's title scale and spacing, then fill it with dense ledgers, anchored sections, diagrams, definitions, source paths, and complete contract tables. Do not turn a complete documentation task into sparse summary cards that make readers reconstruct missing detail from source code.
 
-| 信息 | 首选形式 |
+| Information | Preferred form |
 | --- | --- |
-| 项目、受众、承诺、价格 | 简洁的事实台账或比较表 |
-| 能力状态和 MVP 边界 | 标注的状态车道加验收/证据台账 |
-| 序列或路线图 | 带已发布、进行中、候选和已阻塞标记的时间线 |
-| 前端/后端/数据流 | 标注的框和箭头；标注交接、所有权和失败路径 |
-| 技术栈和决策 | 带后果和重新审视触发条件的紧凑决策表 |
-| 数据库实体 | 关系图加可展开的字段契约表 |
-| API/操作 | endpoint 索引加可展开的请求/响应/错误契约 |
-| 风险和下一步行动 | 严重程度/影响台账和简短的优先排序行动队列 |
+| project, audience, promise, price | concise fact ledger or comparison table |
+| capability state and MVP boundary | labeled status lanes plus acceptance/evidence ledger |
+| sequence or roadmap | timeline with shipped, in-progress, candidate, and blocked markers |
+| frontend/backend/data flow | labeled boxes and arrows; annotate handoffs, ownership, and failure paths |
+| stack and decisions | compact decision table with consequence and revisit trigger |
+| database entities | relation map plus expandable field-contract tables |
+| API/actions | endpoint index plus expandable request/response/error contract |
+| risks and next actions | severity/impact ledger and a short prioritized action queue |
 
-使用 `<details>` 和 `<summary>` 保持长页面可导航。当某个段落会迫使读者过度滚动才能到达下一个决策时，将下级细节包进可折叠的 disclosure：冗长的技术解释、完整台账、字段级数据库和 API 契约、route/endpoint 主体、恢复流程。在折叠体之外保持摘要、状态、证据和一行决策可见，让读者决定打开什么。一个打开后全是关闭 toggle 的页面隐藏了当前状态；一个已经过长却什么都不折叠的页面也失去了看板的意义。第一屏应展示当前真相，每个 toggle 按需展开更深的层。
+Use `<details>` and `<summary>` to keep long pages navigable. When a section would force excessive scrolling before the reader reaches the next decision, wrap the subordinate detail in a collapsible disclosure: lengthy technical explanations, full ledgers, field-level database and API contracts, route/endpoint bodies, and recovery procedures. Keep the summary, status, evidence, and one-line decision visible outside the collapsed body so readers can decide what to open. A page that opens to mostly closed toggles hides the current state; a page that collapses nothing when it is already too long to scan defeats the board. The first viewport should show the current truth, with each toggle revealing a deeper layer on demand.
 
-## 渐进式交互
+## Progressive interaction
 
-核心事实必须在禁用 JavaScript 的情况下工作。仅当小型原生 JavaScript 交互能使看板更快使用时才添加它们：
+Core facts must work with JavaScript disabled. Add small vanilla-JavaScript interactions only when they make a board faster to use:
 
-- 不隐藏当前选择或证据的状态/类别过滤器；
-- 锚定的目录和滚动位置指示；
-- 焦点/悬停链接的架构节点和 details 面板，带点击和键盘等价物；
-- 命令、路由或操作列表的复制控件；
-- 当默认顺序仍然有意义时可排序/可展开的密集台账。
+- status/category filters that do not hide the current selection or evidence;
+- anchored table of contents and scroll-position indication;
+- focus/hover-linked architecture nodes and details panels, with click and keyboard equivalents;
+- copy controls for a command, route, or action list;
+- sortable/expandable dense ledgers when the default order remains meaningful.
 
-不要仅因为可能就添加交互。永远不要在没有可访问默认值的情况下将项目状态隐藏在标签页后面，不要使用悬停作为揭示内容的唯一方式，也不要依赖远程 API 进行首次渲染。
+Do not add interactions merely because they are possible. Never hide project state behind tabs without an accessible default, use hover as the only way to reveal content, or depend on a remote API for the first render.
 
-## 布局安全与可访问性
+## Layout safety and accessibility
 
-- 使用语义地标、一个清晰的页面标题、逻辑标题层级、可见焦点、描述性链接文本、标签和内联 SVG 标签/替代。
-- 尊重 `prefers-reduced-motion`；除非动效能阐明状态变化，否则避免使用。
-- 在窄屏上，保留阅读顺序。让表格、代码、路径和契约在有界容器内滚动或安全换行；不要将它们缩小为不可读的文本。
-- 在桌面、受限桌面、平板和移动宽度下测试粘性重叠、长标签、地图可读性、表格溢出和键盘可达性。
-- 将嵌套布局视为单独的响应式状态。在页面宽度下工作的三或四列流必须在半宽卡片内变为两列或垂直轨道；永远不要用固定的子元素最小宽度来保留它。
-- 对 grid/flex 子元素应用 `min-width: 0`，允许长代码和路径安全换行，并在序列换行时适配或移除连接箭头。
-- 长文件路径、来源路径和反斜杠风格的 Windows 路径在窄表格单元格、卡片和导航药丸中是布局隐患。确保承载路径的文本有 `overflow-wrap: anywhere`，路径密集的表格放在 `.scroll` 容器中并带 `overflow-x: auto`；确认最长的真实路径干净换行，而非堆叠成狭窄的文字塔或推挤兄弟元素。
-- 将水平滚动保留给真正的二维表格、矩阵或图表。普通卡片、比较、状态车道和步骤流必须在没有裁剪文本、重叠箭头或嵌套滚动条的情况下重排。
+- Use semantic landmarks, one clear page title, logical headings, visible focus, descriptive link text, labels, and inline SVG labels/alternatives.
+- Respect `prefers-reduced-motion`; avoid motion unless it clarifies a state change.
+- On narrow screens, preserve reading order. Let tables, code, paths, and contracts scroll inside a bounded container or wrap safely; do not shrink them into unreadable text.
+- Test desktop, constrained desktop, tablet, and mobile widths for sticky overlap, long labels, map readability, table overflow, and keyboard reachability.
+- Treat nested layout as a separate responsive state. A three- or four-column flow that works at page width must become two columns or a vertical rail inside a half-width card; never preserve it with fixed child minimum widths.
+- Apply `min-width: 0` to grid/flex children and adapt or remove connector arrows when a sequence wraps.
+- Long file paths, source paths, and backslash-style Windows paths are a layout hazard inside narrow table cells, cards, and nav pills. Ensure path-bearing text has `overflow-wrap: anywhere` and path-heavy tables sit in a `.scroll` container with `overflow-x: auto`; confirm the longest real path wraps cleanly instead of stacking into a narrow text tower or pushing siblings aside.
+- Reserve horizontal scrolling for genuinely two-dimensional tables, matrices, or diagrams. Normal cards, comparisons, status lanes, and step flows must reflow without clipped text, overlapping arrows, or nested scrollbars.
 
-## 保持产物可检查和可移植
+## Keep the artifact inspectable and portable
 
-优先使用自包含页面或带有普通 HTML、CSS、内联 SVG 和最少 JavaScript 的小型静态站点。核心内容、导航和证据必须在脚本失败时仍然可用。使用交互来揭示细节、过滤密集台账、高亮路径或比较状态；不要将基本事实隐藏在悬停、动画或不透明的客户端应用之后。
+Prefer a self-contained page or a small static site with ordinary HTML, CSS, inline SVG, and minimal JavaScript. The core content, navigation, and evidence must remain usable when scripts fail. Use interaction to reveal detail, filter a dense ledger, highlight a path, or compare states; do not hide essential facts behind hover, animation, or an opaque client application.
 
-当仓库设计 token 和资产存在时重用它们。当不存在系统时，选择一个克制的文档系统，具有可读的文本度量、强层次、清晰的状态编码和足以应对长时间会话的对比度。装饰性新奇不得与项目证据竞争。保留键盘访问、焦点可见性、语义地标、表格关系、减少动效偏好、移动端重排以及打印或截图可读性。
+Reuse repository design tokens and assets when they exist. When no system exists, choose a restrained document system with a readable text measure, strong hierarchy, clear state encoding, and enough contrast for long sessions. Decorative novelty must not compete with project evidence. Preserve keyboard access, focus visibility, semantic landmarks, table relationships, reduced-motion preferences, mobile reflow, and print or screenshot readability.
 
-## 页面目录与导航一致性
+## Page table of contents and navigation consistency
 
-每个 HTML 页面——包括着陆页、子页面和归档页面——都必须包含一个且仅一个 `<aside class="toc">` 目录区块，紧随页面 lede/摘要之后、第一个主要内容章节之前。目录是新读者和 agent 的第一个导航锚点：它让读者在不滚动整页的情况下判断本页覆盖哪些主题、当前证据位于何处，也让 agent 在每次 commit 前用一条 grep 命令验证全部页面。
+Every HTML page — including landing pages, child pages, and archive pages — must contain exactly one `<aside class="toc">` table of contents block, immediately after the page lede/summary and before the first main content section. The TOC is the first navigation anchor for new readers and agents: it lets a reader judge which topics a page covers and where the current evidence sits without scrolling the whole page, and it lets an agent verify every page with a single grep before each commit.
 
-### 必需的目录契约
+### Required TOC contract
 
-1. **存在性**：每个独立 HTML 页面必须有一个 `<aside class="toc">` 元素。着陆页和归档页不例外。如果一页内容太短而不需要目录，它应作为父页的章节存在，而不是独立页面。
-2. **统一标题文案**：
-   - 英文版 (`.html`)：`<b>On this page</b>`
-   - 中文版 (`.zh.html`)：`<b>本页目录</b>`
-   - 禁止使用 `Contents`、`Table of Contents`、`本页导航`、`本页内容`、`目录` 等变体。统一文案让读者跨页面建立稳定视觉预期，让 agent 可以用确定性正则验证而非逐页人工核对。
-3. **锚点完整性**：目录中每个 `<a href="#anchor">` 必须对应正文一个真实存在的 `id`。损坏的片段链接是看板失信。
-4. **位置稳定**：目录紧跟 lede/摘要，在第一个主要内容章节之前；不要把目录放在页脚或藏在 disclosure 里。
+1. **Existence**: every standalone HTML page must have one `<aside class="toc">` element. Landing pages and archive pages are not exempt. If a page is too short to need a TOC, it should live as a section of its parent page, not as a standalone page.
+2. **Unified heading text**:
+   - English (`.html`): `<b>On this page</b>`
+   - Chinese (`.zh.html`): `<b>本页目录</b>`
+   - Variants such as `Contents`, `Table of Contents`, `本页导航`, `本页内容`, `目录` are forbidden. Unified wording lets readers build a stable visual expectation across pages and lets an agent verify deterministically with a regex rather than checking pages by hand.
+3. **Anchor integrity**: every `<a href="#anchor">` in the TOC must correspond to a real `id` in the body. A broken fragment link is a board trust failure.
+4. **Stable position**: the TOC sits right after the lede/summary, before the first main content section; do not place it in the footer or hide it inside a disclosure.
 
-### 为什么这条规则是硬约束
+### Why this rule is a hard constraint
 
-目录文案漂移和缺失目录是当前看板最常见的两类一致性问题：英文版出现过 `On this page` 与 `Contents` 混用，中文版出现过 `本页导航`、`本页内容`、`本页目录`、`目录` 四种写法，部分归档页和着陆页完全没有目录。读者每打开一页都要重新识别目录的位置和叫法，agent 也无法用一条命令审计全站。统一文案和强制存在性把这两类问题一起关闭：每页都有目录、每页用同一个名字、中英文一一对应。
+TOC wording drift and missing TOCs are the two most common consistency problems on the current board: the English variant mixed `On this page` with `Contents`, the Chinese variant had four writings — `本页导航`, `本页内容`, `本页目录`, `目录` — and some archive and landing pages had no TOC at all. Readers had to re-identify the TOC's location and name on every page, and an agent could not audit the whole site with one command. Unified wording and mandatory existence close both problems at once: every page has a TOC, every page uses the same name, and Chinese/English correspond one-to-one.
 
-### 跨页面导航同步
+### Cross-page navigation sync
 
-新增 HTML 页面时，必须同时更新所有同级别旧页面的导航栏，确保新页面可从每一个相关页面路由到达：
+When adding a new HTML page, update the navigation bars of all sibling pages at the same time so the new page is reachable from every relevant page:
 
-1. **导航栏同步**：如果新页面属于某个子页面导航组（如 learn/ 目录下的子页面），必须在所有同级别页面的子页面导航条中添加新页面的链接。遗漏任何一个页面会导致用户无法发现新页面。
-2. **标签一致性**：所有页面中对同一子页面的导航标签必须一致（中文版统一用中文标签，英文版统一用英文标签）。例如，如果首页用"切面分析"，所有页面的子导航也必须用"切面分析"，不能混用"Flow analysis"。
-3. **链接后缀一致性**：中文版页面的导航链接统一使用 `.zh.html` 后缀，英文版统一使用 `.html` 后缀。语言切换链接除外（指向对端语言版本）。
-4. **验证清单**：新增页面后，逐个检查每个同级别页面的导航栏是否包含新页面的链接、标签是否一致、链接后缀是否正确，并确认每个页面（含新页面本身）都有符合上文目录契约的 `<aside class="toc">` 区块和统一标题文案。这一步不可省略。
+1. **Nav bar sync**: if the new page belongs to a child-page navigation group (such as sub-pages under learn/), the link to the new page must be added to the sub-page navigation bar of every sibling page. Missing any one page makes the new page undiscoverable.
+2. **Label consistency**: the navigation label for the same child page must be consistent across all pages (Chinese pages use the Chinese label uniformly, English pages use the English label uniformly). For example, if the index uses "切面分析", every sub-page navigation must use "切面分析", not a mix of "Flow analysis".
+3. **Link suffix consistency**: navigation links on Chinese pages use the `.zh.html` suffix uniformly; English pages use `.html` uniformly. Language-switch links are the exception (they point to the other-language version).
+4. **Verification checklist**: after adding a page, check each sibling page's navigation bar one by one for the new page's link, label consistency, and correct link suffix, and confirm every page (including the new page itself) has an `<aside class="toc">` block and unified heading text that satisfy the TOC contract above. This step is not optional.
 
-## 流程页面的视觉呈现
+## Process page visual presentation
 
-当页面需要展示业务流程、请求流转或数据管线时，优先使用空间化的流程图代替纯文本 proof-chain。参考 HTML Effectiveness 的 `14-research-feature-explainer.html` 原型和 pipeline 模式：
+When a page needs to present a business process, request flow, or data pipeline, prefer a spatialized flow diagram over a plain-text proof-chain. Reference the `14-research-feature-explainer.html` archetype and pipeline pattern from HTML Effectiveness:
 
-1. **管线时间线**：使用垂直时间线（左侧连线 + 编号圆形节点），每个步骤是一个带颜色编码的卡片，标注步骤类型（拦截/审批/执行/检查）。
-2. **颜色编码**：红色=拦截/失败路径，黄色=审批/暂停，绿色=通过/检查，橙色=执行/外部调用，灰色=中性/无操作。
-3. **步骤卡片**：每个步骤包含标题、类型标签、描述文字、经过的文件名/函数名、数据库读写标记、外部调用标记。
-4. **子步骤**：复杂步骤用嵌套的子步骤列表展开，每个子步骤标注自己的类型标签。
-5. **全景预览**：在详细流程之前，用水平 chips 条展示整个管线的概览，让读者一眼看到全貌。
-6. **对比视图**：对于"有/无某机制"的对比，用左右分栏的对比卡片展示。
-7. **有效性说明**：在每个流程之后，用橙色标注框解释关键设计决策为什么有效。
+1. **Pipeline timeline**: use a vertical timeline (left-side connector + numbered circular nodes); each step is a color-coded card labeled with its step type (intercept/approve/execute/inspect).
+2. **Color encoding**: red = intercept/failure path, yellow = approve/pause, green = pass/inspect, orange = execute/external call, gray = neutral/no-op.
+3. **Step card**: each step contains a title, a type label, a description, the file/function names it passes through, database read/write markers, and external-call markers.
+4. **Sub-steps**: expand complex steps with a nested sub-step list; each sub-step carries its own type label.
+5. **Panorama preview**: before the detailed flow, use a horizontal chips bar to show the whole pipeline at a glance so readers see the full picture first.
+6. **Comparison view**: for "with/without a mechanism" comparisons, use a side-by-side comparison card layout.
+7. **Effectiveness note**: after each flow, use an orange callout box to explain why the key design decision is effective.

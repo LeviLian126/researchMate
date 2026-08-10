@@ -1,89 +1,100 @@
-﻿# 挑战与验证
+# Challenge and Validate
 
-在将规格说明交给 Node02 之前对其进行压力测试。从五个风险维度挑战每个关键论断。如果任何风险较高，在决定构建之前先设计最廉价的测试。
+Stress-test the spec before handing it to Node02. Challenge each key claim from five
+risk dimensions. If any risk is high, design the cheapest test before deciding to
+build.
 
-## 何时阅读本文件
+## When to read this file
 
-在规格说明产出之后，或当用户想要挑战已有的产品想法或 PRD 时。
+After the spec is produced, or when the user wants to challenge an existing product
+idea or PRD.
 
-## 五个风险维度
+## Five risk dimensions
 
-对于每个维度，提供你推荐的评级（LOW、MEDIUM、HIGH 或 UNKNOWN）及其背后的证据。
+For each dimension, provide your recommended rating (LOW, MEDIUM, HIGH, or UNKNOWN)
+with the evidence behind it.
 
-### 1. 价值风险：问题是否足够痛？
+### 1. Value risk: is the problem painful enough?
 
-- 用户今天是否会花时间或金钱来解决这个问题？
-- 是否有行为证据（重复使用、付费、投诉），还是仅有口头声称的需求？
-- 将口头声称的兴趣视为弱于观察到的行为、承诺或付费。
+- Would users spend time or money to solve this today?
+- Is there behavioral evidence (repeated use, payment, complaints) or only verbal
+  claims of need?
+- Treat stated interest as weaker than observed behavior, commitment, or payment.
 
-### 2. 触达风险：你能接触到用户吗？
+### 2. Reach risk: can you access the users?
 
-- 第一个用户来自哪里？说出一个具体的渠道，而非"内容"或"社区"。
-- 你是否已有现成的受众、网络或分发优势？
+- Where does the first user come from? Name a specific channel, not "content" or
+  "community."
+- Do you have an existing audience, network, or distribution advantage?
 
-### 3. 可行性风险：你能构建它吗？
+### 3. Feasibility risk: can you build it?
 
-- 核心 API 或依赖是否可靠、可负担且允许用于此用途？
-- 是否有什么必须在投入之前先做原型验证？
-- 延迟、准确度、规模或平台要求对单人构建来说是否现实？
+- Are the core APIs or dependencies reliable, affordable, and permitted for this use?
+- Is there anything that must be prototyped before commitment?
+- Are latency, accuracy, scale, or platform requirements realistic for a solo build?
 
-### 4. 可持续性风险：一个人能维护它吗？
+### 4. Sustainability risk: can one person maintain it?
 
-- 运营它每天需要多少手动工作？
-- 随着使用量增长，成本和支持负担会怎样？
-- 它是否依赖于单一供应商或平台，而后者可能改变条款？
+- How much daily manual work does operating this require?
+- What happens to cost and support burden as usage grows?
+- Does it depend on a single vendor or platform that could change terms?
 
-### 5. 创始人契合度：你会持续做这件事吗？
+### 5. Founder fit: will you keep doing this?
 
-- 这是否是一个你愿意维护数年的产品，而非只构建一次？
-- 你是否在此领域有专业知识或不公平优势？
+- Is this a product you are willing to maintain for years, not just build once?
+- Do you have domain expertise or an unfair advantage here?
 
-## 验证阶梯
+## Validation ladder
 
-如果任何风险为 HIGH 或 UNKNOWN，选择能产生决策质量证据的最廉价方法：
+If any risk is HIGH or UNKNOWN, select the cheapest method that produces
+decision-quality evidence:
 
-| 方法 | 成本 | 测试内容 |
+| Method | Cost | Tests |
 |---|---|---|
-| 研究已有证据 | 零 | 市场需求、竞品分析 |
-| 落地页或假门测试 | 低 | 需求是否存在 |
-| 人工服务或礼宾模式 | 低 | 价值假设、使用意愿 |
-| 原型（一次性代码） | 低到中 | 技术可行性、UI 方向 |
-| 付费试点 | 中 | 付费意愿 |
-| 窄功能 MVP | 高 | 完整验证 |
+| Research existing evidence | zero | market demand, competitor analysis |
+| Landing page or fake door | low | does demand exist |
+| Concierge or manual service | low | value assumption, willingness to use |
+| Prototype (throwaway code) | low to medium | technical feasibility, UI direction |
+| Paid pilot | medium | willingness to pay |
+| Narrow functional MVP | high | full validation |
 
-当所有风险都为 LOW 时不需要验证。直接进入 GO。
+Do not require validation when all risks are LOW. Proceed directly to GO.
 
-对于每个需要验证的风险，明确：
+For each risk that needs validation, specify:
 
-- 被测试的假设。
-- 选择的方法。
-- 通过阈值：什么结果确认假设。
-- 失败阈值：什么结果否定假设。
-- 通过后的决策：前往 Node02。
-- 失败后的决策：NO_GO，或修订规格说明并重新质询。
+- The hypothesis being tested.
+- The method chosen.
+- Pass threshold: what result confirms the hypothesis.
+- Fail threshold: what result rejects it.
+- Decision after pass: GO to Node02.
+- Decision after fail: NO_GO, or revise the spec and re-grill.
 
-## 最终决策
+## Final decision
 
-每份规格说明一个决策：
+One decision per spec:
 
-| 决策 | 条件 | 下一步 |
+| Decision | Condition | Next step |
 |---|---|---|
-| GO | 五个风险全部为 LOW 或 MEDIUM，且最高风险假设已有验证计划或已验证 | 前往 Node02 |
-| VALIDATE | 一个或多个风险为 HIGH 但可廉价测试 | 先运行最廉价测试；结果决定 GO 或 NO_GO |
-| NO_GO | 风险为 HIGH 且无法廉价测试，或证据显示问题不够痛 | 停止；记录原因 |
+| GO | All five risks are LOW or MEDIUM, and the riskiest assumption has a validation plan or is already validated | Proceed to Node02 |
+| VALIDATE | One or more risks are HIGH but can be tested cheaply | Run the cheapest test first; result decides GO or NO_GO |
+| NO_GO | A risk is HIGH and cannot be tested cheaply, or evidence shows the problem is not painful enough | Stop; record the reason |
 
-在以下情况下不要发出 GO：
+Do not issue GO when:
 
-- 受众未基于行为特征具体化。
-- 核心任务无法用一句话陈述。
-- 最高风险假设未被识别。
-- 范围未裁剪至匹配投入预算。
+- The audience is not behaviorally specific.
+- The core job cannot be stated in one sentence.
+- The riskiest assumption is not identified.
+- Scope has not been cut to fit the investment budget.
 
-记录决策、置信度（low、medium、high）、三个最强理由，以及什么证据可以推翻它。
+Record the decision, confidence (low, medium, high), the three strongest reasons, and
+what evidence would reverse it.
 
-## 不应做的事
+## What not to do
 
-- 不要将注册数、页面浏览量或下载量视为价值的证明，除非它们因果关系上代表了核心任务的完成。
-- 不要因为某个风险维度看似没问题就跳过它。明确评级，即使为 LOW。
-- 不要在更廉价的测试能回答同一问题时推荐构建完整 MVP。
-- 不要编造需求证据。如果没有证据，标记为 UNKNOWN 并设计一个测试。
+- Do not treat signup count, page views, or download count as proof of value unless
+  they causally represent the core job being completed.
+- Do not skip a risk dimension because it seems fine. Rate it explicitly, even if LOW.
+- Do not recommend building a full MVP when a cheaper test could answer the same
+  question.
+- Do not invent demand evidence. If no evidence exists, mark UNKNOWN and design a
+  test.
