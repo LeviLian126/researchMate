@@ -10,7 +10,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 COPY --from=uv /uv /uvx /bin/
 RUN apt-get update \
-    && apt-get install --yes --no-install-recommends libgl1 libglib2.0-0 \
+    && apt-get install --yes --no-install-recommends libgl1 libglib2.0-0 libmagic1 \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd --gid 10001 researchmate \
     && useradd --uid 10001 --gid researchmate --no-create-home --shell /usr/sbin/nologin researchmate
@@ -22,7 +22,8 @@ COPY infra/supabase/migrations /app/infra/supabase/migrations
 COPY scripts/apply_migrations.py /app/scripts/apply_migrations.py
 COPY scripts/provision_qdrant_rerank.py /app/scripts/provision_qdrant_rerank.py
 COPY scripts/provision_qdrant_hybrid.py /app/scripts/provision_qdrant_hybrid.py
-RUN uv sync --frozen --no-dev --all-packages
+RUN uv sync --frozen --no-dev --all-packages \
+    && rm -f /bin/uv /bin/uvx
 
 FROM dependencies AS runtime
 RUN docling-tools models download layout tableformer rapidocr -o /opt/docling/models \

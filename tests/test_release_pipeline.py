@@ -92,8 +92,12 @@ def test_container_images_are_non_root_and_worker_prefetches_pdf_models() -> Non
     assert "USER 10001:10001" in api
     assert "HEALTHCHECK" in api
     assert "USER 10001:10001" in worker
+    assert "libmagic1" in api
+    assert "libmagic1" in worker
     assert "uv.lock" in api
     assert "uv.lock" in worker
+    assert "rm -f /bin/uv /bin/uvx" in api
+    assert "rm -f /bin/uv /bin/uvx" in worker
     assert "docling-tools models download layout tableformer rapidocr" in worker
     assert "DOCLING_ARTIFACTS_PATH=/opt/docling/models" in worker
     assert "RESEARCHMATE_PROCESS_ROLE:-worker" in worker

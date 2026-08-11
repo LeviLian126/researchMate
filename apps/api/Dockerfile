@@ -7,14 +7,18 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PORT=8000
 
 COPY --from=uv /uv /uvx /bin/
-RUN groupadd --gid 10001 researchmate \
+RUN apt-get update \
+    && apt-get install --yes --no-install-recommends libmagic1 \
+    && rm -rf /var/lib/apt/lists/* \
+    && groupadd --gid 10001 researchmate \
     && useradd --uid 10001 --gid researchmate --no-create-home --shell /usr/sbin/nologin researchmate
 WORKDIR /app
 COPY pyproject.toml uv.lock /app/
 COPY apps/api/pyproject.toml /app/apps/api/pyproject.toml
 COPY workers/ai-worker/pyproject.toml /app/workers/ai-worker/pyproject.toml
 COPY apps/api /app/apps/api
-RUN uv sync --frozen --no-dev --package researchmate-api
+RUN uv sync --frozen --no-dev --package researchmate-api \
+    && rm -f /bin/uv /bin/uvx
 
 USER 10001:10001
 EXPOSE 8000
