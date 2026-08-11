@@ -4205,6 +4205,51 @@ components:
       - hard
       title: Difficulty
       description: Constrain quiz difficulty to supported levels.
+    DocumentFileType:
+      type: string
+      enum:
+      - pdf
+      - docx
+      - pptx
+      - xlsx
+      - txt
+      - md
+      - csv
+      - tsv
+      - json
+      - jsonl
+      - xml
+      - html
+      - yaml
+      - toml
+      - rst
+      - log
+      - tex
+      - bib
+      - py
+      - ipynb
+      - js
+      - jsx
+      - ts
+      - tsx
+      - css
+      - scss
+      - sql
+      - sh
+      - ps1
+      - java
+      - c
+      - cpp
+      - h
+      - hpp
+      - cs
+      - go
+      - rs
+      - php
+      - rb
+      - swift
+      - kt
+      - kts
     DocumentRecord:
       properties:
         id:
@@ -5676,12 +5721,7 @@ components:
           minLength: 1
           title: Filename
         file_type:
-          type: string
-          enum:
-          - pdf
-          - docx
-          - pptx
-          title: File Type
+          $ref: '#/components/schemas/DocumentFileType'
         mime_type:
           type: string
           maxLength: 120

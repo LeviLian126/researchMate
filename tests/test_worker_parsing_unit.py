@@ -52,7 +52,7 @@ def test_parser_rejects_unsupported_incomplete_and_failed_conversion(tmp_path) -
     )
 
     with pytest.raises(ParserAdapterError, match="UNSUPPORTED_DOCUMENT_TYPE"):
-        parser.parse(source, file_type="txt")
+        parser.parse(source, file_type="bin")
 
     parser.converter = SimpleNamespace(
         convert=lambda *_args, **_kwargs: SimpleNamespace(
@@ -249,3 +249,72 @@ def test_pptx_ooxml_parser_preserves_slide_numbers(tmp_path) -> None:
         (2, "Second slide"),
     ]
     assert parser.converter is None
+
+
+def test_text_markdown_and_html_files_extract_readable_blocks(tmp_path) -> None:
+    """Decode common text encodings and exclude executable HTML content."""
+    markdown = tmp_path / "notes.md"
+    markdown.write_text("# Findings\n\nMarkdown evidence survives.", encoding="utf-8")
+    html = tmp_path / "page.html"
+    html.write_text(
+        "<h1>Visible title</h1><script>ignore_secret()</script><p>Visible body</p>",
+        encoding="utf-8",
+    )
+    parser = DoclingDocumentParser(max_file_size=4096, max_num_pages=5)
+
+    markdown_blocks = parser.parse(markdown, file_type="md")
+    html_blocks = parser.parse(html, file_type="html")
+
+    assert [block.text for block in markdown_blocks] == [
+        "# Findings",
+        "Markdown evidence survives.",
+    ]
+    assert "Visible title" in " ".join(block.text for block in html_blocks)
+    assert "Visible body" in " ".join(block.text for block in html_blocks)
+    assert "ignore_secret" not in " ".join(block.text for block in html_blocks)
+
+
+def test_xlsx_parser_extracts_shared_inline_and_numeric_cells(tmp_path) -> None:
+    """Extract spreadsheet rows without loading a heavyweight workbook runtime."""
+    workbook = tmp_path / "evidence.xlsx"
+    with ZipFile(workbook, "w") as archive:
+        archive.writestr(
+            "xl/sharedStrings.xml",
+            """<?xml version="1.0" encoding="UTF-8"?>
+            <sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+              <si><t>Metric</t></si><si><t>Latency</t></si>
+            </sst>""",
+        )
+        archive.writestr(
+            "xl/worksheets/sheet1.xml",
+            """<?xml version="1.0" encoding="UTF-8"?>
+            <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+              <sheetData>
+                <row r="1"><c t="s"><v>0</v></c><c t="inlineStr"><is><t>Value</t></is></c></row>
+                <row r="2"><c r="A2" t="s"><v>1</v></c><c r="C2"><v>42</v></c></row>
+              </sheetData>
+            </worksheet>""",
+        )
+    parser = DoclingDocumentParser(max_file_size=4096, max_num_pages=5)
+
+    blocks = parser.parse(workbook, file_type="xlsx")
+
+    assert [block.text for block in blocks] == ["Metric\tValue", "Latency\t\t42"]
+    assert all(block.section_title == "Sheet 1" for block in blocks)
+    assert blocks[0].metadata["source_anchors"][0]["locator_kind"] == "sheet"
+
+
+def test_notebook_parser_extracts_inputs_without_outputs(tmp_path) -> None:
+    """Index notebook source cells while excluding generated output payloads."""
+    notebook = tmp_path / "analysis.ipynb"
+    notebook.write_text(
+        '{"cells":[{"cell_type":"markdown","source":["# Result"]},'
+        '{"cell_type":"code","source":"print(42)","outputs":[{"text":"large output"}]}]}',
+        encoding="utf-8",
+    )
+    parser = DoclingDocumentParser(max_file_size=4096, max_num_pages=5)
+
+    blocks = parser.parse(notebook, file_type="ipynb")
+
+    assert [block.text for block in blocks] == ["# Result", "print(42)"]
+    assert "large output" not in " ".join(block.text for block in blocks)

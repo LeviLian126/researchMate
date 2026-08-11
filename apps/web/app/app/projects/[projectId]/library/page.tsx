@@ -10,7 +10,9 @@ import {
   apiFetch,
   DocumentRecord,
   fileTypeFromName,
+  isSupportedFileName,
   mimeForFileType,
+  SUPPORTED_FILE_ACCEPT,
   uploadReservedContent,
 } from "../../../../lib/api";
 import { Button } from "@/components/ui/button";
@@ -83,8 +85,8 @@ export default function LibraryPage() {
   /** Validates the selected file and prepares local preview metadata. */
   function selectFile(file: File | null) {
     if (!file) return;
-    if (!/\.(pdf|docx|pptx)$/i.test(file.name)) {
-      setError("Choose a PDF, DOCX, or PPTX file.");
+    if (!isSupportedFileName(file.name)) {
+      setError("Choose a supported document, spreadsheet, text, data, or source-code file.");
       return;
     }
     setSelectedFile(file);
@@ -100,7 +102,7 @@ export default function LibraryPage() {
     setUploading(true);
     setStatus("Requesting a bounded upload URL…");
     try {
-      if (!selectedFile) throw new Error("Select a PDF, DOCX, or PPTX file.");
+      if (!selectedFile) throw new Error("Select a supported file.");
       const fileType = fileTypeFromName(selectedFile.name);
       const mimeType = mimeForFileType(fileType);
       const uploadUrl = await apiFetch<UploadUrlResponse>("/documents/upload-url", {
@@ -228,8 +230,8 @@ export default function LibraryPage() {
             >
               <Upload strokeWidth={1.5} className="mx-auto size-8 text-primary" />
               <h2 className="mt-3 text-base font-semibold text-foreground">Upload materials</h2>
-              <p className="mt-1 text-sm text-muted-foreground">Drop a PDF, DOCX, or PPTX here, or choose a file from your device.</p>
-              <input ref={fileInput} className="sr-only" id="source-file" type="file" accept=".pdf,.docx,.pptx" onChange={(event) => selectFile(event.target.files?.[0] ?? null)} />
+              <p className="mt-1 text-sm text-muted-foreground">Drop a document, spreadsheet, text, data, or source-code file here.</p>
+              <input ref={fileInput} className="sr-only" id="source-file" type="file" accept={SUPPORTED_FILE_ACCEPT} onChange={(event) => selectFile(event.target.files?.[0] ?? null)} />
               <Button asChild variant="secondary" className="mt-4">
                 <label htmlFor="source-file" className="cursor-pointer">Choose file</label>
               </Button>

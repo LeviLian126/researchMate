@@ -163,7 +163,7 @@
           <article class="state-card">
             <span class="status planned">文件内容校验 · 已计划</span>
             <b>安全加固 · 上传安全</b>
-            <p>计划引入服务端 <code>python-magic</code> 内容嗅探，加强私有 Supabase 存储桶已执行的 25 MB PDF/DOCX/PPTX 允许列表，使攻击者无法以错误标记的扩展名到达解析器。可部署的预留 → 签名 PUT → HEAD → 提交路径仍是集成证明。</p>
+            <p>上传契约现已对 42 种有解析器支持的格式同时绑定文件扩展名与 MIME；服务端在可用时用 <code>python-magic</code> 检查已存储字节。本地格式与解析器测试通过，发布证明仍需执行迁移 <code>202608110008</code> 并完成代表性托管存储上传。</p>
           </article>
         </div>
 

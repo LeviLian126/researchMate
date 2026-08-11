@@ -436,17 +436,61 @@ export function describeApiError(error: unknown): { title: string; detail: strin
   return { title: error.code.replaceAll("_", " "), detail: error.message, kind: "validation" };
 }
 
+export type SupportedFileType =
+  | "pdf" | "docx" | "pptx" | "xlsx"
+  | "txt" | "md" | "csv" | "tsv" | "json" | "jsonl" | "xml" | "html" | "yaml"
+  | "toml" | "rst" | "log" | "tex" | "bib" | "py" | "ipynb" | "js" | "jsx" | "ts"
+  | "tsx" | "css" | "scss" | "sql" | "sh" | "ps1" | "java" | "c" | "cpp" | "h"
+  | "hpp" | "cs" | "go" | "rs" | "php" | "rb" | "swift" | "kt" | "kts";
+
+const FILE_TYPE_BY_EXTENSION: Record<string, SupportedFileType> = {
+  pdf: "pdf", docx: "docx", pptx: "pptx", xlsx: "xlsx", txt: "txt", text: "txt",
+  md: "md", markdown: "md", csv: "csv", tsv: "tsv", json: "json", jsonl: "jsonl",
+  ndjson: "jsonl", xml: "xml", html: "html", htm: "html", yaml: "yaml", yml: "yaml",
+  toml: "toml", rst: "rst", log: "log", tex: "tex", bib: "bib", py: "py",
+  ipynb: "ipynb", js: "js", jsx: "jsx", ts: "ts", tsx: "tsx", css: "css", scss: "scss",
+  sql: "sql", sh: "sh", bash: "sh", ps1: "ps1", java: "java", c: "c", cpp: "cpp",
+  cc: "cpp", cxx: "cpp", h: "h", hpp: "hpp", hh: "hpp", hxx: "hpp", cs: "cs",
+  go: "go", rs: "rs", php: "php", rb: "rb", swift: "swift", kt: "kt", kts: "kts",
+};
+
+const MIME_BY_FILE_TYPE: Record<SupportedFileType, string> = {
+  pdf: "application/pdf",
+  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  txt: "text/plain", md: "text/markdown", csv: "text/csv", tsv: "text/tab-separated-values",
+  json: "application/json", jsonl: "application/x-ndjson", xml: "application/xml",
+  html: "text/html", yaml: "application/yaml", toml: "application/toml", rst: "text/x-rst",
+  log: "text/plain", tex: "text/x-tex", bib: "text/x-bibtex", py: "text/x-python",
+  ipynb: "application/x-ipynb+json", js: "text/javascript", jsx: "text/jsx",
+  ts: "text/typescript", tsx: "text/tsx", css: "text/css", scss: "text/x-scss",
+  sql: "application/sql", sh: "application/x-sh", ps1: "text/x-powershell",
+  java: "text/x-java-source", c: "text/x-c", cpp: "text/x-c++src", h: "text/x-c",
+  hpp: "text/x-c++hdr", cs: "text/x-csharp", go: "text/x-go", rs: "text/x-rust",
+  php: "application/x-httpd-php", rb: "application/x-ruby", swift: "text/x-swift",
+  kt: "text/x-kotlin", kts: "text/x-kotlin",
+};
+
+export const SUPPORTED_FILE_ACCEPT = Object.keys(FILE_TYPE_BY_EXTENSION)
+  .map((extension) => `.${extension}`)
+  .join(",");
+
+/** Returns whether a filename maps to an explicitly supported ingestion format. */
+export function isSupportedFileName(filename: string): boolean {
+  const extension = filename.toLowerCase().split(".").pop() ?? "";
+  return extension in FILE_TYPE_BY_EXTENSION;
+}
+
 /** Maps an accepted filename to the document API's file-type contract. */
-export function fileTypeFromName(filename: string): "pdf" | "docx" | "pptx" {
-  const lower = filename.toLowerCase();
-  if (lower.endsWith(".docx")) return "docx";
-  if (lower.endsWith(".pptx")) return "pptx";
-  return "pdf";
+export function fileTypeFromName(filename: string): SupportedFileType {
+  const extension = filename.toLowerCase().split(".").pop() ?? "";
+  const fileType = FILE_TYPE_BY_EXTENSION[extension];
+  if (!fileType) throw new Error(`${filename} uses an unsupported file format.`);
+  return fileType;
 }
 
 /** Returns the canonical upload MIME type for a supported document type. */
-export function mimeForFileType(fileType: "pdf" | "docx" | "pptx"): string {
-  if (fileType === "docx") return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-  if (fileType === "pptx") return "application/vnd.openxmlformats-officedocument.presentationml.presentation";
-  return "application/pdf";
+export function mimeForFileType(fileType: SupportedFileType): string {
+  return MIME_BY_FILE_TYPE[fileType];
 }

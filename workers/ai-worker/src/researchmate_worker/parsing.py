@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import json
 import logging
+from html.parser import HTMLParser
 from io import BytesIO
 from pathlib import Path
 from re import IGNORECASE, search
@@ -18,6 +20,72 @@ from researchmate_worker.parsing_helpers import (
 )
 
 LOGGER = logging.getLogger(__name__)
+
+TEXT_FILE_TYPES = {
+    "txt",
+    "md",
+    "csv",
+    "tsv",
+    "json",
+    "jsonl",
+    "xml",
+    "yaml",
+    "toml",
+    "rst",
+    "log",
+    "tex",
+    "bib",
+    "py",
+    "js",
+    "jsx",
+    "ts",
+    "tsx",
+    "css",
+    "scss",
+    "sql",
+    "sh",
+    "ps1",
+    "java",
+    "c",
+    "cpp",
+    "h",
+    "hpp",
+    "cs",
+    "go",
+    "rs",
+    "php",
+    "rb",
+    "swift",
+    "kt",
+    "kts",
+}
+SUPPORTED_FILE_TYPES = {"pdf", "docx", "pptx", "xlsx", "html", "ipynb", *TEXT_FILE_TYPES}
+MAX_TEXT_BLOCK_CHARS = 8_000
+
+
+class _VisibleHTMLTextParser(HTMLParser):
+    """Collect visible HTML text while excluding executable and styling content."""
+
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.hidden_depth = 0
+        self.parts: list[str] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if tag in {"script", "style", "template", "noscript"}:
+            self.hidden_depth += 1
+        elif not self.hidden_depth and tag in {"p", "div", "br", "li", "tr", "h1", "h2", "h3"}:
+            self.parts.append("\n")
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag in {"script", "style", "template", "noscript"} and self.hidden_depth:
+            self.hidden_depth -= 1
+        elif not self.hidden_depth and tag in {"p", "div", "li", "tr", "h1", "h2", "h3"}:
+            self.parts.append("\n")
+
+    def handle_data(self, data: str) -> None:
+        if not self.hidden_depth:
+            self.parts.append(data)
 
 
 class DoclingDocumentParser:
@@ -246,9 +314,210 @@ class DoclingDocumentParser:
                 )
         return blocks
 
+    @staticmethod
+    def _decode_text(data: bytes) -> str:
+        """Decode common text encodings and reject binary-looking payloads."""
+        encodings = ["utf-8-sig"]
+        if data.startswith((b"\xff\xfe", b"\xfe\xff")):
+            encodings.insert(0, "utf-16")
+        encodings.extend(["gb18030", "cp1252"])
+        for encoding in encodings:
+            try:
+                text = data.decode(encoding)
+            except UnicodeDecodeError:
+                continue
+            controls = sum(ord(char) < 32 and char not in "\n\r\t\f" for char in text)
+            if "\x00" not in text and controls <= max(4, len(text) // 50):
+                return text
+        raise ParserAdapterError("PARSER_TEXT_ENCODING_UNSUPPORTED")
+
+    def _text_blocks(self, text: str, *, parser_name: str, source_label: str) -> list[ParsedBlock]:
+        """Split decoded text into bounded blocks with stable line-based provenance."""
+        blocks: list[ParsedBlock] = []
+        pending: list[str] = []
+        pending_chars = 0
+        start_line = 1
+
+        def flush(end_line: int) -> None:
+            nonlocal pending, pending_chars, start_line
+            value = "\n".join(pending).strip()
+            if value:
+                ordinal = len(blocks)
+                item_ref = f"text#line-{start_line}-{end_line}"
+                blocks.append(
+                    ParsedBlock(
+                        text=value,
+                        metadata={
+                            "parser_name": parser_name,
+                            "parser_version": "stdlib",
+                            "source_item_ref": item_ref,
+                            "source_ordinal": ordinal,
+                            "source_label": source_label,
+                            "source_level": None,
+                            "section_path": [],
+                            "source_anchors": self._structural_anchor(
+                                item_ref, locator_kind="line"
+                            ),
+                        },
+                    )
+                )
+            pending = []
+            pending_chars = 0
+
+        for line_no, line in enumerate(text.splitlines(), start=1):
+            if pending and (
+                not line.strip() or pending_chars + len(line) + 1 > MAX_TEXT_BLOCK_CHARS
+            ):
+                flush(line_no - 1)
+                start_line = line_no + (0 if line.strip() else 1)
+            if line.strip():
+                if not pending:
+                    start_line = line_no
+                pending.append(line.rstrip())
+                pending_chars += len(line) + 1
+        flush(max(start_line, len(text.splitlines())))
+        return blocks
+
+    def _parse_text(self, source: Path, *, file_type: str) -> list[ParsedBlock]:
+        text = self._decode_text(source.read_bytes())
+        return self._text_blocks(text, parser_name="text", source_label=file_type)
+
+    def _parse_html(self, source: Path) -> list[ParsedBlock]:
+        parser = _VisibleHTMLTextParser()
+        parser.feed(self._decode_text(source.read_bytes()))
+        return self._text_blocks(
+            "".join(parser.parts), parser_name="html.parser", source_label="visible_text"
+        )
+
+    def _parse_notebook(self, source: Path) -> list[ParsedBlock]:
+        payload = json.loads(self._decode_text(source.read_bytes()))
+        if not isinstance(payload, dict) or not isinstance(payload.get("cells"), list):
+            raise ParserAdapterError("PARSER_INCOMPLETE_RESULT")
+        blocks: list[ParsedBlock] = []
+        for ordinal, cell in enumerate(payload["cells"]):
+            if not isinstance(cell, dict) or cell.get("cell_type") not in {
+                "markdown",
+                "code",
+                "raw",
+            }:
+                continue
+            source_value = cell.get("source")
+            if isinstance(source_value, list):
+                text = "".join(str(part) for part in source_value).strip()
+            elif isinstance(source_value, str):
+                text = source_value.strip()
+            else:
+                continue
+            if not text:
+                continue
+            item_ref = f"notebook#cell-{ordinal}"
+            blocks.append(
+                ParsedBlock(
+                    text=text,
+                    metadata={
+                        "parser_name": "json",
+                        "parser_version": "stdlib",
+                        "source_item_ref": item_ref,
+                        "source_ordinal": ordinal,
+                        "source_label": str(cell["cell_type"]),
+                        "source_level": None,
+                        "section_path": [],
+                        "source_anchors": self._structural_anchor(item_ref, locator_kind="cell"),
+                    },
+                )
+            )
+        return blocks
+
+    def _parse_xlsx(self, source: Path) -> list[ParsedBlock]:
+        spreadsheet_ns = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
+        ns = {"s": spreadsheet_ns}
+        with ZipFile(source) as archive:
+            shared_strings: list[str] = []
+            try:
+                shared_root = self._read_bounded_xml(archive, "xl/sharedStrings.xml")
+            except KeyError:
+                shared_root = None
+            if shared_root is not None:
+                shared_strings = [
+                    "".join(node.text or "" for node in item.findall(".//s:t", ns))
+                    for item in shared_root.findall(".//s:si", ns)
+                ]
+            members = [
+                member
+                for member in archive.namelist()
+                if search(r"^xl/worksheets/sheet\d+\.xml$", _normalized_archive_member(member))
+            ]
+            members.sort(
+                key=lambda member: int(
+                    search(r"sheet(\d+)\.xml$", _normalized_archive_member(member)).group(1)  # type: ignore[union-attr]
+                )
+            )
+            if len(members) > self.max_num_pages:
+                raise ParserAdapterError("PARSER_PAGE_LIMIT_EXCEEDED")
+            blocks: list[ParsedBlock] = []
+            for sheet_index, member in enumerate(members, start=1):
+                root = self._read_bounded_xml(archive, member)
+                for row in root.findall(".//s:sheetData/s:row", ns):
+                    values: list[str] = []
+                    for cell in row.findall("s:c", ns):
+                        reference = cell.attrib.get("r", "")
+                        column = self._xlsx_column_index(reference)
+                        while len(values) < column:
+                            values.append("")
+                        cell_type = cell.attrib.get("t")
+                        if cell_type == "inlineStr":
+                            value = "".join(node.text or "" for node in cell.findall(".//s:t", ns))
+                        else:
+                            value_node = cell.find("s:v", ns)
+                            value = (value_node.text or "") if value_node is not None else ""
+                            if cell_type == "s" and value:
+                                index = int(value)
+                                value = (
+                                    shared_strings[index] if index < len(shared_strings) else value
+                                )
+                            elif cell_type == "b":
+                                value = "TRUE" if value == "1" else "FALSE"
+                        values.append(value.strip())
+                    row_text = "\t".join(values).strip()
+                    if not row_text:
+                        continue
+                    row_no = int(row.attrib.get("r", len(blocks) + 1))
+                    item_ref = f"{_normalized_archive_member(member)}#row-{row_no}"
+                    blocks.append(
+                        ParsedBlock(
+                            text=row_text,
+                            page_no=sheet_index,
+                            section_title=f"Sheet {sheet_index}",
+                            metadata={
+                                "parser_name": "ooxml",
+                                "parser_version": "stdlib",
+                                "source_item_ref": item_ref,
+                                "source_ordinal": row_no - 1,
+                                "source_label": "spreadsheet_row",
+                                "source_level": None,
+                                "section_path": [f"Sheet {sheet_index}"],
+                                "source_anchors": self._structural_anchor(
+                                    item_ref, locator_kind="sheet", page_no=sheet_index
+                                ),
+                            },
+                        )
+                    )
+        return blocks
+
+    @staticmethod
+    def _xlsx_column_index(reference: str) -> int:
+        """Convert an A1-style cell reference to a zero-based column index."""
+        letters = "".join(character for character in reference.upper() if character.isalpha())
+        if not letters:
+            return 0
+        index = 0
+        for character in letters:
+            index = index * 26 + ord(character) - ord("A") + 1
+        return index - 1
+
     def parse(self, source: Path, *, file_type: str) -> list[ParsedBlock]:
         """Validate the file boundary and route it to the configured bounded parser."""
-        if file_type not in {"pdf", "docx", "pptx"}:
+        if file_type not in SUPPORTED_FILE_TYPES:
             raise ParserAdapterError("UNSUPPORTED_DOCUMENT_TYPE")
         try:
             if source.stat().st_size > self.max_file_size:
@@ -263,11 +532,39 @@ class DoclingDocumentParser:
                 if not blocks:
                     raise ParserAdapterError("PARSER_INCOMPLETE_RESULT")
                 return blocks
+            if file_type == "xlsx":
+                blocks = self._parse_xlsx(source)
+                if not blocks:
+                    raise ParserAdapterError("PARSER_INCOMPLETE_RESULT")
+                return blocks
+            if file_type == "html":
+                blocks = self._parse_html(source)
+                if not blocks:
+                    raise ParserAdapterError("PARSER_INCOMPLETE_RESULT")
+                return blocks
+            if file_type == "ipynb":
+                blocks = self._parse_notebook(source)
+                if not blocks:
+                    raise ParserAdapterError("PARSER_INCOMPLETE_RESULT")
+                return blocks
+            if file_type in TEXT_FILE_TYPES:
+                blocks = self._parse_text(source, file_type=file_type)
+                if not blocks:
+                    raise ParserAdapterError("PARSER_INCOMPLETE_RESULT")
+                return blocks
             if self.pdf_backend == "pypdf":
                 return self._parse_pdf_lightweight(source)
         except ParserAdapterError:
             raise
-        except (BadZipFile, ElementTree.ParseError, KeyError, OSError) as exc:
+        except (
+            BadZipFile,
+            ElementTree.ParseError,
+            json.JSONDecodeError,
+            IndexError,
+            KeyError,
+            OSError,
+            ValueError,
+        ) as exc:
             LOGGER.exception(
                 "office_document_parse_failed file_type=%s source_size=%s error_type=%s",
                 file_type,

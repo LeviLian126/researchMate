@@ -190,7 +190,7 @@
         </details>
         <details>
           <summary>chat-composer.tsx — Input area (13 Props)</summary>
-          <p>Presentation component rendering the file upload button, message input, web search toggle, and send button. <strong>Props count: 13</strong>. <code>documents</code>, <code>projectMode</code>, <code>uploading</code>, <code>fileInput</code> (RefObject), <code>message</code>, <code>webEnabled</code>, <code>sending</code>, <code>historyLoading</code>, <code>hasReadyAttachments</code>, <code>onUpload</code>, <code>onSubmit</code>, <code>onMessageChange</code>, <code>onWebEnabledChange</code>. Enter key submits (Shift+Enter for newline), maxLength 8000, file type restricted to .pdf/.docx/.pptx. Uses lucide-react Paperclip, ArrowUp, Globe, Loader2 icons.</p>
+          <p>Presentation component rendering the file upload button, message input, web search toggle, and send button. <strong>Props count: 13</strong>. <code>documents</code>, <code>projectMode</code>, <code>uploading</code>, <code>fileInput</code> (RefObject), <code>message</code>, <code>webEnabled</code>, <code>sending</code>, <code>historyLoading</code>, <code>hasReadyAttachments</code>, <code>onUpload</code>, <code>onSubmit</code>, <code>onMessageChange</code>, <code>onWebEnabledChange</code>. Enter submits; Shift+Enter inserts a newline. The shared upload contract accepts 42 document, spreadsheet, text/data, notebook, and source-code formats.</p>
         </details>
         <details>
           <summary>conversation-thread.tsx — Conversation thread (11 Props)</summary>
@@ -298,10 +298,10 @@
       <section id="upload">
         <p class="eyebrow">File upload slice</p>
         <h2>The 3-step file upload flow</h2>
-        <p class="sub">After a user selects a PDF/DOCX/PPTX file, it goes through 3 steps to complete upload and indexing. Uses a signed URL pattern: the frontend first requests an upload URL, PUTs directly to object storage, then notifies the backend to complete.</p>
+        <p class="sub">A supported file goes through three steps: reserve an upload, PUT the original bytes to object storage, then notify the backend to parse and index it.</p>
         <div class="proof-chain">
-          <div class="proof-step"><b>1. File selection</b><small>chat-composer.tsx: <code>&lt;input type="file" accept=".pdf,.docx,.pptx" multiple&gt;</code> <code>onChange</code> → calls <code>onUpload(event)</code> → passed to <code>workspace.uploadFiles</code>. Shows a Loader2 spinner during upload. The Library page also supports drag-and-drop (<code>onDrop</code>).</small></div>
-          <div class="proof-step"><b>2. Upload orchestration</b><small>use-chat-workspace.ts: <code>uploadFiles</code> → validates file extension (<code>/\.(pdf|docx|pptx)$/i</code>) → <code>fileTypeFromName</code> + <code>mimeForFileType</code> resolve type → <code>apiFetch POST /documents/upload-url</code> gets a signed URL → <code>fetch PUT</code> uploads directly to R2 → <code>apiFetch POST /documents/{id}/complete</code> notifies the backend.</small></div>
+          <div class="proof-step"><b>1. File selection</b><small><code>chat-composer.tsx</code> uses the shared <code>SUPPORTED_FILE_ACCEPT</code> value. The Library page uses the same contract for drag-and-drop.</small></div>
+          <div class="proof-step"><b>2. Upload orchestration</b><small><code>use-chat-workspace.ts</code> checks <code>isSupportedFileName()</code>; <code>fileTypeFromName()</code> and <code>mimeForFileType()</code> resolve canonical metadata before reserve → PUT → complete.</small></div>
           <div class="proof-step"><b>3. State refresh</b><small>use-chat-workspace.ts: project mode dispatches <code>"researchmate:sources-refresh"</code> event → personal mode <code>setDocuments</code> refreshes the document list → if documents are still processing, starts a 2-second polling timer until all documents become ready/failed. The Library page similarly polls <code>loadDocuments</code>.</small></div>
         </div>
         <div class="notice"><strong>Signed URL pattern:</strong> The frontend does not relay file binary data through the backend but PUTs directly to an R2 presigned URL. This reduces backend bandwidth pressure but requires R2 CORS configuration to allow browser PUT requests.</div>

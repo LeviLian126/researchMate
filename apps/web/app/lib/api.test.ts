@@ -9,6 +9,7 @@ import {
   getDevToken,
   idempotencyKey,
   mimeForFileType,
+  isSupportedFileName,
   setDevToken,
   streamRunEvents,
   uploadReservedContent,
@@ -172,10 +173,17 @@ describe("presentation helpers", () => {
   it("maps filenames and MIME types without case sensitivity", () => {
     expect(fileTypeFromName("PAPER.DOCX")).toBe("docx");
     expect(fileTypeFromName("slides.pptx")).toBe("pptx");
-    expect(fileTypeFromName("notes.txt")).toBe("pdf");
+    expect(fileTypeFromName("notes.txt")).toBe("txt");
+    expect(fileTypeFromName("README.markdown")).toBe("md");
+    expect(fileTypeFromName("metrics.xlsx")).toBe("xlsx");
+    expect(fileTypeFromName("events.ndjson")).toBe("jsonl");
+    expect(isSupportedFileName("analysis.ipynb")).toBe(true);
+    expect(isSupportedFileName("archive.zip")).toBe(false);
     expect(mimeForFileType("docx")).toContain("wordprocessingml");
     expect(mimeForFileType("pptx")).toContain("presentationml");
     expect(mimeForFileType("pdf")).toBe("application/pdf");
+    expect(mimeForFileType("xlsx")).toContain("spreadsheetml");
+    expect(mimeForFileType("md")).toBe("text/markdown");
   });
 
   it("prefixes generated idempotency keys", () => {

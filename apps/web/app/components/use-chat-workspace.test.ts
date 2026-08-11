@@ -33,6 +33,7 @@ vi.mock("../lib/api", () => ({
   }),
   fileTypeFromName: (filename: string) =>
     filename.toLowerCase().endsWith(".docx") ? "docx" : "pdf",
+  isSupportedFileName: (filename: string) => /\.(pdf|docx)$/i.test(filename),
   idempotencyKey: (prefix: string) => `${prefix}-test`,
   mimeForFileType: (fileType: string) =>
     fileType === "docx"

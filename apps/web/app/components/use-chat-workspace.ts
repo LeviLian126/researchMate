@@ -19,6 +19,7 @@ import {
   type DocumentRecord,
   fileTypeFromName,
   idempotencyKey,
+  isSupportedFileName,
   mimeForFileType,
   type ProjectRecord,
   type QuizHistoryResponse,
@@ -222,8 +223,8 @@ export function useChatWorkspace({ suppliedProjectId, projectMode }: UseChatWork
     try {
       const activeConversationId = projectMode ? null : await ensureConversation();
       for (const file of files) {
-        if (!/\.(pdf|docx|pptx)$/i.test(file.name)) {
-          throw new Error(`${file.name} is not a PDF, DOCX, or PPTX file.`);
+        if (!isSupportedFileName(file.name)) {
+          throw new Error(`${file.name} uses an unsupported file format.`);
         }
         const fileType = fileTypeFromName(file.name);
         const mimeType = mimeForFileType(fileType);

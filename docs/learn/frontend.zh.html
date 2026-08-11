@@ -190,7 +190,7 @@
         </details>
         <details>
           <summary>chat-composer.tsx — 输入区(13 Props)</summary>
-          <p>展示组件,渲染文件上传按钮、消息输入框、Web 搜索开关和发送按钮。<strong>Props 数量:13</strong>。<code>documents</code>, <code>projectMode</code>, <code>uploading</code>, <code>fileInput</code>(RefObject), <code>message</code>, <code>webEnabled</code>, <code>sending</code>, <code>historyLoading</code>, <code>hasReadyAttachments</code>, <code>onUpload</code>, <code>onSubmit</code>, <code>onMessageChange</code>, <code>onWebEnabledChange</code>。Enter 键提交(Shift+Enter 换行),maxLength 8000,文件类型限制 .pdf/.docx/.pptx。使用 lucide-react 的 Paperclip, ArrowUp, Globe, Loader2 图标。</p>
+          <p>展示组件负责文件上传、消息输入、Web 搜索开关和发送。<strong>Props 数量：13</strong>。Enter 提交，Shift+Enter 换行。共享上传契约接受 42 种文档、表格、文本/数据、Notebook 和源码格式。</p>
         </details>
         <details>
           <summary>conversation-thread.tsx — 对话线程(11 Props)</summary>
@@ -298,10 +298,10 @@
       <section id="upload">
         <p class="eyebrow">文件上传切片</p>
         <h2>文件上传的 3 步流程</h2>
-        <p class="sub">用户选择 PDF/DOCX/PPTX 文件后,经过 3 个步骤完成上传和索引。使用 signed URL 模式:前端先请求上传 URL,直接 PUT 到对象存储,再通知后端完成。</p>
+        <p class="sub">支持的文件经过三个步骤完成摄取：预留上传、将原始字节 PUT 到对象存储、通知后端解析并建立索引。</p>
         <div class="proof-chain">
-          <div class="proof-step"><b>1. 文件选择</b><small>chat-composer.tsx:<code>&lt;input type="file" accept=".pdf,.docx,.pptx" multiple&gt;</code> 的 <code>onChange</code> → 调用 <code>onUpload(event)</code> → 传入 <code>workspace.uploadFiles</code>。上传中展示 Loader2 旋转图标。Library 页面还支持拖拽上传(<code>onDrop</code>)。</small></div>
-          <div class="proof-step"><b>2. 上传编排</b><small>use-chat-workspace.ts:<code>uploadFiles</code> → 验证文件扩展名(<code>/\.(pdf|docx|pptx)$/i</code>)→ <code>fileTypeFromName</code> + <code>mimeForFileType</code> 解析类型 → <code>apiFetch POST /documents/upload-url</code> 获取 signed URL → <code>fetch PUT</code> 直传到 R2 → <code>apiFetch POST /documents/{id}/complete</code> 通知后端。</small></div>
+          <div class="proof-step"><b>1. 文件选择</b><small><code>chat-composer.tsx</code> 使用共享的 <code>SUPPORTED_FILE_ACCEPT</code>；Library 页拖拽上传使用同一份格式契约。</small></div>
+          <div class="proof-step"><b>2. 上传编排</b><small><code>use-chat-workspace.ts</code> 通过 <code>isSupportedFileName()</code> 校验文件；<code>fileTypeFromName()</code> 与 <code>mimeForFileType()</code> 在预留 → PUT → 完成之前生成规范元数据。</small></div>
           <div class="proof-step"><b>3. 状态刷新</b><small>use-chat-workspace.ts:项目模式 dispatch <code>"researchmate:sources-refresh"</code> 事件 → 个人模式 <code>setDocuments</code> 刷新文档列表 → 如果文档处于处理中状态,启动 2 秒轮询定时器直到所有文档变为 ready/failed。Library 页面同样轮询 <code>loadDocuments</code>。</small></div>
         </div>
         <div class="notice"><strong>Signed URL 模式:</strong>前端不通过后端中转文件二进制数据,而是直接 PUT 到 R2 对象存储的 presigned URL。这减少了后端带宽压力,但要求 R2 的 CORS 配置允许浏览器的 PUT 请求。</div>

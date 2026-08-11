@@ -325,7 +325,7 @@
       <dt>ProjectRecord</dt><dd><code>id: UUID</code>；<code>user_id: UUID</code>；名称；<code>kind: personal|workspace</code>；状态；可选 <code>expires_at</code>；创建/更新时间戳；可选 <code>deleted_at</code>。</dd>
      </dl></details>
      <details id="schema-upload"><summary><code>UploadUrlRequest</code>、<code>UploadUrlResponse</code> 和 <code>UploadCompleteRequest</code></summary><dl class="kv">
-      <dt>UploadUrlRequest</dt><dd><code>project_id: UUID</code>；个人聊天附件的可选 <code>conversation_id: UUID</code>；<code>filename: string 1..240</code>；<code>file_type: pdf|docx|pptx</code>；匹配的 <code>mime_type: string 3..120</code>；<code>size_bytes: 1..26,214,400</code>。</dd>
+      <dt>UploadUrlRequest</dt><dd><code>project_id: UUID</code>；个人聊天附件的可选 <code>conversation_id: UUID</code>；<code>filename: string 1..240</code>；<code>file_type</code>：<code>pdf | docx | pptx | xlsx | txt | md | csv | tsv | json | jsonl | xml | html | yaml | toml | rst | log | tex | bib | py | ipynb | js | jsx | ts | tsx | css | scss | sql | sh | ps1 | java | c | cpp | h | hpp | cs | go | rs | php | rb | swift | kt | kts</code>。文件扩展名与 <code>mime_type: string 3..120</code> 必须同时匹配所选类型；<code>size_bytes: 1..26,214,400</code>。</dd>
       <dt>UploadUrlResponse</dt><dd><code>document_id: UUID</code>; <code>upload_url: string 1..4096</code>; <code>r2_object_key: string 16..512</code>; <code>expires_in_seconds: 60..900</code>.</dd>
       <dt>UploadCompleteRequest</dt><dd>整个请求体可选/为 null。存在时：<code>checksum_sha256?: 恰好 64 字符</code>；<code>extracted_text?: string ≤200,000</code>。</dd>
      </dl></details>

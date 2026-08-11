@@ -243,7 +243,7 @@
           <div class="proof-step"><b>2. Lease claim</b><small>ingestion_store.py:SqlIngestionStore.claim() 通过 UPDATE ... RETURNING 原子地将 job 转为 running,设置 lease_owner + lease_expires_at,标记 document 为 parsing</small></div>
           <div class="proof-step"><b>3. 对象下载</b><small>ingestion_service.py:S3CompatibleObjectStorage.download_to_file() 写入 TemporaryDirectory;校验大小不超过 max_upload_bytes</small></div>
           <div class="proof-step"><b>4. Checksum 校验</b><small>ingestion_service.py:下载字节的 SHA-256 与 record.checksum_sha256 比较;不匹配抛出 CHECKSUM_MISMATCH(不可重试)</small></div>
-          <div class="proof-step"><b>5. 解析</b><small>parsing.py:DoclingDocumentParser.parse() 按 file_type 路由(pdf/docx/pptx);pypdf 轻量或 Docling 视觉管线;返回 list[ParsedBlock]</small></div>
+          <div class="proof-step"><b>5. 解析</b><small><code>parsing.py</code> 路由 42 种文件类型：轻量 PDF、有界 DOCX/PPTX/XLSX OOXML、HTML 可见文本、Notebook 输入单元和解码后的文本块。所有路径都返回带出处信息的 <code>list[ParsedBlock]</code>。</small></div>
           <div class="proof-step"><b>6. 投影</b><small>ingestion_projections.py:build_projections() 从 content_hash 派生确定性 UUID5 page + chunk ID;jobs.py chunk_text_for_index 切分文本</small></div>
           <div class="proof-step"><b>7. 索引 + ready</b><small>ingestion_store.py:replace_content() 写入 pages + chunks(SELECT FOR UPDATE),QdrantHybridStore.upsert_chunks(),mark_ready() 将 job 转为 succeeded + document 转为 ready</small></div>
         </div>

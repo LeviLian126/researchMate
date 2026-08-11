@@ -1,6 +1,6 @@
 // Owns chat draft controls, attachment selection, and submit accessibility semantics.
 import type { ChangeEvent, FormEvent, RefObject } from "react";
-import type { DocumentRecord } from "../lib/api";
+import { SUPPORTED_FILE_ACCEPT, type DocumentRecord } from "../lib/api";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -64,7 +64,7 @@ export function ChatComposer({
           className="sr-only"
           id="chat-files"
           type="file"
-          accept=".pdf,.docx,.pptx"
+          accept={SUPPORTED_FILE_ACCEPT}
           multiple
           onChange={onUpload}
         />

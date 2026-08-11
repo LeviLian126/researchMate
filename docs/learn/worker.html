@@ -243,7 +243,7 @@
           <div class="proof-step"><b>2. Lease claim</b><small>ingestion_store.py: SqlIngestionStore.claim() atomically transitions job to running via UPDATE ... RETURNING, sets lease_owner + lease_expires_at, marks document as parsing</small></div>
           <div class="proof-step"><b>3. Object download</b><small>ingestion_service.py: S3CompatibleObjectStorage.download_to_file() writes to a TemporaryDirectory; size checked against max_upload_bytes</small></div>
           <div class="proof-step"><b>4. Checksum verify</b><small>ingestion_service.py: SHA-256 of downloaded bytes compared to record.checksum_sha256; mismatch raises CHECKSUM_MISMATCH (non-retryable)</small></div>
-          <div class="proof-step"><b>5. Parse</b><small>parsing.py: DoclingDocumentParser.parse() routes by file_type (pdf/docx/pptx); pypdf lightweight or Docling visual pipeline; returns list[ParsedBlock]</small></div>
+          <div class="proof-step"><b>5. Parse</b><small><code>parsing.py</code> routes 42 file types: lightweight PDF, bounded OOXML for DOCX/PPTX/XLSX, visible HTML, notebook input cells, and decoded text blocks. Every path returns provenance-aware <code>list[ParsedBlock]</code>.</small></div>
           <div class="proof-step"><b>6. Project</b><small>ingestion_projections.py: build_projections() derives deterministic UUID5 page + chunk IDs from content_hash; jobs.py chunk_text_for_index splits text</small></div>
           <div class="proof-step"><b>7. Index + ready</b><small>ingestion_store.py: replace_content() writes pages + chunks (SELECT FOR UPDATE), QdrantHybridStore.upsert_chunks(), mark_ready() transitions job to succeeded + document to ready</small></div>
         </div>

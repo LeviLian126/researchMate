@@ -325,7 +325,7 @@
       <dt>ProjectRecord</dt><dd><code>id: UUID</code>; <code>user_id: UUID</code>; name; <code>kind: personal|workspace</code>; status; optional <code>expires_at</code>; created/updated timestamps; optional <code>deleted_at</code>.</dd>
      </dl></details>
      <details id="schema-upload"><summary><code>UploadUrlRequest</code>, <code>UploadUrlResponse</code>, and <code>UploadCompleteRequest</code></summary><dl class="kv">
-      <dt>UploadUrlRequest</dt><dd><code>project_id: UUID</code>; optional <code>conversation_id: UUID</code> for personal-chat attachments; <code>filename: string 1..240</code>; <code>file_type: pdf|docx|pptx</code>; matching <code>mime_type: string 3..120</code>; <code>size_bytes: 1..26,214,400</code>.</dd>
+      <dt>UploadUrlRequest</dt><dd><code>project_id: UUID</code>; optional <code>conversation_id: UUID</code> for personal-chat attachments; <code>filename: string 1..240</code>; <code>file_type</code>: <code>pdf | docx | pptx | xlsx | txt | md | csv | tsv | json | jsonl | xml | html | yaml | toml | rst | log | tex | bib | py | ipynb | js | jsx | ts | tsx | css | scss | sql | sh | ps1 | java | c | cpp | h | hpp | cs | go | rs | php | rb | swift | kt | kts</code>. The filename extension and <code>mime_type: string 3..120</code> must both match the selected type; <code>size_bytes: 1..26,214,400</code>.</dd>
       <dt>UploadUrlResponse</dt><dd><code>document_id: UUID</code>; <code>upload_url: string 1..4096</code>; <code>r2_object_key: string 16..512</code>; <code>expires_in_seconds: 60..900</code>.</dd>
       <dt>UploadCompleteRequest</dt><dd>The whole body is optional/null. When present: <code>checksum_sha256?: exactly 64 characters</code>; <code>extracted_text?: string ≤200,000</code>.</dd>
      </dl></details>

@@ -497,7 +497,7 @@
       <details id="documents"><summary><code>documents</code> &middot; 16 个字段</summary>
        <div class="grid">
         <div class="fact"><b>用途</b><p>上传的对象元数据和解析/索引生命周期。</p></div>
-        <div class="fact"><b>完整性和索引</b><p>拥有者/项目外键级联；唯一对象存储键；PDF/DOCX/PPTX 和 25 MiB 检查。索引：<code>idx_documents_user_project_status</code>。</p></div>
+        <div class="fact"><b>完整性和索引</b><p>拥有者/项目外键级联；对象存储键唯一；文件类型限于 API 中 42 种有解析器支持的格式；大小上限为 25 MiB。索引：<code>idx_documents_user_project_status</code>。</p></div>
         <div class="fact"><b>访问和生命周期</b><p>RLS：拥有者 ALL。数据库、对象、页面和分块需要协调删除；无触发器执行此操作。</p></div>
        </div>
        <div class="scroll"><table class="dense"><thead><tr><th>字段</th><th>精确声明</th><th>可空</th><th>键 / 约束</th><th>角色</th></tr></thead><tbody>
@@ -506,7 +506,7 @@
 <tr id="field-documents-project_id"><td><code>project_id</code></td><td><code>uuid not null references projects(id) on delete cascade</code></td><td>必选</td><td>FK &middot; projects.id &middot; CASCADE</td><td>项目/工作空间引用。</td></tr>
 <tr id="field-documents-conversation_id"><td><code>conversation_id</code></td><td><code>uuid references conversations(id) on delete cascade</code></td><td>可空</td><td>FK · conversations.id · CASCADE</td><td>个人聊天上传所需；工作空间项目共享来源为 null。</td></tr>
 <tr id="field-documents-filename"><td><code>filename</code></td><td><code>text not null</code></td><td>必选</td><td>未声明</td><td>原始文件名。</td></tr>
-<tr id="field-documents-file_type"><td><code>file_type</code></td><td><code>text not null check (file_type in (&#x27;pdf&#x27;, &#x27;docx&#x27;, &#x27;pptx&#x27;))</code></td><td>必选</td><td>CHECK</td><td>白名单文件类别。</td></tr>
+<tr id="field-documents-file_type"><td><code>file_type</code></td><td><code>text not null check（42 种有解析器支持的值）</code></td><td>必选</td><td>CHECK</td><td>PDF/DOCX/PPTX/XLSX、文档与数据文本、Notebook 或源码类别；完整白名单由迁移 <code>202608110008_expand_document_file_types.sql</code> 维护。</td></tr>
 <tr id="field-documents-mime_type"><td><code>mime_type</code></td><td><code>text not null</code></td><td>必选</td><td>未声明</td><td>声明的媒体类型。</td></tr>
 <tr id="field-documents-size_bytes"><td><code>size_bytes</code></td><td><code>bigint not null check (size_bytes &gt; 0 and size_bytes &lt;= 26214400)</code></td><td>必选</td><td>CHECK</td><td>对象大小（字节）。</td></tr>
 <tr id="field-documents-r2_object_key"><td><code>r2_object_key</code></td><td><code>text not null unique</code></td><td>必选</td><td>UNIQUE</td><td>持久对象存储键。字面字段名因迁移兼容性保留；运行时为提供商中立。</td></tr>

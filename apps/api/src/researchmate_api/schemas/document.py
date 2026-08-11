@@ -11,11 +11,110 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from researchmate_api.schemas.common import DocumentStatus
 
-MIME_BY_TYPE = {
+type DocumentFileType = Literal[
+    "pdf",
+    "docx",
+    "pptx",
+    "xlsx",
+    "txt",
+    "md",
+    "csv",
+    "tsv",
+    "json",
+    "jsonl",
+    "xml",
+    "html",
+    "yaml",
+    "toml",
+    "rst",
+    "log",
+    "tex",
+    "bib",
+    "py",
+    "ipynb",
+    "js",
+    "jsx",
+    "ts",
+    "tsx",
+    "css",
+    "scss",
+    "sql",
+    "sh",
+    "ps1",
+    "java",
+    "c",
+    "cpp",
+    "h",
+    "hpp",
+    "cs",
+    "go",
+    "rs",
+    "php",
+    "rb",
+    "swift",
+    "kt",
+    "kts",
+]
+
+MIME_BY_TYPE: dict[str, set[str]] = {
     "pdf": {"application/pdf"},
     "docx": {"application/vnd.openxmlformats-officedocument.wordprocessingml.document"},
     "pptx": {"application/vnd.openxmlformats-officedocument.presentationml.presentation"},
+    "xlsx": {"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"},
+    "txt": {"text/plain"},
+    "md": {"text/markdown", "text/plain", "text/x-markdown"},
+    "csv": {"text/csv", "application/csv", "text/plain"},
+    "tsv": {"text/tab-separated-values", "text/plain"},
+    "json": {"application/json", "text/json", "text/plain"},
+    "jsonl": {"application/x-ndjson", "application/jsonl", "text/plain"},
+    "xml": {"application/xml", "text/xml", "text/plain"},
+    "html": {"text/html", "application/xhtml+xml"},
+    "yaml": {"application/yaml", "text/yaml", "application/x-yaml", "text/plain"},
+    "toml": {"application/toml", "text/plain"},
+    "rst": {"text/x-rst", "text/plain"},
+    "log": {"text/plain"},
+    "tex": {"text/x-tex", "application/x-tex", "text/plain"},
+    "bib": {"text/x-bibtex", "text/plain"},
+    "py": {"text/x-python", "text/plain"},
+    "ipynb": {"application/x-ipynb+json", "application/json"},
+    "js": {"text/javascript", "application/javascript", "text/plain"},
+    "jsx": {"text/jsx", "text/javascript", "text/plain"},
+    "ts": {"text/typescript", "application/typescript", "text/plain"},
+    "tsx": {"text/tsx", "text/typescript", "text/plain"},
+    "css": {"text/css", "text/plain"},
+    "scss": {"text/x-scss", "text/plain"},
+    "sql": {"application/sql", "text/x-sql", "text/plain"},
+    "sh": {"application/x-sh", "text/x-shellscript", "text/plain"},
+    "ps1": {"text/x-powershell", "text/plain"},
+    "java": {"text/x-java-source", "text/plain"},
+    "c": {"text/x-c", "text/plain"},
+    "cpp": {"text/x-c++src", "text/plain"},
+    "h": {"text/x-c", "text/plain"},
+    "hpp": {"text/x-c++hdr", "text/plain"},
+    "cs": {"text/x-csharp", "text/plain"},
+    "go": {"text/x-go", "text/plain"},
+    "rs": {"text/x-rust", "text/plain"},
+    "php": {"application/x-httpd-php", "text/x-php", "text/plain"},
+    "rb": {"application/x-ruby", "text/x-ruby", "text/plain"},
+    "swift": {"text/x-swift", "text/plain"},
+    "kt": {"text/x-kotlin", "text/plain"},
+    "kts": {"text/x-kotlin", "text/plain"},
 }
+EXTENSIONS_BY_TYPE: dict[str, set[str]] = {
+    file_type: {f".{file_type}"} for file_type in MIME_BY_TYPE
+}
+EXTENSIONS_BY_TYPE.update(
+    {
+        "txt": {".txt", ".text"},
+        "md": {".md", ".markdown"},
+        "jsonl": {".jsonl", ".ndjson"},
+        "html": {".html", ".htm"},
+        "yaml": {".yaml", ".yml"},
+        "sh": {".sh", ".bash"},
+        "cpp": {".cpp", ".cc", ".cxx"},
+        "hpp": {".hpp", ".hh", ".hxx"},
+    }
+)
 MAX_DOCUMENT_UPLOAD_BYTES = 25 * 1024 * 1024
 
 
@@ -32,7 +131,7 @@ class UploadUrlRequest(BaseModel):
     project_id: UUID
     conversation_id: UUID | None = None
     filename: str = Field(min_length=1, max_length=240)
-    file_type: Literal["pdf", "docx", "pptx"]
+    file_type: DocumentFileType
     mime_type: str = Field(min_length=3, max_length=120)
     size_bytes: int = Field(gt=0, le=MAX_DOCUMENT_UPLOAD_BYTES)
 
@@ -43,6 +142,11 @@ class UploadUrlRequest(BaseModel):
     def validate_mime_matches_type(self) -> UploadUrlRequest:
         if self.mime_type not in MIME_BY_TYPE[self.file_type]:
             raise ValueError(f"mime_type {self.mime_type} is not allowed for {self.file_type}")
+        filename = self.filename.lower()
+        if not any(
+            filename.endswith(extension) for extension in EXTENSIONS_BY_TYPE[self.file_type]
+        ):
+            raise ValueError(f"filename extension does not match file_type {self.file_type}")
         return self
 
 

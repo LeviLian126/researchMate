@@ -61,6 +61,19 @@ _MIME_MAGIC_ALIASES: dict[str, tuple[str, ...]] = {
     "application/msword": ("application/msword", "application/x-zip-compressed"),
     "application/zip": ("application/zip",),
     "application/json": ("application/json", "text/plain", "ascii"),
+    "application/x-ipynb+json": ("application/json", "text/plain", "ascii"),
+    "application/x-ndjson": ("application/json", "text/plain", "ascii"),
+    "application/jsonl": ("application/json", "text/plain", "ascii"),
+    "application/xml": ("application/xml", "text/xml", "text/plain", "ascii"),
+    "application/yaml": ("text/plain", "ascii"),
+    "application/toml": ("text/plain", "ascii"),
+    "application/sql": ("text/plain", "ascii"),
+    "application/x-sh": ("text/plain", "ascii"),
+    "application/x-httpd-php": ("text/plain", "ascii"),
+    "application/x-ruby": ("text/plain", "ascii"),
+    "application/x-tex": ("text/plain", "ascii"),
+    "application/javascript": ("text/plain", "javascript", "ascii"),
+    "application/typescript": ("text/plain", "typescript", "ascii"),
 }
 
 
@@ -94,6 +107,10 @@ def _mime_matches(detected: str | None, declared: str) -> bool:
     detected_lower = detected.lower()
     if aliases:
         return any(alias in detected_lower for alias in aliases)
+    if declared_lower.startswith("text/") and any(
+        marker in detected_lower for marker in ("text/", "ascii", "json", "xml")
+    ):
+        return True
     # Unknown-to-the-allowlist declared type: accept when libmagic agrees with the declared
     # type itself (covers rare types not enumerated above).
     return declared_lower in detected_lower or detected_lower.startswith(declared_lower)

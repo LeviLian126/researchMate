@@ -233,6 +233,8 @@ def test_mime_matches_handles_aliases_for_office_documents() -> None:
     assert _mime_matches("application/pdf", "image/png") is False
     # Unknown declared type falls back to a tolerant prefix comparison.
     assert _mime_matches("application/x-custom", "application/x-custom") is True
+    assert _mime_matches("text/plain", "text/markdown") is True
+    assert _mime_matches("application/json", "application/x-ipynb+json") is True
 
 
 def test_detect_mime_type_returns_none_for_empty_buffer() -> None:

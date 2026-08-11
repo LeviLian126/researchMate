@@ -163,7 +163,7 @@
           <article class="state-card">
             <span class="status planned">File content validation · planned</span>
             <b>Security Hardening · Upload safety</b>
-            <p>Server-side <code>python-magic</code> content sniffing is planned to reinforce the existing 25 MB PDF/DOCX/PPTX allowlist enforced by the private Supabase bucket, so an attacker cannot reach the parser with a mislabeled extension. The deployable reserve → signed PUT → HEAD → commit path remains the integration proof.</p>
+            <p>The upload contract now binds filename extension and MIME across 42 parser-backed formats, and server-side <code>python-magic</code> checks stored bytes when available. Local format and parser tests pass; migration <code>202608110008</code> and representative managed-storage uploads remain the release proof.</p>
           </article>
         </div>
 
