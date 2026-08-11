@@ -36,9 +36,11 @@ describe("ProjectNav presentation", () => {
     expect(markup).toContain("/app/projects/project-1/chat");
     expect(markup).toContain("/app/projects/project-1/library");
     expect(markup).toContain("/app/projects/project-1/chat?quiz=1");
+    expect(markup).toContain("/app/projects/project-1/research");
     expect(markup).toContain("Chat");
     expect(markup).toContain("Sources");
     expect(markup).toContain("Quiz");
+    expect(markup).toContain("Research report");
   });
 
   it("marks the chat link as the active page", () => {

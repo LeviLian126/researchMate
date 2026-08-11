@@ -3,7 +3,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { BookOpen, HelpCircle, MessageSquare } from "lucide-react";
+import { BookOpen, FileText, HelpCircle, MessageSquare } from "lucide-react";
 import { apiFetch, ProjectRecord } from "../lib/api";
 import { cn } from "@/lib/utils";
 
@@ -13,7 +13,7 @@ export function ProjectNav({
   current,
 }: {
   projectId: string;
-  current: "chat" | "library" | "evidence" | "quiz" | "labs";
+  current: "chat" | "library" | "research" | "evidence" | "quiz" | "labs";
 }) {
   const [project, setProject] = useState<ProjectRecord | null>(null);
 
@@ -29,6 +29,7 @@ export function ProjectNav({
     { href: `/app/projects/${projectId}/chat`, label: "Chat", icon: MessageSquare, key: "chat" as const },
     { href: `/app/projects/${projectId}/library`, label: "Sources", icon: BookOpen, key: "library" as const },
     { href: `/app/projects/${projectId}/chat?quiz=1`, label: "Quiz", icon: HelpCircle, key: "quiz" as const },
+    { href: `/app/projects/${projectId}/research`, label: "Research report", icon: FileText, key: "research" as const },
   ];
 
   return (
