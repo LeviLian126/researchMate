@@ -1,0 +1,4 @@
+interface:
+  display_name: "Large Tech Resume"
+  short_description: "Evidence-driven big-tech engineering resumes"
+  default_prompt: "Use $large-tech-resume to map real JDs to project evidence and produce preview.md plus complete role-specific cv.md."
