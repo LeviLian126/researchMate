@@ -15,7 +15,6 @@ import {
 } from "../../../../lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
@@ -40,7 +39,6 @@ export default function LibraryPage() {
   const fileInput = useRef<HTMLInputElement>(null);
   const [documents, setDocuments] = useState<DocumentRecord[]>([]);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [manualText, setManualText] = useState("RAG uses retrieval before generation. Citations must point to source chunks.");
   const [query, setQuery] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
@@ -112,7 +110,7 @@ export default function LibraryPage() {
           filename: selectedFile.name,
           file_type: fileType,
           mime_type: mimeType,
-          size_bytes: selectedFile.size || manualText.length || 1,
+          size_bytes: selectedFile.size || 1,
         }),
       });
       const isLocalFallback = uploadUrl.upload_url.includes("/api/v1/dev/upload/");
@@ -121,7 +119,7 @@ export default function LibraryPage() {
       }
       await apiFetch(`/documents/${uploadUrl.document_id}/complete`, {
         method: "POST",
-        body: JSON.stringify({ extracted_text: isLocalFallback ? manualText.trim() || (await selectedFile.text()) : null }),
+        body: JSON.stringify({ extracted_text: isLocalFallback ? await selectedFile.text() : null }),
       });
       setStatus("Source accepted. Parsing and indexing are queued.");
       setSelectedFile(null);
@@ -237,14 +235,6 @@ export default function LibraryPage() {
               </Button>
               {selectedFile && <p className="mt-3 text-sm font-medium text-foreground">{selectedFile.name}</p>}
             </div>
-
-            <details className="group">
-              <summary className="cursor-pointer text-sm font-medium text-muted-foreground hover:text-foreground">Local parsed-text fallback</summary>
-              <div className="mt-3 space-y-2">
-                <label htmlFor="manual-text" className="text-xs text-muted-foreground">Text used only by the local in-memory upload path</label>
-                <Textarea id="manual-text" rows={5} value={manualText} onChange={(event) => setManualText(event.target.value)} />
-              </div>
-            </details>
 
             <Button type="submit" disabled={!selectedFile || uploading} className="w-full">
               {uploading ? "Uploading…" : "Upload and index"}
