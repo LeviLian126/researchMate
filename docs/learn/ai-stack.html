@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width,initial-scale=1" name="viewport"/>
+  <meta content="ResearchMate AI agent stack deep dive: routed Hybrid RAG with five routes and dual rerank, MCP server with six tools and three resources, LangGraph evidence workflow with six nodes, checkpointing, and human-in-the-loop review." name="description"/>
+  <title>ResearchMate . AI agent stack</title>
+  <link href="../assets/site.css" rel="stylesheet"/>
+  <style>
+    .layout section > h2 { cursor: pointer; user-select: none; }
+    .layout section > h2::before { content: "▾ "; color: var(--clay); font-size: 0.8em; transition: transform 0.2s; display: inline-block; }
+    .layout section.collapsed > h2::before { transform: rotate(-90deg); }
+    .layout section.collapsed > :not(h2):not(.eyebrow) { display: none; }
+  </style>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      document.querySelectorAll('.layout section > h2').forEach(function(h2) {
+        h2.addEventListener('click', function() {
+          h2.closest('section').classList.toggle('collapsed');
+        });
+      });
+    });
+  </script>
+  <style>.module-nav{border-top:1px solid var(--g200)}.module-nav .shell{padding:6px 0 12px}.module-nav a{font-size:11.5px;padding:5px 11px}</style>
+</head>
+<body>
+  <header class="mast"><div class="shell mast-row"><a class="brand" href="../index.html">ResearchMate documentation</a><div class="mast-right"><span class="stamp">AI stack . 11 August 2026</span><a class="lang-toggle" href="ai-stack.zh.html" hreflang="zh" lang="zh">中文</a></div></div></header>
+  <nav aria-label="Documentation" class="global"><div class="shell">
+    <a href="../index.html">Overview</a>
+    <a href="../product/index.html">Product &amp; roadmap</a>
+    <a href="../architecture/index.html">Architecture &amp; stack</a>
+    <a href="../contracts/data/index.html">Database</a>
+    <a href="../contracts/api/index.html">API</a>
+    <a aria-current="page" href="index.html">Learn</a>
+  </div></nav>
+  <nav aria-label="Learning modules" class="global module-nav"><div class="shell">
+    <a href="frontend.html">Frontend</a>
+    <a href="backend.html">Backend</a>
+    <a href="worker.html">Worker</a>
+    <a href="infra.html">Infrastructure</a>
+    <a href="cicd.html">CI/CD</a>
+    <a href="contracts-tests.html">Contracts &amp; Tests</a>
+    <a href="flows.html">Flow analysis</a>
+    <a aria-current="page" href="ai-stack.html">AI stack</a>
+  </div></nav>
+  <main class="shell">
+    <div class="hero">
+      <p class="eyebrow">Hybrid RAG / MCP / LangGraph</p>
+      <h1>AI agent stack . Retrieval, Protocol, Orchestration</h1>
+      <p class="lede">ResearchMate's AI agent stack is a cohesive subsystem spanning the FastAPI backend and the Celery worker. Three foundations compose it: a routed Hybrid RAG retriever that chooses among five observable routes before fused retrieval and dual rerank; an MCP server that exposes six tools and three resources over Streamable HTTP under the same bearer auth as REST; and a LangGraph evidence workflow that orchestrates a six-node stateful graph with parallel fan-out, PostgreSQL checkpointing, and human-in-the-loop review. This page goes file-by-file through every component, decision tree, and integration seam.</p>
+      <div class="meta">
+        <span class="status local">5 retrieval routes</span>
+        <span class="status local">3 rerank providers</span>
+        <span class="status local">6 MCP tools . 3 resources</span>
+        <span class="status local">6-node LangGraph</span>
+        <span class="status local">PostgresSaver checkpoint</span>
+        <span class="status local">Human-in-the-Loop</span>
+      </div>
+    </div>
+    <div class="layout"><div class="content">
+
+      <section id="stack">
+        <p class="eyebrow">Technology stack fundamentals</p>
+        <h2>Three foundations of the AI agent stack</h2>
+        <p class="sub">Each card explains what the technology does in general and how ResearchMate uses it specifically.</p>
+        <div class="grid two">
+          <article class="fact"><b>Routed Hybrid RAG</b><p>Retrieval-augmented generation with an observable five-route planner. <code>query_planning.py</code> classifies each question into <code>FULL_CONTEXT</code>, <code>EXACT</code>, <code>SEMANTIC</code>, <code>HYBRID</code>, or <code>EXPANDED_HYBRID</code> before any vector search runs. Qdrant native BM25 + dense branches feed weighted RRF fusion in <code>qdrant_hybrid_query.py</code>. A three-provider rerank coordinator (<code>QdrantNativeReranker</code> &rarr; <code>NvidiaReranker</code> &rarr; <code>DeterministicReranker</code>) in <code>rerank.py</code> applies late-interaction reranking with deterministic fallback.</p></article>
+          <article class="fact"><b>MCP</b><p>Model Context Protocol server built on FastMCP. <code>mcp_server.py</code> exposes six tools (<code>list_projects</code>, <code>search_project</code>, <code>search_conversation</code>, <code>ask_grounded</code>, <code>get_run_trace</code>, <code>run_evaluation</code>) and three resources (<code>project://{project_id}/documents</code>, <code>conversation://{conversation_id}/documents</code>, <code>run://{run_id}</code>) over stateless Streamable HTTP, authenticated by the same bearer middleware as REST. The SDK is optional &mdash; when absent, <code>/mcp</code> returns <code>503 MCP_RUNTIME_NOT_INSTALLED</code>.</p></article>
+          <article class="fact"><b>LangGraph</b><p>Stateful graph orchestration library. <code>evidence_graph.py</code> builds a six-node <code>StateGraph</code> (plan, retrieve_and_extract, reconcile, human_review, synthesize, validate_and_commit) with conditional fan-out via <code>Send</code>. Checkpoints persist to PostgreSQL via <code>PostgresSaver</code> with <code>JsonPlusSerializer(pickle_fallback=False)</code>. The <code>interrupt()</code> primitive pauses for human review without try/except wrapping, and the Celery <code>run_workflow</code> task resumes via <code>Command(resume=...)</code>.</p></article>
+        </div>
+      </section>
+
+      <section id="hybrid-rag">
+        <p class="eyebrow">Routed retrieval</p>
+        <h2>Routed Hybrid RAG . five routes, RRF fusion, dual rerank</h2>
+        <p class="sub">The retrieval pipeline is not a single vector search. A deterministic planner classifies the question first, then Qdrant fuses sparse and dense branches with weighted RRF, and a three-provider rerank coordinator applies late-interaction scoring before context packing.</p>
+
+        <h3>Five-route decision tree</h3>
+        <p>The <code>RetrievalRoute</code> StrEnum in <code>apps/api/src/researchmate_api/services/query_planning.py</code> names each observable policy. <code>plan_retrieval()</code> evaluates the decision tree in order &mdash; the first match wins:</p>
+        <div class="stack-ledger"><table><thead><tr><th>#</th><th>Route</th><th>Dense / Lexical</th><th>Trigger</th><th>Reason field</th></tr></thead><tbody>
+          <tr><td>1</td><td><code>FULL_CONTEXT</code></td><td>0.0 / 0.0</td><td><code>corpus_tokens &lt;= full_context_limit</code> (default 12000)</td><td><code>entire_authorized_corpus_fits</code></td></tr>
+          <tr><td>2</td><td><code>EXPANDED_HYBRID</code></td><td>0.55 / 0.45</td><td>Pronoun/reference pattern + conversation history, or multiple <code>?</code>/<code>？</code> marks</td><td><code>conversation_or_compound_query_expanded</code></td></tr>
+          <tr><td>3</td><td><code>EXACT</code></td><td>0.30 / 0.70</td><td><code>_EXACT_PATTERN</code> matches: quoted text, uppercase identifiers, numeric tokens</td><td><code>identifier_quote_or_numeric_constraint</code></td></tr>
+          <tr><td>4</td><td><code>SEMANTIC</code></td><td>0.70 / 0.30</td><td><code>_SEMANTIC_PATTERN</code> matches: why, how, explain, 为什么, 原理, 机制</td><td><code>conceptual_or_explanatory_intent</code></td></tr>
+          <tr><td>5</td><td><code>HYBRID</code></td><td>0.50 / 0.50</td><td>Fallback when no prior pattern matches</td><td><code>balanced_default</code></td></tr>
+        </tbody></table></div>
+        <div class="notice"><strong>Why five routes?</strong> Small relevant corpora benefit from full context (no vector search needed); larger corpora need explicit routing so exact identifiers do not lose to embeddings and paraphrases do not lose to lexical mismatch. The planner is deterministic &mdash; only <code>EXPANDED_HYBRID</code> calls the LLM, and only when conversation references or compound questions genuinely need rewriting.</div>
+
+        <h3>Expansion via bounded LLM call</h3>
+        <p>When <code>EXPANDED_HYBRID</code> triggers, <code>_expanded_plan()</code> sends the last four conversation messages plus the current question to the chat provider with a system prompt asking for a standalone query and up to two alternative search formulations. The response is validated by the <code>_ExpansionOutput</code> pydantic model (<code>standalone_query</code> + <code>variants</code>, <code>extra="forbid"</code>). If the provider is unconfigured or returns invalid JSON, <code>_degraded_expansion()</code> preserves the original query with <code>degraded=True</code>. Constants: <code>MAX_QUERY_VARIANTS = 3</code>, <code>MAX_QUERY_CHARS = 600</code>.</p>
+
+        <h3>Qdrant native hybrid query . RRF fusion</h3>
+        <p><code>execute_hybrid_query()</code> in <code>apps/api/src/researchmate_api/services/qdrant_hybrid_query.py</code> fuses sparse and dense branches per query variant:</p>
+        <div class="proof-chain">
+          <div class="proof-step"><b>BM25 sparse branch</b><small>Qdrant native sparse/BM25 model with <code>Prefetch</code> sub-query per variant</small></div>
+          <div class="proof-step"><b>Dense branch</b><small>NVIDIA embedding vector with <code>Prefetch</code> sub-query per variant</small></div>
+          <div class="proof-step"><b>RRF fusion</b><small>Qdrant Reciprocal Rank Fusion with per-branch weights derived from <code>plan.dense_weight</code> and <code>plan.lexical_weight</code> divided by the number of query variants. Branch limit = <code>max(limit * 3, 20)</code>.</small></div>
+        </div>
+        <p>Owner-scoped payload filters (<code>user_id</code>, <code>project_id</code>, <code>source_type</code>) are applied on every prefetch and final query. When <code>qdrant_native_hybrid_enabled</code> is <code>False</code>, the system falls back to application-level BM25 (<code>bm25_candidates()</code> in <code>retrieval.py</code>) with CJK bigram tokenization, title boosting, and exact-match bonus, fused by <code>fuse_candidates()</code> with RRF k=60.</p>
+
+        <h3>Dual rerank coordinator . three providers</h3>
+        <p><code>RerankCoordinator</code> in <code>apps/api/src/researchmate_api/services/rerank.py</code> chains three rerankers with explicit degradation:</p>
+        <div class="stack-ledger"><table><thead><tr><th>Provider</th><th>Implementation</th><th>Mechanism</th><th>Fallback target</th></tr></thead><tbody>
+          <tr><td><code>QdrantNativeReranker</code></td><td>Qdrant late-interaction model in a dedicated rerank collection</td><td><code>rerank_query()</code> on the rerank collection with <code>multi</code> vector type</td><td>NVIDIA</td></tr>
+          <tr><td><code>NvidiaReranker</code></td><td>NVIDIA ranking API (<code>/v1/ranking</code>)</td><td>HTTP POST with passages, returns ranked indices</td><td>Deterministic</td></tr>
+          <tr><td><code>DeterministicReranker</code></td><td>Local tie-breaking</td><td>Sorts by <code>(score, has_lexical_rank, -lexical_rank)</code></td><td>&mdash;</td></tr>
+        </tbody></table></div>
+        <p>The <code>execute()</code> method accepts <code>provider</code> as <code>"auto" | "qdrant" | "nvidia" | "deterministic"</code>. In <code>"auto"</code> mode it tries Qdrant first, then NVIDIA, then deterministic. <code>WEB_PAGE</code> source-type candidates skip the Qdrant reranker (it only handles <code>LOCAL_DOC</code>). The provider is selected at runtime from the database via <code>repository.get_runtime_rerank_config()</code> (called in <code>grounded_query.py</code>).</p>
+
+        <h3>Configuration constants</h3>
+        <div class="grid two">
+          <article class="fact"><b>Retrieval bounds</b><p><code>full_context_token_limit = 12000</code>, <code>retrieval_evidence_token_budget = 8000</code>, <code>rerank_candidate_limit = 50</code>, <code>rerank_top_n = 10</code>. All defined in <code>apps/api/src/researchmate_api/config.py</code>.</p></article>
+          <article class="fact"><b>Chunk constants</b><p><code>MAX_TEXT_LENGTH = 1200</code> (chunk text truncation at boundaries), <code>SNIPPET_CHUNK = 900</code> (paragraph-split target), <code>SNIPPET_DEFAULT = 280</code>. All defined in <code>apps/api/src/researchmate_api/schemas/common.py</code>.</p></article>
+        </div>
+
+        <h3>Key source files</h3>
+        <pre><code>apps/api/src/researchmate_api/services/
+  query_planning.py        (RetrievalRoute, plan_retrieval, _expanded_plan)
+  query_retrieval.py       (LocalEvidenceRetriever, route orchestration)
+  qdrant_hybrid_query.py   (execute_hybrid_query, RRF fusion)
+  rerank.py                (RerankCoordinator, 3 reranker implementations)
+  grounded_query.py        (GroundedQueryService, end-to-end orchestrator)
+  retrieval.py            (bm25_candidates, fuse_candidates, pack_chunks)
+  qdrant_store.py          (QdrantHybridStore, upsert/query/delete)
+  _store_text.py           (chunk_text, paragraph splitting)
+  _store_models.py         (ChunkEntry dataclass)
+  _store_chunks.py         (project_chunks, conversation_chunks)</code></pre>
+      </section>
+
+      <section id="mcp">
+        <p class="eyebrow">Model Context Protocol</p>
+        <h2>MCP server . Streamable HTTP gateway</h2>
+        <p class="sub">The MCP server exposes the same domain services as REST, behind the same bearer auth, so IDEs and agents become a second real consumer without duplicating logic.</p>
+
+        <h3>Transport and mount</h3>
+        <p><code>build_mcp_server()</code> in <code>apps/api/src/researchmate_api/mcp_server.py</code> creates a <code>FastMCP("ResearchMate")</code> instance with <code>stateless_http=True</code>, <code>json_response=True</code>, and <code>streamable_http_path="/"</code>. The ASGI app is mounted at <code>/mcp</code> in <code>main.py</code> (<code>app.mount("/mcp", mcp_asgi)</code>). The MCP SDK is an optional dependency &mdash; when absent, the <code>/mcp</code> endpoint returns <code>503 MCP_RUNTIME_NOT_INSTALLED</code>.</p>
+
+        <h3>Authentication . MCPRequestIdentity ContextVar</h3>
+        <p>Authentication happens at the FastAPI middleware layer in <code>main.py</code>, not inside the MCP server. Every request to <code>/mcp</code> or <code>/mcp/*</code> must carry a <code>Bearer</code> token. The middleware calls <code>resolve_bearer_token()</code> (Supabase OAuth in production, static credentials in development) and sets a <code>ContextVar[MCPRequestIdentity]</code> named <code>current_mcp_identity</code> with the full authenticated context:</p>
+        <pre><code>@dataclass(frozen=True)
+class MCPRequestIdentity:
+    user: CurrentUser
+    repository: ResearchMateRepository
+    evidence: EvidenceRepository
+    chat_provider: ChatProvider | None
+    hybrid_store: QdrantHybridStore | None
+    web_search: TavilyWebSearchProvider | None
+    settings: Settings
+    reranker: RerankCoordinator</code></pre>
+        <p>Each tool calls <code>_identity()</code> to retrieve this context, raising <code>PermissionError("AUTH_REQUIRED")</code> if absent. The <code>/mcp</code> path is included in <code>RATE_LIMITED_PATHS</code> for IP-based rate limiting at 60 requests/minute.</p>
+
+        <h3>Six tools</h3>
+        <div class="stack-ledger"><table><thead><tr><th>Tool</th><th>Signature</th><th>Description</th><th>Error codes</th></tr></thead><tbody>
+          <tr><td><code>list_projects</code></td><td><code>() -&gt; list[dict]</code></td><td>Lists projects owned by the authenticated user</td><td><code>AUTH_REQUIRED</code></td></tr>
+          <tr><td><code>search_project</code></td><td><code>(project_id: str, query: str, limit: int = 10) -&gt; list[dict]</code></td><td>Searches one owned project, returns bounded source snippets with stable IDs. Limit clamped to 1&ndash;20.</td><td><code>PROJECT_NOT_FOUND</code>, <code>INVALID_REQUEST</code>, <code>PROJECT_SCOPE_REQUIRES_CONVERSATION</code></td></tr>
+          <tr><td><code>search_conversation</code></td><td><code>(project_id: str, conversation_id: str, query: str, limit: int = 10) -&gt; list[dict]</code></td><td>Searches only attachments owned by one authenticated personal conversation</td><td><code>CONVERSATION_NOT_FOUND</code>, <code>INVALID_REQUEST</code></td></tr>
+          <tr><td><code>ask_grounded</code></td><td><code>(project_id: str, message: str, web_enabled: bool = False, conversation_id: str | None = None, idempotency_key: str | None = None) -&gt; dict</code></td><td>Runs the unified Ask service, returns answer, citations, and trace ID. Supports idempotency (key length 8&ndash;160).</td><td><code>INVALID_IDEMPOTENCY_KEY</code>, <code>INVALID_REQUEST</code></td></tr>
+          <tr><td><code>get_run_trace</code></td><td><code>(trace_id: str) -&gt; dict</code></td><td>Reads a developer trace through the same privileged policy as REST</td><td><code>INVALID_TRACE_ID</code>, <code>TRACE_NOT_FOUND</code>, <code>TRACE_ACCESS_DENIED</code></td></tr>
+          <tr><td><code>run_evaluation</code></td><td><code>(dataset_id: str, pipeline_version_id: str, metrics: list[str], idempotency_key: str, max_parallelism: int = 4) -&gt; dict</code></td><td>Launches a versioned evaluation. Requires <code>developer</code> or <code>admin</code> role. Metrics cast to Literal: <code>schema_valid</code>, <code>citation_precision</code>, <code>evidence_recall</code>, <code>faithfulness</code>.</td><td><code>ADMIN_REQUIRED</code>, <code>INVALID_EVALUATION_REQUEST</code></td></tr>
+        </tbody></table></div>
+        <p>All chunk text is truncated to <code>MAX_TEXT_LENGTH</code> (1200 characters) before returning. The <code>_chunk_payloads()</code> helper maps internal <code>ChunkEntry</code> objects to MCP-safe evidence summaries with <code>chunk_id</code>, <code>document_id</code>, <code>source_title</code>, <code>page_no</code>, <code>slide_no</code>, <code>url</code>, and <code>text</code>.</p>
+
+        <h3>Three resources</h3>
+        <div class="stack-ledger"><table><thead><tr><th>URI template</th><th>Function</th><th>Return</th><th>Description</th></tr></thead><tbody>
+          <tr><td><code>project://{project_id}/documents</code></td><td><code>project_documents(project_id: str) -&gt; str</code></td><td>JSON string</td><td>Safe metadata for an owned workspace (never personal container). Validates workspace scope via <code>require_workspace_scope()</code>.</td></tr>
+          <tr><td><code>conversation://{conversation_id}/documents</code></td><td><code>conversation_documents(conversation_id: str) -&gt; str</code></td><td>JSON string</td><td>Safe metadata for attachments in one owned conversation only.</td></tr>
+          <tr><td><code>run://{run_id}</code></td><td><code>run_summary(run_id: str) -&gt; str</code></td><td>JSON string</td><td>Durable safe workflow state for an owned run.</td></tr>
+        </tbody></table></div>
+
+        <h3>Scope policy and idempotency</h3>
+        <div class="grid two">
+          <article class="fact"><b>Workspace vs personal scope</b><p><code>search_project</code> enforces the workspace vs personal container scope policy via <code>require_workspace_scope()</code> in <code>scope_policy.py</code>. Personal projects reject project-wide search with <code>PROJECT_SCOPE_REQUIRES_CONVERSATION</code> &mdash; the caller must scope to a conversation.</p></article>
+          <article class="fact"><b>Idempotency coordinator</b><p><code>ask_grounded</code> and <code>run_evaluation</code> support <code>IdempotencyCoordinator</code> for deduplication. The coordinator's four-state machine (<code>pending</code> &rarr; <code>running</code> &rarr; <code>completed</code>/<code>abandoned</code>) prevents duplicate side effects when an MCP client retries a request.</p></article>
+        </div>
+
+        <h3>Key source files</h3>
+        <pre><code>apps/api/src/researchmate_api/
+  mcp_server.py            (build_mcp_server, 6 tools, 3 resources, MCPRequestIdentity)
+  main.py                  (app.mount("/mcp"), bearer middleware, 503 fallback)
+  services/scope_policy.py (require_workspace_scope)
+  services/idempotency.py  (IdempotencyCoordinator)
+tests/
+  test_mcp_boundary.py     (auth, SDK-missing, tool call tests)</code></pre>
+      </section>
+
+      <section id="langgraph">
+        <p class="eyebrow">LangGraph evidence workflow</p>
+        <h2>LangGraph . six-node stateful graph with HITL</h2>
+        <p class="sub">The evidence review workflow is a bounded state graph that plans sub-questions, retrieves and extracts evidence in parallel, reconciles claims, pauses for human review, synthesizes a report, and validates before committing.</p>
+
+        <h3>State schema . EvidenceWorkflowState</h3>
+        <p>The <code>EvidenceWorkflowState</code> TypedDict in <code>workers/ai-worker/src/researchmate_worker/evidence_graph.py</code> defines checkpoint-safe state exchanged by nodes:</p>
+        <div class="stack-ledger"><table><thead><tr><th>Field</th><th>Type</th><th>Purpose</th></tr></thead><tbody>
+          <tr><td><code>run_id</code></td><td><code>str</code></td><td>Workflow run identity (also the LangGraph thread ID)</td></tr>
+          <tr><td><code>user_id</code>, <code>project_id</code></td><td><code>str</code></td><td>Owner and workspace scope</td></tr>
+          <tr><td><code>research_goal</code>, <code>review_policy</code></td><td><code>str</code></td><td>Bounded research intent and review strictness</td></tr>
+          <tr><td><code>run_kind</code></td><td><code>str</code></td><td><code>evidence_review</code> or <code>report_refresh</code></td></tr>
+          <tr><td><code>base_report_id</code>, <code>impacted_section_keys</code>, <code>changed_document_ids</code></td><td><code>str</code> / <code>list[str]</code></td><td>Report refresh scope</td></tr>
+          <tr><td><code>questions</code>, <code>question_index</code>, <code>question</code></td><td><code>list[str]</code> / <code>int</code> / <code>str</code></td><td>Planned sub-questions and current fan-out index</td></tr>
+          <tr><td><code>evidence_batches</code></td><td><code>Annotated[list[dict], operator.add]</code></td><td>Accumulator &mdash; parallel batches merged via <code>operator.add</code></td></tr>
+          <tr><td><code>claims</code>, <code>relations</code></td><td><code>list[dict]</code></td><td>Extracted claims and derived relationships</td></tr>
+          <tr><td><code>review_payload</code>, <code>decision</code></td><td><code>dict</code></td><td>Human-review proposal and decision</td></tr>
+          <tr><td><code>report</code>, <code>validation</code></td><td><code>dict</code></td><td>Synthesized report and validation result</td></tr>
+        </tbody></table></div>
+
+        <h3>Graph topology</h3>
+        <p><code>build_evidence_graph(domain, checkpointer)</code> assembles the <code>StateGraph</code> and compiles it with a checkpointer:</p>
+        <div class="proof-chain">
+          <div class="proof-step"><b>START &rarr; plan</b><small>Creates provider-backed research questions from the research goal, or preserves section keys for report refresh</small></div>
+          <div class="proof-step"><b>plan &rarr; fan-out &rarr; retrieve_and_extract</b><small><code>fan_out()</code> returns one <code>Send("retrieve_and_extract", {...})</code> per question &mdash; parallel execution with full context plus per-question <code>question_index</code> and <code>question</code></small></div>
+          <div class="proof-step"><b>retrieve_and_extract &rarr; reconcile</b><small>Retrieves evidence from Qdrant (+ optional Tavily web search), loads chunks, extracts claims via LLM. Batches merge into <code>evidence_batches</code> via <code>operator.add</code>. Reconcile derives claim relationships (agreement/contradiction) without changing evidence.</small></div>
+          <div class="proof-step"><b>reconcile &rarr; human_review</b><small>The <code>review()</code> wrapper calls <code>domain.review_payload(state)</code>. If <code>None</code>, auto-approves. Otherwise calls <code>interrupt(proposed)</code> &mdash; the checkpoint persists and the graph pauses.</small></div>
+          <div class="proof-step"><b>human_review &rarr; synthesize</b><small>On resume, <code>domain.apply_decision()</code> processes the human decision (approve/edit/reject). Synthesize builds a <code>ReportProposal</code> from reviewed claims via <code>synthesize_report()</code> LLM call.</small></div>
+          <div class="proof-step"><b>synthesize &rarr; validate_and_commit &rarr; END</b><small>Validates all claims have evidence (<code>chunk_ids</code>), then atomically commits the report to the database within one transaction.</small></div>
+        </div>
+
+        <h3>Human-in-the-Loop . interrupt and resume</h3>
+        <p>The <code>review()</code> node is the critical HITL boundary. It calls <code>domain.review_payload(state)</code> which flags low-confidence claims (score &lt; 0.75) or suspicious sources. If review is needed, it calls <code>interrupt(proposed)</code> from <code>langgraph.types</code> &mdash; this persists the checkpoint and pauses the graph. The comment in source is explicit: <em>"Never wrap interrupt in try/except; LangGraph must persist and surface it."</em></p>
+        <p>When the human submits a decision (approve, edit, reject), the Celery <code>run_workflow</code> task in <code>tasks.py</code> resumes the graph via <code>Command(resume=resume_value)</code>. The <code>domain.apply_decision()</code> method processes the decision and the graph continues to <code>synthesize</code>.</p>
+
+        <h3>Checkpointing . PostgresSaver</h3>
+        <p>Checkpoints persist to PostgreSQL via <code>PostgresSaver</code> with <code>JsonPlusSerializer(pickle_fallback=False)</code>. Thread IDs are the workflow <code>run_id</code>. This means a paused workflow survives worker restarts &mdash; the checkpoint is in the database, not in process memory. The <code>pickle_fallback=False</code> setting ensures no arbitrary deserialization, keeping the boundary safe.</p>
+
+        <h3>Domain protocol and composition</h3>
+        <p>The <code>EvidenceWorkflowDomain</code> Protocol defines the seven methods the graph calls: <code>plan</code>, <code>retrieve_and_extract</code>, <code>reconcile</code>, <code>review_payload</code>, <code>apply_decision</code>, <code>synthesize</code>, <code>validate_and_commit</code>. The implementation is split across:</p>
+        <div class="grid two">
+          <article class="fact"><b>WorkflowExecutionMixin</b><p><code>workflow_execution.py</code> &mdash; implements all seven node methods as a mixin. <code>plan()</code> creates provider-backed questions. <code>retrieve_and_extract()</code> queries Qdrant with owner-scoped filters. <code>reconcile()</code> derives relationships. <code>validate_and_commit()</code> commits atomically.</p></article>
+          <article class="fact"><b>SqlEvidenceWorkflowDomain</b><p><code>workflow_runtime.py</code> &mdash; composes the core domain with <code>WorkflowExecutionMixin</code> and overrides <code>synthesize()</code> to build the <code>ReportProposal</code> via <code>synthesize_report()</code> LLM call.</p></article>
+        </div>
+
+        <h3>Key source files</h3>
+        <pre><code>workers/ai-worker/src/researchmate_worker/
+  evidence_graph.py        (EvidenceWorkflowState, build_evidence_graph, fan_out, review)
+  workflow_execution.py    (WorkflowExecutionMixin, 7 node implementations)
+  workflow_runtime.py      (SqlEvidenceWorkflowDomain, composition + synthesize override)
+  tasks.py                 (run_workflow Celery task, Command(resume=...))</code></pre>
+      </section>
+
+      <section id="integration">
+        <p class="eyebrow">End-to-end integration</p>
+        <h2>How the three foundations connect</h2>
+        <p class="sub">The three foundations are not isolated &mdash; they share domain services, auth, and the same Postgres truth.</p>
+
+        <h3>Ask path . Hybrid RAG exposed via REST and MCP</h3>
+        <div class="proof-chain">
+          <div class="proof-step"><b>User asks a question</b><small>Browser &rarr; <code>POST /api/v1/ask</code> (REST) or MCP <code>ask_grounded</code> tool &mdash; both reach <code>GroundedQueryService.execute()</code></small></div>
+          <div class="proof-step"><b>Route planning</b><small><code>LocalEvidenceRetriever.retrieve()</code> calls <code>plan_retrieval()</code> &mdash; one of five routes chosen</small></div>
+          <div class="proof-step"><b>Hybrid retrieval + RRF</b><small><code>execute_hybrid_query()</code> fuses BM25 + dense branches with weighted RRF in Qdrant</small></div>
+          <div class="proof-step"><b>Dual rerank</b><small><code>RerankCoordinator.execute()</code> chains Qdrant &rarr; NVIDIA &rarr; deterministic</small></div>
+          <div class="proof-step"><b>Context packing + answer</b><small><code>pack_chunks()</code> bounds to 8000-token budget &rarr; <code>generate_answer()</code> produces grounded answer with citations</small></div>
+          <div class="proof-step"><b>Trace persistence</b><small><code>repository.record_run()</code> persists the trace &mdash; MCP <code>get_run_trace</code> and <code>run://{run_id}</code> resource expose it later</small></div>
+        </div>
+
+        <h3>Evidence Review path . LangGraph uses Hybrid RAG inside retrieve_and_extract</h3>
+        <div class="proof-chain">
+          <div class="proof-step"><b>Celery <code>run_workflow</code></b><small>API enqueues a workflow run via the transactional outbox &mdash; worker picks it up</small></div>
+          <div class="proof-step"><b>plan node</b><small>LLM decomposes the research goal into bounded sub-questions</small></div>
+          <div class="proof-step"><b>fan-out &rarr; retrieve_and_extract (parallel)</b><small>Each sub-question retrieves evidence via Qdrant hybrid query &mdash; the same Hybrid RAG retrieval used by Ask, scoped to the workflow's project</small></div>
+          <div class="proof-step"><b>reconcile &rarr; human_review</b><small>Claims extracted, relationships derived, low-confidence claims flagged for <code>interrupt()</code></small></div>
+          <div class="proof-step"><b>Resume &rarr; synthesize &rarr; validate_and_commit</b><small>Human decision applied, report synthesized, validated, and committed atomically to Postgres</small></div>
+          <div class="proof-step"><b>MCP exposes results</b><small><code>get_run_trace</code> tool and <code>run://{run_id}</code> resource expose the committed run state to IDE/agent consumers</small></div>
+        </div>
+
+        <div class="notice"><strong>Shared services, not duplicated logic:</strong> The MCP server, the Ask REST endpoint, and the LangGraph <code>retrieve_and_extract</code> node all use the same <code>LocalEvidenceRetriever</code>, <code>QdrantHybridStore</code>, <code>RerankCoordinator</code>, and <code>GroundedQueryService</code>. The MCP <code>ask_grounded</code> tool literally calls <code>GroundedQueryService.execute()</code> &mdash; the same code path as REST. This is why MCP is a "second real consumer" rather than a parallel implementation.</div>
+      </section>
+
+      <section id="further-reading">
+        <p class="eyebrow">Further reading</p>
+        <h2>Related documentation</h2>
+        <div class="doc-index">
+          <a class="doc-link" href="../architecture/index.html#stack"><b>Architecture &amp; stack</b><span>Technology decisions table with LangGraph, MCP, and routed hybrid retrieval rows</span></a>
+          <a class="doc-link" href="backend.html"><b>Backend learning</b><span>FastAPI routers, services, and persistence &mdash; MCP as one of 12 backend dependencies</span></a>
+          <a class="doc-link" href="worker.html"><b>Worker learning</b><span>Celery tasks, document ingestion, LangGraph workflow &mdash; LangGraph as one of 8 worker foundations</span></a>
+          <a class="doc-link" href="flows.html"><b>Flow analysis</b><span>Grounded Ask with the five-route Hybrid RAG matrix and LangGraph evidence review traced as business flows</span></a>
+          <a class="doc-link" href="../contracts/api/index.html#planned-mcp"><b>API contracts</b><span>POST /mcp/ gateway contract with tool and resource definitions</span></a>
+        </div>
+      </section>
+
+    </div>
+    <aside class="toc"><b>On this page</b>
+      <a href="#stack">Tech stack</a>
+      <a href="#hybrid-rag">Hybrid RAG</a>
+      <a href="#mcp">MCP server</a>
+      <a href="#langgraph">LangGraph</a>
+      <a href="#integration">Integration</a>
+      <a href="#further-reading">Further reading</a>
+    </aside></div>
+  </main>
+  <footer class="shell footer">ResearchMate AI agent stack deep dive . written 11 August 2026</footer>
+  <script src="../assets/site.js"></script>
+</body>
+</html>

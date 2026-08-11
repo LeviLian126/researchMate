@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="utf-8"/>
+  <meta content="ResearchMate AI 智能体技术栈深度解析：五路由混合 RAG 与双重重排、六工具三资源 MCP 服务器、六节点 LangGraph 证据工作流含检查点与人工审核。" name="description"/>
+  <title>ResearchMate . AI 智能体技术栈</title>
+  <link href="../assets/site.css" rel="stylesheet"/>
+  <style>
+    .layout section > h2 { cursor: pointer; user-select: none; }
+    .layout section > h2::before { content: "▾ "; color: var(--clay); font-size: 0.8em; transition: transform 0.2s; display: inline-block; }
+    .layout section.collapsed > h2::before { transform: rotate(-90deg); }
+    .layout section.collapsed > :not(h2):not(.eyebrow) { display: none; }
+  </style>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      document.querySelectorAll('.layout section > h2').forEach(function(h2) {
+        h2.addEventListener('click', function() {
+          h2.closest('section').classList.toggle('collapsed');
+        });
+      });
+    });
+  </script>
+  <style>.module-nav{border-top:1px solid var(--g200)}.module-nav .shell{padding:6px 0 12px}.module-nav a{font-size:11.5px;padding:5px 11px}</style>
+</head>
+<body>
+  <header class="mast"><div class="shell mast-row"><a class="brand" href="../index.html">ResearchMate 文档</a><div class="mast-right"><span class="stamp">AI 技术栈 . 2026 年 8 月 11 日</span><a class="lang-toggle" href="ai-stack.html" hreflang="en" lang="en">English</a></div></div></header>
+  <nav aria-label="文档" class="global"><div class="shell">
+    <a href="../index.html">概览</a>
+    <a href="../product/index.html">产品与路线图</a>
+    <a href="../architecture/index.html">架构与技术栈</a>
+    <a href="../contracts/data/index.html">数据库</a>
+    <a href="../contracts/api/index.html">API</a>
+    <a aria-current="page" href="index.zh.html">学习指南</a>
+  </div></nav>
+  <nav aria-label="学习模块" class="global module-nav"><div class="shell">
+    <a href="frontend.zh.html">前端</a>
+    <a href="backend.zh.html">后端</a>
+    <a href="worker.zh.html">Worker</a>
+    <a href="infra.zh.html">基础设施</a>
+    <a href="cicd.zh.html">CI/CD</a>
+    <a href="contracts-tests.zh.html">合约与测试</a>
+    <a href="flows.zh.html">切面分析</a>
+    <a aria-current="page" href="ai-stack.zh.html">AI 技术栈</a>
+  </div></nav>
+  <main class="shell">
+    <div class="hero">
+      <p class="eyebrow">混合 RAG / MCP / LangGraph</p>
+      <h1>AI 智能体技术栈 . 检索、协议、编排</h1>
+      <p class="lede">ResearchMate 的 AI 智能体技术栈是一个横跨 FastAPI 后端和 Celery worker 的内聚子系统。三大基石构成它：一个路由式混合 RAG 检索器，在融合检索和双重重排之前从五条可观测路由中选择；一个 MCP 服务器，在 Streamable HTTP 上以与 REST 相同的 Bearer 认证暴露六个工具和三个资源；以及一个 LangGraph 证据工作流，编排一个六节点有状态图，支持并行扇出、PostgreSQL 检查点和人工审核。本页逐文件讲解每个组件、决策树和集成接缝。</p>
+      <div class="meta">
+        <span class="status local">5 条检索路由</span>
+        <span class="status local">3 个重排提供者</span>
+        <span class="status local">6 个 MCP 工具 . 3 个资源</span>
+        <span class="status local">6 节点 LangGraph</span>
+        <span class="status local">PostgresSaver 检查点</span>
+        <span class="status local">人工审核</span>
+      </div>
+    </div>
+    <div class="layout"><div class="content">
+
+      <section id="stack">
+        <p class="eyebrow">技术栈基础</p>
+        <h2>AI 智能体技术栈的三大基石</h2>
+        <p class="sub">每张卡片解释技术的一般作用以及 ResearchMate 的具体用法。</p>
+        <div class="grid two">
+          <article class="fact"><b>路由式混合 RAG</b><p>带可观测五路由规划器的检索增强生成。<code>query_planning.py</code> 在任何向量搜索之前将每个问题分类为 <code>FULL_CONTEXT</code>、<code>EXACT</code>、<code>SEMANTIC</code>、<code>HYBRID</code> 或 <code>EXPANDED_HYBRID</code>。<code>qdrant_hybrid_query.py</code> 中 Qdrant 原生 BM25 + 稠密分支以加权 RRF 融合。<code>rerank.py</code> 中的三提供者重排协调器（<code>QdrantNativeReranker</code> &rarr; <code>NvidiaReranker</code> &rarr; <code>DeterministicReranker</code>）应用后期交互重排，带确定性兜底。</p></article>
+          <article class="fact"><b>MCP</b><p>基于 FastMCP 的模型上下文协议服务器。<code>mcp_server.py</code> 在无状态 Streamable HTTP 上暴露六个工具（<code>list_projects</code>、<code>search_project</code>、<code>search_conversation</code>、<code>ask_grounded</code>、<code>get_run_trace</code>、<code>run_evaluation</code>）和三个资源（<code>project://{project_id}/documents</code>、<code>conversation://{conversation_id}/documents</code>、<code>run://{run_id}</code>），由与 REST 相同的 Bearer 中间件认证。SDK 是可选依赖 &mdash; 缺失时 <code>/mcp</code> 返回 <code>503 MCP_RUNTIME_NOT_INSTALLED</code>。</p></article>
+          <article class="fact"><b>LangGraph</b><p>有状态图编排库。<code>evidence_graph.py</code> 构建六节点 <code>StateGraph</code>（plan、retrieve_and_extract、reconcile、human_review、synthesize、validate_and_commit），通过 <code>Send</code> 实现条件扇出。检查点通过 <code>PostgresSaver</code> 和 <code>JsonPlusSerializer(pickle_fallback=False)</code> 持久化到 PostgreSQL。<code>interrupt()</code> 原语暂停等待人工审核，无需 try/except 包装，Celery <code>run_workflow</code> 任务通过 <code>Command(resume=...)</code> 恢复。</p></article>
+        </div>
+      </section>
+
+      <section id="hybrid-rag">
+        <p class="eyebrow">路由式检索</p>
+        <h2>路由式混合 RAG . 五路由、RRF 融合、双重重排</h2>
+        <p class="sub">检索管道不是单一的向量搜索。确定性规划器先分类问题，然后 Qdrant 以加权 RRF 融合稀疏和稠密分支，三提供者重排协调器在上下文打包前应用后期交互打分。</p>
+
+        <h3>五路由决策树</h3>
+        <p><code>apps/api/src/researchmate_api/services/query_planning.py</code> 中的 <code>RetrievalRoute</code> StrEnum 为每条可观测策略命名。<code>plan_retrieval()</code> 按顺序评估决策树 &mdash; 首个匹配胜出：</p>
+        <div class="stack-ledger"><table><thead><tr><th>#</th><th>路由</th><th>稠密 / 词法</th><th>触发条件</th><th>reason 字段</th></tr></thead><tbody>
+          <tr><td>1</td><td><code>FULL_CONTEXT</code></td><td>0.0 / 0.0</td><td><code>corpus_tokens &lt;= full_context_limit</code>（默认 12000）</td><td><code>entire_authorized_corpus_fits</code></td></tr>
+          <tr><td>2</td><td><code>EXPANDED_HYBRID</code></td><td>0.55 / 0.45</td><td>代词/引用模式 + 对话历史，或多个 <code>?</code>/<code>？</code> 标记</td><td><code>conversation_or_compound_query_expanded</code></td></tr>
+          <tr><td>3</td><td><code>EXACT</code></td><td>0.30 / 0.70</td><td><code>_EXACT_PATTERN</code> 匹配：引号文本、大写标识符、数字标记</td><td><code>identifier_quote_or_numeric_constraint</code></td></tr>
+          <tr><td>4</td><td><code>SEMANTIC</code></td><td>0.70 / 0.30</td><td><code>_SEMANTIC_PATTERN</code> 匹配：why、how、explain、为什么、原理、机制</td><td><code>conceptual_or_explanatory_intent</code></td></tr>
+          <tr><td>5</td><td><code>HYBRID</code></td><td>0.50 / 0.50</td><td>前面模式均不匹配时的兜底</td><td><code>balanced_default</code></td></tr>
+        </tbody></table></div>
+        <div class="notice"><strong>为什么五条路由？</strong>小型相关语料库受益于全上下文（无需向量搜索）；更大的语料库需要显式路由，使精确标识符不被嵌入盖过、使意译不被词法失配盖过。规划器是确定性的 &mdash; 只有 <code>EXPANDED_HYBRID</code> 调用 LLM，且仅在对话引用或复合问题真正需要改写时。</div>
+
+        <h3>通过有界 LLM 调用扩展</h3>
+        <p>当 <code>EXPANDED_HYBRID</code> 触发时，<code>_expanded_plan()</code> 将最近四条对话消息加当前问题发送给聊天提供者，系统提示要求返回独立查询和最多两个替代搜索表述。响应由 <code>_ExpansionOutput</code> pydantic 模型验证（<code>standalone_query</code> + <code>variants</code>，<code>extra="forbid"</code>）。如果提供者未配置或返回无效 JSON，<code>_degraded_expansion()</code> 保留原始查询并设置 <code>degraded=True</code>。常量：<code>MAX_QUERY_VARIANTS = 3</code>，<code>MAX_QUERY_CHARS = 600</code>。</p>
+
+        <h3>Qdrant 原生混合查询 . RRF 融合</h3>
+        <p><code>apps/api/src/researchmate_api/services/qdrant_hybrid_query.py</code> 中的 <code>execute_hybrid_query()</code> 对每个查询变体融合稀疏和稠密分支：</p>
+        <div class="proof-chain">
+          <div class="proof-step"><b>BM25 稀疏分支</b><small>Qdrant 原生 sparse/BM25 模型，每个变体一个 <code>Prefetch</code> 子查询</small></div>
+          <div class="proof-step"><b>稠密分支</b><small>NVIDIA 嵌入向量，每个变体一个 <code>Prefetch</code> 子查询</small></div>
+          <div class="proof-step"><b>RRF 融合</b><small>Qdrant 倒数排名融合，分支权重由 <code>plan.dense_weight</code> 和 <code>plan.lexical_weight</code> 除以查询变体数得出。分支限制 = <code>max(limit * 3, 20)</code>。</small></div>
+        </div>
+        <p>所有预取和最终查询都应用所有者范围 payload 过滤器（<code>user_id</code>、<code>project_id</code>、<code>source_type</code>）。当 <code>qdrant_native_hybrid_enabled</code> 为 <code>False</code> 时，系统回退到应用层 BM25（<code>retrieval.py</code> 中的 <code>bm25_candidates()</code>），带 CJK 二元分词、标题加权和精确匹配奖励，由 <code>fuse_candidates()</code> 以 RRF k=60 融合。</p>
+
+        <h3>双重重排协调器 . 三个提供者</h3>
+        <p><code>apps/api/src/researchmate_api/services/rerank.py</code> 中的 <code>RerankCoordinator</code> 链式调用三个重排器，带显式降级：</p>
+        <div class="stack-ledger"><table><thead><tr><th>提供者</th><th>实现</th><th>机制</th><th>兜底目标</th></tr></thead><tbody>
+          <tr><td><code>QdrantNativeReranker</code></td><td>专用重排集合中的 Qdrant 后期交互模型</td><td>对重排集合调用 <code>rerank_query()</code>，<code>multi</code> 向量类型</td><td>NVIDIA</td></tr>
+          <tr><td><code>NvidiaReranker</code></td><td>NVIDIA 排序 API（<code>/v1/ranking</code>）</td><td>HTTP POST 传 passages，返回排序索引</td><td>确定性</td></tr>
+          <tr><td><code>DeterministicReranker</code></td><td>本地平局打破</td><td>按 <code>(score, has_lexical_rank, -lexical_rank)</code> 排序</td><td>&mdash;</td></tr>
+        </tbody></table></div>
+        <p><code>execute()</code> 方法接受 <code>provider</code> 为 <code>"auto" | "qdrant" | "nvidia" | "deterministic"</code>。<code>"auto"</code> 模式先试 Qdrant，再 NVIDIA，最后确定性。<code>WEB_PAGE</code> 来源类型候选跳过 Qdrant 重排器（它只处理 <code>LOCAL_DOC</code>）。提供者在运行时从数据库通过 <code>repository.get_runtime_rerank_config()</code>（在 <code>grounded_query.py</code> 中调用）选择。</p>
+
+        <h3>配置常量</h3>
+        <div class="grid two">
+          <article class="fact"><b>检索边界</b><p><code>full_context_token_limit = 12000</code>、<code>retrieval_evidence_token_budget = 8000</code>、<code>rerank_candidate_limit = 50</code>、<code>rerank_top_n = 10</code>。均定义于 <code>apps/api/src/researchmate_api/config.py</code>。</p></article>
+          <article class="fact"><b>分块常量</b><p><code>MAX_TEXT_LENGTH = 1200</code>（边界处截断分块文本）、<code>SNIPPET_CHUNK = 900</code>（段落分割目标）、<code>SNIPPET_DEFAULT = 280</code>。均定义于 <code>apps/api/src/researchmate_api/schemas/common.py</code>。</p></article>
+        </div>
+
+        <h3>关键源文件</h3>
+        <pre><code>apps/api/src/researchmate_api/services/
+  query_planning.py        (RetrievalRoute, plan_retrieval, _expanded_plan)
+  query_retrieval.py       (LocalEvidenceRetriever, 路由编排)
+  qdrant_hybrid_query.py   (execute_hybrid_query, RRF 融合)
+  rerank.py                (RerankCoordinator, 3 个重排器实现)
+  grounded_query.py        (GroundedQueryService, 端到端编排器)
+  retrieval.py            (bm25_candidates, fuse_candidates, pack_chunks)
+  qdrant_store.py          (QdrantHybridStore, upsert/query/delete)
+  _store_text.py           (chunk_text, 段落分割)
+  _store_models.py         (ChunkEntry dataclass)
+  _store_chunks.py         (project_chunks, conversation_chunks)</code></pre>
+      </section>
+
+      <section id="mcp">
+        <p class="eyebrow">模型上下文协议</p>
+        <h2>MCP 服务器 . Streamable HTTP 网关</h2>
+        <p class="sub">MCP 服务器以与 REST 相同的 Bearer 认证暴露相同的领域服务，使 IDE 和智能体成为第二个真实消费者而无需重复逻辑。</p>
+
+        <h3>传输与挂载</h3>
+        <p><code>apps/api/src/researchmate_api/mcp_server.py</code> 中的 <code>build_mcp_server()</code> 创建 <code>FastMCP("ResearchMate")</code> 实例，配置 <code>stateless_http=True</code>、<code>json_response=True</code>、<code>streamable_http_path="/"</code>。ASGI 应用在 <code>main.py</code> 中挂载于 <code>/mcp</code>（<code>app.mount("/mcp", mcp_asgi)</code>）。MCP SDK 是可选依赖 &mdash; 缺失时 <code>/mcp</code> 端点返回 <code>503 MCP_RUNTIME_NOT_INSTALLED</code>。</p>
+
+        <h3>认证 . MCPRequestIdentity ContextVar</h3>
+        <p>认证发生在 <code>main.py</code> 的 FastAPI 中间件层，而非 MCP 服务器内部。每个到 <code>/mcp</code> 或 <code>/mcp/*</code> 的请求必须携带 <code>Bearer</code> 令牌。中间件调用 <code>resolve_bearer_token()</code>（生产用 Supabase OAuth，开发用静态凭据）并设置名为 <code>current_mcp_identity</code> 的 <code>ContextVar[MCPRequestIdentity]</code>，携带完整认证上下文：</p>
+        <pre><code>@dataclass(frozen=True)
+class MCPRequestIdentity:
+    user: CurrentUser
+    repository: ResearchMateRepository
+    evidence: EvidenceRepository
+    chat_provider: ChatProvider | None
+    hybrid_store: QdrantHybridStore | None
+    web_search: TavilyWebSearchProvider | None
+    settings: Settings
+    reranker: RerankCoordinator</code></pre>
+        <p>每个工具调用 <code>_identity()</code> 获取此上下文，缺失时抛出 <code>PermissionError("AUTH_REQUIRED")</code>。<code>/mcp</code> 路径包含在 <code>RATE_LIMITED_PATHS</code> 中，按 IP 限流 60 次/分钟。</p>
+
+        <h3>六个工具</h3>
+        <div class="stack-ledger"><table><thead><tr><th>工具</th><th>签名</th><th>描述</th><th>错误码</th></tr></thead><tbody>
+          <tr><td><code>list_projects</code></td><td><code>() -&gt; list[dict]</code></td><td>列出已认证用户拥有的项目</td><td><code>AUTH_REQUIRED</code></td></tr>
+          <tr><td><code>search_project</code></td><td><code>(project_id: str, query: str, limit: int = 10) -&gt; list[dict]</code></td><td>搜索一个拥有的项目，返回有界源片段和稳定 ID。limit 限制在 1&ndash;20。</td><td><code>PROJECT_NOT_FOUND</code>、<code>INVALID_REQUEST</code>、<code>PROJECT_SCOPE_REQUIRES_CONVERSATION</code></td></tr>
+          <tr><td><code>search_conversation</code></td><td><code>(project_id: str, conversation_id: str, query: str, limit: int = 10) -&gt; list[dict]</code></td><td>仅搜索一个已认证个人对话拥有的附件</td><td><code>CONVERSATION_NOT_FOUND</code>、<code>INVALID_REQUEST</code></td></tr>
+          <tr><td><code>ask_grounded</code></td><td><code>(project_id: str, message: str, web_enabled: bool = False, conversation_id: str | None = None, idempotency_key: str | None = None) -&gt; dict</code></td><td>运行统一 Ask 服务，返回答案、引用和 trace ID。支持幂等（key 长度 8&ndash;160）。</td><td><code>INVALID_IDEMPOTENCY_KEY</code>、<code>INVALID_REQUEST</code></td></tr>
+          <tr><td><code>get_run_trace</code></td><td><code>(trace_id: str) -&gt; dict</code></td><td>以与 REST 相同的特权策略读取开发者 trace</td><td><code>INVALID_TRACE_ID</code>、<code>TRACE_NOT_FOUND</code>、<code>TRACE_ACCESS_DENIED</code></td></tr>
+          <tr><td><code>run_evaluation</code></td><td><code>(dataset_id: str, pipeline_version_id: str, metrics: list[str], idempotency_key: str, max_parallelism: int = 4) -&gt; dict</code></td><td>启动版本化评估。需要 <code>developer</code> 或 <code>admin</code> 角色。metrics 转为 Literal：<code>schema_valid</code>、<code>citation_precision</code>、<code>evidence_recall</code>、<code>faithfulness</code>。</td><td><code>ADMIN_REQUIRED</code>、<code>INVALID_EVALUATION_REQUEST</code></td></tr>
+        </tbody></table></div>
+        <p>所有分块文本在返回前截断到 <code>MAX_TEXT_LENGTH</code>（1200 字符）。<code>_chunk_payloads()</code> 辅助函数将内部 <code>ChunkEntry</code> 对象映射为 MCP 安全证据摘要，包含 <code>chunk_id</code>、<code>document_id</code>、<code>source_title</code>、<code>page_no</code>、<code>slide_no</code>、<code>url</code> 和 <code>text</code>。</p>
+
+        <h3>三个资源</h3>
+        <div class="stack-ledger"><table><thead><tr><th>URI 模板</th><th>函数</th><th>返回</th><th>描述</th></tr></thead><tbody>
+          <tr><td><code>project://{project_id}/documents</code></td><td><code>project_documents(project_id: str) -&gt; str</code></td><td>JSON 字符串</td><td>拥有的工作区的安全元数据（绝非个人容器）。通过 <code>require_workspace_scope()</code> 验证工作区范围。</td></tr>
+          <tr><td><code>conversation://{conversation_id}/documents</code></td><td><code>conversation_documents(conversation_id: str) -&gt; str</code></td><td>JSON 字符串</td><td>仅一个拥有的对话中附件的安全元数据。</td></tr>
+          <tr><td><code>run://{run_id}</code></td><td><code>run_summary(run_id: str) -&gt; str</code></td><td>JSON 字符串</td><td>拥有的 run 的持久安全工作流状态。</td></tr>
+        </tbody></table></div>
+
+        <h3>范围策略与幂等</h3>
+        <div class="grid two">
+          <article class="fact"><b>工作区 vs 个人范围</b><p><code>search_project</code> 通过 <code>scope_policy.py</code> 中的 <code>require_workspace_scope()</code> 强制工作区 vs 个人容器范围策略。个人项目拒绝项目级搜索，返回 <code>PROJECT_SCOPE_REQUIRES_CONVERSATION</code> &mdash; 调用者必须范围限定到对话。</p></article>
+          <article class="fact"><b>幂等协调器</b><p><code>ask_grounded</code> 和 <code>run_evaluation</code> 支持 <code>IdempotencyCoordinator</code> 去重。协调器的四状态机（<code>pending</code> &rarr; <code>running</code> &rarr; <code>completed</code>/<code>abandoned</code>）在 MCP 客户端重试请求时防止重复副作用。</p></article>
+        </div>
+
+        <h3>关键源文件</h3>
+        <pre><code>apps/api/src/researchmate_api/
+  mcp_server.py            (build_mcp_server, 6 工具, 3 资源, MCPRequestIdentity)
+  main.py                  (app.mount("/mcp"), bearer 中间件, 503 兜底)
+  services/scope_policy.py (require_workspace_scope)
+  services/idempotency.py  (IdempotencyCoordinator)
+tests/
+  test_mcp_boundary.py     (认证、SDK 缺失、工具调用测试)</code></pre>
+      </section>
+
+      <section id="langgraph">
+        <p class="eyebrow">LangGraph 证据工作流</p>
+        <h2>LangGraph . 六节点有状态图含人工审核</h2>
+        <p class="sub">证据审核工作流是一个有界状态图：规划子问题、并行检索并提取证据、调和声明、暂停等待人工审核、合成报告、校验后提交。</p>
+
+        <h3>状态模式 . EvidenceWorkflowState</h3>
+        <p><code>workers/ai-worker/src/researchmate_worker/evidence_graph.py</code> 中的 <code>EvidenceWorkflowState</code> TypedDict 定义节点间交换的检查点安全状态：</p>
+        <div class="stack-ledger"><table><thead><tr><th>字段</th><th>类型</th><th>用途</th></tr></thead><tbody>
+          <tr><td><code>run_id</code></td><td><code>str</code></td><td>工作流 run 标识（也是 LangGraph 线程 ID）</td></tr>
+          <tr><td><code>user_id</code>、<code>project_id</code></td><td><code>str</code></td><td>所有者和工作区范围</td></tr>
+          <tr><td><code>research_goal</code>、<code>review_policy</code></td><td><code>str</code></td><td>有界研究意图和审核严格度</td></tr>
+          <tr><td><code>run_kind</code></td><td><code>str</code></td><td><code>evidence_review</code> 或 <code>report_refresh</code></td></tr>
+          <tr><td><code>base_report_id</code>、<code>impacted_section_keys</code>、<code>changed_document_ids</code></td><td><code>str</code> / <code>list[str]</code></td><td>报告刷新范围</td></tr>
+          <tr><td><code>questions</code>、<code>question_index</code>、<code>question</code></td><td><code>list[str]</code> / <code>int</code> / <code>str</code></td><td>规划子问题和当前扇出索引</td></tr>
+          <tr><td><code>evidence_batches</code></td><td><code>Annotated[list[dict], operator.add]</code></td><td>累加器 &mdash; 并行批次通过 <code>operator.add</code> 合并</td></tr>
+          <tr><td><code>claims</code>、<code>relations</code></td><td><code>list[dict]</code></td><td>提取的声明和派生的关系</td></tr>
+          <tr><td><code>review_payload</code>、<code>decision</code></td><td><code>dict</code></td><td>人工审核提案和决策</td></tr>
+          <tr><td><code>report</code>、<code>validation</code></td><td><code>dict</code></td><td>合成报告和校验结果</td></tr>
+        </tbody></table></div>
+
+        <h3>图拓扑</h3>
+        <p><code>build_evidence_graph(domain, checkpointer)</code> 组装 <code>StateGraph</code> 并用检查点器编译：</p>
+        <div class="proof-chain">
+          <div class="proof-step"><b>START &rarr; plan</b><small>从研究目标创建提供者支持的子问题，或为报告刷新保留 section keys</small></div>
+          <div class="proof-step"><b>plan &rarr; fan-out &rarr; retrieve_and_extract</b><small><code>fan_out()</code> 对每个问题返回一个 <code>Send("retrieve_and_extract", {...})</code> &mdash; 带完整上下文加每问题 <code>question_index</code> 和 <code>question</code> 的并行执行</small></div>
+          <div class="proof-step"><b>retrieve_and_extract &rarr; reconcile</b><small>从 Qdrant 检索证据（+ 可选 Tavily 网络搜索），加载分块，通过 LLM 提取声明。批次通过 <code>operator.add</code> 合并到 <code>evidence_batches</code>。调和派生声明关系（一致/矛盾）而不修改证据。</small></div>
+          <div class="proof-step"><b>reconcile &rarr; human_review</b><small><code>review()</code> 包装器调用 <code>domain.review_payload(state)</code>。如果返回 <code>None</code> 则自动通过。否则调用 <code>interrupt(proposed)</code> &mdash; 检查点持久化，图暂停。</small></div>
+          <div class="proof-step"><b>human_review &rarr; synthesize</b><small>恢复时 <code>domain.apply_decision()</code> 处理人工决策（approve/edit/reject）。合成通过 <code>synthesize_report()</code> LLM 调用从已审核声明构建 <code>ReportProposal</code>。</small></div>
+          <div class="proof-step"><b>synthesize &rarr; validate_and_commit &rarr; END</b><small>校验所有声明都有证据（<code>chunk_ids</code>），然后在一个事务内将报告原子提交到数据库。</small></div>
+        </div>
+
+        <h3>人工审核 . interrupt 与恢复</h3>
+        <p><code>review()</code> 节点是关键的 HITL 边界。它调用 <code>domain.review_payload(state)</code>，后者标记低置信度声明（score &lt; 0.75）或可疑来源。如果需要审核，则调用 <code>langgraph.types</code> 中的 <code>interrupt(proposed)</code> &mdash; 这会持久化检查点并暂停图。源码注释明确：<em>"Never wrap interrupt in try/except; LangGraph must persist and surface it."</em></p>
+        <p>当人工提交决策（approve、edit、reject）时，<code>tasks.py</code> 中的 Celery <code>run_workflow</code> 任务通过 <code>Command(resume=resume_value)</code> 恢复图。<code>domain.apply_decision()</code> 方法处理决策，图继续到 <code>synthesize</code>。</p>
+
+        <h3>检查点 . PostgresSaver</h3>
+        <p>检查点通过 <code>PostgresSaver</code> 和 <code>JsonPlusSerializer(pickle_fallback=False)</code> 持久化到 PostgreSQL。线程 ID 即工作流 <code>run_id</code>。这意味着暂停的工作流在 worker 重启后仍然存活 &mdash; 检查点在数据库中，而非进程内存中。<code>pickle_fallback=False</code> 设置确保无任意反序列化，保持边界安全。</p>
+
+        <h3>领域协议与组合</h3>
+        <p><code>EvidenceWorkflowDomain</code> Protocol 定义图调用的七个方法：<code>plan</code>、<code>retrieve_and_extract</code>、<code>reconcile</code>、<code>review_payload</code>、<code>apply_decision</code>、<code>synthesize</code>、<code>validate_and_commit</code>。实现分布在：</p>
+        <div class="grid two">
+          <article class="fact"><b>WorkflowExecutionMixin</b><p><code>workflow_execution.py</code> &mdash; 以 mixin 形式实现全部七个节点方法。<code>plan()</code> 创建提供者支持的问题。<code>retrieve_and_extract()</code> 以所有者范围过滤器查询 Qdrant。<code>reconcile()</code> 派生关系。<code>validate_and_commit()</code> 原子提交。</p></article>
+          <article class="fact"><b>SqlEvidenceWorkflowDomain</b><p><code>workflow_runtime.py</code> &mdash; 将核心领域与 <code>WorkflowExecutionMixin</code> 组合，并重写 <code>synthesize()</code> 以通过 <code>synthesize_report()</code> LLM 调用构建 <code>ReportProposal</code>。</p></article>
+        </div>
+
+        <h3>关键源文件</h3>
+        <pre><code>workers/ai-worker/src/researchmate_worker/
+  evidence_graph.py        (EvidenceWorkflowState, build_evidence_graph, fan_out, review)
+  workflow_execution.py    (WorkflowExecutionMixin, 7 个节点实现)
+  workflow_runtime.py      (SqlEvidenceWorkflowDomain, 组合 + synthesize 重写)
+  tasks.py                 (run_workflow Celery 任务, Command(resume=...))</code></pre>
+      </section>
+
+      <section id="integration">
+        <p class="eyebrow">端到端集成</p>
+        <h2>三大基石如何连接</h2>
+        <p class="sub">三大基石并非孤立 &mdash; 它们共享领域服务、认证和同一个 Postgres 真相。</p>
+
+        <h3>Ask 路径 . 混合 RAG 通过 REST 和 MCP 暴露</h3>
+        <div class="proof-chain">
+          <div class="proof-step"><b>用户提问</b><small>浏览器 &rarr; <code>POST /api/v1/ask</code>（REST）或 MCP <code>ask_grounded</code> 工具 &mdash; 两者都到达 <code>GroundedQueryService.execute()</code></small></div>
+          <div class="proof-step"><b>路由规划</b><small><code>LocalEvidenceRetriever.retrieve()</code> 调用 <code>plan_retrieval()</code> &mdash; 从五条路由中选择一条</small></div>
+          <div class="proof-step"><b>混合检索 + RRF</b><small><code>execute_hybrid_query()</code> 在 Qdrant 中以加权 RRF 融合 BM25 + 稠密分支</small></div>
+          <div class="proof-step"><b>双重重排</b><small><code>RerankCoordinator.execute()</code> 链式 Qdrant &rarr; NVIDIA &rarr; 确定性</small></div>
+          <div class="proof-step"><b>上下文打包 + 生成答案</b><small><code>pack_chunks()</code> 限制到 8000-token 预算 &rarr; <code>generate_answer()</code> 产生带引用的 grounded 答案</small></div>
+          <div class="proof-step"><b>trace 持久化</b><small><code>repository.record_run()</code> 持久化 trace &mdash; MCP <code>get_run_trace</code> 和 <code>run://{run_id}</code> 资源之后暴露它</small></div>
+        </div>
+
+        <h3>证据审核路径 . LangGraph 在 retrieve_and_extract 中使用混合 RAG</h3>
+        <div class="proof-chain">
+          <div class="proof-step"><b>Celery <code>run_workflow</code></b><small>API 通过事务发件箱入队一个工作流 run &mdash; worker 接收</small></div>
+          <div class="proof-step"><b>plan 节点</b><small>LLM 将研究目标分解为有界子问题</small></div>
+          <div class="proof-step"><b>fan-out &rarr; retrieve_and_extract（并行）</b><small>每个子问题通过 Qdrant 混合查询检索证据 &mdash; 与 Ask 使用的相同混合 RAG 检索，范围限定到工作流的项目</small></div>
+          <div class="proof-step"><b>reconcile &rarr; human_review</b><small>声明提取、关系派生、低置信度声明标记为 <code>interrupt()</code></small></div>
+          <div class="proof-step"><b>恢复 &rarr; synthesize &rarr; validate_and_commit</b><small>人工决策应用、报告合成、校验、原子提交到 Postgres</small></div>
+          <div class="proof-step"><b>MCP 暴露结果</b><small><code>get_run_trace</code> 工具和 <code>run://{run_id}</code> 资源将已提交的 run 状态暴露给 IDE/智能体消费者</small></div>
+        </div>
+
+        <div class="notice"><strong>共享服务，而非重复逻辑：</strong>MCP 服务器、Ask REST 端点和 LangGraph <code>retrieve_and_extract</code> 节点都使用相同的 <code>LocalEvidenceRetriever</code>、<code>QdrantHybridStore</code>、<code>RerankCoordinator</code> 和 <code>GroundedQueryService</code>。MCP <code>ask_grounded</code> 工具字面意义上调用 <code>GroundedQueryService.execute()</code> &mdash; 与 REST 相同的代码路径。这就是 MCP 是"第二个真实消费者"而非并行实现的原因。</div>
+      </section>
+
+      <section id="further-reading">
+        <p class="eyebrow">延伸阅读</p>
+        <h2>相关文档</h2>
+        <div class="doc-index">
+          <a class="doc-link" href="../architecture/index.zh.html#stack"><b>架构与技术栈</b><span>技术决策表，含 LangGraph、MCP 和路由式混合检索行</span></a>
+          <a class="doc-link" href="backend.zh.html"><b>后端学习</b><span>FastAPI 路由、服务和持久层 &mdash; MCP 作为 12 个后端依赖之一</span></a>
+          <a class="doc-link" href="worker.zh.html"><b>Worker 学习</b><span>Celery 任务、文档摄取、LangGraph 工作流 &mdash; LangGraph 作为 8 个 worker 基石之一</span></a>
+          <a class="doc-link" href="flows.zh.html"><b>切面分析</b><span>Grounded Ask 的五路由混合 RAG 矩阵和 LangGraph 证据审核作为业务流追踪</span></a>
+          <a class="doc-link" href="../contracts/api/index.zh.html#planned-mcp"><b>API 合约</b><span>POST /mcp/ 网关合约，含工具和资源定义</span></a>
+        </div>
+      </section>
+
+    </div>
+    <aside class="toc"><b>本页导航</b>
+      <a href="#stack">技术栈</a>
+      <a href="#hybrid-rag">混合 RAG</a>
+      <a href="#mcp">MCP 服务器</a>
+      <a href="#langgraph">LangGraph</a>
+      <a href="#integration">集成</a>
+      <a href="#further-reading">延伸阅读</a>
+    </aside></div>
+  </main>
+  <footer class="shell footer">ResearchMate AI 智能体技术栈深度解析 . 写于 2026 年 8 月 11 日</footer>
+  <script src="../assets/site.js"></script>
+</body>
+</html>

@@ -1,4 +1,4 @@
-﻿<!-- Defines the evidence-backed runtime topology, deployment freeze, and technology decisions for ResearchMate. -->
+<!-- Defines the evidence-backed runtime topology, deployment freeze, and technology decisions for ResearchMate. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -105,6 +105,7 @@ npm run check:migrations</code></pre></article>
           <tr><td>GitHub Actions</td><td><span class="status local">Run <code>30514995551</code> passed for <code>66c31a8</code></span></td><td>Repeatable quality gates, artifact identity, public-demo promotion, smoke, and rollback evidence.</td><td>Frontend, Python, contracts, evaluation, and the public-demo boundary must move together by commit SHA.</td><td>Keep Actions, Vercel, and the selected Render service on the same release ref; add performance distributions, authenticated rerank switching, direct RLS, and recovery evidence.</td><td>A platform-native pipeline provides equivalent gates, traceability, and control.</td></tr>
         </tbody></table></div>
         <div class="notice"><strong>Rejected without a proven trigger:</strong> Kafka, Neo4j, a second vector database, multiple agent frameworks, and Kubernetes would duplicate accepted responsibilities or create shallow operational work.</div>
+        <div class="notice"><strong>Deep dive:</strong> For file-level detail on the routed Hybrid RAG retriever, MCP server, and LangGraph evidence workflow, see the <a href="../learn/ai-stack.html">AI agent stack deep dive</a>.</div>
       </section>
 
       <section id="deployment">
