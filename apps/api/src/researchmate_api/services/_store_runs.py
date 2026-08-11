@@ -24,6 +24,12 @@ from researchmate_api.schemas.conversation import (
     RuntimeRerankConfig,
 )
 from researchmate_api.schemas.document import DocumentRecord, UploadUrlRequest, UploadUrlResponse
+from researchmate_api.schemas.feedback import (
+    FeedbackEvidence,
+    FeedbackRating,
+    FeedbackSourceContext,
+    feedback_source_type,
+)
 from researchmate_api.schemas.job import JobRecord
 from researchmate_api.schemas.project import ProjectCreate, ProjectRecord
 from researchmate_api.schemas.quiz import QuizSet
@@ -71,6 +77,95 @@ class RunStoreMixin:
                 return trace
             return None
 
+    def feedback_source_context(
+        self, user: CurrentUser, run_id: UUID
+    ) -> FeedbackSourceContext | None:
+        """Return trusted Ask snapshots for owner-scoped local feedback persistence."""
+        with self._lock:
+            trace = next((item for item in self.traces.values() if item.run_id == run_id), None)
+            sources = self.run_sources.get(run_id)
+            if trace is None or sources is None or trace.user_id != user.id:
+                return None
+            conversation_id = next(
+                (
+                    conversation_id
+                    for conversation_id, messages in self.conversation_items.items()
+                    if any(message.ask_run_id == run_id for message in messages)
+                ),
+                None,
+            )
+            if conversation_id is None:
+                return None
+            assistant = next(
+                (
+                    message
+                    for message in self.conversation_items[conversation_id]
+                    if message.ask_run_id == run_id and message.role == "assistant"
+                ),
+                None,
+            )
+            user_messages = (
+                [
+                    message
+                    for message in self.conversation_items[conversation_id]
+                    if message.role == "user" and message.created_at <= assistant.created_at
+                ]
+                if assistant is not None
+                else []
+            )
+            if assistant is None or not user_messages:
+                return None
+            return FeedbackSourceContext(
+                ask_run_id=run_id,
+                user_id=user.id,
+                project_id=trace.project_id,
+                conversation_id=conversation_id,
+                question=user_messages[-1].content,
+                answer=assistant.content,
+                citation_chunk_ids=[
+                    citation.chunk_id
+                    for citation in sources.citations
+                    if citation.chunk_id is not None
+                ],
+                retrieved_chunk_ids=[
+                    UUID(str(item["chunk_id"]))
+                    for item in trace.retrieved_chunks
+                    if item.get("chunk_id")
+                ],
+                retrieved_evidence=[
+                    FeedbackEvidence(
+                        chunk_id=UUID(str(item["chunk_id"])),
+                        source_type=feedback_source_type(
+                            item.get("source_type"), item.get("document_id")
+                        ),
+                        source_title=(
+                            str(item["source_title"]) if item.get("source_title") else None
+                        ),
+                        page_no=(int(item["page_no"]) if item.get("page_no") else None),
+                        excerpt=(
+                            str(item["score_context"])[:240] if item.get("score_context") else None
+                        ),
+                    )
+                    for item in trace.retrieved_chunks
+                    if item.get("chunk_id")
+                ],
+            )
+
+    def set_feedback_rating(self, user: CurrentUser, run_id: UUID, rating: FeedbackRating) -> bool:
+        """Reflect persisted local feedback in reloaded conversation messages."""
+        with self._lock:
+            context = self.feedback_source_context(user, run_id)
+            if context is None:
+                return False
+            messages = self.conversation_items[context.conversation_id]
+            self.conversation_items[context.conversation_id] = [
+                message.model_copy(update={"feedback_rating": rating})
+                if message.ask_run_id == run_id
+                else message
+                for message in messages
+            ]
+            return True
+
     def record_run(
         self,
         user: CurrentUser,
@@ -115,6 +210,7 @@ class RunStoreMixin:
                     {
                         "chunk_id": str(chunk.id),
                         "document_id": str(chunk.document_id) if chunk.document_id else None,
+                        "source_type": chunk.source_type,
                         "source_title": chunk.source_title,
                         "page_no": chunk.page_no,
                         "score_context": chunk.text[:240],
@@ -153,6 +249,7 @@ class RunStoreMixin:
                             role="assistant",
                             content=assistant_answer,
                             citations=citations,
+                            ask_run_id=run_id,
                             created_at=now,
                         ),
                     ]

@@ -55,6 +55,7 @@
         <span class="status local">6-node LangGraph</span>
         <span class="status local">PostgresSaver checkpoint</span>
         <span class="status local">Human-in-the-Loop</span>
+        <span class="status local">3 retrieval evaluation modes</span>
       </div>
     </div>
     <div class="layout"><div class="content">
@@ -156,7 +157,7 @@ class MCPRequestIdentity:
           <tr><td><code>search_conversation</code></td><td><code>(project_id: str, conversation_id: str, query: str, limit: int = 10) -&gt; list[dict]</code></td><td>Searches only attachments owned by one authenticated personal conversation</td><td><code>CONVERSATION_NOT_FOUND</code>, <code>INVALID_REQUEST</code></td></tr>
           <tr><td><code>ask_grounded</code></td><td><code>(project_id: str, message: str, web_enabled: bool = False, conversation_id: str | None = None, idempotency_key: str | None = None) -&gt; dict</code></td><td>Runs the unified Ask service, returns answer, citations, and trace ID. Supports idempotency (key length 8&ndash;160).</td><td><code>INVALID_IDEMPOTENCY_KEY</code>, <code>INVALID_REQUEST</code></td></tr>
           <tr><td><code>get_run_trace</code></td><td><code>(trace_id: str) -&gt; dict</code></td><td>Reads a developer trace through the same privileged policy as REST</td><td><code>INVALID_TRACE_ID</code>, <code>TRACE_NOT_FOUND</code>, <code>TRACE_ACCESS_DENIED</code></td></tr>
-          <tr><td><code>run_evaluation</code></td><td><code>(dataset_id: str, pipeline_version_id: str, metrics: list[str], idempotency_key: str, max_parallelism: int = 4) -&gt; dict</code></td><td>Launches a versioned evaluation. Requires <code>developer</code> or <code>admin</code> role. Metrics cast to Literal: <code>schema_valid</code>, <code>citation_precision</code>, <code>evidence_recall</code>, <code>faithfulness</code>.</td><td><code>ADMIN_REQUIRED</code>, <code>INVALID_EVALUATION_REQUEST</code></td></tr>
+          <tr><td><code>run_evaluation</code></td><td><code>(dataset_id: str, pipeline_version_id: str, metrics: list[str], idempotency_key: str, max_parallelism: int = 4) -&gt; dict</code></td><td>Launches a versioned evaluation. Requires <code>developer</code> or <code>admin</code> role. Metrics cast to Literal: <code>schema_valid</code>, <code>citation_precision</code>, <code>evidence_recall</code>, <code>retrieval_mrr</code>, <code>retrieval_ndcg</code>, <code>faithfulness</code>.</td><td><code>ADMIN_REQUIRED</code>, <code>INVALID_EVALUATION_REQUEST</code></td></tr>
         </tbody></table></div>
         <p>All chunk text is truncated to <code>MAX_TEXT_LENGTH</code> (1200 characters) before returning. The <code>_chunk_payloads()</code> helper maps internal <code>ChunkEntry</code> objects to MCP-safe evidence summaries with <code>chunk_id</code>, <code>document_id</code>, <code>source_title</code>, <code>page_no</code>, <code>slide_no</code>, <code>url</code>, and <code>text</code>.</p>
 
@@ -236,6 +237,24 @@ tests/
   tasks.py                 (run_workflow Celery task, Command(resume=...))</code></pre>
       </section>
 
+      <section id="evaluation-lab">
+        <p class="eyebrow">Quality feedback loop</p>
+        <h2>Evaluation Lab . real retrieval ablations and reviewed Bad Cases</h2>
+        <p class="sub">The evaluation path changes execution policy, not just labels. It also turns explicit user feedback into reviewed relevance judgments without trusting client-supplied evidence.</p>
+        <div class="stack-ledger"><table><thead><tr><th>Pipeline mode</th><th>Dense weight</th><th>Sparse weight</th><th>Purpose</th></tr></thead><tbody>
+          <tr><td><code>dense_only</code></td><td>1.0</td><td>0.0</td><td>Skips lexical prefetch to isolate semantic-vector retrieval.</td></tr>
+          <tr><td><code>sparse_only</code></td><td>0.0</td><td>1.0</td><td>Skips embedding and dense prefetch to isolate lexical retrieval.</td></tr>
+          <tr><td><code>hybrid</code></td><td>Route-dependent</td><td>Route-dependent</td><td>Uses the production query planner and weighted dual-channel fusion.</td></tr>
+        </tbody></table></div>
+        <div class="grid two">
+          <article class="fact"><b>Ranking metrics</b><p><code>evidence_recall</code> measures whether expected chunks appear within the retrieved set. Reciprocal rank records the first relevant position; binary NDCG rewards placing all judged-relevant chunks near the top. When a case has no expected evidence, ranking metrics remain unscored instead of manufacturing a zero.</p></article>
+          <article class="fact"><b>Baseline comparison</b><p>Each durable run stores the effective pipeline configuration, retrieval channel weights, per-case results, aggregates, and the preceding successful baseline summary. The Engineering UI presents candidate and baseline together, including explicit regressions and execution failures.</p></article>
+          <article class="fact"><b>Feedback capture</b><p>Thumb feedback is keyed to a successful owned Ask run. The API reconstructs the question, answer, citations, and retrieved candidates from persisted server state; the browser cannot forge those snapshots.</p></article>
+          <article class="fact"><b>Bad Case promotion</b><p>A developer reviews negative feedback, selects expected chunks only from server-recorded local-document candidates, and atomically creates the next frozen <code>Answer feedback regressions</code> dataset version. Web candidates remain visible in the trusted trace but cannot enter this dataset because the evaluator currently replays Qdrant local-document retrieval only. Re-promotion replaces the earlier case in the new snapshot rather than duplicating it.</p></article>
+        </div>
+        <div class="notice"><strong>Current evidence boundary:</strong> metric logic, retrieval branch selection, feedback ownership, immutable promotion, UI rendering, and the release-gate script have local automated evidence. A populated managed-provider comparison and a production promotion remain unclaimed.</div>
+      </section>
+
       <section id="integration">
         <p class="eyebrow">End-to-end integration</p>
         <h2>How the three foundations connect</h2>
@@ -282,6 +301,7 @@ tests/
       <a href="#hybrid-rag">Hybrid RAG</a>
       <a href="#mcp">MCP server</a>
       <a href="#langgraph">LangGraph</a>
+      <a href="#evaluation-lab">Evaluation Lab</a>
       <a href="#integration">Integration</a>
       <a href="#further-reading">Further reading</a>
     </aside></div>

@@ -10,7 +10,14 @@ from sqlalchemy import text
 
 from researchmate_worker.evaluation_models import EvaluationRuntimeError
 
-SUPPORTED_METRICS = {"schema_valid", "citation_precision", "evidence_recall", "faithfulness"}
+SUPPORTED_METRICS = {
+    "schema_valid",
+    "citation_precision",
+    "evidence_recall",
+    "retrieval_mrr",
+    "retrieval_ndcg",
+    "faithfulness",
+}
 
 
 def _safe_evaluation_error(exc: Exception) -> tuple[str, bool]:
@@ -28,12 +35,16 @@ def _safe_evaluation_error(exc: Exception) -> tuple[str, bool]:
     return safe_code[:120], retryable
 
 
-def _metric_aggregates(connection: Any, run_id: UUID) -> dict[str, dict[str, float | int]]:
+MetricAggregate = dict[str, float | int | None]
+
+
+def _metric_aggregates(connection: Any, run_id: UUID) -> dict[str, MetricAggregate]:
     rows = (
         connection.execute(
             text(
                 """
             select metric_name,count(*) as score_count,
+              count(*) filter (where value is not null or passed is not null) as judged_count,
               avg(value) filter (where value is not null) as mean_value,
               count(*) filter (where passed=true) as passed_count,
               count(*) filter (where passed=false) as failed_count
@@ -50,7 +61,8 @@ def _metric_aggregates(connection: Any, run_id: UUID) -> dict[str, dict[str, flo
     return {
         row["metric_name"]: {
             "score_count": int(row["score_count"]),
-            "mean_value": float(row["mean_value"]) if row["mean_value"] is not None else 0.0,
+            "judged_count": int(row.get("judged_count", row["score_count"])),
+            "mean_value": float(row["mean_value"]) if row["mean_value"] is not None else None,
             "pass_rate": (
                 int(row["passed_count"])
                 / max(1, int(row["passed_count"]) + int(row["failed_count"]))
@@ -62,37 +74,66 @@ def _metric_aggregates(connection: Any, run_id: UUID) -> dict[str, dict[str, flo
 
 
 def build_regression_summary(
-    current: dict[str, dict[str, float | int]],
-    baseline: dict[str, dict[str, float | int]],
+    current: dict[str, MetricAggregate],
+    baseline: dict[str, MetricAggregate],
     *,
     total_cases: int,
     execution_failures: int,
     baseline_run_id: UUID | None,
     budget_limit_usd: Decimal | None,
     budget_reserved_usd: Decimal,
+    requested_metrics: list[str] | None = None,
 ) -> dict[str, Any]:
     """Compare current metrics with a baseline and summarize release regression risk."""
     comparisons: dict[str, dict[str, float]] = {}
     regressed_metrics: list[str] = []
     for metric, values in current.items():
         prior = baseline.get(metric)
-        if prior is None:
+        current_mean = values["mean_value"]
+        prior_mean = prior["mean_value"] if prior is not None else None
+        current_pass_rate = values["pass_rate"]
+        prior_pass_rate = prior["pass_rate"] if prior is not None else None
+        if (
+            prior is None
+            or not isinstance(current_mean, int | float)
+            or not isinstance(prior_mean, int | float)
+            or not isinstance(current_pass_rate, int | float)
+            or not isinstance(prior_pass_rate, int | float)
+        ):
             continue
-        mean_delta = float(values["mean_value"]) - float(prior["mean_value"])
-        pass_rate_delta = float(values["pass_rate"]) - float(prior["pass_rate"])
+        mean_delta = float(current_mean) - float(prior_mean)
+        pass_rate_delta = float(current_pass_rate) - float(prior_pass_rate)
         comparisons[metric] = {
             "mean_delta": round(mean_delta, 6),
             "pass_rate_delta": round(pass_rate_delta, 6),
         }
         if mean_delta < -0.02 or pass_rate_delta < -0.05:
             regressed_metrics.append(metric)
-    quality_failures = sum(int(values["failed_count"]) for values in current.values())
+    quality_failures = sum(int(values["failed_count"] or 0) for values in current.values())
+    completed_cases = total_cases - execution_failures
+    required_metrics = requested_metrics or list(current)
+    unscored_counts = {
+        metric: max(
+            0,
+            completed_cases
+            - int(
+                (current.get(metric) or {}).get(
+                    "judged_count",
+                    (current.get(metric) or {}).get("score_count", 0),
+                )
+                or 0
+            ),
+        )
+        for metric in required_metrics
+    }
+    complete = all(count == 0 for count in unscored_counts.values())
     return {
-        "completed_cases": total_cases - execution_failures,
+        "completed_cases": completed_cases,
         "failed_cases": execution_failures,
-        "complete": True,
+        "complete": complete,
+        "unscored_counts": unscored_counts,
         "execution_succeeded": execution_failures == 0,
-        "quality_passed": quality_failures == 0 and execution_failures == 0,
+        "quality_passed": complete and quality_failures == 0 and execution_failures == 0,
         "metric_summary": current,
         "baseline_run_id": str(baseline_run_id) if baseline_run_id else None,
         "baseline_comparison": comparisons,

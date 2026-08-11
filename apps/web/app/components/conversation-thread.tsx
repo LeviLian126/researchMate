@@ -1,6 +1,7 @@
 // Renders conversation history, citations, loading feedback, and recoverable workspace notices.
 import type { RefObject } from "react";
-import type { ConversationMessage } from "../lib/api";
+import type { ConversationMessage, FeedbackCategory, FeedbackRating } from "../lib/api";
+import { AnswerFeedback } from "./answer-feedback";
 import { StateNotice, type NoticeState } from "./state-notice";
 import { Loader2 } from "lucide-react";
 
@@ -16,6 +17,12 @@ interface ConversationThreadProps {
   threadEnd: RefObject<HTMLDivElement | null>;
   onDismissError: () => void;
   onSelectPrompt: (prompt: string) => void;
+  onSubmitFeedback: (
+    runId: string,
+    rating: FeedbackRating,
+    category: FeedbackCategory | null,
+    comment: string | null,
+  ) => Promise<void>;
 }
 
 const EMPTY_PROMPTS = [
@@ -37,6 +44,7 @@ export function ConversationThread({
   threadEnd,
   onDismissError,
   onSelectPrompt,
+  onSubmitFeedback,
 }: ConversationThreadProps) {
   return (
     <section
@@ -104,6 +112,14 @@ export function ConversationThread({
                     </details>
                   ))}
                 </div>
+              )}
+              {item.role === "assistant" && item.ask_run_id && (
+                <AnswerFeedback
+                  currentRating={item.feedback_rating}
+                  onSubmit={(rating, category, comment) => (
+                    onSubmitFeedback(item.ask_run_id!, rating, category, comment)
+                  )}
+                />
               )}
             </div>
           </article>

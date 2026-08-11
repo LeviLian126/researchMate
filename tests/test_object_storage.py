@@ -54,7 +54,9 @@ class FakeS3Client:
     def delete_object(self, **kwargs: Any) -> None:
         self.deleted = kwargs
 
-    def download_fileobj(self, bucket: str, key: str, target: Any) -> None:  # boundary: opaque test double (file-like)
+    def download_fileobj(
+        self, bucket: str, key: str, target: Any
+    ) -> None:  # boundary: opaque test double (file-like)
         self.downloaded = (bucket, key)
         target.write(b"document bytes")
 

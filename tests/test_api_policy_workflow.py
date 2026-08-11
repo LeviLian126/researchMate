@@ -200,9 +200,7 @@ def test_authenticated_upload_proxy_enforces_owner_size_and_mime(client: TestCli
     class RecordingStorage:
         uploaded: tuple[str, bytes, str] | None = None
 
-        def upload_stream(
-            self, object_key: str, source: IO[bytes], *, content_type: str
-        ) -> None:
+        def upload_stream(self, object_key: str, source: IO[bytes], *, content_type: str) -> None:
             self.uploaded = (object_key, source.read(), content_type)
 
     storage = RecordingStorage()

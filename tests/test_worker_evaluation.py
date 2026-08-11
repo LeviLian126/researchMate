@@ -81,6 +81,7 @@ def claimed(metrics=("schema_valid", "citation_precision", "evidence_recall")) -
         attempts=1,
         budget_limit_usd=Decimal("1.00"),
         pipeline_version_id=PIPELINE_VERSION_ID,
+        pipeline_code_sha="test-code-sha",
         pipeline=PipelineRuntimeConfig(
             retrieval_limit=12,
             model="z-ai/glm-5.2",
@@ -365,6 +366,7 @@ def _run_claim_row(claimed: ClaimedEvaluation) -> dict[str, Any]:
         "attempts": claimed.attempts,
         "budget_limit_usd": str(claimed.budget_limit_usd) if claimed.budget_limit_usd else None,
         "pipeline_version_id": claimed.pipeline_version_id,
+        "code_sha": claimed.pipeline_code_sha,
         "configuration": {
             "retrieval_limit": claimed.pipeline.retrieval_limit,
             "model": claimed.pipeline.model,
@@ -561,5 +563,20 @@ def test_supported_metrics_match_between_executor_runner_and_scoring() -> None:
         "schema_valid",
         "citation_precision",
         "evidence_recall",
+        "retrieval_mrr",
+        "retrieval_ndcg",
         "faithfulness",
     }
+
+
+def test_evaluation_retrieval_modes_change_channel_weights() -> None:
+    """Make dense, sparse, and hybrid pipeline versions observably distinct."""
+    from researchmate_worker.evaluation_executor import evaluation_retrieval_plan
+
+    dense = evaluation_retrieval_plan("question", "dense_only")
+    sparse = evaluation_retrieval_plan("question", "sparse_only")
+    hybrid = evaluation_retrieval_plan("question", "hybrid")
+
+    assert (dense.dense_weight, dense.lexical_weight) == (1.0, 0.0)
+    assert (sparse.dense_weight, sparse.lexical_weight) == (0.0, 1.0)
+    assert (hybrid.dense_weight, hybrid.lexical_weight) == (0.5, 0.5)

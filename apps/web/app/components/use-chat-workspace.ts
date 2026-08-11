@@ -12,11 +12,14 @@ import {
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   apiFetch,
+  type AnswerFeedbackRecord,
   type AskResponse,
   type ConversationMessage,
   type ConversationSummary,
   describeApiError,
   type DocumentRecord,
+  type FeedbackCategory,
+  type FeedbackRating,
   fileTypeFromName,
   idempotencyKey,
   isSupportedFileName,
@@ -300,7 +303,11 @@ export function useChatWorkspace({ suppliedProjectId, projectMode }: UseChatWork
         ...current.map((item) => item.id === optimisticUser.id
           ? { ...item, conversation_id: answer.conversation_id }
           : item),
-        { ...temporaryMessage(answer.conversation_id, "assistant", answer.answer), citations: answer.citations },
+        {
+          ...temporaryMessage(answer.conversation_id, "assistant", answer.answer),
+          citations: answer.citations,
+          ask_run_id: answer.run_id,
+        },
       ]);
       router.replace(`${routeBase}?conversation=${answer.conversation_id}`);
       window.dispatchEvent(new Event("researchmate:sidebar-refresh"));
@@ -312,6 +319,22 @@ export function useChatWorkspace({ suppliedProjectId, projectMode }: UseChatWork
       askInFlight.current = false;
       setSending(false);
     }
+  }
+
+  /** Persists one owner-scoped answer rating and updates the canonical thread state. */
+  async function submitAnswerFeedback(
+    runId: string,
+    rating: FeedbackRating,
+    category: FeedbackCategory | null,
+    comment: string | null,
+  ) {
+    const record = await apiFetch<AnswerFeedbackRecord>(`/answer-feedback/${runId}`, {
+      method: "PUT",
+      body: JSON.stringify({ rating, category, comment }),
+    });
+    setMessages((current) => current.map((item) => (
+      item.ask_run_id === runId ? { ...item, feedback_rating: record.rating } : item
+    )));
   }
 
   /** Requests a project quiz using instructions that do not overstate source coverage. */
@@ -372,6 +395,7 @@ export function useChatWorkspace({ suppliedProjectId, projectMode }: UseChatWork
     historyLoading, sending, slowResponse, error, dismissError: () => setError(null),
     documents, readyAttachments, uploading, fileInput, threadEnd, degradedNotice,
     quizOpen, setQuizOpen, quizPrompt, setQuizPrompt, quiz, setQuiz,
-    quizLoading, uploadFiles, submitQuestion, generateQuiz, startNewProjectChat,
+    quizLoading, uploadFiles, submitQuestion, submitAnswerFeedback, generateQuiz,
+    startNewProjectChat,
   };
 }

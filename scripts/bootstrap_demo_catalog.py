@@ -29,18 +29,20 @@ def main() -> None:
     import psycopg
     from psycopg.types.json import Jsonb
 
-    configuration = {
+    base_configuration = {
         "retrieval_limit": 12,
         "model": os.getenv("NVIDIA_MODEL", "z-ai/glm-5.2"),
         "evidence_prompt_version": "evidence-review-v1",
         "evaluation_prompt_version": "grounded-answer-v1",
-        "retrieval_mode": "dense_sparse_rerank",
     }
+    retrieval_modes = ("sparse_only", "dense_only", "hybrid")
     prompt_hash = sha256(b"grounded-answer-v1").hexdigest()
     code_sha = os.getenv("GITHUB_SHA", "local-uncommitted")
     with psycopg.connect(database_url) as connection:
         with connection.cursor() as cursor:
-            cursor.execute("select pg_advisory_xact_lock(hashtextextended(%s,2))", (str(args.user_id),))
+            cursor.execute(
+                "select pg_advisory_xact_lock(hashtextextended(%s,2))", (str(args.user_id),)
+            )
             cursor.execute(
                 """
                 select 1 from projects p join profiles u on u.id=p.user_id
@@ -54,20 +56,32 @@ def main() -> None:
                     "The project is missing, foreign, or its owner is not a developer/admin"
                 )
             pipeline_name = f"researchmate-evidence-{str(args.user_id)[:8]}"
-            cursor.execute(
-                """
-                insert into pipeline_versions(
-                  id,name,version,status,configuration,prompt_hash,code_sha,created_by,accepted_at
-                ) values (%s,%s,1,'accepted',%s,%s,%s,%s,now())
-                on conflict(name,version) do update set
-                  status='accepted',configuration=excluded.configuration,
-                  prompt_hash=excluded.prompt_hash,code_sha=excluded.code_sha,
-                  accepted_at=now()
-                returning id
-                """,
-                (uuid4(), pipeline_name, Jsonb(configuration), prompt_hash, code_sha, args.user_id),
-            )
-            pipeline_id = cursor.fetchone()[0]
+            pipeline_ids: dict[str, UUID] = {}
+            for version, retrieval_mode in enumerate(retrieval_modes, start=1):
+                configuration = {**base_configuration, "retrieval_mode": retrieval_mode}
+                cursor.execute(
+                    """
+                    insert into pipeline_versions(
+                      id,name,version,status,configuration,prompt_hash,code_sha,created_by,
+                      accepted_at
+                    ) values (%s,%s,%s,'accepted',%s,%s,%s,%s,now())
+                    on conflict(name,version) do update set
+                      status='accepted',configuration=excluded.configuration,
+                      prompt_hash=excluded.prompt_hash,code_sha=excluded.code_sha,
+                      accepted_at=now()
+                    returning id
+                    """,
+                    (
+                        uuid4(),
+                        pipeline_name,
+                        version,
+                        Jsonb(configuration),
+                        prompt_hash,
+                        code_sha,
+                        args.user_id,
+                    ),
+                )
+                pipeline_ids[retrieval_mode] = cursor.fetchone()[0]
             cursor.execute(
                 """
                 insert into evaluation_datasets(
@@ -92,7 +106,9 @@ def main() -> None:
             )
             rows = cursor.fetchall()
             if not rows:
-                raise SystemExit("Ingest at least one ready document before bootstrapping the catalog")
+                raise SystemExit(
+                    "Ingest at least one ready document before bootstrapping the catalog"
+                )
             for index, (chunk_id, source_title, excerpt) in enumerate(rows, start=1):
                 case_key = f"bootstrap-{index:03d}-{str(chunk_id)[:8]}"
                 cursor.execute(
@@ -123,7 +139,12 @@ def main() -> None:
         connection.commit()
     print(
         json.dumps(
-            {"pipeline_version_id": str(pipeline_id), "dataset_id": str(dataset_id)},
+            {
+                "pipeline_version_ids": {
+                    mode: str(identifier) for mode, identifier in pipeline_ids.items()
+                },
+                "dataset_id": str(dataset_id),
+            },
             separators=(",", ":"),
         )
     )

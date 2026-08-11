@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from threading import RLock
-from typing import Protocol
+from typing import TYPE_CHECKING, Protocol
 from uuid import UUID, uuid4
 
 from researchmate_api.schemas.common import CurrentUser
@@ -13,6 +13,7 @@ from researchmate_api.schemas.evidence import (
     ClaimListResponse,
     ClaimRelationListResponse,
     EvaluationDatasetListResponse,
+    EvaluationDatasetSummary,
     EvaluationRunAccepted,
     EvaluationRunCreate,
     EvaluationRunRecord,
@@ -32,11 +33,23 @@ from researchmate_api.schemas.evidence import (
     RunEventRecord,
     WorkflowRunRecord,
 )
+from researchmate_api.schemas.feedback import (
+    AnswerFeedbackListResponse,
+    AnswerFeedbackRecord,
+    AnswerFeedbackUpsert,
+    FeedbackPromotionCreate,
+    FeedbackPromotionResult,
+    FeedbackRating,
+)
 from researchmate_api.services.evidence_faults import (
     EvidenceStoreError,
     FaultScenarioStoreMixin,
     evidence_fingerprint,
 )
+from researchmate_api.services.evidence_feedback_memory import MemoryEvidenceFeedbackMixin
+
+if TYPE_CHECKING:
+    from researchmate_api.services._store_protocol import ResearchMateRepository
 
 
 class EvidenceRepository(Protocol):
@@ -76,6 +89,18 @@ class EvidenceRepository(Protocol):
         self, user: CurrentUser, project_id: UUID | None
     ) -> EvaluationDatasetListResponse: ...
 
+    def upsert_answer_feedback(
+        self, user: CurrentUser, ask_run_id: UUID, payload: AnswerFeedbackUpsert
+    ) -> AnswerFeedbackRecord | None: ...
+
+    def list_answer_feedback(
+        self, user: CurrentUser, project_id: UUID, rating: FeedbackRating | None
+    ) -> AnswerFeedbackListResponse | None: ...
+
+    def promote_answer_feedback(
+        self, user: CurrentUser, feedback_id: UUID, payload: FeedbackPromotionCreate
+    ) -> FeedbackPromotionResult | None: ...
+
     def refresh_report(
         self,
         user: CurrentUser,
@@ -103,17 +128,22 @@ class EvidenceRepository(Protocol):
     ) -> FaultScenarioRecord | None: ...
 
 
-class InMemoryEvidenceRepository(FaultScenarioStoreMixin):
+class InMemoryEvidenceRepository(MemoryEvidenceFeedbackMixin, FaultScenarioStoreMixin):
     """Deterministic local repository; distributed execution remains an explicit adapter boundary."""
 
-    def __init__(self) -> None:
+    def __init__(self, feedback_source: ResearchMateRepository | None = None) -> None:
+        """Initialize deterministic workflow state and its optional Ask context source."""
         self.lock = RLock()
+        self.feedback_source = feedback_source
         self.runs: dict[UUID, tuple[UUID, WorkflowRunRecord]] = {}
         self.events: dict[UUID, list[RunEventRecord]] = {}
         self.decisions: dict[tuple[UUID, str], tuple[str, HumanDecisionAccepted]] = {}
         self.idempotency: dict[tuple[UUID, str], tuple[str, object]] = {}
         self.evaluations: dict[UUID, tuple[UUID, EvaluationRunRecord]] = {}
         self.faults: dict[UUID, tuple[UUID, FaultScenarioRecord]] = {}
+        self.answer_feedback: dict[tuple[UUID, UUID], AnswerFeedbackRecord] = {}
+        self.feedback_datasets: dict[UUID, tuple[UUID, EvaluationDatasetSummary]] = {}
+        self.feedback_cases: dict[UUID, list[UUID]] = {}
 
     def create_research_run(
         self, user: CurrentUser, payload: ResearchRunCreate, idempotency_key: str
@@ -236,12 +266,6 @@ class InMemoryEvidenceRepository(FaultScenarioStoreMixin):
     def list_pipeline_versions(self, user: CurrentUser) -> PipelineVersionListResponse:
         """Return pipeline versions available in the local adapter."""
         return PipelineVersionListResponse(items=[])
-
-    def list_evaluation_datasets(
-        self, user: CurrentUser, project_id: UUID | None
-    ) -> EvaluationDatasetListResponse:
-        """Return evaluation datasets available in the local adapter."""
-        return EvaluationDatasetListResponse(items=[])
 
     def refresh_report(
         self,

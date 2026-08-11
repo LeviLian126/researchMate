@@ -11,7 +11,9 @@ def test_langgraph_graph_executes_a_bounded_local_path() -> None:
         def plan(self, _state: object) -> dict[str, list[str]]:
             return {"questions": ["first", "second"]}
 
-        def retrieve_and_extract(self, state: dict[str, object]) -> dict[str, list[dict[str, object]]]:
+        def retrieve_and_extract(
+            self, state: dict[str, object]
+        ) -> dict[str, list[dict[str, object]]]:
             return {"evidence_batches": [{"question": state["question"], "claims": []}]}
 
         def reconcile(self, _state: object) -> dict[str, list[object]]:

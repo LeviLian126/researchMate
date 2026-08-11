@@ -9,7 +9,14 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
-SUPPORTED_METRICS = {"schema_valid", "citation_precision", "evidence_recall", "faithfulness"}
+SUPPORTED_METRICS = {
+    "schema_valid",
+    "citation_precision",
+    "evidence_recall",
+    "retrieval_mrr",
+    "retrieval_ndcg",
+    "faithfulness",
+}
 
 
 class PipelineRuntimeConfig(BaseModel):
@@ -18,7 +25,10 @@ class PipelineRuntimeConfig(BaseModel):
     retrieval_limit: int = Field(default=12, ge=1, le=50)
     model: str = Field(min_length=1, max_length=200)
     evaluation_prompt_version: str = Field(pattern=r"^grounded-answer-v[0-9]+$")
-    retrieval_mode: str = "dense_sparse_rerank"
+    retrieval_mode: str = Field(
+        default="dense_sparse_rerank",
+        pattern=r"^(dense_sparse_rerank|hybrid|dense_only|sparse_only)$",
+    )
 
 
 @dataclass(frozen=True)
@@ -67,6 +77,7 @@ class ClaimedEvaluation:
     attempts: int
     budget_limit_usd: Decimal | None
     pipeline_version_id: UUID
+    pipeline_code_sha: str
     pipeline: PipelineRuntimeConfig
 
 

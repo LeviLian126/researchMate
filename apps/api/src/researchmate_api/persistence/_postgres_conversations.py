@@ -231,13 +231,16 @@ class ConversationPersistenceMixin:
                 connection.execute(
                     text(
                         """
-                        select id,conversation_id,role,content,ask_run_id,created_at
-                        from messages
-                        where conversation_id=:id and user_id=:user_id
-                          and role in ('user','assistant')
-                        order by created_at,
-                                 case role when 'user' then 0 when 'assistant' then 1 else 2 end,
-                                 id
+                        select m.id,m.conversation_id,m.role,m.content,m.ask_run_id,m.created_at,
+                               f.rating as feedback_rating
+                        from messages m
+                        left join answer_feedback f
+                          on f.ask_run_id=m.ask_run_id and f.user_id=m.user_id
+                        where m.conversation_id=:id and m.user_id=:user_id
+                          and m.role in ('user','assistant')
+                        order by m.created_at,
+                                 case m.role when 'user' then 0 when 'assistant' then 1 else 2 end,
+                                 m.id
                         """
                     ),
                     {"id": conversation_id, "user_id": user.id},
@@ -267,6 +270,8 @@ class ConversationPersistenceMixin:
                         role=row["role"],
                         content=row["content"],
                         citations=citations,
+                        ask_run_id=row["ask_run_id"],
+                        feedback_rating=row["feedback_rating"],
                         created_at=row["created_at"],
                     )
                 )

@@ -46,7 +46,9 @@ def test_render_blueprint_uses_one_shared_free_service_and_secret_prompts() -> N
 def test_worker_image_copies_hybrid_replay_script() -> None:
     """Keep the opt-in native-hybrid replay executable in the Render runtime image."""
     source = (ROOT / "workers" / "ai-worker" / "Dockerfile").read_text(encoding="utf-8")
-    assert "COPY scripts/provision_qdrant_hybrid.py /app/scripts/provision_qdrant_hybrid.py" in source
+    assert (
+        "COPY scripts/provision_qdrant_hybrid.py /app/scripts/provision_qdrant_hybrid.py" in source
+    )
 
 
 def test_nvidia_free_endpoint_has_no_runtime_price_fields() -> None:

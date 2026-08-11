@@ -154,7 +154,9 @@ def test_frontend_uses_supabase_session_outside_local_development() -> None:
     api = (ROOT / "apps/web/app/lib/api.ts").read_text(encoding="utf-8")
     # SEC-3: the cookie name lives on the server route, not in the browser bundle.
     session_route = (ROOT / "apps/web/app/api/auth/session/route.ts").read_text(encoding="utf-8")
-    session_get_route = (ROOT / "apps/web/app/api/auth/session/get/route.ts").read_text(encoding="utf-8")
+    session_get_route = (ROOT / "apps/web/app/api/auth/session/get/route.ts").read_text(
+        encoding="utf-8"
+    )
 
     for token in [
         "NEXT_PUBLIC_SUPABASE_URL",

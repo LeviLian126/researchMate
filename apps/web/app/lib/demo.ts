@@ -351,7 +351,7 @@ export async function demoFetch<T>(rawPath: string, init: globalThis.RequestInit
     chatMessages = [
       ...chatMessages,
       { id: makeId("31313131-3131", chatMessages.length + 1), project_id: targetProjectId, conversation_id: conversationId, role: "user", content: body.message ?? "Explain the evidence.", citations: [], created_at: timestamp },
-      { id: makeId("32323232-3232", chatMessages.length + 2), project_id: targetProjectId, conversation_id: conversationId, role: "assistant", content: answer, citations: [citation], created_at: timestamp },
+      { id: makeId("32323232-3232", chatMessages.length + 2), project_id: targetProjectId, conversation_id: conversationId, role: "assistant", content: answer, citations: [citation], ask_run_id: latestRun.run_id, feedback_rating: null, created_at: timestamp },
     ];
     return {
       run_id: latestRun.run_id,
@@ -365,6 +365,30 @@ export async function demoFetch<T>(rawPath: string, init: globalThis.RequestInit
       retrieval_degraded: false,
       summary_degraded: false,
       fallback_reason: null,
+    } as T;
+  }
+  const feedbackMatch = path.match(/^\/answer-feedback\/([^/]+)$/);
+  if (feedbackMatch && method === "PUT") {
+    const rating = body.rating === "not_helpful" ? "not_helpful" : "helpful";
+    chatMessages = chatMessages.map((message) => message.ask_run_id === feedbackMatch[1]
+      ? { ...message, feedback_rating: rating }
+      : message);
+    return {
+      feedback_id: "91919191-9191-4919-8919-919191919191",
+      ask_run_id: feedbackMatch[1],
+      project_id: DEMO_PROJECT_ID,
+      conversation_id: chatMessages.find((message) => message.ask_run_id === feedbackMatch[1])?.conversation_id,
+      rating,
+      category: body.category ?? null,
+      comment: body.comment ?? null,
+      question: "Explain the evidence.",
+      answer: "The walkthrough conclusion is conditional.",
+      citation_chunk_ids: [citation.chunk_id],
+      retrieved_chunk_ids: [citation.chunk_id],
+      retrieved_evidence: [],
+      status: "new",
+      created_at: timestamp,
+      updated_at: timestamp,
     } as T;
   }
   const deleteDocumentMatch = path.match(/^\/documents\/([^/]+)$/);

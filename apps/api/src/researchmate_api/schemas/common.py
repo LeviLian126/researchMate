@@ -36,6 +36,7 @@ MAX_REASON_LENGTH = 2000
 MAX_EVIDENCE_TEXT_LENGTH = 1600
 MAX_ID_LENGTH = 120
 MAX_FALLBACK_REASON_LENGTH = 300
+MAX_FEEDBACK_COMMENT_LENGTH = 1000
 
 # Snippet lengths. Each constant names the bounded excerpt size used by a
 # specific call site so retrieval and quiz generation share one source of

@@ -120,7 +120,53 @@ export interface ConversationMessage {
   role: "user" | "assistant";
   content: string;
   citations: Citation[];
+  ask_run_id?: string | null;
+  feedback_rating?: "helpful" | "not_helpful" | null;
   created_at: string;
+}
+
+export type FeedbackRating = "helpful" | "not_helpful";
+
+export type FeedbackCategory =
+  | "incorrect_answer"
+  | "incorrect_citation"
+  | "missing_context"
+  | "irrelevant"
+  | "unsafe"
+  | "other";
+
+export interface FeedbackEvidence {
+  chunk_id: string;
+  source_type: "local_doc" | "web_page";
+  source_title?: string | null;
+  page_no?: number | null;
+  excerpt?: string | null;
+}
+
+export interface AnswerFeedbackRecord {
+  feedback_id: string;
+  ask_run_id: string;
+  project_id: string;
+  conversation_id: string;
+  rating: FeedbackRating;
+  category?: FeedbackCategory | null;
+  comment?: string | null;
+  question: string;
+  answer: string;
+  citation_chunk_ids: string[];
+  retrieved_chunk_ids: string[];
+  retrieved_evidence: FeedbackEvidence[];
+  status: "new" | "promoted";
+  promoted_case_id?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FeedbackPromotionResult {
+  dataset_id: string;
+  dataset_version: number;
+  dataset_status: "frozen";
+  case_id: string;
 }
 
 export interface DeveloperTrace {

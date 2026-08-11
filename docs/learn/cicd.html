@@ -384,6 +384,20 @@ npm run check:lint
         <div class="notice"><strong>Recovery and rollback:</strong> If the health check fails after deployment, Render automatically rolls back to the last stable version. If a CI gate fails, developers must fix and push again, and the workflow restarts from step 1. All state transitions (planned / ready / executed / verified) are logged through GitHub Actions logs and Render deployment records, making every change's execution results traceable.</div>
       </section>
 
+      <section id="evaluation-release-gate">
+        <p class="eyebrow">Controlled quality promotion</p>
+        <h2>Evaluation release gate . durable evidence, explicit invocation</h2>
+        <p class="sub">The normal hermetic CI remains fast and quota-free. When a candidate pipeline has completed a managed evaluation, an operator runs a separate controlled workflow with that durable run ID.</p>
+        <div class="proof-chain">
+          <div class="proof-step"><b>1 · Complete a versioned evaluation</b><small>Run a frozen dataset against an accepted dense-only, sparse-only, or hybrid pipeline version.</small></div>
+          <div class="proof-step"><b>2 · Dispatch the gate</b><small>Provide the evaluation run UUID to <code>evaluation-release-gate.yml</code>. The workflow binds the protected token to the repository-controlled Render origin rather than accepting a caller-selected host.</small></div>
+          <div class="proof-step"><b>3 · Fetch durable results</b><small><code>check_evaluation_gate.py</code> requires HTTPS outside localhost and reads the persisted status, execution summary, metric aggregates, and baseline comparison.</small></div>
+          <div class="proof-step"><b>4 · Fail closed</b><small>The gate rejects incomplete or failed runs, a pipeline <code>code_sha</code> that differs from the workflow commit, missing metrics, Recall@K below 0.80, MRR below 0.50, NDCG below 0.80, or any recorded regression. Thresholds are explicit CLI inputs when a release policy changes.</small></div>
+          <div class="proof-step"><b>5 · Preserve the decision</b><small>A safe JSON decision artifact is uploaded for 30 days even when the gate fails; the final workflow step enforces the result.</small></div>
+        </div>
+        <div class="notice warning"><strong>Current boundary:</strong> the script and workflow have local automated evidence, but no managed evaluation run has been supplied to this workflow yet. It is a controlled promotion gate, not a claim that every ordinary commit spends provider quota.</div>
+      </section>
+
       <section id="api-dockerfile">
         <p class="eyebrow">Dockerfile . API</p>
         <h2>apps/api/Dockerfile . two-stage, non-root, health-checked</h2>
@@ -588,6 +602,7 @@ uv sync --frozen --no-dev --all-packages</code></div>
     <aside class="toc"><b>On this page</b>
       <a href="#stack">Tech stack</a>
       <a href="#ci-pipeline">CI/CD workflow</a>
+      <a href="#evaluation-release-gate">Evaluation gate</a>
       <a href="#api-dockerfile">API Dockerfile</a>
       <a href="#worker-dockerfile">Worker Dockerfile</a>
       <a href="#render-yaml">render.yaml</a>

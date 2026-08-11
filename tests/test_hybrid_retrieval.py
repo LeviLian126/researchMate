@@ -142,6 +142,34 @@ def test_hybrid_query_splits_route_weights_across_query_variants() -> None:
     assert call["query"].rrf.weights == [0.2, 0.3, 0.2, 0.3]
 
 
+def test_sparse_only_query_skips_dense_embedding_and_prefetch() -> None:
+    """Keep sparse benchmark runs independent from the dense provider boundary."""
+    qdrant = FakeQdrantClient()
+    openai = FakeOpenAIClient()
+    store = QdrantHybridStore(
+        settings(), NvidiaEmbeddingProvider(settings(), client=openai), client=qdrant
+    )
+    plan = RetrievalPlan(
+        route=RetrievalRoute.EXACT,
+        queries=("BM25",),
+        dense_weight=0.0,
+        lexical_weight=1.0,
+        reason="evaluation_sparse_only",
+    )
+
+    store.query(
+        user_id="user-1",
+        project_id="project-1",
+        source_type=SourceType.LOCAL_DOC,
+        text="BM25",
+        plan=plan,
+    )
+
+    assert openai.embeddings.calls == []
+    assert [item.using for item in qdrant.query_call["prefetch"]] == ["bm25"]
+    assert qdrant.query_call["query"].rrf.weights == [1.0]
+
+
 def test_upsert_uses_named_vectors_and_owner_payload() -> None:
     """Persist named vectors with complete owner metadata."""
     from researchmate_api.services.store import ChunkEntry

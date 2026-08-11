@@ -252,8 +252,15 @@ class EvaluationRunCreate(BaseModel):
     dataset_id: UUID
     pipeline_version_id: UUID
     metrics: list[
-        Literal["schema_valid", "citation_precision", "evidence_recall", "faithfulness"]
-    ] = Field(min_length=1, max_length=4)
+        Literal[
+            "schema_valid",
+            "citation_precision",
+            "evidence_recall",
+            "retrieval_mrr",
+            "retrieval_ndcg",
+            "faithfulness",
+        ]
+    ] = Field(min_length=1, max_length=6)
     max_parallelism: int = Field(default=4, ge=1, le=20)
     max_cost_usd: Decimal | None = Field(default=None, gt=0, le=25)
     labels: list[str] = Field(default_factory=list, max_length=20)

@@ -12,6 +12,7 @@ from researchmate_api.schemas.conversation import (
     RuntimeRerankConfig,
 )
 from researchmate_api.schemas.document import DocumentRecord, UploadUrlRequest, UploadUrlResponse
+from researchmate_api.schemas.feedback import FeedbackRating, FeedbackSourceContext
 from researchmate_api.schemas.job import JobRecord
 from researchmate_api.schemas.project import ProjectCreate, ProjectRecord
 from researchmate_api.schemas.quiz import QuizSet
@@ -68,6 +69,14 @@ class ResearchMateRepository(Protocol):
     def get_run_sources(self, user: CurrentUser, run_id: UUID) -> RunSourcesResponse | None: ...
 
     def get_trace(self, user: CurrentUser, trace_id: UUID) -> DeveloperTrace | None: ...
+
+    def feedback_source_context(
+        self, user: CurrentUser, run_id: UUID
+    ) -> FeedbackSourceContext | None: ...
+
+    def set_feedback_rating(
+        self, user: CurrentUser, run_id: UUID, rating: FeedbackRating
+    ) -> bool: ...
 
     def record_run(
         self,

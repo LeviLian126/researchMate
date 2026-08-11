@@ -196,7 +196,7 @@ def test_database_and_api_docs_reconcile_complete_source_contracts() -> None:
     documented_operations = set(
         re.findall(r"<code>(GET|POST|PUT|PATCH|DELETE) (/api/v1/[^<]+)</code> —", api_docs)
     )
-    assert len(spec_operations) == 46
+    assert len(spec_operations) == 49
     assert documented_operations == spec_operations
 
 

@@ -69,6 +69,8 @@ class ConversationMessage(BaseModel):
     role: Literal["user", "assistant"]
     content: str = Field(min_length=1, max_length=MAX_CONVERSATION_MESSAGE_LENGTH)
     citations: list[Citation] = Field(default_factory=list, max_length=80)
+    ask_run_id: UUID | None = None
+    feedback_rating: Literal["helpful", "not_helpful"] | None = None
     created_at: datetime
 
 

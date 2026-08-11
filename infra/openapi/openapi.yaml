@@ -3672,8 +3672,416 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/answer-feedback/{ask_run_id}:
+    put:
+      tags:
+      - answer-feedback
+      summary: Upsert Answer Feedback
+      description: Create or replace feedback for one caller-owned persisted answer.
+      operationId: upsert_answer_feedback_api_v1_answer_feedback__ask_run_id__put
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: ask_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Ask Run Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnswerFeedbackUpsert'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnswerFeedbackRecord'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Permission denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: State or idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Request validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Usage limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Provider output was invalid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Dependency unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/projects/{project_id}/answer-feedback:
+    get:
+      tags:
+      - answer-feedback
+      summary: List Answer Feedback
+      description: List the developer's bounded owner-scoped feedback review queue.
+      operationId: list_answer_feedback_api_v1_projects__project_id__answer_feedback_get
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Project Id
+      - name: rating
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - enum:
+            - helpful
+            - not_helpful
+            type: string
+          - type: 'null'
+          title: Rating
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnswerFeedbackListResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Permission denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: State or idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Request validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Usage limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Provider output was invalid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Dependency unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/answer-feedback/{feedback_id}/promote:
+    post:
+      tags:
+      - answer-feedback
+      summary: Promote Answer Feedback
+      description: Promote reviewed feedback into the next frozen regression dataset
+        version.
+      operationId: promote_answer_feedback_api_v1_answer_feedback__feedback_id__promote_post
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: feedback_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Feedback Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FeedbackPromotionCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeedbackPromotionResult'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Permission denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: State or idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Request validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Usage limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Provider output was invalid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Dependency unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 components:
   schemas:
+    AnswerFeedbackListResponse:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/AnswerFeedbackRecord'
+          type: array
+          maxItems: 100
+          title: Items
+      type: object
+      title: AnswerFeedbackListResponse
+      description: Wrap a bounded developer review queue.
+    AnswerFeedbackRecord:
+      properties:
+        feedback_id:
+          type: string
+          format: uuid
+          title: Feedback Id
+        ask_run_id:
+          type: string
+          format: uuid
+          title: Ask Run Id
+        project_id:
+          type: string
+          format: uuid
+          title: Project Id
+        conversation_id:
+          type: string
+          format: uuid
+          title: Conversation Id
+        rating:
+          type: string
+          enum:
+          - helpful
+          - not_helpful
+          title: Rating
+        category:
+          anyOf:
+          - type: string
+            enum:
+            - incorrect_answer
+            - incorrect_citation
+            - missing_context
+            - irrelevant
+            - unsafe
+            - other
+          - type: 'null'
+          title: Category
+        comment:
+          anyOf:
+          - type: string
+            maxLength: 1000
+          - type: 'null'
+          title: Comment
+        question:
+          type: string
+          maxLength: 8000
+          minLength: 1
+          title: Question
+        answer:
+          type: string
+          maxLength: 16000
+          minLength: 1
+          title: Answer
+        citation_chunk_ids:
+          items:
+            type: string
+            format: uuid
+          type: array
+          maxItems: 80
+          title: Citation Chunk Ids
+        retrieved_chunk_ids:
+          items:
+            type: string
+            format: uuid
+          type: array
+          maxItems: 80
+          title: Retrieved Chunk Ids
+        retrieved_evidence:
+          items:
+            $ref: '#/components/schemas/FeedbackEvidence'
+          type: array
+          maxItems: 80
+          title: Retrieved Evidence
+        status:
+          type: string
+          enum:
+          - new
+          - promoted
+          title: Status
+        promoted_case_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Promoted Case Id
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+      type: object
+      required:
+      - feedback_id
+      - ask_run_id
+      - project_id
+      - conversation_id
+      - rating
+      - question
+      - answer
+      - status
+      - created_at
+      - updated_at
+      title: AnswerFeedbackRecord
+      description: Expose bounded feedback context for the owner and developer review
+        flow.
+    AnswerFeedbackUpsert:
+      properties:
+        rating:
+          type: string
+          enum:
+          - helpful
+          - not_helpful
+          title: Rating
+        category:
+          anyOf:
+          - type: string
+            enum:
+            - incorrect_answer
+            - incorrect_citation
+            - missing_context
+            - irrelevant
+            - unsafe
+            - other
+          - type: 'null'
+          title: Category
+        comment:
+          anyOf:
+          - type: string
+            maxLength: 1000
+          - type: 'null'
+          title: Comment
+      additionalProperties: false
+      type: object
+      required:
+      - rating
+      title: AnswerFeedbackUpsert
+      description: Validate one replaceable rating for an owned answer run.
     AskRequest:
       properties:
         project_id:
@@ -4022,6 +4430,20 @@ components:
           type: array
           maxItems: 80
           title: Citations
+        ask_run_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Ask Run Id
+        feedback_rating:
+          anyOf:
+          - type: string
+            enum:
+            - helpful
+            - not_helpful
+          - type: 'null'
+          title: Feedback Rating
         created_at:
           type: string
           format: date-time
@@ -4460,9 +4882,11 @@ components:
             - schema_valid
             - citation_precision
             - evidence_recall
+            - retrieval_mrr
+            - retrieval_ndcg
             - faithfulness
           type: array
-          maxItems: 4
+          maxItems: 6
           minItems: 1
           title: Metrics
         max_parallelism:
@@ -4731,6 +5155,81 @@ components:
       - created_at
       title: FaultScenarioRecord
       description: Expose the lifecycle and safe result of a fault exercise.
+    FeedbackEvidence:
+      properties:
+        chunk_id:
+          type: string
+          format: uuid
+          title: Chunk Id
+        source_type:
+          $ref: '#/components/schemas/SourceType'
+        source_title:
+          anyOf:
+          - type: string
+            maxLength: 300
+          - type: 'null'
+          title: Source Title
+        page_no:
+          anyOf:
+          - type: integer
+            minimum: 1.0
+          - type: 'null'
+          title: Page No
+        excerpt:
+          anyOf:
+          - type: string
+            maxLength: 240
+          - type: 'null'
+          title: Excerpt
+      type: object
+      required:
+      - chunk_id
+      - source_type
+      title: FeedbackEvidence
+      description: Expose one bounded retrieved candidate for explicit reviewer selection.
+    FeedbackPromotionCreate:
+      properties:
+        expected_chunk_ids:
+          items:
+            type: string
+            format: uuid
+          type: array
+          maxItems: 80
+          minItems: 1
+          title: Expected Chunk Ids
+      additionalProperties: false
+      type: object
+      required:
+      - expected_chunk_ids
+      title: FeedbackPromotionCreate
+      description: Require a reviewer-selected evidence set before creating a regression
+        case.
+    FeedbackPromotionResult:
+      properties:
+        dataset_id:
+          type: string
+          format: uuid
+          title: Dataset Id
+        dataset_version:
+          type: integer
+          minimum: 1.0
+          title: Dataset Version
+        dataset_status:
+          type: string
+          const: frozen
+          title: Dataset Status
+          default: frozen
+        case_id:
+          type: string
+          format: uuid
+          title: Case Id
+      type: object
+      required:
+      - dataset_id
+      - dataset_version
+      - case_id
+      title: FeedbackPromotionResult
+      description: Return the immutable evaluation dataset version created by promotion.
     HumanDecisionAccepted:
       properties:
         decision_id:

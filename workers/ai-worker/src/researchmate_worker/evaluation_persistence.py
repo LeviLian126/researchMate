@@ -21,7 +21,14 @@ from researchmate_worker.evaluation_summary import (
     json_dumps,
 )
 
-SUPPORTED_METRICS = {"schema_valid", "citation_precision", "evidence_recall", "faithfulness"}
+SUPPORTED_METRICS = {
+    "schema_valid",
+    "citation_precision",
+    "evidence_recall",
+    "retrieval_mrr",
+    "retrieval_ndcg",
+    "faithfulness",
+}
 
 
 class EvaluationPersistenceMixin:
@@ -52,7 +59,7 @@ class EvaluationPersistenceMixin:
                       r.status='pending' or (r.status='running' and r.lease_expires_at<now())
                     ) and r.attempts<:max_attempts
                     returning r.id,r.user_id,r.project_id,r.dataset_id,r.summary,r.attempts,
-                      r.budget_limit_usd,r.pipeline_version_id,v.configuration
+                      r.budget_limit_usd,r.pipeline_version_id,v.code_sha,v.configuration
                     """
                     ),
                     {
@@ -85,6 +92,7 @@ class EvaluationPersistenceMixin:
                 Decimal(row["budget_limit_usd"]) if row["budget_limit_usd"] is not None else None
             ),
             pipeline_version_id=row["pipeline_version_id"],
+            pipeline_code_sha=row["code_sha"],
             pipeline=PipelineRuntimeConfig.model_validate(row["configuration"]),
         )
 
@@ -247,7 +255,22 @@ class EvaluationPersistenceMixin:
                 baseline_run_id=baseline_id,
                 budget_limit_usd=run.budget_limit_usd,
                 budget_reserved_usd=Decimal(budget_reserved),
+                requested_metrics=run.metrics,
             )
+            result["pipeline"] = run.pipeline.model_dump(mode="json")
+            result["pipeline_code_sha"] = run.pipeline_code_sha
+            if baseline_id is not None:
+                baseline_config = connection.execute(
+                    text(
+                        """
+                        select v.configuration from evaluation_runs r
+                        join pipeline_versions v on v.id=r.pipeline_version_id
+                        where r.id=:id
+                        """
+                    ),
+                    {"id": baseline_id},
+                ).scalar_one_or_none()
+                result["baseline_pipeline"] = baseline_config
             status = "failed" if failures else "succeeded"
             updated = connection.execute(
                 text(

@@ -20,7 +20,14 @@ from researchmate_worker.evaluation_persistence import EvaluationPersistenceMixi
 from researchmate_worker.evaluation_scoring import deterministic_scores
 from researchmate_worker.evaluation_summary import _safe_evaluation_error
 
-SUPPORTED_METRICS = {"schema_valid", "citation_precision", "evidence_recall", "faithfulness"}
+SUPPORTED_METRICS = {
+    "schema_valid",
+    "citation_precision",
+    "evidence_recall",
+    "retrieval_mrr",
+    "retrieval_ndcg",
+    "faithfulness",
+}
 
 
 class EvaluationRunner(EvaluationPersistenceMixin):

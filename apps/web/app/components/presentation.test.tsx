@@ -13,6 +13,7 @@ const assistantMessage: ConversationMessage = {
   conversation_id: "conversation-1",
   role: "assistant",
   content: "The source supports the claim.",
+  ask_run_id: "run-1",
   citations: [{
     id: "citation-1",
     source_type: "web_page",
@@ -40,6 +41,7 @@ describe("chat presentation states", () => {
         threadEnd={createRef<HTMLDivElement>()}
         onDismissError={vi.fn()}
         onSelectPrompt={vi.fn()}
+        onSubmitFeedback={vi.fn()}
       />,
     );
 
@@ -48,6 +50,7 @@ describe("chat presentation states", () => {
     expect(markup).toContain("Still working");
     expect(markup).toContain("Request failed");
     expect(markup).toContain("semantic reranking was unavailable");
+    expect(markup).toContain("Was this answer useful?");
 
     const emptyMarkup = renderToStaticMarkup(
       <ConversationThread
@@ -61,6 +64,7 @@ describe("chat presentation states", () => {
         threadEnd={createRef<HTMLDivElement>()}
         onDismissError={vi.fn()}
         onSelectPrompt={vi.fn()}
+        onSubmitFeedback={vi.fn()}
       />,
     );
     expect(emptyMarkup).toContain("What can I help with?");

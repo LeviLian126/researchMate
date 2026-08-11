@@ -8,7 +8,7 @@ from researchmate_api.schemas.common import SourceType
 from researchmate_api.services.answering import build_llm_grounded_answer
 from researchmate_api.services.llm import ChatProvider
 from researchmate_api.services.qdrant_store import QdrantHybridStore
-from researchmate_api.services.query_planning import plan_retrieval
+from researchmate_api.services.query_planning import RetrievalPlan, RetrievalRoute, plan_retrieval
 from researchmate_api.services.store import ChunkEntry
 from sqlalchemy import Engine, text
 
@@ -19,7 +19,41 @@ from researchmate_worker.evaluation_models import (
     PipelineResult,
 )
 
-SUPPORTED_METRICS = {"schema_valid", "citation_precision", "evidence_recall", "faithfulness"}
+SUPPORTED_METRICS = {
+    "schema_valid",
+    "citation_precision",
+    "evidence_recall",
+    "retrieval_mrr",
+    "retrieval_ndcg",
+    "faithfulness",
+}
+
+
+def evaluation_retrieval_plan(question: str, mode: str) -> RetrievalPlan:
+    """Build a deterministic retrieval plan for a versioned evaluation pipeline."""
+    if mode == "dense_only":
+        return RetrievalPlan(
+            route=RetrievalRoute.SEMANTIC,
+            queries=(question,),
+            dense_weight=1.0,
+            lexical_weight=0.0,
+            reason="evaluation_dense_only",
+        )
+    if mode == "sparse_only":
+        return RetrievalPlan(
+            route=RetrievalRoute.EXACT,
+            queries=(question,),
+            dense_weight=0.0,
+            lexical_weight=1.0,
+            reason="evaluation_sparse_only",
+        )
+    return plan_retrieval(
+        question,
+        [],
+        corpus_tokens=1,
+        full_context_limit=0,
+        provider=None,
+    )
 
 
 class QdrantCaseExecutor:
@@ -45,13 +79,7 @@ class QdrantCaseExecutor:
             raise EvaluationRuntimeError("PIPELINE_MODEL_NOT_CONFIGURED")
         if run.pipeline.evaluation_prompt_version != "grounded-answer-v1":
             raise EvaluationRuntimeError("PIPELINE_PROMPT_NOT_SUPPORTED")
-        retrieval_plan = plan_retrieval(
-            question,
-            [],
-            corpus_tokens=1,
-            full_context_limit=0,
-            provider=None,
-        )
+        retrieval_plan = evaluation_retrieval_plan(question, run.pipeline.retrieval_mode)
         points = self.vector_store.query(
             user_id=str(run.user_id),
             project_id=str(run.project_id),

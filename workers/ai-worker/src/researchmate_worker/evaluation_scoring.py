@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import math
 
 from researchmate_worker.evaluation_models import (
     EvaluationCase,
@@ -11,7 +12,14 @@ from researchmate_worker.evaluation_models import (
     PipelineResult,
 )
 
-SUPPORTED_METRICS = {"schema_valid", "citation_precision", "evidence_recall", "faithfulness"}
+SUPPORTED_METRICS = {
+    "schema_valid",
+    "citation_precision",
+    "evidence_recall",
+    "retrieval_mrr",
+    "retrieval_ndcg",
+    "faithfulness",
+}
 
 
 def _expected_chunk_ids(case: EvaluationCase) -> set[str]:
@@ -19,6 +27,36 @@ def _expected_chunk_ids(case: EvaluationCase) -> set[str]:
     if isinstance(raw, dict):
         raw = raw.get("chunk_ids", [])
     return {str(value) for value in raw if value}
+
+
+def _unjudged_rank_score(name: str) -> MetricScore:
+    """Represent a missing relevance judgment without inventing a zero-quality result."""
+    return MetricScore(
+        name,
+        "1.0",
+        None,
+        None,
+        {"reason": "expected_evidence_missing"},
+    )
+
+
+def _reciprocal_rank(expected: set[str], retrieved: list[str]) -> tuple[float, int | None]:
+    """Return the reciprocal rank and one-based rank of the first relevant chunk."""
+    for index, chunk_id in enumerate(retrieved, start=1):
+        if chunk_id in expected:
+            return 1.0 / index, index
+    return 0.0, None
+
+
+def _normalized_discounted_gain(expected: set[str], retrieved: list[str]) -> float:
+    """Compute binary-relevance NDCG across the bounded retrieved list."""
+    if not retrieved:
+        return 0.0
+    gains = [1.0 if chunk_id in expected else 0.0 for chunk_id in retrieved]
+    dcg = sum(gain / math.log2(index + 2) for index, gain in enumerate(gains))
+    ideal_hits = min(len(expected), len(retrieved))
+    ideal = sum(1.0 / math.log2(index + 2) for index in range(ideal_hits))
+    return dcg / ideal if ideal else 0.0
 
 
 def deterministic_scores(
@@ -63,6 +101,42 @@ def deterministic_scores(
                 {"expected": len(expected), "matched": len(expected & retrieved)},
             )
         )
+    if "retrieval_mrr" in metrics:
+        expected = _expected_chunk_ids(case)
+        if not expected:
+            scores.append(_unjudged_rank_score("retrieval_mrr"))
+        else:
+            value, first_rank = _reciprocal_rank(expected, result.retrieved_chunk_ids)
+            scores.append(
+                MetricScore(
+                    "retrieval_mrr",
+                    "1.0",
+                    value,
+                    value >= 0.5,
+                    {
+                        "first_relevant_rank": first_rank,
+                        "k": len(result.retrieved_chunk_ids),
+                    },
+                )
+            )
+    if "retrieval_ndcg" in metrics:
+        expected = _expected_chunk_ids(case)
+        if not expected:
+            scores.append(_unjudged_rank_score("retrieval_ndcg"))
+        else:
+            value = _normalized_discounted_gain(expected, result.retrieved_chunk_ids)
+            scores.append(
+                MetricScore(
+                    "retrieval_ndcg",
+                    "1.0",
+                    value,
+                    value >= 0.8,
+                    {
+                        "expected": len(expected),
+                        "k": len(result.retrieved_chunk_ids),
+                    },
+                )
+            )
     return scores
 
 

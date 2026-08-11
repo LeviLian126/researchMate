@@ -78,9 +78,7 @@ class FakeVectors:
         self.deleted = None
         self.deleted_project = None
 
-    def delete_points(
-        self, point_ids: list[str], *, user_id: str, project_id: str
-    ) -> None:
+    def delete_points(self, point_ids: list[str], *, user_id: str, project_id: str) -> None:
         self.deleted = (point_ids, user_id, project_id)
 
     def delete_project_points(self, *, user_id: str, project_id: str) -> None:

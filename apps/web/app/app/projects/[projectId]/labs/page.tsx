@@ -5,6 +5,8 @@ import { useParams } from "next/navigation";
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { RefreshCw, Zap } from "lucide-react";
 import { ProjectNav } from "../../../../components/project-nav";
+import { EvaluationReport } from "../../../../components/evaluation-report";
+import { FeedbackReviewQueue } from "../../../../components/feedback-review-queue";
 import { NoticeState, StateNotice } from "../../../../components/state-notice";
 import {
   apiFetch,
@@ -12,6 +14,7 @@ import {
   EvaluationRun,
   EvaluationRunAccepted,
   EvaluationDatasetSummary,
+  FeedbackPromotionResult,
   idempotencyKey,
   ReliabilityMetrics,
   PipelineVersionSummary,
@@ -22,7 +25,14 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 
 const UUID_PATTERN = "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}";
-const metricOptions = ["schema_valid", "citation_precision", "evidence_recall", "faithfulness"] as const;
+const metricOptions = [
+  "schema_valid",
+  "citation_precision",
+  "evidence_recall",
+  "retrieval_mrr",
+  "retrieval_ndcg",
+  "faithfulness",
+] as const;
 const selectClass =
   "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1";
 const glassPanel = "rounded-2xl border border-border/60 bg-white/50 p-6 backdrop-blur-sm";
@@ -108,19 +118,34 @@ function EngineeringLabsWorkspace() {
     }
   }, []);
 
-  useEffect(() => {
-    void Promise.all([
+  /** Refreshes immutable datasets and accepted candidate pipeline versions. */
+  const loadCatalog = useCallback(async () => {
+    const [datasetResult, pipelineResult] = await Promise.all([
       apiFetch<{ items: EvaluationDatasetSummary[] }>(`/evaluation-datasets?project_id=${projectId}`),
       apiFetch<{ items: PipelineVersionSummary[] }>("/pipeline-versions"),
-    ]).then(([datasetResult, pipelineResult]) => {
-      setDatasets(datasetResult.items);
-      setPipelines(pipelineResult.items);
-      setDatasetId((current) => current || datasetResult.items[0]?.dataset_id || "");
-      setPipelineVersionId((current) => current || pipelineResult.items[0]?.pipeline_version_id || "");
-    }).catch((error) => setNotice(describeApiError(error)));
+    ]);
+    setDatasets(datasetResult.items);
+    setPipelines(pipelineResult.items);
+    setDatasetId((current) => current || datasetResult.items[0]?.dataset_id || "");
+    setPipelineVersionId((current) => current || pipelineResult.items[0]?.pipeline_version_id || "");
+  }, [projectId]);
+
+  useEffect(() => {
+    void loadCatalog().catch((error) => setNotice(describeApiError(error)));
     const saved = window.localStorage.getItem("researchmate_evaluation_run");
     if (saved) void loadEvaluation(saved, true);
-  }, [loadEvaluation, projectId]);
+  }, [loadCatalog, loadEvaluation]);
+
+  /** Makes a newly promoted frozen dataset immediately selectable for evaluation. */
+  function handleDatasetCreated(result: FeedbackPromotionResult) {
+    setDatasetId(result.dataset_id);
+    setNotice({
+      title: "Regression dataset created",
+      detail: `Frozen dataset version ${result.dataset_version} now includes the reviewed Bad Case.`,
+      kind: "success",
+    });
+    void loadCatalog().catch((error) => setNotice(describeApiError(error)));
+  }
 
   useEffect(() => {
     if (!evaluation || ["succeeded", "failed", "cancelled"].includes(evaluation.status)) return;
@@ -281,7 +306,7 @@ function EngineeringLabsWorkspace() {
                 </div>
                 <progress max="100" value={evaluation.progress} className="h-2 w-full accent-primary" />
                 {evaluation.summary ? (
-                  <pre className="max-h-[360px] overflow-auto rounded-lg border border-border/60 bg-secondary/30 p-4 font-mono text-sm">{JSON.stringify(evaluation.summary, null, 2)}</pre>
+                  <EvaluationReport summary={evaluation.summary} />
                 ) : (
                   <p className={emptyNote}>No aggregate summary yet. Pending may mean the worker, RAGAS runtime, provider, or frozen dataset is not configured.</p>
                 )}
@@ -364,6 +389,13 @@ function EngineeringLabsWorkspace() {
             </Button>
             <p className="text-xs text-muted-foreground">Use a disposable preview environment. Existing canonical business state remains in PostgreSQL.</p>
           </form>
+
+          <section className={`${glassPanel} md:col-span-2`}>
+            <FeedbackReviewQueue
+              projectId={projectId}
+              onDatasetCreated={handleDatasetCreated}
+            />
+          </section>
         </section>
       </div>
     </main>

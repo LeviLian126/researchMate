@@ -12,6 +12,7 @@ from researchmate_api.persistence._postgres_core import (
     _safe_filename,
 )
 from researchmate_api.persistence._postgres_document_lifecycle import DocumentLifecycleMixin
+from researchmate_api.persistence._postgres_feedback_source import PostgresFeedbackSourceMixin
 from researchmate_api.persistence._postgres_idempotency import IdempotencyPersistenceMixin
 from researchmate_api.persistence._postgres_internal import PostgresInternalMixin
 from researchmate_api.persistence._postgres_memory import MemoryPersistenceMixin
@@ -33,6 +34,7 @@ class PostgresResearchMateRepository(
     ProjectPersistenceMixin,
     UploadPersistenceMixin,
     DocumentLifecycleMixin,
+    PostgresFeedbackSourceMixin,
     RunPersistenceMixin,
     QuizPersistenceMixin,
     ConversationPersistenceMixin,

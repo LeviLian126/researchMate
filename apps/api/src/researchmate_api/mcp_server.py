@@ -210,6 +210,8 @@ def build_mcp_server() -> tuple[Any, Any]:
                             "schema_valid",
                             "citation_precision",
                             "evidence_recall",
+                            "retrieval_mrr",
+                            "retrieval_ndcg",
                             "faithfulness",
                         ]
                     ],

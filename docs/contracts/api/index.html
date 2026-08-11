@@ -30,9 +30,9 @@
   <div class="hero">
    <p class="eyebrow">FastAPI / JSON over HTTP</p>
    <h1>API contracts</h1>
-    <p class="lede">This page records 46 maintained FastAPI REST operations across personal chat, project conversations, sources, quiz, readiness, evidence review, evaluation, reliability, and administration. A route and OpenAPI record prove the contract only. They do not prove a managed background process or cloud integration.</p>
+    <p class="lede">This page records 49 maintained FastAPI REST operations across personal chat, project conversations, sources, quiz, answer feedback, readiness, evidence review, evaluation, reliability, and administration. A route and OpenAPI record prove the contract only. They do not prove a managed background process or cloud integration.</p>
    <div class="meta">
-     <span class="status local">46 implemented REST operations</span>
+     <span class="status local">49 implemented REST operations</span>
      <span class="status partial">Current-ref CI evidence pending</span>
     <span class="status partial">Bearer · local development identity</span>
     <span class="status partial">Runtime/OpenAPI error drift</span>
@@ -122,6 +122,9 @@
         <a class="endpoint-pill" data-api="evaluation" data-method="GET" href="#op-evaluation-datasets"><span class="method">GET</span>/api/v1/evaluation-datasets</a>
         <a class="endpoint-pill" data-api="evaluation" data-method="POST" href="#planned-evaluation-create"><span class="method">POST</span>/api/v1/evaluation-runs</a>
         <a class="endpoint-pill" data-api="evaluation" data-method="GET" href="#planned-evaluation-get"><span class="method">GET</span>/api/v1/evaluation-runs/{evaluation_run_id}</a>
+        <a class="endpoint-pill" data-api="evaluation" data-method="PUT" href="#op-feedback-upsert"><span class="method">PUT</span>/api/v1/answer-feedback/{ask_run_id}</a>
+        <a class="endpoint-pill" data-api="evaluation" data-method="GET" href="#op-feedback-list"><span class="method">GET</span>/api/v1/projects/{project_id}/answer-feedback</a>
+        <a class="endpoint-pill" data-api="evaluation" data-method="POST" href="#op-feedback-promote"><span class="method">POST</span>/api/v1/answer-feedback/{feedback_id}/promote</a>
         <a class="endpoint-pill" data-api="evaluation" data-method="GET" href="#planned-reliability"><span class="method">GET</span>/api/v1/dev/reliability</a>
         <a class="endpoint-pill" data-api="evaluation" data-method="POST" href="#planned-fault"><span class="method">POST</span>/api/v1/dev/fault-scenarios</a>
         <a class="endpoint-pill" data-api="evaluation" data-method="GET" href="#planned-fault-get"><span class="method">GET</span>/api/v1/dev/fault-scenarios/{exercise_id}</a>
@@ -357,7 +360,7 @@
     <section id="planned-operations">
      <p class="eyebrow">Extended contracts</p>
      <h2>Evidence-review, evaluation, reliability, and MCP operations</h2>
-     <p class="sub">The generated OpenAPI now contains 46 REST operations, including personal-chat bootstrap, cross-workspace conversation navigation, conversation-scoped attachments, owner-scoped conversation CRUD, the bounded upload proxy, and two runtime-rerank operations. Their route, schema, ownership/role, idempotency, and deterministic repository behavior have code evidence. This release is live and the authenticated upload/ingestion/retrieval path passed; managed checkpoint recovery, telemetry export, and broader provider failure drills remain integration-unvalidated. MCP is a separate protocol boundary and is not counted as REST.</p>
+     <p class="sub">The generated OpenAPI now contains 49 REST operations, including personal-chat bootstrap, cross-workspace conversation navigation, conversation-scoped attachments, owner-scoped conversation CRUD, the bounded upload proxy, runtime reranking, and the three-operation answer-feedback review loop. Their route, schema, ownership/role, idempotency, and deterministic repository behavior have code evidence. The feedback workflow is locally verified; its managed migration and production journey remain release evidence, not current proof. MCP is a separate protocol boundary and is not counted as REST.</p>
      <div class="notice"><strong>Shared conventions:</strong> bearer authentication; owner/project permission checks in the API; <code>Idempotency-Key</code> on commands; the current error envelope with a request ID; authoritative operation state in Postgres; persisted SSE replay; and Redis as delivery rather than irreplaceable state. Supabase JWT-backed project create/list/read is validated for password and GitHub identities and cross-user API concealment passes. A direct RLS query and distributed delivery are not yet validated.</div>
      <div class="notice warning"><strong>How to read the rows:</strong> request and success shapes describe the implemented route schemas. Local LangGraph, RAGAS, strict-checkpoint serializer, and MCP initialization tests now pass. Failure/recovery and acceptance rows still name distributed-system gates; they are not evidence that a managed checkpoint, provider, queue, or cloud runtime passed.</div>
 
@@ -442,6 +445,27 @@
       <dt>Acceptance</dt><dd>Impact/filter/preservation code exists; it still needs a real LangGraph/Postgres/Qdrant execution proving only affected work changes and the previous report survives any failure.</dd>
      </dl></details>
 
+     <details id="op-feedback-upsert" data-api-card data-api="evaluation" data-method="PUT"><summary><code>PUT /api/v1/answer-feedback/{ask_run_id}</code> — rate one persisted answer <span class="status local">owner-scoped contract tested</span></summary><dl class="kv">
+      <dt>Caller / access</dt><dd>Authenticated owner of the successful Ask run. Foreign or missing runs are concealed as not found.</dd>
+      <dt>Input</dt><dd><code>ask_run_id</code> UUID plus <code>rating</code> (<code>helpful</code> or <code>not_helpful</code>), optional bounded category, and an optional 1,000-character comment.</dd>
+      <dt>Success</dt><dd>200 with one replaceable feedback record bound to the trusted persisted question, answer, citations, and retrieved-candidate snapshot. Repeated PUT updates the same owner/run record.</dd>
+      <dt>Boundary</dt><dd>The client cannot supply answer text, project identity, citation IDs, or candidate evidence. These fields are derived again from the owned run so feedback cannot forge evaluation evidence.</dd>
+      <dt>Evidence</dt><dd><span class="source">routers/evidence.py · schemas/feedback.py · persistence/evidence_feedback.py · tests/test_feedback_workflow.py</span></dd>
+     </dl></details>
+     <details id="op-feedback-list" data-api-card data-api="evaluation" data-method="GET"><summary><code>GET /api/v1/projects/{project_id}/answer-feedback</code> — review a bounded Bad Case queue <span class="status local">developer/admin contract tested</span></summary><dl class="kv">
+      <dt>Caller / access</dt><dd>Developer or admin who owns the active project. Role elevation does not permit cross-owner reads.</dd>
+      <dt>Input</dt><dd>Project UUID and optional <code>rating</code> filter. Results are ordered by latest update and capped at 100 records.</dd>
+      <dt>Success</dt><dd>200 with feedback snapshots and up to 80 retrieved candidates per answer, including bounded source title, page, and excerpt fields for review.</dd>
+      <dt>Boundary</dt><dd>This is an engineering surface, not an ordinary end-user project control. A user role receives 403 and a foreign project remains concealed.</dd>
+      <dt>Evidence</dt><dd><span class="source">components/feedback-review-queue.tsx · routers/evidence.py · tests/test_feedback_workflow.py</span></dd>
+     </dl></details>
+     <details id="op-feedback-promote" data-api-card data-api="evaluation" data-method="POST"><summary><code>POST /api/v1/answer-feedback/{feedback_id}/promote</code> — promote reviewed evidence <span class="status local">immutable version contract tested</span></summary><dl class="kv">
+      <dt>Caller / access</dt><dd>Developer or admin owner of a negative feedback record.</dd>
+      <dt>Input</dt><dd>One or more unique <code>expected_chunk_ids</code>. Every selected ID must come from the server-recorded local-document candidates; web evidence is excluded because the current regression evaluator cannot replay it.</dd>
+      <dt>Success</dt><dd>201 after an atomic transaction copies the previous frozen <code>Answer feedback regressions</code> dataset, replaces this feedback's prior case when necessary, appends the reviewed case, and freezes the next version.</dd>
+      <dt>Failure / semantics</dt><dd>409 for already-promoted or non-negative feedback; 422 for fabricated evidence IDs. A project-scoped advisory transaction lock serializes version allocation.</dd>
+      <dt>Evidence</dt><dd><span class="source">persistence/evidence_feedback.py · migration 202608110007 · tests/test_feedback_workflow.py</span></dd>
+     </dl></details>
      <details id="planned-evaluation-create" data-api-card data-api="evaluation" data-method="POST"><summary><code>POST /api/v1/evaluation-runs</code> — launch a versioned experiment <span class="status partial">implemented contract · RAGAS import tested</span></summary><dl class="kv">
       <dt>Caller / access</dt><dd>Developer/admin only in the current router. Dataset-owner execution and separate evaluation cost quota are not implemented.</dd>
       <dt>Request</dt><dd><code>{ dataset_id: UUID, pipeline_version_id: UUID, metrics: string[], max_parallelism: 1..20, max_cost_usd?: decimal, labels?: string[] }</code>; required <code>Idempotency-Key</code>.</dd>
@@ -507,7 +531,7 @@
     <section id="absent-contracts">
      <p class="eyebrow">Out of scope</p>
      <h2>API capabilities not accepted for this release</h2>
-     <div class="notice warning">Billing, subscriptions, payment, CRM, marketing automation, growth experiments, commercial analytics, unrestricted job cancellation, and general autonomous tool execution have no accepted API contract. They are deferred or rejected portfolio scope, not missing implementation of the 35 current REST operations.</div>
+     <div class="notice warning">Billing, subscriptions, payment, CRM, marketing automation, growth experiments, commercial analytics, unrestricted job cancellation, and general autonomous tool execution have no accepted API contract. They are deferred or rejected portfolio scope, not missing implementation of the 49 current REST operations.</div>
     </section>
 
     <section id="evidence">
@@ -528,7 +552,7 @@
    </aside>
   </div>
  </main>
- <footer class="shell footer">ResearchMate API contracts · 46 OpenAPI REST operations · release live, authenticated Hybrid RAG path verified</footer>
+ <footer class="shell footer">ResearchMate API contracts · 49 OpenAPI REST operations · answer-feedback workflow locally verified</footer>
  <script src="../../assets/site.js"></script>
 </body>
 </html>

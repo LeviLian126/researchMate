@@ -2,6 +2,7 @@
 <html lang="zh">
 <head>
   <meta charset="utf-8"/>
+  <meta content="width=device-width, initial-scale=1" name="viewport"/>
   <meta content="ResearchMate AI 智能体技术栈深度解析：五路由混合 RAG 与双重重排、六工具三资源 MCP 服务器、六节点 LangGraph 证据工作流含检查点与人工审核。" name="description"/>
   <title>ResearchMate . AI 智能体技术栈</title>
   <link href="../assets/site.css" rel="stylesheet"/>
@@ -76,7 +77,7 @@
 
         <h3>五路由决策树</h3>
         <p><code>apps/api/src/researchmate_api/services/query_planning.py</code> 中的 <code>RetrievalRoute</code> StrEnum 为每条可观测策略命名。<code>plan_retrieval()</code> 按顺序评估决策树 &mdash; 首个匹配胜出：</p>
-        <div class="stack-ledger"><table><thead><tr><th>#</th><th>路由</th><th>稠密 / 词法</th><th>触发条件</th><th>reason 字段</th></tr></thead><tbody>
+        <div class="scroll"><table><thead><tr><th>#</th><th>路由</th><th>稠密 / 词法</th><th>触发条件</th><th>reason 字段</th></tr></thead><tbody>
           <tr><td>1</td><td><code>FULL_CONTEXT</code></td><td>0.0 / 0.0</td><td><code>corpus_tokens &lt;= full_context_limit</code>（默认 12000）</td><td><code>entire_authorized_corpus_fits</code></td></tr>
           <tr><td>2</td><td><code>EXPANDED_HYBRID</code></td><td>0.55 / 0.45</td><td>代词/引用模式 + 对话历史，或多个 <code>?</code>/<code>？</code> 标记</td><td><code>conversation_or_compound_query_expanded</code></td></tr>
           <tr><td>3</td><td><code>EXACT</code></td><td>0.30 / 0.70</td><td><code>_EXACT_PATTERN</code> 匹配：引号文本、大写标识符、数字标记</td><td><code>identifier_quote_or_numeric_constraint</code></td></tr>
@@ -99,7 +100,7 @@
 
         <h3>双重重排协调器 . 三个提供者</h3>
         <p><code>apps/api/src/researchmate_api/services/rerank.py</code> 中的 <code>RerankCoordinator</code> 链式调用三个重排器，带显式降级：</p>
-        <div class="stack-ledger"><table><thead><tr><th>提供者</th><th>实现</th><th>机制</th><th>兜底目标</th></tr></thead><tbody>
+        <div class="scroll"><table><thead><tr><th>提供者</th><th>实现</th><th>机制</th><th>兜底目标</th></tr></thead><tbody>
           <tr><td><code>QdrantNativeReranker</code></td><td>专用重排集合中的 Qdrant 后期交互模型</td><td>对重排集合调用 <code>rerank_query()</code>，<code>multi</code> 向量类型</td><td>NVIDIA</td></tr>
           <tr><td><code>NvidiaReranker</code></td><td>NVIDIA 排序 API（<code>/v1/ranking</code>）</td><td>HTTP POST 传 passages，返回排序索引</td><td>确定性</td></tr>
           <tr><td><code>DeterministicReranker</code></td><td>本地平局打破</td><td>按 <code>(score, has_lexical_rank, -lexical_rank)</code> 排序</td><td>&mdash;</td></tr>
@@ -149,7 +150,7 @@ class MCPRequestIdentity:
         <p>每个工具调用 <code>_identity()</code> 获取此上下文，缺失时抛出 <code>PermissionError("AUTH_REQUIRED")</code>。<code>/mcp</code> 路径包含在 <code>RATE_LIMITED_PATHS</code> 中，按 IP 限流 60 次/分钟。</p>
 
         <h3>六个工具</h3>
-        <div class="stack-ledger"><table><thead><tr><th>工具</th><th>签名</th><th>描述</th><th>错误码</th></tr></thead><tbody>
+        <div class="scroll"><table><thead><tr><th>工具</th><th>签名</th><th>描述</th><th>错误码</th></tr></thead><tbody>
           <tr><td><code>list_projects</code></td><td><code>() -&gt; list[dict]</code></td><td>列出已认证用户拥有的项目</td><td><code>AUTH_REQUIRED</code></td></tr>
           <tr><td><code>search_project</code></td><td><code>(project_id: str, query: str, limit: int = 10) -&gt; list[dict]</code></td><td>搜索一个拥有的项目，返回有界源片段和稳定 ID。limit 限制在 1&ndash;20。</td><td><code>PROJECT_NOT_FOUND</code>、<code>INVALID_REQUEST</code>、<code>PROJECT_SCOPE_REQUIRES_CONVERSATION</code></td></tr>
           <tr><td><code>search_conversation</code></td><td><code>(project_id: str, conversation_id: str, query: str, limit: int = 10) -&gt; list[dict]</code></td><td>仅搜索一个已认证个人对话拥有的附件</td><td><code>CONVERSATION_NOT_FOUND</code>、<code>INVALID_REQUEST</code></td></tr>
@@ -160,7 +161,7 @@ class MCPRequestIdentity:
         <p>所有分块文本在返回前截断到 <code>MAX_TEXT_LENGTH</code>（1200 字符）。<code>_chunk_payloads()</code> 辅助函数将内部 <code>ChunkEntry</code> 对象映射为 MCP 安全证据摘要，包含 <code>chunk_id</code>、<code>document_id</code>、<code>source_title</code>、<code>page_no</code>、<code>slide_no</code>、<code>url</code> 和 <code>text</code>。</p>
 
         <h3>三个资源</h3>
-        <div class="stack-ledger"><table><thead><tr><th>URI 模板</th><th>函数</th><th>返回</th><th>描述</th></tr></thead><tbody>
+        <div class="scroll"><table><thead><tr><th>URI 模板</th><th>函数</th><th>返回</th><th>描述</th></tr></thead><tbody>
           <tr><td><code>project://{project_id}/documents</code></td><td><code>project_documents(project_id: str) -&gt; str</code></td><td>JSON 字符串</td><td>拥有的工作区的安全元数据（绝非个人容器）。通过 <code>require_workspace_scope()</code> 验证工作区范围。</td></tr>
           <tr><td><code>conversation://{conversation_id}/documents</code></td><td><code>conversation_documents(conversation_id: str) -&gt; str</code></td><td>JSON 字符串</td><td>仅一个拥有的对话中附件的安全元数据。</td></tr>
           <tr><td><code>run://{run_id}</code></td><td><code>run_summary(run_id: str) -&gt; str</code></td><td>JSON 字符串</td><td>拥有的 run 的持久安全工作流状态。</td></tr>
@@ -189,7 +190,7 @@ tests/
 
         <h3>状态模式 . EvidenceWorkflowState</h3>
         <p><code>workers/ai-worker/src/researchmate_worker/evidence_graph.py</code> 中的 <code>EvidenceWorkflowState</code> TypedDict 定义节点间交换的检查点安全状态：</p>
-        <div class="stack-ledger"><table><thead><tr><th>字段</th><th>类型</th><th>用途</th></tr></thead><tbody>
+        <div class="scroll"><table><thead><tr><th>字段</th><th>类型</th><th>用途</th></tr></thead><tbody>
           <tr><td><code>run_id</code></td><td><code>str</code></td><td>工作流 run 标识（也是 LangGraph 线程 ID）</td></tr>
           <tr><td><code>user_id</code>、<code>project_id</code></td><td><code>str</code></td><td>所有者和工作区范围</td></tr>
           <tr><td><code>research_goal</code>、<code>review_policy</code></td><td><code>str</code></td><td>有界研究意图和审核严格度</td></tr>

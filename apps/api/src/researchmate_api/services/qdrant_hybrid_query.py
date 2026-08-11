@@ -23,15 +23,19 @@ def execute_hybrid_query(
     limit: int,
 ) -> Any:  # Qdrant response models vary across compatible client patch versions.
     """Weight every query variant fairly across native lexical and dense branches."""
-    dense_vectors = embedding.embed(list(plan.queries), input_type="query")
+    dense_vectors = (
+        embedding.embed(list(plan.queries), input_type="query")
+        if plan.dense_weight > 0
+        else [None] * len(plan.queries)
+    )
     branch_limit = max(limit * 3, 20)
     per_query_dense = plan.dense_weight / len(plan.queries)
     per_query_lexical = plan.lexical_weight / len(plan.queries)
     prefetch: list[models.Prefetch] = []
     weights: list[float] = []
     for query_text, dense in zip(plan.queries, dense_vectors, strict=True):
-        prefetch.extend(
-            [
+        if plan.lexical_weight > 0:
+            prefetch.append(
                 models.Prefetch(
                     query=models.Document(
                         text=query_text[:MAX_TEXT_LENGTH],
@@ -40,16 +44,19 @@ def execute_hybrid_query(
                     using="bm25",
                     filter=query_filter,
                     limit=branch_limit,
-                ),
+                )
+            )
+            weights.append(per_query_lexical)
+        if plan.dense_weight > 0 and dense is not None:
+            prefetch.append(
                 models.Prefetch(
                     query=dense,
                     using="dense",
                     filter=query_filter,
                     limit=branch_limit,
-                ),
-            ]
-        )
-        weights.extend([per_query_lexical, per_query_dense])
+                )
+            )
+            weights.append(per_query_dense)
     return client.query_points(
         collection_name=collection,
         prefetch=prefetch,

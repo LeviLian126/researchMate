@@ -134,6 +134,7 @@ class RunPersistenceMixin:
                 {
                     "chunk_id": str(chunk.id),
                     "document_id": str(chunk.document_id) if chunk.document_id else None,
+                    "source_type": _enum_value(chunk.source_type),
                     "source_title": chunk.source_title,
                     "page_no": chunk.page_no,
                     "score_context": chunk.text[:240],

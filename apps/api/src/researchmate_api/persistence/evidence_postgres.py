@@ -12,6 +12,7 @@ from researchmate_api.persistence.evidence_evaluations import (
     DEFAULT_EVALUATION_BUDGET_USD,
     PostgresEvidenceEvaluationMixin,
 )
+from researchmate_api.persistence.evidence_feedback import PostgresEvidenceFeedbackMixin
 from researchmate_api.persistence.evidence_operations import PostgresEvidenceOperationsMixin
 from researchmate_api.persistence.evidence_reports import PostgresEvidenceReportMixin
 from researchmate_api.persistence.evidence_runs import PostgresEvidenceRunMixin
@@ -33,6 +34,7 @@ class PostgresEvidenceRepository(
     PostgresEvidenceCatalogMixin,
     PostgresEvidenceReportMixin,
     PostgresEvidenceEvaluationMixin,
+    PostgresEvidenceFeedbackMixin,
     PostgresEvidenceOperationsMixin,
     PostgresEvidenceRepositoryBase,
 ):

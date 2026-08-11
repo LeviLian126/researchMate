@@ -1,0 +1,46 @@
+# Runs an explicit provider-backed evaluation gate before a controlled release decision.
+name: evaluation-release-gate
+
+on:
+  workflow_dispatch:
+    inputs:
+      evaluation_run_id:
+        description: Completed evaluation run UUID
+        required: true
+        type: string
+
+jobs:
+  evaluate-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - name: Check durable evaluation result
+        id: gate
+        continue-on-error: true
+        env:
+          RESEARCHMATE_EVAL_TOKEN: ${{ secrets.RESEARCHMATE_EVAL_TOKEN }}
+        run: >-
+          python scripts/check_evaluation_gate.py
+          --api-base "https://researchmate-backend-dev-jkza.onrender.com"
+          --run-id "${{ inputs.evaluation_run_id }}"
+          --expected-code-sha "${{ github.sha }}"
+          --output artifacts/evaluation-gate.json
+      - name: Upload evaluation decision
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: evaluation-release-gate
+          path: artifacts/evaluation-gate.json
+          if-no-files-found: error
+          retention-days: 30
+      - name: Enforce release decision
+        if: always()
+        env:
+          GATE_OUTCOME: ${{ steps.gate.outcome }}
+        run: test "$GATE_OUTCOME" = success

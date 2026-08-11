@@ -30,6 +30,7 @@ from researchmate_api.routers import (
     dev_traces,
     documents,
     evidence,
+    feedback,
     health,
     jobs,
     me,
@@ -204,7 +205,9 @@ def create_app(
     app.state.store = repository or build_repository(
         runtime_settings, object_storage=app.state.object_storage
     )
-    app.state.evidence_store = evidence_repository or build_evidence_repository(runtime_settings)
+    app.state.evidence_store = evidence_repository or build_evidence_repository(
+        runtime_settings, feedback_source=app.state.store
+    )
     app.state.chat_provider = (
         NvidiaChatProvider(runtime_settings) if runtime_settings.llm_provider == "nvidia" else None
     )
@@ -439,6 +442,7 @@ def create_app(
     app.include_router(runs.router, prefix="/api/v1", tags=["sources"])
     app.include_router(dev_traces.router, prefix="/api/v1", tags=["developer-trace"])
     app.include_router(evidence.router, prefix="/api/v1", tags=["evidence-review"])
+    app.include_router(feedback.router, prefix="/api/v1", tags=["answer-feedback"])
     if mcp_asgi is not None:
         app.mount("/mcp", mcp_asgi)
     else:
@@ -470,6 +474,7 @@ def build_repository(
         return InMemoryResearchMateStore()
 
     from researchmate_api.persistence.postgres import PostgresResearchMateRepository
+
     assert settings.database_url is not None
     # Typed factories are constructed lazily when object storage is configured so that local and
     # worker environments without S3-like storage still bootstrap the repository. Both names are
@@ -517,10 +522,12 @@ def build_repository(
     )
 
 
-def build_evidence_repository(settings: Settings) -> EvidenceRepository:
+def build_evidence_repository(
+    settings: Settings, *, feedback_source: ResearchMateRepository | None = None
+) -> EvidenceRepository:
     """Build the evidence-workflow repository selected by runtime configuration."""
     if settings.repository_backend == "memory":
-        return InMemoryEvidenceRepository()
+        return InMemoryEvidenceRepository(feedback_source=feedback_source)
     from researchmate_api.persistence.evidence_postgres import PostgresEvidenceRepository
 
     assert settings.database_url is not None

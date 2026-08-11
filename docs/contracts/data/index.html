@@ -51,17 +51,17 @@
      Database entities, fields, integrity, and access
     </h1>
     <p class="lede">
-      This page records the field-level contract for the nine maintained SQL migrations: 15 initial tables, 16 additive domain tables, and one backend-only operational table. Hermetic tests default to in-process memory; this fallback is not a local integration environment. PostgreSQL adapters and worker repositories exist. Migration 009 adds personal-chat ownership, project memory metadata, conversation attachments, and the expanded quiz enum; cloud application and authenticated RLS validation are release gates.
+      This page records the field-level contract for 18 maintained SQL migrations: 15 initial tables, 17 additive domain tables, and one backend-only operational table. Hermetic tests default to in-process memory; this fallback is not a local integration environment. PostgreSQL adapters and worker repositories exist. The latest table-adding migration introduces owner-scoped answer feedback and immutable evaluation-case promotion state; managed application and authenticated RLS validation remain release gates.
     </p>
     <div class="meta">
      <span class="status partial">
       15 initial domain tables
      </span>
      <span class="status partial">
-      16 additive domain tables
+      17 additive domain tables
      </span>
      <span class="status partial">
-       31 domain + 1 operational table declared
+       32 domain + 1 operational table declared
      </span>
      <span class="status unknown">
        Managed development schema · applied, integration unvalidated
@@ -497,7 +497,7 @@
       <details id="documents"><summary><code>documents</code> &middot; 16 fields</summary>
        <div class="grid">
         <div class="fact"><b>Purpose</b><p>Uploaded object metadata and parsing/indexing lifecycle.</p></div>
-        <div class="fact"><b>Integrity and indexes</b><p>Owner/project FKs cascade; unique object-store key; PDF/DOCX/PPTX and 25 MiB checks. Index: <code>idx_documents_user_project_status</code>.</p></div>
+        <div class="fact"><b>Integrity and indexes</b><p>Owner/project FKs cascade; the object-store key is unique; the file type is restricted to the API's 42 parser-backed formats; size is capped at 25 MiB. Index: <code>idx_documents_user_project_status</code>.</p></div>
         <div class="fact"><b>Access and lifecycle</b><p>RLS: owner ALL. DB, object, pages, and chunks require coordinated deletion; no trigger performs it.</p></div>
        </div>
        <div class="scroll"><table class="dense"><thead><tr><th>Field</th><th>Exact declaration</th><th>Null</th><th>Key / constraint</th><th>Role</th></tr></thead><tbody>
@@ -762,7 +762,7 @@
       <section id="planned-schema">
        <p class="eyebrow">Additive migration and repository contracts</p>
       <h2>Additive workflow and evaluation tables</h2>
-      <p class="sub">Fifteen additive contracts come from <code>202607150002_evidence_review_schema.sql</code>; <code>202607150005_evaluation_budget_and_fault_exercises.sql</code> adds <code>fault_exercises</code>, bringing the domain total to 31 tables (15 initial + 16 additive). Migration 006 adds one backend-only operational <code>runtime_heartbeats</code> table and workflow lease/budget fields; it is not counted as a domain table. Migrations 007–009 evolve unified chat, runtime reranking, personal attachments, project memory, and quiz types without adding a domain table. Migration 009 is applied; authenticated direct-RLS transactions and provider-switch concurrency remain release evidence gates.</p>
+      <p class="sub">Fifteen additive contracts come from <code>202607150002_evidence_review_schema.sql</code>; <code>202607150005_evaluation_budget_and_fault_exercises.sql</code> adds <code>fault_exercises</code>, and migration <code>202608110007</code> adds <code>answer_feedback</code>, bringing the domain total to 32 tables (15 initial + 17 additive). Migration 006 adds one backend-only operational <code>runtime_heartbeats</code> table and workflow lease/budget fields; it is not counted as a domain table. Other migrations evolve delivery, chat, reranking, identity, indexes, and provenance without adding a domain table. The new feedback migration is source-validated locally but not yet claimed as applied to the managed database.</p>
       <div class="notice"><strong>Storage ownership:</strong> PostgreSQL is the source of truth for business state. S3-compatible object storage stores private source bytes and parser artifacts; Qdrant stores rebuildable dense/sparse projections; Redis stores broker and short-lived coordination state only. No irreplaceable business fact may exist only in object storage, Qdrant, or Redis.</div>
       <div class="notice warning"><strong>Checkpoint boundary:</strong> LangGraph Postgres checkpoint tables are SDK-managed infrastructure, not domain tables. A guarded release command runs the SDK-owned schema once before deployment; workers do not execute DDL. The four checkpoint tables now exist in the isolated <code>researchmate-dev</code> Supabase database at schema version 9, but interrupt/resume and restart behavior have not yet been exercised against them. These four tables are not included in the 31-domain-table count.</div>
 
@@ -844,6 +844,13 @@
        <dt>Fields</dt><dd><code>id uuid PK</code>; <code>dataset_id uuid not null FK evaluation_datasets cascade</code>; <code>case_key text not null</code>; <code>input jsonb not null</code>; <code>expected_output jsonb null</code>; <code>expected_evidence jsonb not null</code>; <code>labels text[] not null default '{}'</code>; <code>created_at timestamptz not null default now()</code>.</dd>
        <dt>Integrity / indexes</dt><dd>Unique <code>(dataset_id,case_key)</code>; GIN index on labels when filtering is measured as useful.</dd>
        <dt>Access / lifecycle</dt><dd>RLS derived through dataset; editable only while dataset is draft; retained unchanged for all referencing runs.</dd>
+      </dl></details>
+
+      <details id="answer-feedback" data-contract="partial"><summary><code>answer_feedback</code> · trusted answer review snapshot <span class="status partial">migration source and repository workflow locally verified</span></summary><dl class="kv">
+       <dt>Fields</dt><dd><code>id uuid PK</code>; owner, project, conversation, and Ask-run UUID foreign keys with cascade deletion; constrained <code>rating</code>, optional category and 1,000-character comment; trusted question/answer snapshots; citation and retrieved chunk UUID arrays; bounded retrieved-evidence JSON; <code>new|promoted</code> status; optional promoted case reference; creation and update timestamps.</dd>
+       <dt>Integrity / indexes</dt><dd>Unique <code>(user_id,ask_run_id)</code> keeps feedback replaceable rather than duplicating ratings. The review index covers owner, project, rating, and latest update. Promotion accepts unique expected chunk IDs only when they are a subset of the recorded retrieved candidates.</dd>
+       <dt>Access / lifecycle</dt><dd>Direct owner RLS covers select, insert, update, and delete; insert/update policies recheck Ask-run ownership and project/conversation binding. A developer/admin route is additionally role-gated but remains owner-scoped. Negative feedback can create the next frozen regression-dataset version in one serialized transaction.</dd>
+       <dt>Boundary</dt><dd>Snapshots are evaluation evidence, not a second conversation source of truth. Managed migration application, direct authenticated RLS queries, and production promotion remain unverified.</dd>
       </dl></details>
 
       <details id="planned-evaluation-runs" data-contract="planned"><summary><code>evaluation_runs</code> · batch experiment identity <span class="status partial">schema applied · runner integration unvalidated</span></summary><dl class="kv">
