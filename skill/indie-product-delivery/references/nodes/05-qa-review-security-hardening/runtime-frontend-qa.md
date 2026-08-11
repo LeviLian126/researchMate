@@ -1,19 +1,20 @@
 # Runtime and Frontend QA
 
-Verify the app actually runs and the frontend works across real devices. Run CP5
-through CP8 in order. Every failure here is a runtime defect that users will hit.
+Verify the application and affected user journeys through a runtime boundary that can expose real
+integration and rendering failures. Select journeys, states, viewports, and environments from the
+goal and changed surface; use the matrices to focus observation, not to force unrelated coverage.
 
-## CP5: Start the app
+## Start the app
 
 - Start the dev server or run the production build.
 - Confirm no startup error: no compile error, no missing dependency, no port conflict,
   no missing environment variable that the app requires.
-- If the app cannot start, this is Blocker. Enter CP8 to debug.
-- If a required runtime is missing (e.g. database not installed, Redis unavailable), mark CP5
+- If the app cannot start, this is Blocker. Enter the debug workflow below.
+- If a required runtime is missing (e.g. database not installed, Redis unavailable), mark startup
   as NOT_RUN and record exactly what is missing. Do not claim the app works when you could
   not start it.
 
-## CP6: Core user journey E2E
+## Prove core user journeys
 
 Identify the key user flows from Node01 acceptance criteria or the feature description.
 Walk each flow end-to-end.
@@ -44,21 +45,23 @@ Walk each flow end-to-end.
 Mark each journey PASS (end-to-end pass) or FAIL (at which step it broke). A failed
 journey is at least Major; a failed core journey is Blocker.
 
-## CP7: Multi-resolution frontend visual check
+## Check affected responsive behavior
 
-The frontend must render correctly across the full device matrix. A layout that works
-on desktop but breaks on mobile is a fail.
+The frontend must render correctly across its supported device classes. Choose the affected
+breakpoints and adjacent transitions from the layout contract. For a broad frontend redesign or
+pre-release QA, cover the full matrix; for a narrow component change, cover its target widths and
+the nearest breakpoint on each side.
 
 ### 6-level device matrix
 
-| Level | Width | Representative device | Required |
+| Level | Width | Representative device | Select when |
 | --- | --- | --- | --- |
-| XS small mobile | 320px | iPhone SE 1st gen, older Android | yes |
-| S standard mobile | 390px | iPhone 12-15, Samsung Galaxy S | yes |
-| M large mobile | 430px | iPhone Pro Max, Galaxy Note | yes |
-| L tablet | 768px | iPad portrait, Android tablet | yes |
-| XL small laptop | 1280px | MacBook Air, small laptop | yes |
-| XXL desktop | 1920px | standard monitor | yes |
+| XS small mobile | 320px | iPhone SE 1st gen, older Android | minimum supported width or mobile layout changes |
+| S standard mobile | 390px | iPhone 12-15, Samsung Galaxy S | normal mobile flow or touch/form behavior changes |
+| M large mobile | 430px | iPhone Pro Max, Galaxy Note | mobile breakpoint or dense content changes |
+| L tablet | 768px | iPad portrait, Android tablet | sidebar, drawer, grid, table, or tablet transition changes |
+| XL small laptop | 1280px | MacBook Air, small laptop | desktop navigation or multi-column changes |
+| XXL desktop | 1920px | standard monitor | max-width, density, wide data, or full redesign verification |
 
 If the project targets a specific device class only (e.g. mobile-only app), you may
 adjust the matrix, but state the reason and cover at least the target class at XS,
@@ -66,8 +69,8 @@ S, and M.
 
 ### Checks for each level
 
-Run every check at each level. Mark PASS or FAIL with a screenshot or description.
-At minimum, screenshot XS, S, L, and XXL.
+Run the applicable checks at each selected level. Mark PASS or FAIL with a screenshot or direct
+observation; record why omitted levels could not change the verdict.
 
 | Category | Check | How to verify |
 | --- | --- | --- |
@@ -110,13 +113,13 @@ hardware testing.
 
 ### Failure severity
 
-A layout overlap or overflow on any required level is at least Major. The same issue
+A layout overlap or overflow on any selected required level is at least Major. The same issue
 on a core path (e.g. the primary action button is overlapped on mobile) is Blocker.
 A console error or failed network request on a core path is Blocker.
 
-## CP8: Debug
+## Debug runtime failures
 
-When CP5, CP6, or CP7 fails, follow this process. Do not make multiple speculative
+When startup, journey, or responsive proof fails, follow this process. Do not make multiple speculative
 fixes at once.
 
 1. Record the exact state: route, viewport, device level, data and auth state, error
@@ -149,4 +152,4 @@ changed code, a frontend state bug, a CSS layout or responsive breakpoint issue,
 test fixture. Do not change product flow, public API, auth or billing policy, or
 perform large refactors. Those go back to their owning node.
 
-After any fix, re-run the checkpoint that failed and record before-and-after evidence.
+After any fix, re-run the proof that failed and record before-and-after evidence.

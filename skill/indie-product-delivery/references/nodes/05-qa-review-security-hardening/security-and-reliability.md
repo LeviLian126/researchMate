@@ -5,10 +5,17 @@ database, user authentication, API endpoints, optional file upload, third-party
 integrations (payment, email), and environment variables. This file covers the real
 security surface, not an enterprise audit.
 
-STANDARD changes run CP9 baseline items plus CP11 basic scan. HIGH_RISK changes run
-CP9 in full, CP10, and CP11 full scan.
+Use the Node05 risk classification to select the domains that can change the verdict. Tables are
+attention maps: inspect every applicable row deeply, but do not claim assurance for an unrelated
+domain merely because its table exists.
 
-## CP9: Full security review
+## Sections
+
+- [Security and abuse review](#security-and-abuse-review)
+- [Reliability and resource boundaries](#reliability-and-resource-boundaries)
+- [Security verification](#security-verification)
+
+## Security and abuse review
 
 ### Review method
 
@@ -24,9 +31,10 @@ or code that is not shipped or reachable in scope. A safe sibling path does not 
 a distinct path. Do not suppress because an endpoint is intended to perform a risky
 action or appears internal by name.
 
-Prefer evidence in this order: an existing focused test, a minimal regression test,
-a local non-destructive reproduction, then a complete static source-control-sink
-trace. A missing test environment is a proof gap, not counterevidence.
+Pair the source-control-sink trace with the smallest safe executable negative proof whenever the
+risk is reachable. Prefer an existing focused test, a minimal regression test, or a local
+non-destructive reproduction. Use a complete static trace alone only when execution is genuinely
+unavailable, and record that limitation as a proof gap rather than PASS-equivalent evidence.
 
 ### Quick threat model
 
@@ -137,7 +145,7 @@ document fetchers, callback URLs, or proxy endpoints.
 Run when the project has payment, coupon, quota, or multi-step workflow logic. Mark
 NOT_APPLICABLE otherwise.
 
-CP10 covers idempotency and concurrency as reliability engineering; this domain
+The reliability section covers idempotency and concurrency as engineering properties; this domain
 covers the same mechanisms from an attacker perspective: can a user exploit them to
 bypass payment, quota, or workflow constraints.
 
@@ -146,7 +154,7 @@ bypass payment, quota, or workflow constraints.
 | Payment bypass | price, quantity, or currency computed client-side and trusted by backend | Blocker |
 | Coupon abuse | coupon reusable beyond intended limit; coupon applied to ineligible items | Major |
 | Quota bypass | rate limit or usage quota checked client-side or bypassable via race condition | Major |
-| Duplicate payment | retry or concurrent submission creates a duplicate charge; see CP10 for idempotency engineering | Blocker |
+| Duplicate payment | retry or concurrent submission creates a duplicate charge; verify idempotency and reconciliation | Blocker |
 | Workflow bypass | multi-step approval or verification skipped by direct API call to a later step | Blocker |
 | Race condition | TOCTOU on balance, inventory, or quota; concurrent requests exploit a check-then-act gap | Major |
 
@@ -167,14 +175,14 @@ Mark NOT_APPLICABLE otherwise.
 
 ### STANDARD baseline
 
-For STANDARD changes, run at minimum: secret-in-repo check (9E), XSS check (9F),
-dependency vulnerability scan (9E), and HTTPS check (9B). These four are indie-product
-baselines regardless of risk level. Also run 9G when the change touches outbound URL
-features (webhooks, previews, fetchers), 9H when it touches payment or quota logic,
-and 9I when the project has AI/LLM features and the change touches prompt, tool, or
-retrieval code.
+No change may introduce a secret leak, reachable XSS, known high-risk dependency, or insecure
+transport. Run the corresponding repository scan or executable check when the changed files,
+dependency graph, generated bundle, deployment configuration, or release claim can affect that
+boundary. Run the SSRF, payment/quota, and AI tables when the change touches their inputs, controls,
+or sinks. Otherwise preserve the invariant through source inspection without manufacturing an
+unrelated scan.
 
-## CP10: Reliability
+## Reliability and resource boundaries
 
 Only check items triggered by the change. Mark genuinely irrelevant items as
 NOT_APPLICABLE with a one-line reason.
@@ -188,7 +196,14 @@ NOT_APPLICABLE with a one-line reason.
 | Data consistency | multi-write or transactional operations | transaction atomicity, partial failure does not break invariants, rollback is correct |
 | Resource leak | file, connection, or process handling | resources closed on exception paths; no connection pool exhaustion risk |
 
-## CP11: Security verification
+When one of these rows applies, pair the source review with the smallest deterministic failure proof
+that can exercise it—for example a timeout, malformed or partial dependency response, duplicate
+delivery, controlled concurrent transition, cleanup assertion, or enforced input/fan-out limit. Do
+not run disruptive load, fuzz, chaos, or denial-of-service experiments against production or a
+third-party system. If no safe executable boundary exists, record the missing proof and the seam or
+environment needed to obtain it.
+
+## Security verification
 
 ### Non-destructive negative checks
 

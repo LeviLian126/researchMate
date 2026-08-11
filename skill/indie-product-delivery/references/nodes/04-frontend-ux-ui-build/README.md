@@ -1,5 +1,22 @@
 ﻿# Frontend Build
 
+Build a truthful, resilient user surface whose states, interactions, accessibility, layout, and
+integration behavior remain coherent with real data and failure conditions. Treat visual quality
+and implementation quality as the same product boundary: a polished screen with invented data,
+broken state ownership, hidden overflow, or dishonest fallback is not complete.
+
+Use the changed journey to select the relevant concerns rather than applying every pattern to every
+component.
+
+| Implementation surface | Desired property |
+|---|---|
+| state and data flow | one source of truth, explicit loading/empty/error/success states, no fabricated success |
+| component ownership | cohesive components and hooks, stable contracts, no duplicated cross-layer policy |
+| interaction | keyboard, pointer, focus, repeated action, cancellation, and cleanup behave predictably |
+| responsive layout | content and controls remain reachable without overlap, clipping, or accidental scroll traps |
+| performance and lifecycle | bounded rendering and requests, cleaned listeners/observers, no avoidable rerender loop |
+| AI-generated code risk | confirm component/library APIs, remove placeholder UI and sample data, avoid cargo-cult abstractions and test-only behavior |
+
 ## Read the relevant workflow
 
 | Need | Read |

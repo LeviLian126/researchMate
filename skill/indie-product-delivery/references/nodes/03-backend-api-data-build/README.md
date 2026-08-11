@@ -1,5 +1,22 @@
 ﻿# Backend Build
 
+Build backend code whose business behavior, state changes, failure boundaries, and dependencies
+remain understandable under normal and adverse conditions. The implementation should be robust by
+construction rather than relying on Node05 to discover avoidable defects after the fact.
+
+Use the goal and current slice to decide which concerns matter. The table focuses attention on
+failure-prone implementation surfaces; it is not a requirement to manufacture every mechanism for
+every change.
+
+| Implementation surface | Desired property |
+|---|---|
+| ownership and flow | one clear owner for each rule, explicit dependencies, local and traceable state changes |
+| contracts and data | validated untrusted input, stable outputs, preserved authorization and durable invariants |
+| failure and recovery | explicit domain-appropriate failure semantics, bounded provider behavior, no swallowed failure or false success |
+| concurrency and resources | idempotent or coordinated writes where needed, bounded work, cleanup on every path |
+| maintainability | cohesive modules, readable control flow, no speculative abstraction or duplicated policy |
+| AI-generated code risk | verify installed APIs and signatures; remove placeholders, demo data, fabricated dependencies, and plausibility-only logic |
+
 ## Read the relevant workflow
 
 Read `slice-framing.md` first for any non-trivial implementation work. Then read only the

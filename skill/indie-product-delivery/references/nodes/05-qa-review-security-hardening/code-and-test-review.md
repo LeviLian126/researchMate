@@ -1,9 +1,11 @@
 # Code and Test Review
 
-Static review of LLM-generated code before runtime verification. Run CP1 through CP4
-in order; each checkpoint produces findings that feed the final verdict.
+Independently inspect the changed source and its real call path before relying on runtime results.
+Then judge whether the test evidence can expose the important ways the goal could fail. Use the
+tables to focus attention; select depth from the changed contract and risk rather than treating the
+headings as a mandatory sequence.
 
-## CP1: Understand the change
+## Understand the change and call path
 
 Before judging code, confirm what changed and why.
 
@@ -20,10 +22,11 @@ Before judging code, confirm what changed and why.
   genuinely requires a stub. LLM-authored code can carry correct structure and types
   while the decision logic is absent.
 
-## CP2: LLM code audit
+## Audit AI-generated code
 
 LLM-generated code has characteristic failure modes that compilation and tests alone
-do not catch. Check every changed file for each pattern below.
+do not catch. Scan every changed file across the table, then investigate the candidates that are
+applicable and reachable in the current system.
 
 | Check | What to find | Why it is LLM-specific |
 | --- | --- | --- |
@@ -35,13 +38,17 @@ do not catch. Check every changed file for each pattern below.
 | Over-broad permission | default-allow logic, missing tenant or owner scope, admin routes without guards | LLMs often skip multi-tenant isolation |
 | Missing error handling | unbounded loops, N+1 queries, no timeout or retry, resources not closed | LLMs write happy paths and skip resource management |
 | Fabricated dependency | imports a package that does not exist, or assumes a config key that was never defined | LLM memories contain outdated or invented package names |
+| Disconnected implementation | new code is never reached from the production entrypoint, registration, route, job, or build artifact | LLMs can implement a convincing island without wiring it into the system |
+| Plausibility-only logic | types and control flow look complete but a required state transition, persistence write, permission, or side effect never occurs | surface coherence can hide an absent business outcome |
+| Cargo-cult abstraction | unnecessary interfaces, helpers, factories, or generic wrappers obscure one concrete rule and its owner | familiar patterns are reproduced without a real seam or second implementation |
+| Context contradiction | code follows a remembered convention or adjacent example that conflicts with current repository contracts, config, or dependency versions | generated changes may combine individually plausible but incompatible contexts |
 
 For each finding, record: file, line, the problem, the expected behavior, and severity.
 Verify API existence against the installed version and official documentation, not
 model memory. Before flagging an import as fabricated, check whether the package is
 listed in the lockfile or installed in `node_modules` or the virtual environment.
 
-## CP3: Test quality review
+## Review test strategy and strength
 
 Tests that pass do not prove the code is correct. Verify that tests actually test the
 contract.
@@ -49,8 +56,23 @@ contract.
 - Does the test execute the target code, or only verify mock calls and fixed return
   values? A test that asserts `mock.called` without checking real behavior is mock
   theater.
-- Coverage dimensions: normal input, invalid input, boundary values, empty input,
-  error propagation. At least the first two must be covered for any new behavior.
+Build a compact risk map before asking for more tests. Use the goal and public boundary to decide
+which dimensions can reveal a material failure.
+
+| Test dimension | Apply when it can falsify |
+| --- | --- |
+| normal and boundary behavior | the promised result, size/range limit, empty state, or compatibility edge |
+| schema and logical validity | malformed types, missing/null/unknown fields, or valid fields forming an invalid combination |
+| authorization and abuse | actor, tenant, object, role, route, method, workflow order, or server-owned fields can be manipulated |
+| state, replay, and concurrency | steps can be skipped/reordered/repeated, delivery can duplicate, or shared state can race |
+| side effects and invariants | persistence, messages, charges, jobs, cleanup, ownership, or totals can diverge from the returned result |
+| resource and dependency failure | input can amplify work, or timeout, quota, partial response, restart, and retry can corrupt or multiply effects |
+| property, fuzz, performance, mutation | examples cannot cover an important input space, parser, invariant, capacity claim, or assertion-strength question |
+
+Prefer the cheapest deterministic layer that reaches the real contract. Escalate to integration,
+browser, fault, performance, fuzz, or mutation evidence only when a smaller test cannot faithfully
+observe the risk. Any bug, bypass, crash, race, or pathological input found during review should
+become a minimized regression test or retained corpus case when the repository has a suitable seam.
 
 ### Bug-fix evidence chain
 
@@ -74,7 +96,7 @@ Flag any of these as Major severity:
 - Snapshot or golden file updated without human review of the semantic change.
 - Test that was deleted, skipped, or had its assertions weakened without a reason.
 
-## CP4: Static gates
+## Run static and build gates
 
 Run the repository's own commands. Do not invent commands that do not exist.
 
@@ -85,9 +107,10 @@ Discover commands in this order:
 3. `package.json` scripts, `pyproject.toml`, `tox.ini`, `go.mod`, `Cargo.toml`
 4. `.github/workflows`, pre-commit config
 
-Execute in order: format check, then lint, then type check, then build, then targeted
-unit tests for affected modules. Record the exact command and its exit code or result
-for each.
+Run the repository gates that apply to the changed deliverable. When several apply, prefer format
+check, lint, type check, build, then targeted tests so cheap failures surface early. Record the exact
+command and its exit code or result for each command actually run; do not run an unrelated build or
+full suite merely because it appears in this ordering.
 
 When no standard command exists: describe what you searched, propose the minimum
 viable command, and mark it as NOT_RUN until it actually executes. Do not guess a
@@ -95,7 +118,7 @@ command and report it as passed.
 
 ## Findings to record
 
-For each checkpoint, record: what was checked, what was found, the evidence (command,
-output, file, line), and the severity. Feed all findings into the final verdict in
-`README.md`. A static gate failure is at least Major; a hallucinated API or placeholder
-return on a core path is Blocker.
+For each finding, record what was checked, the evidence, impact, and severity. Feed material
+findings into the verdict in `README.md`. A static gate failure is at least Major when it invalidates
+the deliverable; a hallucinated API, disconnected core path, or placeholder outcome on a required
+flow is Blocker.

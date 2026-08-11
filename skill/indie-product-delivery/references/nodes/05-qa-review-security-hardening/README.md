@@ -1,92 +1,81 @@
 # QA Node
 
-Verify LLM-generated code actually works before it ships: the app starts, core user
-flows pass end-to-end, the frontend renders correctly across mobile and desktop
-resolutions without layout or visual bugs, LLM-specific code defects are caught here
-rather than in production, and database, data-privacy, API, and auth security meet
-indie-product standards.
+Independently determine whether the delivered change is trustworthy enough for its stated goal and
+risk. Every QA pass requires both forms of evidence: read the source and real calling context to find
+defects tests may miss, and run at least one executable proof that reaches the changed behavior's
+real boundary. Inspect the tests as part of judging that proof; reading tests without executing a
+relevant behavior does not satisfy verification. A green command is evidence, not a substitute for
+understanding the code, and visual review alone is not a substitute for executable behavior.
+
+For the large-refactor, `HIGH_RISK`, and pre-release cases routed here by the top-level skill, use an
+independent subagent or fresh session that did not choose the implementation path. Give it the goal,
+acceptance, relevant diff, repository rules, tests, and raw runtime evidence—not the implementer's
+diagnosis or desired verdict. Small changes keep the top-level proportional verification rule and do
+not open an independent session by default.
 
 ## Read the relevant workflow
 
-| Need | Read |
-| --- | --- |
-| review diff, audit LLM code quality, check test validity, run static gates | `code-and-test-review.md` |
-| start the app, run E2E user journeys, verify multi-resolution frontend visuals, debug runtime issues | `runtime-frontend-qa.md` |
-| security review (threat model, database, data privacy, API, auth, dependencies, frontend, SSRF, business logic, AI) and reliability checks | `security-and-reliability.md` |
+| Need | Read | Requirement |
+| --- | --- | --- |
+| understand the diff and calling context, audit AI-generated code, evaluate test strength, run static gates | `code-and-test-review.md` | always for code QA |
+| prove runtime behavior or a user-visible journey, inspect frontend states and responsive behavior, debug failures | `runtime-frontend-qa.md` | when the claim depends on startup, integration, browser, or user-visible behavior |
+| trace security, privacy, abuse, resource, concurrency, and dependency-failure risks | `security-and-reliability.md` | when the system or change exposes any of these boundaries |
 
-Run every checkpoint that applies to the change. Skip only genuinely irrelevant
-checks and record why. Do not skip a checkpoint merely because it is inconvenient.
+Within each required workflow, select checks from the goal, changed boundaries, reachable failure
+modes, and blast radius. For every applicable security, privacy, resilience, or AI-control risk, pair
+source inspection with the smallest safe negative or failure proof that can reach it. If the needed
+environment is genuinely unavailable, record the missing executable evidence as a proof gap; a static
+trace may explain the risk but is not equivalent to a PASS. Do not omit a relevant risk because it is
+inconvenient, and do not run unrelated checks merely to complete a matrix.
 
 ## Classify risk
 
-| Risk | Trigger | What changes |
+| Risk | Typical trigger | Verification depth |
 | --- | --- | --- |
-| STANDARD | no auth, payment, migration, public API, data schema, or file upload touched | run CP9 baseline items (no secret leak, no XSS, no known-high-risk dependency) + CP11 basic scan |
-| HIGH_RISK | any of the above touched, or AI/LLM features (prompt, tool calling, RAG, agent) | run CP9 in full across all security domains + CP10 reliability + CP11 full scan |
+| STANDARD | bounded change with no sensitive contract, data, permission, money, migration, provider, upload, or AI-control impact | inspect the changed source and tests; run the narrowest real behavior proof plus applicable baseline security checks |
+| HIGH_RISK | auth, tenant boundary, payment, migration, public contract, schema, upload, external side effect, or AI/LLM control path changes | independently trace the full affected flow and adversarial paths; exercise security, resilience, state, and environment evidence that can falsify the claim |
 
-Even STANDARD changes must run basic security checks. No secret leak, no XSS, and
-no known high-risk dependency are indie-product baselines, not optional.
+No secret leak, reachable XSS, or known high-risk dependency is acceptable merely because a change is
+small. Other domains become mandatory when the system and change make them relevant.
 
-## Checkpoints
+## Independent review surfaces
 
-| CP | File | What it checks |
+Use this table to keep source inspection and executable proof complementary. Mark a surface
+`PASS`, `FAIL`, `NOT_RUN`, or `NOT_APPLICABLE` only when that status helps explain the verdict.
+
+| Surface | Question the verifier must answer | Typical evidence |
 | --- | --- | --- |
-| CP1 | code-and-test-review | change understanding: diff, intent, unrelated changes, TODO/stub |
-| CP2 | code-and-test-review | LLM code audit: hallucinated API, placeholder returns, silent fallback, swallowed exceptions |
-| CP3 | code-and-test-review | test quality: real contract testing, positive/negative/boundary coverage |
-| CP4 | code-and-test-review | static gates: lint, type check, build, targeted unit tests |
-| CP5 | runtime-frontend-qa | app startup: dev server or build runs without error |
-| CP6 | runtime-frontend-qa | E2E user journeys: core flows pass end-to-end |
-| CP7 | runtime-frontend-qa | multi-resolution frontend: 6-level device matrix fully covered |
-| CP8 | runtime-frontend-qa | debug: root-cause and fix when CP5-CP7 fail |
-| CP9 | security-and-reliability | full security review: threat model, database, privacy, API, auth, dependencies, frontend, SSRF, business logic, AI |
-| CP10 | security-and-reliability | reliability: error handling, retry, idempotency, concurrency, data consistency |
-| CP11 | security-and-reliability | security verification: non-destructive negative checks and tool scans |
+| intent and diff | does the change implement the requested behavior without unrelated or hidden scope? | requirement, base-aware diff, surrounding owner code |
+| source and call logic | do inputs, branches, state changes, permissions, side effects, and failures compose correctly across the real call path? | manual source trace, installed API/config verification |
+| AI coding defects | is any plausible-looking code fabricated, incomplete, over-abstracted, silently degraded, or disconnected from production behavior? | focused source audit and runtime/import evidence |
+| test strength | can the tests fail on a meaningful contract violation, and do they assert state and side effects rather than mocks alone? | test review, regression red/green evidence, targeted mutation when valuable |
+| runtime behavior | does the built application or affected journey work through the real boundary and environment? | startup/build, integration, browser, provider or deployed observation |
+| security and privacy | can an untrusted actor cross a trust boundary, disclose data, alter protected state, or abuse a workflow? | source-to-control-to-sink trace and safe negative proof |
+| resilience and cost | are resource growth, timeout, retry, concurrency, cleanup, and dependency failure bounded where the change exposes them? | limits, fault injection, deterministic race/property/performance evidence |
 
 ## Severity
 
 | Severity | Meaning | Effect on verdict |
 | --- | --- | --- |
 | Blocker | app cannot start, core flow broken, security hole, data loss risk | must FIX, cannot PASS |
-| Major | significant UX issue, non-core flow broken, test quality issue, medium-risk security issue | strongly recommend FIX |
+| Major | significant UX issue, non-core flow broken, test quality issue, medium-risk security issue | must FIX before PASS |
 | Minor | cosmetic, edge case, nice-to-have | record, acceptable |
 
 ## Verdict
 
 | Verdict | Condition |
 | --- | --- |
-| PASS | all applicable checkpoints pass, no Blocker, app works end-to-end |
+| PASS | all material claims and applicable high-impact risks have adequate evidence; no Blocker or unresolved Major remains |
 | FIX | Blocker or Major found, fixable within current scope; re-verify after fix |
 | BLOCKED | cannot verify (missing environment or credentials) or cannot fix (needs upstream node) |
 
 ## Output contract
 
-A QA report must contain all of the following to claim the project passed QA:
-
-1. **Review scope**: revision, base, changed file list.
-2. **Checkpoint matrix**: each CP marked PASS, FAIL, or NOT_RUN, with the command or observation used.
-3. **Defect list**: each defect with severity, file and line, description, and fix direction.
-4. **Security results**: one conclusion each for database, data privacy, API, auth, dependency, frontend, and any conditional domain (SSRF, business logic, AI) run for this change.
-5. **Multi-resolution results**: screenshot or observation for each of the 6 device levels.
-6. **Verdict**: PASS, FIX, or BLOCKED.
-
-### Hard PASS conditions
-
-All of the following must be satisfied to issue PASS:
-
-- The app starts without errors.
-- All core user journeys pass end-to-end.
-- The frontend has no layout overlap, overflow, or visual bug across 6 device resolutions.
-- No console errors or failed network requests on core paths.
-- No LLM code defects: no hallucinated API, no stub or placeholder return, no swallowed exception, no test weakening.
-- Static gates pass: lint, type check, build.
-- Tests exercise the real contract, not mock theater.
-- Database security passes: no SQL injection, connection secured, least-privilege access.
-- Data privacy passes: PII not leaked, HTTPS enforced, no secret in repo.
-- Auth and authorization pass: no auth bypass, no IDOR, session secured.
-- No known high-risk dependency vulnerabilities.
-- For HIGH_RISK changes: full security review passes.
-- All conditional security domains triggered by this change pass.
+A QA report must let the reader reconstruct the verdict: name the goal, source/base and changed
+surface; summarize the applicable review table and actual commands or observations; report defects
+with severity, location, impact, and retest; distinguish local, server, browser, and unverified
+evidence; then state `PASS`, `FIX`, or `BLOCKED`. Include detailed security, responsive, performance,
+or resilience results when those domains affected the verdict, not as empty mandatory sections.
 
 ## Boundaries with other nodes
 
