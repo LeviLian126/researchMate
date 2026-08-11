@@ -98,6 +98,8 @@ def test_container_images_are_non_root_and_worker_prefetches_pdf_models() -> Non
     assert "uv.lock" in worker
     assert "rm -f /bin/uv /bin/uvx" in api
     assert "rm -f /bin/uv /bin/uvx" in worker
+    assert "site-packages/pip-*.dist-info" in api
+    assert "site-packages/pip-*.dist-info" in worker
     assert "docling-tools models download layout tableformer rapidocr" in worker
     assert "DOCLING_ARTIFACTS_PATH=/opt/docling/models" in worker
     assert "RESEARCHMATE_PROCESS_ROLE:-worker" in worker

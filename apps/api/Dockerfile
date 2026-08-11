@@ -18,7 +18,9 @@ COPY apps/api/pyproject.toml /app/apps/api/pyproject.toml
 COPY workers/ai-worker/pyproject.toml /app/workers/ai-worker/pyproject.toml
 COPY apps/api /app/apps/api
 RUN uv sync --frozen --no-dev --package researchmate-api \
-    && rm -f /bin/uv /bin/uvx
+    && rm -f /bin/uv /bin/uvx /usr/local/bin/pip* \
+    && rm -rf /usr/local/lib/python3.13/site-packages/pip \
+        /usr/local/lib/python3.13/site-packages/pip-*.dist-info
 
 USER 10001:10001
 EXPOSE 8000

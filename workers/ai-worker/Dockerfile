@@ -23,7 +23,9 @@ COPY scripts/apply_migrations.py /app/scripts/apply_migrations.py
 COPY scripts/provision_qdrant_rerank.py /app/scripts/provision_qdrant_rerank.py
 COPY scripts/provision_qdrant_hybrid.py /app/scripts/provision_qdrant_hybrid.py
 RUN uv sync --frozen --no-dev --all-packages \
-    && rm -f /bin/uv /bin/uvx
+    && rm -f /bin/uv /bin/uvx /usr/local/bin/pip* \
+    && rm -rf /usr/local/lib/python3.13/site-packages/pip \
+        /usr/local/lib/python3.13/site-packages/pip-*.dist-info
 
 FROM dependencies AS runtime
 RUN docling-tools models download layout tableformer rapidocr -o /opt/docling/models \
