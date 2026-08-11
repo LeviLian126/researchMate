@@ -1,4 +1,4 @@
-﻿# AI 应用构建
+# AI 应用构建
 
 ## 章节
 
@@ -11,7 +11,6 @@
 - [在实现前后评估](#在实现前后评估)
 - [观察和发布 AI 路径](#观察和发布-ai-路径)
 - [反模式:AI 输出作为可信权威](#反模式ai-输出作为可信权威)
-
 ## 目的和入口条件
 
 当选定的后端切片包含 LLM、retrieval pipeline、agent loop、tool call、MCP 边界、model provider、prompt contract 或 AI 特定的 evaluation 时,使用此分支。将普通的认证、tenancy、persistence、job、provider adapter 和 API 行为保留在其他后端指南中。AI 不会创建第二套架构;它向相同的产品和信任边界添加概率性组件。

@@ -1,4 +1,4 @@
-﻿# 接口构建
+# 接口构建
 
 使用本指南实现 HTTP、CLI、event 或 webhook 入口边界:输入 validation、身份强制执行、稳定的结果和错误映射。如果尚未框架化切片,请先阅读 `slice-framing.md`。
 
@@ -6,14 +6,14 @@ Node02 定义 interface contract(字段、auth、错误、演进)。本文件实
 
 ## 章节
 
-- [恢复 Interface Contract](#恢复-interface-contract)
+- [还原 Interface Contract](#还原-interface-contract)
 - [在不可信边界处规范化和验证](#在不可信边界处规范化和验证)
 - [在服务端强制执行身份和访问](#在服务端强制执行身份和访问)
 - [映射稳定的结果和失败](#映射稳定的结果和失败)
 - [反模式:静默错误吞没](#反模式静默错误吞没)
 - [面向查询的接口行为](#面向查询的接口行为)
 
-## 恢复 Interface Contract
+## 还原 Interface Contract
 
 对于每个变更的入口,捕获 contract 字段并在 handler 中实现。使用现有的路由或 action 模式,除非 Node02 明确批准了新接口。
 
@@ -78,7 +78,7 @@ function mapCancelResult(res: Response, result: CancelResult) {
 }
 ```
 
-handler 不包含业务规则。它解析、验证结构、调用领域用例并映射结果。
+handler 不包含业务规则。它解析、验证结构、调用领域 use-case 并映射结果。
 
 ## 在不可信边界处规范化和验证
 

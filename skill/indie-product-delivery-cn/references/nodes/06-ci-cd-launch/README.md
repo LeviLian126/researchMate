@@ -1,14 +1,14 @@
-﻿# 发布执行
+# Release 执行
 
-## 阅读相关工作流
+## 阅读相关 workflow
 
 | 需求 | 阅读 |
 |---|---|
-| 确立目标、源、Node05 证据、环境、pipeline、凭证和就绪状态 | `release-readiness-environment-and-pipeline.md` |
-| 执行 rollout、migration、provider 操作、恢复、smoke/watch 和发布记录 | `rollout-recovery-verification-and-record.md` |
+| 确认 target、source、Node05 证据、环境、pipeline、credentials 以及 readiness | `release-readiness-environment-and-pipeline.md` |
+| 执行 rollout、migration、provider action、recovery、smoke/watch 以及 release record | `rollout-recovery-verification-and-record.md` |
 
-所选工作流中每个适用的要求都是最低交付标准,因为它使发布可复现且可恢复。仅跳过确实无关的检查。当有助于完成所请求的发布结果时,可添加准备、验证或执行工作;当所需的 secret 或 API 凭证不可用时停止。
+所选 workflow 中每条适用的要求都是最低交付标准，因为它们保证 release 可复现、可恢复。仅在确实不相关时才跳过检查。当有助于完成所请求的 release 结果时，可增加准备、验证或执行工作；当必需的 secret 或 API credential 无法获取时，应停止执行。
 
-## 输出契约
+## Output contract
 
-返回目标和源、预检事实、执行的命令/操作、migration 或 deployment 结果、即时 smoke/watch 证据、恢复或 rollback 判断、发布记录,以及任何剩余的差距。区分 planned、ready、executed 和 verified 状态;切勿从准备推断执行。对于每个变更,包含 commit 和 push 结果,或阻止其执行的缺失凭证/API key 阻塞项。
+返回 target 与 source、preflight 事实、执行的 commands/actions、migration 或 deployment 结果、即时的 smoke/watch 证据、recovery 或 rollback 判断、release record，以及任何遗留 gap。区分 planned、ready、executed 与 verified 状态；切勿从准备阶段推断执行已完成。对于每一项变更，包含 commit 与 push 结果，或说明阻止执行的缺失 credential/API-key blocker。

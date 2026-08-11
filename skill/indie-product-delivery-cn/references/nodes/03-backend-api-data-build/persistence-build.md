@@ -1,4 +1,4 @@
-﻿# 持久化构建
+# 持久化构建
 
 使用本指南处理 repository 和数据访问机制:安全查询、transaction、并发、schema 演进和持久 invariant。如果尚未框架化切片,请先阅读 `slice-framing.md`。
 
@@ -6,14 +6,14 @@ Node02 定义数据生命周期、完整性规则和演进分类。本文件实�
 
 ## 章节
 
-- [恢复持久 Contract](#恢复持久-contract)
+- [还原持久 Contract](#还原持久-contract)
 - [构建安全查询](#构建安全查询)
 - [反模式:N+1 和过度获取](#反模式n1-和过度获取)
 - [使 Invariant 持久化](#使-invariant-持久化)
 - [反模式:缺失 Transaction 边界](#反模式缺失-transaction-边界)
 - [Schema 和数据演进](#schema-和数据演进)
 
-## 恢复持久 Contract
+## 还原持久 Contract
 
 Node02 定义数据生命周期和完整性规则。在编写 repository 代码之前,对照当前 contract 和 repository 证据确认这五个事实:
 

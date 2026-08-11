@@ -1,4 +1,4 @@
-﻿# Provider、Async 和对账构建
+# Provider、Async 和对账构建
 
 使用本指南处理 provider adapter、queue、job、webhook、cron task、callback 和对账。如果尚未框架化切片,请先阅读 `slice-framing.md`。
 
@@ -6,13 +6,13 @@ Node02 定义外部边界 contract(trigger、adapter owner、retry、recovery、
 
 ## 章节
 
-- [恢复外部边界](#恢复外部边界)
+- [还原外部边界](#还原外部边界)
 - [Adapter 优先构建](#adapter-优先构建)
 - [Async 生命周期](#async-生命周期)
 - [Callback 和 Idempotency](#callback-和-idempotency)
 - [特殊风险规则](#特殊风险规则)
 
-## 恢复外部边界
+## 还原外部边界
 
 在触碰 provider SDK、queue、callback 或 job 之前,识别已批准的能力、本地所有者、规范化的输入/输出、secret 边界、provider 身份、timeout、cost/quota、retry/idempotency、用户可见状态、恢复所有者和证据义务。
 
@@ -203,7 +203,7 @@ async function processEmailJob(jobId: string) {
 
 ### Callback
 
-验证签名/来源、安全关联、容忍重放和乱序送达。参见下方的[Callback 和 Idempotency](#callback-和-idempotency)。
+验证签名/来源、安全关联、容忍重放和乱序送达。参见下方的 [Callback 和 Idempotency](#callback-和-idempotency)。
 
 ### 状态
 

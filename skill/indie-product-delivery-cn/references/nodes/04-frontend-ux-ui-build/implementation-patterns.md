@@ -1,9 +1,9 @@
-﻿# 实现模式
+# 实现模式
 
-> **目标：** 为技术栈默认值、动画、字体、图标、依赖项、RSC 安全性、布局机制、z-index 层级和
+> **目标：** 为技术栈默认值、动画、字体、图标、依赖项、RSC 安全性、布局机制、z-index 层级与
 > overscroll 隔离提供可直接使用的代码模式。
 >
-> **负责：** 具体代码模式和导入路径
+> **负责：** 具体代码模式与导入路径
 >
 > **不负责：** 架构决策（`component-responsive-accessible-build.md`）、方向决策（`visual-direction-and-design-system.md`）
 
@@ -11,7 +11,7 @@
 
 ## 技术栈默认值
 
-除非设计读取选择了真正的设计系统，否则使用以下默认值：
+除非设计解读选择了真正的设计系统，否则使用以下默认值：
 
 - **框架：** React 或 Next.js。默认使用 Server Components (RSC)。
 - **样式：** Tailwind v4（默认）。仅在现有项目需要时使用 Tailwind v3。
@@ -238,7 +238,7 @@ export function Hero({ title }) {
 
 ## Overscroll 隔离
 
-防止滚动链（在模态框/抽屉内滚动传播到底层页面）：
+防止滚动链（在模态框 / 抽屉内滚动传播到底层页面）：
 
 ```css
 .modal-body {
@@ -259,7 +259,7 @@ body.modal-open {
 
 ---
 
-**验收标准：** 阅读本文件后，你能够使用正确的 Motion 导入路径，用 `useMotionValue`/`useScroll`
+**验收标准：** 阅读本文件后，你能够使用正确的 Motion 导入路径，用 `useMotionValue` / `useScroll`
 代替 `useState` 编写动画，通过 `next/font` 或自托管 `@font-face` 加载字体，选择正确的图标库，
 导入前验证依赖项，在 RSC 客户端叶子节点中隔离交互性，使用 CSS Grid 代替 flex 百分比计算，
 使用 `min-h-[100dvh]` 代替 `h-screen`，使用分层 z-index token 代替魔法数字，并在模态框和抽屉上
