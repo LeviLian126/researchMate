@@ -5,17 +5,14 @@ from __future__ import annotations
 import sys
 from collections.abc import Iterator
 from contextlib import contextmanager
-from importlib import import_module
 from inspect import getsource
 from types import SimpleNamespace
 from typing import Any
 from uuid import UUID
 
 import pytest
-from researchmate_worker import dispatch_outbox, tasks
+from researchmate_worker import dispatch_outbox, tasks, worker_heartbeat
 from researchmate_worker.runtime_health import record_heartbeat
-
-worker_runtime = import_module("researchmate_worker.celery_app")
 
 JOB_ID = UUID("00000000-0000-4000-8000-000000000201")
 USER_ID = UUID("00000000-0000-4000-8000-000000000202")
@@ -74,29 +71,28 @@ def test_runtime_heartbeat_writes_bounded_metadata(monkeypatch) -> None:
     }
 
 
-def test_worker_heartbeat_loop_refreshes_without_celery_events(monkeypatch) -> None:
-    """Keep readiness fresh even when Celery does not emit heartbeat signals."""
+def test_supervised_worker_heartbeat_publishes_once(monkeypatch) -> None:
+    """Publish readiness without depending on Celery event delivery."""
+    engine = object()
+    heartbeats: list[tuple] = []
+    monkeypatch.setattr(sys, "argv", ["worker_heartbeat", "--once"])
+    monkeypatch.setattr(
+        worker_heartbeat,
+        "WorkerSettings",
+        lambda: SimpleNamespace(
+            database_url="postgresql+psycopg://db", runtime_heartbeat_seconds=30
+        ),
+    )
+    monkeypatch.setattr(worker_heartbeat, "build_engine", lambda _settings: engine)
+    monkeypatch.setattr(
+        worker_heartbeat,
+        "record_heartbeat",
+        lambda *args, **kwargs: heartbeats.append((args, kwargs)),
+    )
 
-    class SequencedStop:
-        """Allow one refresh before ending the deterministic loop."""
+    worker_heartbeat.main()
 
-        def __init__(self) -> None:
-            self.waits: list[int] = []
-
-        def wait(self, interval_seconds: int) -> bool:
-            """End the loop after its first heartbeat interval."""
-            self.waits.append(interval_seconds)
-            return len(self.waits) > 1
-
-    stop = SequencedStop()
-    heartbeats: list[str] = []
-    monkeypatch.setattr(worker_runtime, "_heartbeat_stop", stop)
-    monkeypatch.setattr(worker_runtime, "_worker_heartbeat", heartbeats.append)
-
-    worker_runtime._heartbeat_loop(30)
-
-    assert stop.waits == [30, 30]
-    assert heartbeats == ["ready"]
+    assert heartbeats == [((engine, "worker"), {"metadata": {"queues": worker_heartbeat.QUEUES}})]
 
 
 def test_build_dispatcher_requires_database_and_uses_configured_limits(monkeypatch) -> None:

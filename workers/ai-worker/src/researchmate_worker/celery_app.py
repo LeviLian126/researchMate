@@ -1,18 +1,10 @@
-"""Configure the worker process, task discovery, and bounded runtime heartbeats."""
+"""Configure the worker process and task discovery."""
 
 from __future__ import annotations
 
-import logging
-from functools import lru_cache
-from threading import Event, Lock, Thread
-from time import monotonic
-
 from celery import Celery
-from celery.signals import heartbeat_sent, worker_ready, worker_shutdown
-from sqlalchemy import create_engine
-from sqlalchemy.engine import Engine
 
-from researchmate_worker.config import WorkerSettings, psycopg_database_url
+from researchmate_worker.config import WorkerSettings
 
 
 def create_celery_app(settings: WorkerSettings | None = None) -> Celery:
@@ -46,103 +38,3 @@ def create_celery_app(settings: WorkerSettings | None = None) -> Celery:
 
 
 celery_app = create_celery_app()
-_last_heartbeat = 0.0
-_heartbeat_lock = Lock()
-_heartbeat_stop = Event()
-_heartbeat_thread: Thread | None = None
-logger = logging.getLogger(__name__)
-
-
-@lru_cache(maxsize=1)
-def _heartbeat_engine(database_url: str) -> Engine:
-    # INFRA-4: the heartbeat writes are short transactions with low concurrency. Pin the
-    # pool so this long-lived engine does not accumulate Supabase connections alongside
-    # the ingestion / dispatcher / task engines. pool_recycle matches the API's 300s.
-    return create_engine(
-        psycopg_database_url(database_url),
-        pool_pre_ping=True,
-        pool_recycle=300,
-        pool_size=2,
-        max_overflow=3,
-    )
-
-
-def _worker_heartbeat(status: str) -> None:
-    global _last_heartbeat
-    runtime = WorkerSettings()
-    if not runtime.database_url:
-        return
-    with _heartbeat_lock:
-        now = monotonic()
-        if status == "ready" and now - _last_heartbeat < runtime.runtime_heartbeat_seconds:
-            return
-        from researchmate_worker.runtime_health import record_heartbeat
-
-        record_heartbeat(
-            _heartbeat_engine(runtime.database_url),
-            "worker",
-            status=status,
-            metadata={"queues": "ingestion,deletion,workflow,evaluation,reliability"},
-        )
-        _last_heartbeat = monotonic()
-
-
-def _heartbeat_loop(interval_seconds: int) -> None:
-    """Refresh readiness independently of Celery event-heartbeat delivery."""
-    while not _heartbeat_stop.wait(interval_seconds):
-        try:
-            _worker_heartbeat("ready")
-        except Exception:
-            logger.exception("worker heartbeat loop failed")
-
-
-def _start_heartbeat_loop() -> None:
-    """Start the single daemon responsible for durable worker liveness."""
-    global _heartbeat_thread
-    if _heartbeat_thread is not None and _heartbeat_thread.is_alive():
-        return
-    runtime = WorkerSettings()
-    _heartbeat_stop.clear()
-    _heartbeat_thread = Thread(
-        target=_heartbeat_loop,
-        args=(runtime.runtime_heartbeat_seconds,),
-        name="researchmate-worker-heartbeat",
-        daemon=True,
-    )
-    _heartbeat_thread.start()
-
-
-def _stop_heartbeat_loop() -> None:
-    """Stop the daemon without delaying worker shutdown indefinitely."""
-    global _heartbeat_thread
-    _heartbeat_stop.set()
-    thread = _heartbeat_thread
-    if thread is not None:
-        thread.join(timeout=2)
-    _heartbeat_thread = None
-
-
-@worker_ready.connect
-def _on_worker_ready(**_kwargs: object) -> None:
-    try:
-        _worker_heartbeat("ready")
-        _start_heartbeat_loop()
-    except Exception:
-        logger.exception("worker readiness heartbeat failed")
-
-
-@heartbeat_sent.connect
-def _on_worker_heartbeat(**_kwargs: object) -> None:
-    try:
-        _worker_heartbeat("ready")
-    except Exception:
-        logger.exception("worker heartbeat failed")
-
-
-@worker_shutdown.connect
-def _on_worker_shutdown(**_kwargs: object) -> None:
-    _stop_heartbeat_loop()
-    try:
-        _worker_heartbeat("stopping")
-    except Exception:
-        logger.exception("worker shutdown heartbeat failed")

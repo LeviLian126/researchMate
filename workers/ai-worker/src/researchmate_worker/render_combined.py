@@ -91,6 +91,7 @@ def child_commands(port: int) -> list[list[str]]:
             "--concurrency=1",
         ],
         [sys.executable, "-m", "researchmate_worker.dispatch_outbox"],
+        [sys.executable, "-m", "researchmate_worker.worker_heartbeat"],
     ]
 
 

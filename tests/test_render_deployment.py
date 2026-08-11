@@ -65,15 +65,16 @@ def test_nvidia_free_endpoint_has_no_runtime_price_fields() -> None:
     assert "output_price_per_million_usd=Decimal(0)" in tasks_source
 
 
-def test_render_runtime_starts_api_worker_and_dispatcher() -> None:
-    """Start the public API and both durable-delivery processes together."""
+def test_render_runtime_starts_api_worker_dispatcher_and_heartbeat() -> None:
+    """Start the public API and every supervised worker-side process together."""
     commands = child_commands(10000)
-    assert len(commands) == 3
+    assert len(commands) == 4
     assert "uvicorn" in commands[0]
     assert "researchmate_api.main:app" in commands[0]
     assert "celery" in commands[1]
     assert "--pool=solo" in commands[1]
     assert commands[2][-1] == "researchmate_worker.dispatch_outbox"
+    assert commands[3][-1] == "researchmate_worker.worker_heartbeat"
 
 
 def test_combined_runtime_waits_for_api_health_before_heavy_workers(monkeypatch) -> None:
