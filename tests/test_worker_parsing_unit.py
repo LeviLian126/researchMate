@@ -304,6 +304,44 @@ def test_xlsx_parser_extracts_shared_inline_and_numeric_cells(tmp_path) -> None:
     assert blocks[0].metadata["source_anchors"][0]["locator_kind"] == "sheet"
 
 
+def test_xlsx_parser_rejects_row_fanout_before_projection_allocation(tmp_path) -> None:
+    """Bound spreadsheet rows so one compressed upload cannot create unbounded projections."""
+    workbook = tmp_path / "oversized-row-count.xlsx"
+    rows = "".join(
+        f'<row r="{index}"><c r="A{index}"><v>{index}</v></c></row>' for index in range(1, 20_002)
+    )
+    with ZipFile(workbook, "w") as archive:
+        archive.writestr(
+            "xl/worksheets/sheet1.xml",
+            '<?xml version="1.0" encoding="UTF-8"?>'
+            '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+            f"<sheetData>{rows}</sheetData></worksheet>",
+        )
+    parser = DoclingDocumentParser(max_file_size=4 * 1024 * 1024, max_num_pages=5)
+
+    with pytest.raises(ParserAdapterError, match="PARSER_SPREADSHEET_LIMIT_EXCEEDED"):
+        parser.parse(workbook, file_type="xlsx")
+
+
+def test_xlsx_parser_keeps_sparse_far_columns_bounded(tmp_path) -> None:
+    """Represent distant spreadsheet columns without allocating every empty cell between them."""
+    workbook = tmp_path / "sparse-columns.xlsx"
+    with ZipFile(workbook, "w") as archive:
+        archive.writestr(
+            "xl/worksheets/sheet1.xml",
+            '<?xml version="1.0" encoding="UTF-8"?>'
+            '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+            '<sheetData><row r="1"><c r="A1"><v>left</v></c>'
+            '<c r="XFD1"><v>right</v></c></row></sheetData></worksheet>',
+        )
+    parser = DoclingDocumentParser(max_file_size=4096, max_num_pages=5)
+
+    blocks = parser.parse(workbook, file_type="xlsx")
+
+    assert [block.text for block in blocks] == ["A=left\tXFD=right"]
+    assert len(blocks[0].text) < 32
+
+
 def test_notebook_parser_extracts_inputs_without_outputs(tmp_path) -> None:
     """Index notebook source cells while excluding generated output payloads."""
     notebook = tmp_path / "analysis.ipynb"

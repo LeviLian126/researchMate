@@ -116,6 +116,7 @@ EXTENSIONS_BY_TYPE.update(
     }
 )
 MAX_DOCUMENT_UPLOAD_BYTES = 25 * 1024 * 1024
+MAX_LOCAL_EXTRACTED_TEXT_CHARS = 1 * 1024 * 1024
 
 
 def safe_upload_filename(filename: str) -> str:
@@ -162,9 +163,14 @@ class UploadUrlResponse(BaseModel):
 
 # Define the upload-complete notification.
 class UploadCompleteRequest(BaseModel):
-    """Accept the upload checksum for completion verification."""
+    """Accept production checksums and a bounded local-development text fallback."""
 
     checksum_sha256: str | None = Field(default=None, pattern=r"^[0-9a-fA-F]{64}$")
+    extracted_text: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=MAX_LOCAL_EXTRACTED_TEXT_CHARS,
+    )
 
     model_config = ConfigDict(extra="forbid")
 

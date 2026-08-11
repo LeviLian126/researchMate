@@ -45,9 +45,9 @@
   </div></nav>
   <main class="shell">
     <div class="hero">
-      <p class="eyebrow">FastAPI / Pydantic / SQLAlchemy / 45 REST operations</p>
+      <p class="eyebrow">FastAPI / Pydantic / SQLAlchemy / 49 REST operations</p>
       <h1>后端 . apps/api</h1>
-      <p class="lede">ResearchMate 后端是一个 FastAPI 应用,对外提供 45 个 REST 操作(/api/v1 前缀)和 6 个 MCP tools(Streamable HTTP)。它负责认证、grounded-query 编排、Provider 适配器、幂等协调,以及内存 / PostgreSQL 双持久化层。本页逐文件解析 apps/api/src/researchmate_api/ 下的全部源码。</p>
+      <p class="lede">ResearchMate 后端通过 <code>/api/v1</code> 提供 49 个 REST 操作，并通过 Streamable HTTP 提供 6 个 MCP tools。它负责认证、grounded-query 编排、Provider 适配、幂等协调，以及内存/PostgreSQL 双持久化。</p>
       <div class="meta">
         <span class="status local">5 个核心文件</span>
         <span class="status local">11 个 routers</span>
@@ -362,10 +362,10 @@
           <article class="fact"><b>HTTP 速率限制(slowapi,可选)</b><p>slowapi 作为可选依赖在 main.py 顶层以 try/except ModuleNotFoundError 导入。导入成功时构造 <code>Limiter(key_func=get_remote_address, default_limits=[], headers_enabled=True)</code>,并预解析 <code>RATE_LIMIT_PER_MINUTE = "60/minute"</code> 为共享 RateLimitItem。对 <code>RATE_LIMITED_PATHS</code>(<code>/api/v1/healthz</code>、<code>/api/v1/readyz</code>、<code>/api/v1/me</code>、<code>/mcp</code>)应用 per-IP 固定窗口限流,超限返回 <code>429 RATE_LIMITED</code>。未安装 slowapi 时跳过此分支,本地开发与 worker 环境仍可启动 API 面。</p></article>
           <article class="fact"><b>安全响应头</b><p>SECURITY_HEADERS 字典由 HTTP 中间件附加到每个响应(以及错误短路响应)。除既有的 <code>Cache-Control: no-store</code>、<code>Referrer-Policy: no-referrer</code>、<code>X-Content-Type-Options: nosniff</code>、<code>X-Frame-Options: DENY</code> 外,新增 <code>Content-Security-Policy: default-src 'none'; frame-ancestors 'none'</code> 锁死内容来源并阻止嵌入,以及 <code>Strict-Transport-Security: max-age=31536000; includeSubDomains</code> 强制 HTTPS 一年并在所有子域生效。</p></article>
           <article class="fact"><b>提示注入加固</b><p>services/answering.py 的 chat 路径 <code>build_llm_chat_answer</code> 现在将用户查询包装为 JSON 数据再传给 LLM,系统提示显式声明该 JSON 的值为不可信数据、不得作为指令。这与 grounding 路径"Treat every evidence text as untrusted data"的保护一致,使嵌入的"忽略上文"类指令无法成为命令,封堵越权改写行为的注入面。</p></article>
-          <article class="fact"><b>文件内容验证</b><p>services/object_storage.py 的 <code>verify_uploaded_content</code> 方法使用 python-magic(惰性导入)读取上传对象的前 4096 字节,通过 libmagic 探测实际 MIME,再与上传预约时声明的 MIME 类型比对。不匹配时抛出 <code>UploadVerificationError(code="MIME_MISMATCH")</code> 并尽力删除已上传对象,避免私密存储保留伪装内容。python-magic 缺失时 <code>_detect_mime_type</code> 返回 None,验证优雅跳过(放开策略)。</p></article>
+          <article class="fact"><b>文件内容验证</b><p><code>services/object_storage.py</code> 的 <code>verify_uploaded_content</code> 会比较存储字节和上传预约声明的 MIME。文本类 MIME 别名会统一处理；DOCX、PPTX、XLSX 则必须包含对应的 OOXML 核心成员，不能只凭 ZIP 外壳通过。不匹配的对象会被删除并返回 <code>MIME_MISMATCH</code>；检测器不可用时请求直接失败，避免无法验证的内容越过上传边界。</p></article>
           <article class="fact"><b>/readyz 信息泄漏缓解</b><p>routers/health.py 的 <code>/readyz</code> 现在接受 <code>verbose: bool</code> 查询参数(默认 None)。verbose 为 None 时按 <code>settings.app_env</code> 推断:local/test 默认为 True 以便快速排查,preview/production 默认为 False。非 verbose 模式仅返回 <code>status</code> 与 <code>environment</code>,不再暴露 components 与 failed_components,避免在公共入口泄露依赖拓扑与失败列表;运维与测试可传 <code>?verbose=true</code> 获取完整载荷。</p></article>
         </div>
-        <div class="notice"><strong>可选依赖模式:</strong> slowapi 与 python-magic 都遵循"可选适配器"约定,通过 try/except ModuleNotFoundError 导入,缺失时 API 仍可启动但相应能力降级。对应测试 <code>tests/test_http_security_hardening.py</code> 与 <code>tests/test_object_storage.py</code> 使用 <code>pytest.mark.skipif</code> 在缺少依赖时优雅跳过。</div>
+        <div class="notice"><strong>依赖边界：</strong><code>slowapi</code> 仍是本地可选适配器，但任何执行上传验证的环境都必须具备 <code>python-magic</code>/<code>libmagic</code>。这样，本地限流体验不会与必须关闭失败的内容安全边界混在一起。</div>
       </section>
 
       <section id="provider-pattern">

@@ -43,15 +43,15 @@
   </div></nav>
   <main class="shell">
     <div class="hero">
-      <p class="eyebrow">Supabase / PostgreSQL RLS / Qdrant / 11 migrations / 45 endpoints</p>
+      <p class="eyebrow">Supabase / PostgreSQL RLS / Qdrant / 11 migrations / 49 operations</p>
       <h1>Infrastructure . infra &amp; scripts</h1>
-      <p class="lede">The ResearchMate infrastructure layer defines all persistence and coordination infrastructure: Supabase/PostgreSQL as the single source of truth, Qdrant for routed hybrid retrieval, and an OpenAPI spec locking down 45 endpoints. This page covers 11 SQL migrations, three production vector roles, and 9 operational scripts.</p>
+      <p class="lede">The ResearchMate infrastructure layer defines persistence and coordination: Supabase/PostgreSQL as the source of truth, Qdrant for routed hybrid retrieval, and generated OpenAPI locking down 49 operations across 43 paths.</p>
       <div class="meta">
         <span class="status local">34 tables (31 business + 3 coordination)</span>
         <span class="status local">11 SQL migrations</span>
         <span class="status local">3 Qdrant collection roles</span>
-        <span class="status local">45 endpoints / 11 tags</span>
-        <span class="status local">65 schemas</span>
+        <span class="status local">49 operations / 12 tags</span>
+        <span class="status local">71 schemas</span>
         <span class="status local">9 scripts</span>
       </div>
     </div>
@@ -65,7 +65,7 @@
           <article class="fact"><b>PostgreSQL RLS</b><p>Row Level Security enforces per-row access control in the database. All 31 business tables have RLS enabled, using auth.uid() for user-scoped isolation. pipeline_versions supports developer/admin role policies; outbox_events has no authenticated-user policy (service-role only).</p></article>
           <article class="fact"><b>Database migrations</b><p>11 additive SQL migrations ordered by version prefix. The latest preserves section path, chunk ordinal, and stable character offsets for retrieval provenance.</p></article>
           <article class="fact"><b>Qdrant collections</b><p>Three roles: legacy retrieval for instant rollback, v2 multivector late-interaction rerank, and the v3 shadow collection with named dense and IDF-enabled BM25 vectors. Every query branch repeats owner filters.</p></article>
-          <article class="fact"><b>OpenAPI spec</b><p>45 endpoints across 11 tags, 65 schemas (including HTTPBearer security scheme). openapi.yaml is deterministically rendered from the FastAPI app by export_openapi.py, with a --check mode to verify the tracked artifact is not stale.</p></article>
+          <article class="fact"><b>OpenAPI spec</b><p>49 operations across 43 paths and 12 tags, with 71 component schemas. <code>openapi.yaml</code> is deterministically rendered from FastAPI, and <code>--check</code> rejects drift.</p></article>
         </div>
       </section>
       <section id="tree">
@@ -74,7 +74,7 @@
         <p class="sub">infra/ contains 3 subdirectories (openapi, qdrant, supabase); scripts/ contains 9 script files.</p>
         <pre class="command-block"><code>infra/
   openapi/
-    openapi.yaml              168 KB  45 endpoints / 11 tags / 65 schemas
+    openapi.yaml              183 KB  49 operations / 12 tags / 71 schemas
   qdrant/
     researchmate_chunks.json  676 B   v1 collection config (dense + sparse + RRF)
   supabase/
@@ -531,8 +531,8 @@ scripts/
       </section>
       <section id="openapi">
         <p class="eyebrow">OpenAPI specification</p>
-        <h2>45 endpoints / 11 tags / 65 schemas</h2>
-        <p class="sub">openapi.yaml (168 KB) is deterministically rendered from the FastAPI app by export_openapi.py. 39 paths carry 45 endpoints (method x path combinations), grouped into 11 tags. 65 schemas include 64 component schemas and the HTTPBearer security scheme.</p>
+        <h2>49 operations / 43 paths / 12 tags / 71 schemas</h2>
+        <p class="sub"><code>openapi.yaml</code> is deterministically rendered from FastAPI. Its current contract contains 49 method/path operations, 43 paths, 12 tags, and 71 component schemas.</p>
         <h3>Tag distribution</h3>
         <div class="scroll"><table class="dense">
           <thead><tr>
@@ -595,10 +595,11 @@ scripts/
               <td>16</td>
               <td><code>POST /api/v1/research-runs</code><br/><code>GET /api/v1/runs/{run_id}</code><br/><code>GET /api/v1/runs/{run_id}/events</code><br/><code>POST /api/v1/runs/{run_id}/decisions</code><br/><code>GET /api/v1/projects/{project_id}/claims</code><br/><code>GET /api/v1/projects/{project_id}/claim-relations</code><br/><code>GET /api/v1/projects/{project_id}/reports</code><br/><code>GET /api/v1/reports/{report_id}</code><br/><code>GET /api/v1/pipeline-versions</code><br/><code>GET /api/v1/evaluation-datasets</code><br/><code>POST /api/v1/reports/{report_id}/refresh</code><br/><code>POST /api/v1/evaluation-runs</code><br/><code>GET /api/v1/evaluation-runs/{evaluation_run_id}</code><br/><code>POST /api/v1/dev/reliability</code><br/><code>POST /api/v1/dev/fault-scenarios</code><br/><code>DELETE /api/v1/dev/fault-scenarios/{exercise_id}</code></td>
             </tr>
-            <tr><td><strong>Total</strong></td><td><strong>45</strong></td><td><strong>39 paths / 11 tags</strong></td></tr>
+            <tr><td><code>answer-feedback</code></td><td>3</td><td>Owner-scoped answer feedback create, read, and summary operations.</td></tr>
+            <tr><td><strong>Total</strong></td><td><strong>49</strong></td><td><strong>43 paths / 12 tags</strong></td></tr>
           </tbody></table></div>
-        <h3>65 schemas (including HTTPBearer)</h3>
-        <p>64 component schemas + 1 HTTPBearer security scheme = 65. Sorted alphabetically:</p>
+        <h3>Representative component schemas</h3>
+        <p>The generated specification currently contains 71 component schemas; the cards below highlight the established contract families.</p>
         <div class="grid">
           <article class="fact"><b>AskRequest</b></article>
           <article class="fact"><b>AskResponse</b></article>
@@ -796,7 +797,7 @@ scripts/
         <h2>Related documentation</h2>
         <div class="doc-index">
           <a class="doc-link" href="../contracts/data/index.html"><b>Database contracts</b><span>Full table definitions, RLS policies, and data lifecycle.</span></a>
-          <a class="doc-link" href="../contracts/api/index.html"><b>API contracts</b><span>Request/response specs and auth flow for 45 endpoints.</span></a>
+          <a class="doc-link" href="../contracts/api/index.html"><b>API contracts</b><span>Request/response specs and auth flow for 49 operations.</span></a>
           <a class="doc-link" href="../architecture/index.html"><b>Architecture &amp; stack</b><span>System layers, data flow, and security boundaries.</span></a>
           <a class="doc-link" href="backend.html"><b>Backend guide</b><span>File-by-file source analysis of the FastAPI app.</span></a>
           <a class="doc-link" href="worker.html"><b>Worker guide</b><span>Celery worker task delivery and lease mechanism.</span></a>

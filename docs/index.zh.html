@@ -38,7 +38,7 @@
         </div>
         <div class="meta">
           <span class="status local">当前引用封闭检查 · 通过</span>
-          <span class="status local">已实现合约 · 45 个 REST 操作</span>
+          <span class="status local">已实现合约 · 49 个 REST 操作</span>
           <span class="status partial">托管运行时就绪 · 流程待验证</span>
           <span class="status local">Vercel Production · Supabase 登录已上线</span>
           <span class="status local">Render Live · 就绪已验证</span>
@@ -122,7 +122,7 @@
         <p class="eyebrow">交付边界</p>
         <h2>已实现合约、封闭证明和已部署集成</h2>
         <div class="access-rails">
-          <article class="access-rail"><h3>合约面</h3><p>39 个 FastAPI/OpenAPI 操作提供统一聊天和运行时 rerank 控制，以及研究、决策、报告、目录、评估、可靠性、就绪和故障合约。</p><a href="contracts/api/index.zh.html#operations">阅读完整的 REST 台账 →</a></article>
+          <article class="access-rail"><h3>合约面</h3><p>49 个 FastAPI/OpenAPI 操作提供统一聊天和运行时 rerank 控制，以及研究、决策、报告、目录、评估、可靠性、就绪和故障合约。</p><a href="contracts/api/index.zh.html#operations">阅读完整的 REST 台账 →</a></article>
           <article class="access-rail derived"><h3>运行时接缝</h3><p>Postgres/RLS、S3 兼容存储、Qdrant、Celery/outbox、provider 适配器、LangGraph、评估、遥测和 MCP 是已实现的接缝。已认证的项目往返通过；多服务文档流程未通过。</p><a href="architecture/index.zh.html#current-architecture">查看运行时边界 →</a></article>
           <article class="access-rail unknown"><h3>验证环境规则</h3><p>本机限于最小的封闭单元、领域、合约、schema、导入、静态和构建检查。不得启动应用或基础设施服务。每个模块化和跨服务集成测试仅在授权的已部署/服务器环境中使用合成数据和受保护配置运行。早期的本地浏览器/导入证据仍为历史背景，不是持续的集成方法。</p><a href="architecture/index.zh.html#local-development">阅读绑定执行策略 →</a></article>
           <article class="access-rail unknown"><h3>发布边界</h3><p>公开 MVP 由 Vercel 托管，文档仍仅在仓库中。合并的 Render Free 服务已 Live；健康/就绪和已认证的文档到回答流程通过。当前免费拓扑仍有冷启动、共享进程内存、低并发、Web 延迟、rerank 可用性、遥测、直接 RLS、扫描 PDF OCR 和正常运行时间限制。</p><a href="architecture/index.zh.html#deployment">审阅部署计划 →</a></article>
@@ -163,7 +163,7 @@
           <article class="state-card">
             <span class="status planned">文件内容校验 · 已计划</span>
             <b>安全加固 · 上传安全</b>
-            <p>上传契约现已对 42 种有解析器支持的格式同时绑定文件扩展名与 MIME；服务端在可用时用 <code>python-magic</code> 检查已存储字节。本地格式与解析器测试通过，发布证明仍需执行迁移 <code>202608110008</code> 并完成代表性托管存储上传。</p>
+            <p>上传契约对 42 种有解析器支持的格式同时绑定文件扩展名与 MIME。上传边界必须具备 <code>python-magic</code>；OOXML 包还必须证明内容类型、根关系和核心 XML 身份。本地格式与解析器测试通过，发布证明仍需执行迁移 <code>202608110008</code> 并完成代表性托管存储上传。</p>
           </article>
         </div>
 

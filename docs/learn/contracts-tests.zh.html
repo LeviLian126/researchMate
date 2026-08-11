@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8"/>
   <meta content="width=device-width,initial-scale=1" name="viewport"/>
-  <meta content="ResearchMate 共享合约与测试学习指南:OpenAPI 规范作为唯一真相来源,三层契约镜像架构,38 个 Python 测试文件分析,Hermetic 测试策略,Mock 模式,覆盖率配置,前端 Vitest 与 Playwright 测试。" name="description"/>
+  <meta content="ResearchMate 合约与测试学习指南：OpenAPI 真相来源、三层契约镜像、47 个 Python 测试文件、Hermetic 测试、覆盖率、Vitest 与 Playwright。" name="description"/>
   <title>ResearchMate &middot; 合约与测试学习</title>
   <link href="../assets/site.css" rel="stylesheet"/>
   <style>
@@ -48,10 +48,10 @@
     <div class="hero">
       <p class="eyebrow">TypeScript contracts / Pydantic / pytest / Vitest / Playwright / Hermetic testing</p>
       <h1>合约与测试 &middot; OpenAPI + tests</h1>
-      <p class="lede">ResearchMate 测试套件是一个 Hermetic、合约优先的验证系统。OpenAPI 规范(openapi.yaml)定义了 65 个 schema,镜像到 Pydantic 模型和 SQL 迁移中。前端类型直接定义在 apps/web/app/lib/api.ts 中。Python 测试套件包含 36 个 test_*.py 文件,分为 HTTP 集成测试、单元测试、Worker 测试、工作流测试和契约源码检视测试五类。每个测试都在无外部依赖的情况下运行,使用 fake provider、内存 store 和源码文件检视。本页逐类型解析每个合约,逐文件解析每个测试。</p>
+      <p class="lede">ResearchMate 测试套件采用 Hermetic、合约优先的验证方式。生成的 OpenAPI 规范定义 71 个 schema，由 Pydantic 模型和前端类型共同镜像。<code>tests/</code> 下有 47 个 <code>test_*.py</code> 文件，覆盖 HTTP 集成、单元、worker、工作流和源码契约，不依赖云服务。</p>
       <div class="meta">
-        <span class="status local">65 个 OpenAPI schema</span>
-        <span class="status local">38 个 test_*.py 文件</span>
+        <span class="status local">71 个 OpenAPI schema</span>
+        <span class="status local">47 个 test_*.py 文件</span>
         <span class="status local">3 个 Python 基础设施文件 + 1 个 INI 配置</span>
         <span class="status local">7 个 Vitest + 1 个 Playwright 前端测试</span>
         <span class="status local">三层契约镜像架构</span>
@@ -65,7 +65,7 @@
         <h2>驱动合约与测试的 7 个核心依赖</h2>
         <p class="sub">每张卡片说明该技术的通用职责,以及 ResearchMate 在合约验证中的具体用法。</p>
         <div class="grid two">
-          <article class="fact"><b>TypeScript type contracts</b><p>位于 <code>infra/openapi/openapi.yaml</code> 的 OpenAPI 规范定义了 65 个 schema,作为 API 数据形状的权威来源。前端类型直接定义在 <code>apps/web/app/lib/api.ts</code> 中,镜像 OpenAPI schema。后端将它们镜像为 Pydantic 模型。不存在共享 workspace 包。</p></article>
+          <article class="fact"><b>TypeScript type contracts</b><p>生成的 OpenAPI 规范以 71 个 schema 定义权威 API 形状。前端类型位于 <code>apps/web/app/lib/api.ts</code>，后端 Pydantic 模型负责请求边界校验。</p></article>
           <article class="fact"><b>Pydantic</b><p>Python 数据验证库。后端将每个 TypeScript 合约镜像为 apps/api/src/researchmate_api/schemas/ 下的 Pydantic 模型。Pydantic 在请求边界强制执行字段类型、可选 vs 必填、枚举约束和验证器逻辑。test_project_scaffold.py 验证后端 Pydantic 合约与 OpenAPI 规范定义的请求形状一致。</p></article>
           <article class="fact"><b>pytest</b><p>Python 测试框架(锁定 9.0+)。pytest.ini 配置 <code>-p no:cacheprovider --basetemp=.pytest-temp</code> 以确保确定性、无缓存的运行。conftest.py 将 API 和 worker 源码路径插入 sys.path。测试函数使用 <code>def test_*</code> 命名,<code>pytest.raises</code> 验证预期失败,<code>pytest.importorskip</code> 处理 SQLAlchemy 等可选依赖。</p></article>
           <article class="fact"><b>Vitest</b><p>前端单元测试框架,在 apps/web/vitest.config.ts 中配置 jsdom 环境和 v8 coverage provider。7 个测试文件覆盖 API 客户端逻辑、auth gate、展示组件、demo 模式、邮件限流、幂等 intent 和 Supabase session 处理。覆盖率阈值要求 app/lib 和 app/components 达到 40% 行和语句覆盖。</p></article>
@@ -78,7 +78,7 @@
       <section id="shared-package">
         <p class="eyebrow">OpenAPI 规范</p>
         <h2>API 数据形状的唯一真相来源</h2>
-        <p class="sub">位于 <code>infra/openapi/openapi.yaml</code> 的 OpenAPI 3.1.0 规范(5729 行)定义了 65 个 schema,覆盖所有 API 端点。前端类型在 <code>apps/web/app/lib/api.ts</code> 中本地镜像这些 schema。<code>check:openapi</code> CI 门控确保 YAML 与 FastAPI 运行时保持同步。</p>
+        <p class="sub">生成的 OpenAPI 3.1.0 规范定义 71 个 schema，覆盖所有 API 端点；<code>check:openapi</code> 门禁确保 YAML 与 FastAPI 保持同步。</p>
         <div class="notice"><code>packages/shared</code> workspace 包已作为未使用的幽灵代码移除(整个仓库中零导入)。所有前端类型现在直接定义在 <code>apps/web/app/lib/api.ts</code> 中。OpenAPI 规范是前端和后端共同镜像的唯一真相来源。</div>
 
         <h3>api.ts &middot; 前端类型,逐类型详解</h3>
@@ -102,7 +102,7 @@
           <article class="fact"><b>16. DocumentStatus <code>(type)</code></b><p>8 个状态的联合类型:<code>uploaded</code>、<code>parsing</code>、<code>parsed</code>、<code>indexing</code>、<code>ready</code>、<code>failed</code>、<code>expired</code>、<code>deleted</code>。定义文档生命周期状态机。只有 "ready" 文档可作为 quiz 或 answer 的证据。</p></article>
           <article class="fact"><b>17. DocumentRecord <code>(interface)</code></b><p>定义所有者范围内的文档标识、规范文件类型与 MIME、大小、生命周期状态、过期时间和时间戳。</p></article>
           <article class="fact"><b>18. UploadUrlRequest <code>(interface)</code></b><p>接受 42 种有解析器支持的文件类型。API 创建上传预留前，会同时校验项目/对话范围、文件扩展名、MIME 和 25 MiB 上限。</p></article>
-          <article class="fact"><b>19. UploadCompleteRequest <code>(interface)</code></b><p>定义上传完成请求。字段:<code>checksum_sha256?</code>。生产 worker 从 R2 对象存储解析上传的文件,不接受客户端文本提取。</p></article>
+          <article class="fact"><b>19. UploadCompleteRequest <code>(interface)</code></b><p>定义上传完成请求，可选字段包括 <code>checksum_sha256</code>，以及最大 1 MiB、只用于本地内存回退的 <code>extracted_text</code>。生产摄入仍会验证并解析私有对象存储中的原文件。</p></article>
           <article class="fact"><b>20. UploadUrlResponse <code>(interface)</code></b><p>定义上传地址响应。字段:<code>document_id</code>、<code>upload_url</code>、<code>r2_object_key</code>、<code>expires_in_seconds</code>。前端将文件上传到 <code>upload_url</code>,然后使用 document_id 调用 complete 端点。</p></article>
           <article class="fact"><b>21. JobRecord <code>(interface)</code></b><p>定义 job 状态记录。字段:<code>id</code>、<code>user_id</code>、<code>project_id?</code>、<code>document_id?</code>、<code>type</code>(string)、<code>status</code>("pending" | "running" | "succeeded" | "failed" | "cancelled")、<code>progress</code>(number 0-100)、<code>error_message?</code>、<code>created_at</code>、<code>updated_at</code>。</p></article>
           <article class="fact"><b>22. DeveloperTrace <code>(interface)</code></b><p>定义用于调试和可观测性的 developer trace 记录。字段:<code>trace_id</code>、<code>user_id</code>、<code>project_id</code>、<code>run_id</code>、<code>execution_plan</code>(ExecutionPlan)、<code>router_reason</code>、<code>retrieved_chunks</code>(Record[])、<code>tool_calls</code>(Record[])、<code>validation_result</code>(Record)、<code>created_at</code>。仅管理员可访问。</p></article>
@@ -115,7 +115,7 @@
         <h2>TypeScript 到 Pydantic 到 SQL</h2>
         <p class="sub">同一数据形状在三层中表达,每层在不同边界强制执行。</p>
         <div class="proof-chain">
-          <div class="proof-step"><b>Layer 1 &middot; OpenAPI(权威层)</b><small>infra/openapi/openapi.yaml -- 65 个 schema。CI 门控 <code>check:openapi</code> 验证其与 FastAPI 运行时一致。前端在 <code>apps/web/app/lib/api.ts</code> 中镜像。这是其他两层必须镜像的唯一真相来源。</small></div>
+          <div class="proof-step"><b>Layer 1 &middot; OpenAPI(权威层)</b><small><code>infra/openapi/openapi.yaml</code> 包含 71 个生成 schema；<code>check:openapi</code> 门禁验证其与 FastAPI 一致。</small></div>
           <div class="proof-step"><b>Layer 2 &middot; Pydantic(请求边界)</b><small>apps/api/src/researchmate_api/schemas/ -- 镜像每个 TypeScript interface 的 Python 模型。FastAPI 使用这些模型进行自动请求验证、OpenAPI 生成和响应序列化。字段名完全匹配。</small></div>
           <div class="proof-step"><b>Layer 3 &middot; SQL(持久化边界)</b><small>infra/supabase/migrations/ -- 带 RLS policy 的 PostgreSQL 表定义。列类型和约束镜像 Pydantic 模型。test_database_migration_contract.py 验证 migration 保留 schema 和 RLS 合约。</small></div>
         </div>
@@ -138,8 +138,8 @@
 
       <section id="test-tree">
         <p class="eyebrow">tests/ 目录结构</p>
-        <h2>38 个测试文件 + 3 个基础设施文件 + 1 个 INI 配置</h2>
-        <p class="sub">tests/ 目录包含 38 个 test_*.py 文件、3 个 Python 基础设施文件(conftest.py、api_workflow_fixtures.py、api_workflow_support.py)、1 个 pytest.ini 配置文件,以及一个包含测试 PDF 的 fixtures/ 目录。</p>
+        <h2>47 个测试文件与共享测试基础设施</h2>
+        <p class="sub"><code>tests/</code> 目录包含 47 个 <code>test_*.py</code> 文件，以及共享 fixtures 和工作流 helper。</p>
         <pre class="command-block"><code>tests/
 ├── pytest.ini                              # addopts: -p no:cacheprovider --basetemp=.pytest-temp
 ├── conftest.py                             # sys.path setup: API_SRC + WORKER_SRC
@@ -277,7 +277,7 @@ def create_ready_document(client, headers=HEADERS) -> tuple[str, str]:
           <article class="fact"><b>test_hybrid_retrieval.py</b><p>6 个测试:embedding 区分 query 和 passage 模式、hybrid query 包含 dense/sparse/RRF 和所有 owner 过滤、sparse vector 稳定且有序、upsert 使用 named vector 和 owner payload、delete points 在 vector 边界保持 owner 过滤、delete project points 移除 owner 边界内的每个点。</p></article>
           <article class="fact"><b>test_hybrid_retrieval_and_rerank.py</b><p>7 个测试:混合 tokenizer 保留标识符和中文 bigram、BM25 加权精确短语/标题/重复命中、RRF 去重并奖励跨通道命中、context packer 在首项后遵守 budget、NVIDIA adapter 使用 ranking API 和 top_n、auto provider 确定性降级、provider candidate limit 保留 web 和文档多样性。</p></article>
           <article class="fact"><b>test_llm_provider.py</b><p>4 个测试:非流式 completion 使用批准的 model 参数、stream 跳过空 chunk 并分离 reasoning 和 content、provider 无法在没有 NVIDIA 配置时启动、timeout 被规范化但不泄露 provider 详情。使用 SimpleNamespace 模拟 OpenAI-compatible client。</p></article>
-          <article class="fact"><b>test_object_storage.py</b><p>5 个测试:R2 adapter presign 并规范化元数据、generic S3 endpoint 使用自己的凭证集、服务端 MIME 验证接受匹配的魔术字节、拒绝伪装上传(以 <code>MIME_MISMATCH</code> 删除对象)、libmagic 缺失时优雅跳过(fail open)。验证 presigned URL 生成、R2 与 generic S3 endpoint 之间的凭证隔离,以及新增的 <code>verify_uploaded_content</code> 魔术字节检查。mismatch 测试用 <code>@pytest.mark.skipif(not _HAS_MAGIC, reason="python-magic not installed")</code> 装饰,在可选 <code>python-magic</code> 依赖缺失时优雅跳过。</p></article>
+          <article class="fact"><b>test_object_storage.py</b><p>通过内存 S3 替身覆盖上传签名、凭据隔离、关闭失败的 MIME 检测、文本别名、伪装二进制文件和 OOXML 包身份。测试要求本地 MIME 检测器存在，不会访问真实对象存储。</p></article>
           <article class="fact"><b>test_postgres_repository_contract.py</b><p>10 个测试:Postgres URL 选择 psycopg3 driver、preview 需要 Postgres 和 DATABASE_URL、resource lookup 设置 RLS subject 和 owner 谓词、upload factory 接收已验证的内容元数据、completion 验证预留 object、completion 在一个方法中持久化 job 和 outbox intent、async repository 合约使用真实 job 类型、文档变更需要活跃父项目、项目范围写入锁定活跃项目转换、活跃项目锁保持静态 helper 调用合约。使用 RecordingConnection double 和 pytest.importorskip 处理 SQLAlchemy。</p></article>
           <article class="fact"><b>test_query_policies.py</b><p>8 个测试:pack_chunks 永不允许首 chunk 超出 budget、bound_messages 截断一个过大的近期消息、project_memory 保留不可信用户 provenance、小文档仍需要相关 evidence、个人项目拒绝项目范围 scope、trace policy 即使对 trace owner 也是特权的、幂等性重放并拒绝 body 不匹配、对话清理在附件失败后回滚。</p></article>
           <article class="fact"><b>test_runtime_safety_extensions.py</b><p>5 个测试:source scope 拒绝重复 document ID、workflow budget 在调用前预留并持久化使用量、workflow budget 在 reservation 被拒绝时在 provider 之前失败、workflow budget 在数据库 reservation 之前拒绝过大的 prompt、pipeline runtime configuration 不是未验证的 label。</p></article>
@@ -335,7 +335,7 @@ def create_ready_document(client, headers=HEADERS) -> tuple[str, str]:
           <article class="fact"><b>源码检视不执行</b><p>6 个契约源码检视测试使用 <code>pathlib.Path.read_text()</code> 从磁盘读取文件,用 regex 或字符串匹配解析。它们验证结构合约(文件存在、内容模式、schema 正确性)而不导入或执行任何应用代码。</p></article>
           <article class="fact"><b>Unit double</b><p>单元测试使用轻量级 double 替代真实基础设施:<code>SimpleNamespace</code> 用于 mock 对象、<code>RecordingConnection</code> 用于在无数据库情况下捕获 SQL 语句、<code>EmptyResult</code> 用于模拟查询响应、<code>collections.deque</code> 用于确定性工作流状态转换。</p></article>
           <article class="fact"><b>无真实 PDF 解析模型</b><p>test_worker_parsing_unit.py 使用轻量级 pypdf backend 和 703 字节的真实 PDF fixture。Docling 视觉 pipeline(需要 torch)在测试中从不加载。parser 验证文本提取、provenance 序列化和 OOXML 解析,无需重型 ML 依赖。</p></article>
-          <article class="fact"><b>可选依赖 <code>skipif</code> 模式</b><p>触及可选适配器(slowapi limiter、python-magic MIME 验证器)的测试在依赖缺失时优雅跳过而非失败。模式为:模块级 <code>try: import slowapi ... _HAS_SLOWAPI = True except ModuleNotFoundError: _HAS_SLOWAPI = False</code> 守卫设置布尔值,相关断言用 <code>@pytest.mark.skipif(not _HAS_SLOWAPI, reason="slowapi not installed")</code>(以及对应的 <code>not _HAS_MAGIC</code> for <code>python-magic</code>)装饰。<code>test_http_security_hardening.py</code> 中的常量级测试始终运行,只有 limiter-enforcement 测试会跳过。<code>test_object_storage.py</code> 中的 MIME matcher 测试始终运行,只有 mismatch-rejecting 断言在 libmagic 不可用时跳过,生产环境验证器 fail open 而非阻断合法流量。</p></article>
+          <article class="fact"><b>必须存在的安全依赖</b><p>HTTP 限流器仍可作为本地可选适配器，但 MIME 验证属于上传安全边界。对象存储测试必须具备 <code>python-magic</code>/<code>libmagic</code>；检测不可用时直接失败，不再跳过测试或接受无法验证的内容。</p></article>
         </div>
       </section>
 
@@ -406,7 +406,7 @@ def create_ready_document(client, headers=HEADERS) -> tuple[str, str]:
         <p class="eyebrow">延伸阅读</p>
         <h2>深度学习路径</h2>
         <div class="doc-index">
-          <a class="doc-link" href="../contracts/api/index.zh.html#operations"><b>API 合约</b><span>45 个 REST 操作的完整合约、请求/响应形状和集成状态。</span></a>
+          <a class="doc-link" href="../contracts/api/index.zh.html#operations"><b>API 合约</b><span>49 个 REST 操作的完整合约、请求/响应形状和集成状态。</span></a>
           <a class="doc-link" href="../contracts/data/index.zh.html#tables"><b>数据库设计</b><span>31 张表的完整字段、关系、完整性和 RLS 台账,镜像 Pydantic 和 TypeScript 合约。</span></a>
           <a class="doc-link" href="backend.zh.html"><b>Backend 学习</b><span>逐文件解析 FastAPI router、Pydantic schema、service 和持久化层,它们镜像 OpenAPI 规范。</span></a>
           <a class="doc-link" href="worker.zh.html"><b>Worker 学习</b><span>Celery task、文档摄取、LangGraph workflow、Outbox 模式和 evaluation,由 worker 测试验证。</span></a>

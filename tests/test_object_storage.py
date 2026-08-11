@@ -4,29 +4,20 @@ from __future__ import annotations
 
 from io import BytesIO
 from typing import Any
+from zipfile import ZipFile
 
 import pytest
 from pydantic import SecretStr
 from researchmate_api.config import Settings
+from researchmate_api.schemas.document import MIME_BY_TYPE
 from researchmate_api.services.object_storage import (
+    ObjectStorageRequestError,
     R2ObjectStorage,
     S3CompatibleObjectStorage,
     UploadVerificationError,
     _detect_mime_type,
     _mime_matches,
 )
-
-# MIME verification depends on the optional python-magic library. When libmagic is
-# not installed the verifier fails open, so tests that assert a mismatch rejection
-# must be skipped rather than report a false failure.
-try:
-    import magic  # noqa: F401
-
-    _HAS_MAGIC = True
-except ModuleNotFoundError:
-    _HAS_MAGIC = False
-
-_skip_no_magic = pytest.mark.skipif(not _HAS_MAGIC, reason="python-magic not installed")
 
 
 class FakeS3Client:
@@ -76,8 +67,8 @@ class FakeS3Client:
             def __init__(self, data: bytes) -> None:
                 self._data = data
 
-            def read(self) -> bytes:
-                return self._data
+            def read(self, size: int = -1) -> bytes:
+                return self._data if size < 0 else self._data[:size]
 
         return {"Body": _Body(body)}
 
@@ -183,7 +174,6 @@ def test_verify_uploaded_content_accepts_matching_magic_bytes() -> None:
     assert client.deleted is None
 
 
-@_skip_no_magic
 def test_verify_uploaded_content_rejects_disguised_upload_and_deletes_object() -> None:
     """Reject and delete an uploaded object whose bytes do not match its declared MIME."""
     client = FakeS3Client()
@@ -201,8 +191,8 @@ def test_verify_uploaded_content_rejects_disguised_upload_and_deletes_object() -
     assert client.deleted == {"Bucket": "researchmate-test", "Key": "users/u/document.pdf"}
 
 
-def test_verify_uploaded_content_fails_open_when_libmagic_missing(monkeypatch) -> None:
-    """Fail open when the optional python-magic library is unavailable."""
+def test_verify_uploaded_content_fails_closed_when_libmagic_missing(monkeypatch) -> None:
+    """Reject unverifiable uploads when the required MIME detector is unavailable."""
     monkeypatch.setattr(
         "researchmate_api.services.object_storage._detect_mime_type",
         lambda _data: None,
@@ -211,9 +201,163 @@ def test_verify_uploaded_content_fails_open_when_libmagic_missing(monkeypatch) -
     client.fetched_bytes["users/u/document.pdf"] = b"not really a pdf"
     storage = S3CompatibleObjectStorage(r2_settings(), client=client)
 
-    # Without libmagic available the verifier cannot compare bytes; it must accept the upload
-    # and leave the stored object intact rather than blocking legitimate traffic.
-    storage.verify_uploaded_content("users/u/document.pdf", declared_mime_type="application/pdf")
+    with pytest.raises(ObjectStorageRequestError, match="mime_detection"):
+        storage.verify_uploaded_content(
+            "users/u/document.pdf", declared_mime_type="application/pdf"
+        )
+
+
+@pytest.mark.parametrize(
+    ("detected", "declared"),
+    [
+        ("text/plain", "application/csv"),
+        ("text/xml", "text/plain"),
+        ("text/html", "application/xhtml+xml"),
+        ("text/plain", "application/x-yaml"),
+    ],
+)
+def test_mime_matches_every_textual_public_alias(detected: str, declared: str) -> None:
+    """Keep upload reservation aliases compatible with completion-time detection."""
+    assert _mime_matches(detected, declared) is True
+
+
+def test_every_public_textual_mime_accepts_plain_text_detection() -> None:
+    """Prevent future reservation aliases from drifting away from byte verification."""
+    binary_types = {"pdf", "docx", "pptx", "xlsx"}
+
+    assert all(
+        _mime_matches("text/plain", declared)
+        for file_type, declared_types in MIME_BY_TYPE.items()
+        if file_type not in binary_types
+        for declared in declared_types
+    )
+
+
+def test_verify_uploaded_content_rejects_generic_zip_disguised_as_xlsx() -> None:
+    """Require XLSX package structure instead of accepting every ZIP archive."""
+    disguised = BytesIO()
+    with ZipFile(disguised, "w") as archive:
+        archive.writestr("notes.txt", "not a workbook")
+    client = FakeS3Client()
+    client.fetched_bytes["users/u/not-a-workbook.xlsx"] = disguised.getvalue()
+    storage = S3CompatibleObjectStorage(r2_settings(), client=client)
+
+    with pytest.raises(UploadVerificationError, match="does not match"):
+        storage.verify_uploaded_content(
+            "users/u/not-a-workbook.xlsx",
+            declared_mime_type=(
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            ),
+        )
+
+    assert client.deleted == {
+        "Bucket": "researchmate-test",
+        "Key": "users/u/not-a-workbook.xlsx",
+    }
+
+
+def test_verify_uploaded_content_rejects_ooxml_member_name_without_package_contract() -> None:
+    """Reject a ZIP that copies one OOXML filename without relationships or content types."""
+    workbook = BytesIO()
+    with ZipFile(workbook, "w") as archive:
+        archive.writestr("xl/workbook.xml", "not XML")
+    client = FakeS3Client()
+    client.fetched_bytes["users/u/counterfeit.xlsx"] = workbook.getvalue()
+    storage = S3CompatibleObjectStorage(r2_settings(), client=client)
+
+    with pytest.raises(UploadVerificationError, match="does not match"):
+        storage.verify_uploaded_content(
+            "users/u/counterfeit.xlsx",
+            declared_mime_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+
+
+def test_verify_uploaded_content_rejects_bogus_ooxml_contract_elements() -> None:
+    """Require namespace-qualified Override and Relationship elements, not copied attributes."""
+    declared_mime_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    package = BytesIO()
+    with ZipFile(package, "w") as archive:
+        archive.writestr(
+            "[Content_Types].xml",
+            '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+            f'<Bogus PartName="/xl/workbook.xml" ContentType="{declared_mime_type}"/>'
+            "</Types>",
+        )
+        archive.writestr(
+            "_rels/.rels",
+            '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+            '<Bogus Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" '
+            'Target="xl/workbook.xml"/></Relationships>',
+        )
+        archive.writestr(
+            "xl/workbook.xml",
+            '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"/>',
+        )
+    client = FakeS3Client()
+    client.fetched_bytes["users/u/bogus.xlsx"] = package.getvalue()
+    storage = S3CompatibleObjectStorage(r2_settings(), client=client)
+
+    with pytest.raises(UploadVerificationError, match="does not match"):
+        storage.verify_uploaded_content(
+            "users/u/bogus.xlsx",
+            declared_mime_type=declared_mime_type,
+        )
+
+
+@pytest.mark.parametrize(
+    ("extension", "declared_mime_type", "core_member", "core_xml"),
+    [
+        (
+            "docx",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "word/document.xml",
+            '<document xmlns="http://schemas.openxmlformats.org/wordprocessingml/2006/main"/>',
+        ),
+        (
+            "pptx",
+            "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+            "ppt/presentation.xml",
+            '<presentation xmlns="http://schemas.openxmlformats.org/presentationml/2006/main"/>',
+        ),
+        (
+            "xlsx",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "xl/workbook.xml",
+            '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"/>',
+        ),
+    ],
+)
+def test_verify_uploaded_content_accepts_minimal_valid_ooxml_package(
+    extension: str,
+    declared_mime_type: str,
+    core_member: str,
+    core_xml: str,
+) -> None:
+    """Accept each OOXML family only when its package identity is internally consistent."""
+    package = BytesIO()
+    with ZipFile(package, "w") as archive:
+        archive.writestr(
+            "[Content_Types].xml",
+            '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+            f'<Override PartName="/{core_member}" ContentType="{declared_mime_type}"/>'
+            "</Types>",
+        )
+        archive.writestr(
+            "_rels/.rels",
+            '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+            '<Relationship Id="rId1" '
+            'Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" '
+            f'Target="{core_member}"/>'
+            "</Relationships>",
+        )
+        archive.writestr(core_member, core_xml)
+    object_key = f"users/u/document.{extension}"
+    client = FakeS3Client()
+    client.fetched_bytes[object_key] = package.getvalue()
+    storage = S3CompatibleObjectStorage(r2_settings(), client=client)
+
+    storage.verify_uploaded_content(object_key, declared_mime_type=declared_mime_type)
+
     assert client.deleted is None
 
 

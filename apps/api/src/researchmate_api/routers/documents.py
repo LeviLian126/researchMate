@@ -190,8 +190,9 @@ def complete_upload(
 ) -> dict[str, str]:
     """Verify an upload and enqueue its asynchronous ingestion job."""
     checksum_sha256 = payload.checksum_sha256 if payload else None
+    extracted_text = payload.extracted_text if payload else None
     try:
-        job = repository.complete_document(user, document_id, None, checksum_sha256)
+        job = repository.complete_document(user, document_id, extracted_text, checksum_sha256)
     except UploadVerificationError as exc:
         raise_api_error(status.HTTP_409_CONFLICT, exc.code, str(exc))
     except ObjectStorageRequestError as exc:

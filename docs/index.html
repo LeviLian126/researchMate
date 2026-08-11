@@ -38,7 +38,7 @@
         </div>
         <div class="meta">
           <span class="status local">Current-ref hermetic checks · passed</span>
-          <span class="status local">Implemented contract · 45 REST operations</span>
+          <span class="status local">Implemented contract · 49 REST operations</span>
           <span class="status partial">Managed runtime ready · journey pending</span>
           <span class="status local">Vercel Production · Supabase sign-in live</span>
           <span class="status local">Render Live · readiness verified</span>
@@ -122,7 +122,7 @@
         <p class="eyebrow">Delivery boundary</p>
         <h2>Implemented contracts, hermetic proof, and deployed integration</h2>
         <div class="access-rails">
-          <article class="access-rail"><h3>Contract surface</h3><p>39 FastAPI/OpenAPI operations provide the unified chat and runtime rerank controls plus research, decision, report, catalog, evaluation, reliability, readiness, and fault contracts.</p><a href="contracts/api/index.html#operations">Read the complete REST ledger →</a></article>
+          <article class="access-rail"><h3>Contract surface</h3><p>49 FastAPI/OpenAPI operations provide the unified chat and runtime rerank controls plus research, decision, report, catalog, evaluation, reliability, readiness, and fault contracts.</p><a href="contracts/api/index.html#operations">Read the complete REST ledger →</a></article>
           <article class="access-rail derived"><h3>Runtime seams</h3><p>Postgres/RLS, S3-compatible storage, Qdrant, Celery/outbox, provider adapters, LangGraph, evaluation, telemetry, and MCP are implemented seams. The authenticated project round trip passes; the multi-service document journey does not.</p><a href="architecture/index.html#current-architecture">See the runtime boundary →</a></article>
           <article class="access-rail unknown"><h3>Verification environment rule</h3><p>The local machine is limited to the smallest hermetic unit, domain, contract, schema, import, static, and build checks. It must not start application or infrastructure services. Every modular and cross-service integration test runs only in the authorized deployed/server environment with synthetic data and protected configuration. Earlier local browser/import evidence remains historical context, not the ongoing integration method.</p><a href="architecture/index.html#local-development">Read the binding execution policy →</a></article>
           <article class="access-rail unknown"><h3>Release boundary</h3><p>The public MVP is Vercel-hosted and documentation remains repository-only. The combined Render Free service is Live; health/readiness and an authenticated document-to-answer journey pass. The current free topology still has cold-start, shared-process memory, low concurrency, Web latency, rerank availability, telemetry, direct RLS, scanned-PDF OCR, and uptime limits.</p><a href="architecture/index.html#deployment">Review the deployment plan →</a></article>
@@ -163,7 +163,7 @@
           <article class="state-card">
             <span class="status planned">File content validation · planned</span>
             <b>Security Hardening · Upload safety</b>
-            <p>The upload contract now binds filename extension and MIME across 42 parser-backed formats, and server-side <code>python-magic</code> checks stored bytes when available. Local format and parser tests pass; migration <code>202608110008</code> and representative managed-storage uploads remain the release proof.</p>
+            <p>The upload contract binds filename extension and MIME across 42 parser-backed formats. Server-side <code>python-magic</code> is required at the upload boundary, and OOXML packages must prove their content type, root relationship, and core XML identity. Local format and parser tests pass; migration <code>202608110008</code> and representative managed-storage uploads remain the release proof.</p>
           </article>
         </div>
 

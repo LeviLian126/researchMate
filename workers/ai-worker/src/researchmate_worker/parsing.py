@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Iterator
+from dataclasses import dataclass
 from html.parser import HTMLParser
 from io import BytesIO
 from pathlib import Path
@@ -61,6 +63,28 @@ TEXT_FILE_TYPES = {
 }
 SUPPORTED_FILE_TYPES = {"pdf", "docx", "pptx", "xlsx", "html", "ipynb", *TEXT_FILE_TYPES}
 MAX_TEXT_BLOCK_CHARS = 8_000
+MAX_OOXML_TOTAL_DECOMPRESSED_BYTES = 64 * 1024 * 1024
+MAX_XLSX_ROWS = 20_000
+MAX_XLSX_CELLS = 200_000
+MAX_XLSX_COLUMNS = 16_384
+MAX_XLSX_SHARED_STRINGS = 100_000
+MAX_XLSX_DENSE_ROW_COLUMNS = 1_024
+MAX_XLSX_DENSE_CELL_GAP = 32
+MAX_XLSX_OUTPUT_CHARS = 8 * 1024 * 1024
+
+
+@dataclass
+class _ArchiveReadBudget:
+    """Track aggregate decompressed XML before parsed objects can amplify one archive."""
+
+    limit_bytes: int
+    consumed_bytes: int = 0
+
+    def consume(self, count: int) -> None:
+        """Reject an archive once its cumulative decompressed XML exceeds the limit."""
+        self.consumed_bytes += count
+        if self.consumed_bytes > self.limit_bytes:
+            raise ParserAdapterError("PARSER_FILE_TOO_LARGE")
 
 
 class _VisibleHTMLTextParser(HTMLParser):
@@ -172,7 +196,19 @@ class DoclingDocumentParser:
             )
         return self.converter
 
-    def _read_bounded_xml(self, archive: ZipFile, member: str) -> ElementTree.Element:
+    def _archive_read_budget(self) -> _ArchiveReadBudget:
+        """Create one shared decompression budget for an OOXML package."""
+        return _ArchiveReadBudget(
+            limit_bytes=min(self.max_file_size * 4, MAX_OOXML_TOTAL_DECOMPRESSED_BYTES)
+        )
+
+    def _read_bounded_xml(
+        self,
+        archive: ZipFile,
+        member: str,
+        *,
+        budget: _ArchiveReadBudget,
+    ) -> ElementTree.Element:
         requested = _normalized_archive_member(member)
         resolved = next(
             (
@@ -194,10 +230,56 @@ class DoclingDocumentParser:
                 chunk = stream.read(65536)
                 if not chunk:
                     break
+                budget.consume(len(chunk))
                 decompressed.extend(chunk)
             if len(decompressed) > max_xml_bytes:
                 raise ParserAdapterError("PARSER_FILE_TOO_LARGE")
         return ElementTree.fromstring(decompressed)
+
+    def _iter_bounded_xlsx_rows(
+        self,
+        archive: ZipFile,
+        member: str,
+        *,
+        budget: _ArchiveReadBudget,
+    ) -> Iterator[ElementTree.Element]:
+        """Stream worksheet rows so limits apply before a full XML tree is retained."""
+        requested = _normalized_archive_member(member)
+        resolved = next(
+            (
+                candidate
+                for candidate in archive.namelist()
+                if _normalized_archive_member(candidate) == requested
+            ),
+            None,
+        )
+        if resolved is None:
+            raise KeyError(requested)
+        max_xml_bytes = min(self.max_file_size * 4, MAX_OOXML_TOTAL_DECOMPRESSED_BYTES)
+        row_tag = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}row"
+        parser = ElementTree.XMLPullParser(events=("start", "end"))
+        stack: list[ElementTree.Element] = []
+        member_bytes = 0
+        try:
+            with archive.open(resolved) as stream:
+                while chunk := stream.read(65_536):
+                    member_bytes += len(chunk)
+                    budget.consume(len(chunk))
+                    if member_bytes > max_xml_bytes:
+                        raise ParserAdapterError("PARSER_FILE_TOO_LARGE")
+                    parser.feed(chunk)
+                    for event, element in parser.read_events():
+                        if event == "start":
+                            stack.append(element)
+                            continue
+                        if element.tag == row_tag:
+                            yield element
+                            if len(stack) > 1:
+                                stack[-2].remove(element)
+                        stack.pop()
+            parser.close()
+        except ElementTree.ParseError as exc:
+            raise ParserAdapterError("PARSER_INVALID_OOXML") from exc
 
     @staticmethod
     def _structural_anchor(
@@ -221,7 +303,11 @@ class DoclingDocumentParser:
         ns = {"w": word_namespace}
         value_attribute = f"{{{word_namespace}}}val"
         with ZipFile(source) as archive:
-            root = self._read_bounded_xml(archive, "word/document.xml")
+            root = self._read_bounded_xml(
+                archive,
+                "word/document.xml",
+                budget=self._archive_read_budget(),
+            )
         blocks: list[ParsedBlock] = []
         section_stack: list[str] = []
         for ordinal, paragraph in enumerate(root.findall(".//w:p", ns)):
@@ -261,6 +347,7 @@ class DoclingDocumentParser:
         drawing_namespace = "http://schemas.openxmlformats.org/drawingml/2006/main"
         ns = {"a": drawing_namespace}
         with ZipFile(source) as archive:
+            budget = self._archive_read_budget()
             members = [
                 member
                 for member in archive.namelist()
@@ -279,7 +366,10 @@ class DoclingDocumentParser:
             )
             if len(members) > self.max_num_pages:
                 raise ParserAdapterError("PARSER_PAGE_LIMIT_EXCEEDED")
-            roots = [(member, self._read_bounded_xml(archive, member)) for member in members]
+            roots = [
+                (member, self._read_bounded_xml(archive, member, budget=budget))
+                for member in members
+            ]
         blocks: list[ParsedBlock] = []
         for member, root in roots:
             normalized_member = _normalized_archive_member(member)
@@ -432,9 +522,14 @@ class DoclingDocumentParser:
         spreadsheet_ns = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
         ns = {"s": spreadsheet_ns}
         with ZipFile(source) as archive:
+            budget = self._archive_read_budget()
             shared_strings: list[str] = []
             try:
-                shared_root = self._read_bounded_xml(archive, "xl/sharedStrings.xml")
+                shared_root = self._read_bounded_xml(
+                    archive,
+                    "xl/sharedStrings.xml",
+                    budget=budget,
+                )
             except KeyError:
                 shared_root = None
             if shared_root is not None:
@@ -442,6 +537,8 @@ class DoclingDocumentParser:
                     "".join(node.text or "" for node in item.findall(".//s:t", ns))
                     for item in shared_root.findall(".//s:si", ns)
                 ]
+                if len(shared_strings) > MAX_XLSX_SHARED_STRINGS:
+                    raise ParserAdapterError("PARSER_SPREADSHEET_LIMIT_EXCEEDED")
             members = [
                 member
                 for member in archive.namelist()
@@ -455,15 +552,24 @@ class DoclingDocumentParser:
             if len(members) > self.max_num_pages:
                 raise ParserAdapterError("PARSER_PAGE_LIMIT_EXCEEDED")
             blocks: list[ParsedBlock] = []
+            row_count = 0
+            cell_count = 0
+            output_chars = 0
             for sheet_index, member in enumerate(members, start=1):
-                root = self._read_bounded_xml(archive, member)
-                for row in root.findall(".//s:sheetData/s:row", ns):
-                    values: list[str] = []
-                    for cell in row.findall("s:c", ns):
+                for row in self._iter_bounded_xlsx_rows(archive, member, budget=budget):
+                    row_count += 1
+                    cells = row.findall("s:c", ns)
+                    cell_count += len(cells)
+                    if row_count > MAX_XLSX_ROWS or cell_count > MAX_XLSX_CELLS:
+                        raise ParserAdapterError("PARSER_SPREADSHEET_LIMIT_EXCEEDED")
+                    values: list[tuple[int, str]] = []
+                    for fallback_column, cell in enumerate(cells):
                         reference = cell.attrib.get("r", "")
-                        column = self._xlsx_column_index(reference)
-                        while len(values) < column:
-                            values.append("")
+                        column = (
+                            self._xlsx_column_index(reference) if reference else fallback_column
+                        )
+                        if column >= MAX_XLSX_COLUMNS:
+                            raise ParserAdapterError("PARSER_SPREADSHEET_LIMIT_EXCEEDED")
                         cell_type = cell.attrib.get("t")
                         if cell_type == "inlineStr":
                             value = "".join(node.text or "" for node in cell.findall(".//s:t", ns))
@@ -473,14 +579,19 @@ class DoclingDocumentParser:
                             if cell_type == "s" and value:
                                 index = int(value)
                                 value = (
-                                    shared_strings[index] if index < len(shared_strings) else value
+                                    shared_strings[index]
+                                    if 0 <= index < len(shared_strings)
+                                    else value
                                 )
                             elif cell_type == "b":
                                 value = "TRUE" if value == "1" else "FALSE"
-                        values.append(value.strip())
-                    row_text = "\t".join(values).strip()
+                        values.append((column, value.strip()))
+                    row_text = self._render_xlsx_row(values)
                     if not row_text:
                         continue
+                    output_chars += len(row_text)
+                    if output_chars > MAX_XLSX_OUTPUT_CHARS:
+                        raise ParserAdapterError("PARSER_SPREADSHEET_LIMIT_EXCEEDED")
                     row_no = int(row.attrib.get("r", len(blocks) + 1))
                     item_ref = f"{_normalized_archive_member(member)}#row-{row_no}"
                     blocks.append(
@@ -503,6 +614,38 @@ class DoclingDocumentParser:
                         )
                     )
         return blocks
+
+    @staticmethod
+    def _render_xlsx_row(values: list[tuple[int, str]]) -> str:
+        """Render dense rows as TSV and sparse rows with explicit column labels."""
+        if not values:
+            return ""
+        ordered = sorted(values)
+        maximum_column = ordered[-1][0]
+        largest_gap = max(
+            (right[0] - left[0] for left, right in zip(ordered, ordered[1:], strict=False)),
+            default=0,
+        )
+        if maximum_column < MAX_XLSX_DENSE_ROW_COLUMNS and largest_gap <= MAX_XLSX_DENSE_CELL_GAP:
+            dense_values = [""] * (maximum_column + 1)
+            for column, value in ordered:
+                dense_values[column] = value
+            return "\t".join(dense_values).rstrip()
+        return "\t".join(
+            f"{DoclingDocumentParser._xlsx_column_label(column)}={value}"
+            for column, value in ordered
+            if value
+        )
+
+    @staticmethod
+    def _xlsx_column_label(index: int) -> str:
+        """Convert a zero-based column index to an A1-style column label."""
+        label = ""
+        current = index + 1
+        while current:
+            current, remainder = divmod(current - 1, 26)
+            label = chr(ord("A") + remainder) + label
+        return label
 
     @staticmethod
     def _xlsx_column_index(reference: str) -> int:

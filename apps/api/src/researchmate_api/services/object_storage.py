@@ -3,10 +3,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from io import BytesIO
 from pathlib import Path
 from typing import IO, Any
+from xml.etree import ElementTree
+from zipfile import BadZipFile, ZipFile
 
 from researchmate_api.config import Settings
+from researchmate_api.schemas.document import MAX_DOCUMENT_UPLOAD_BYTES, MIME_BY_TYPE
 
 
 class ObjectStorageConfigurationError(RuntimeError):
@@ -75,36 +79,77 @@ _MIME_MAGIC_ALIASES: dict[str, tuple[str, ...]] = {
     "application/javascript": ("text/plain", "javascript", "ascii"),
     "application/typescript": ("text/plain", "typescript", "ascii"),
 }
+_OOXML_PACKAGE_CONTRACTS: dict[str, tuple[str, str]] = {
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": (
+        "word/document.xml",
+        "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}document",
+    ),
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation": (
+        "ppt/presentation.xml",
+        "{http://schemas.openxmlformats.org/presentationml/2006/main}presentation",
+    ),
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": (
+        "xl/workbook.xml",
+        "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}workbook",
+    ),
+}
+_OOXML_CONTENT_TYPES_ROOT = "{http://schemas.openxmlformats.org/package/2006/content-types}Types"
+_OOXML_RELATIONSHIPS_ROOT = (
+    "{http://schemas.openxmlformats.org/package/2006/relationships}Relationships"
+)
+_OOXML_OVERRIDE_TAG = "{http://schemas.openxmlformats.org/package/2006/content-types}Override"
+_OOXML_RELATIONSHIP_TAG = (
+    "{http://schemas.openxmlformats.org/package/2006/relationships}Relationship"
+)
+_OOXML_VERIFICATION_XML_BYTES = 1 * 1024 * 1024
+_TEXTUAL_DECLARED_MIME_TYPES = frozenset(
+    mime_type
+    for file_type, mime_types in MIME_BY_TYPE.items()
+    if file_type not in {"pdf", "docx", "pptx", "xlsx"}
+    for mime_type in mime_types
+)
+_TEXTUAL_DETECTED_MIME_TYPES = frozenset(
+    {
+        "application/json",
+        "application/xml",
+        "application/javascript",
+        "application/x-empty",
+        "inode/x-empty",
+    }
+)
 
 
 def _detect_mime_type(data: bytes) -> str | None:
     """Return the libmagic-detected MIME type for the first chunk of bytes.
 
-    The python-magic library is loaded lazily so that environments without it (e.g. worker
-    pods that do not upload files) can still import this module. ``None`` is returned when
-    the library is unavailable, which callers treat as "skip validation".
+    The python-magic library is loaded lazily, but it is required at the upload boundary.
+    An unavailable or failed detector is an explicit service failure instead of permission
+    to accept attacker-controlled bytes without verification.
     """
     if not data:
         return None
     try:
         import magic
-    except ModuleNotFoundError:
-        return None
+    except ImportError as exc:
+        raise ObjectStorageRequestError("mime_detection", retryable=False) from exc
     try:
-        return magic.from_buffer(data, mime=True)
-    except Exception:  # pragma: no cover - libmagic is a C extension; defensive only.
-        return None
+        detected = magic.from_buffer(data, mime=True)
+    except Exception as exc:  # pragma: no cover - native library failures are environment-specific.
+        raise ObjectStorageRequestError("mime_detection", retryable=False) from exc
+    return str(detected) if detected else None
 
 
 def _mime_matches(detected: str | None, declared: str) -> bool:
     """Return True when the detected MIME is a known alias of the declared type."""
     if detected is None:
-        # Without libmagic available we cannot verify; fail open to avoid blocking uploads
-        # in environments that deliberately skip the optional python-magic dependency.
-        return True
+        return False
     declared_lower = declared.lower()
+    detected_lower = detected.lower().split(";", maxsplit=1)[0].strip()
+    if declared_lower in _TEXTUAL_DECLARED_MIME_TYPES and (
+        detected_lower.startswith("text/") or detected_lower in _TEXTUAL_DETECTED_MIME_TYPES
+    ):
+        return True
     aliases = _MIME_MAGIC_ALIASES.get(declared_lower)
-    detected_lower = detected.lower()
     if aliases:
         return any(alias in detected_lower for alias in aliases)
     if declared_lower.startswith("text/") and any(
@@ -114,6 +159,52 @@ def _mime_matches(detected: str | None, declared: str) -> bool:
     # Unknown-to-the-allowlist declared type: accept when libmagic agrees with the declared
     # type itself (covers rare types not enumerated above).
     return declared_lower in detected_lower or detected_lower.startswith(declared_lower)
+
+
+def _matches_ooxml_package(data: bytes, declared_mime_type: str) -> bool:
+    """Verify the minimal content-type, relationship, and XML identity of an OOXML package."""
+    contract = _OOXML_PACKAGE_CONTRACTS.get(declared_mime_type.lower())
+    if contract is None:
+        return True
+    core_member, expected_root = contract
+    try:
+        with ZipFile(BytesIO(data)) as archive:
+            members = {
+                name.replace("\\", "/").strip("/").lower(): name for name in archive.namelist()
+            }
+            required = {"[content_types].xml", "_rels/.rels", core_member.lower()}
+            if not required.issubset(members):
+                return False
+
+            def read_xml(member: str) -> ElementTree.Element:
+                with archive.open(members[member.lower()]) as stream:
+                    payload = stream.read(_OOXML_VERIFICATION_XML_BYTES + 1)
+                if len(payload) > _OOXML_VERIFICATION_XML_BYTES:
+                    raise ValueError("OOXML verification XML exceeds its boundary")
+                return ElementTree.fromstring(payload)
+
+            content_types = read_xml("[content_types].xml")
+            relationships = read_xml("_rels/.rels")
+            core = read_xml(core_member)
+    except (BadZipFile, KeyError, OSError, ValueError, ElementTree.ParseError):
+        return False
+    if content_types.tag != _OOXML_CONTENT_TYPES_ROOT:
+        return False
+    if relationships.tag != _OOXML_RELATIONSHIPS_ROOT or core.tag != expected_root:
+        return False
+    has_content_type = any(
+        child.tag == _OOXML_OVERRIDE_TAG
+        and child.attrib.get("PartName", "").lstrip("/").lower() == core_member.lower()
+        and child.attrib.get("ContentType", "").lower() == declared_mime_type.lower()
+        for child in content_types
+    )
+    has_office_relationship = any(
+        child.tag == _OOXML_RELATIONSHIP_TAG
+        and child.attrib.get("Target", "").lstrip("/").lower() == core_member.lower()
+        and child.attrib.get("Type", "").rstrip("/").endswith("/officeDocument")
+        for child in relationships
+    )
+    return has_content_type and has_office_relationship
 
 
 @dataclass(frozen=True)
@@ -227,7 +318,20 @@ class S3CompatibleObjectStorage:
         except Exception as exc:
             raise ObjectStorageRequestError("get_object", retryable=False) from exc
         detected = _detect_mime_type(body)
-        if not _mime_matches(detected, declared_mime_type):
+        if detected is None:
+            raise ObjectStorageRequestError("mime_detection", retryable=False)
+        content_matches = _mime_matches(detected, declared_mime_type)
+        if content_matches and declared_mime_type.lower() in _OOXML_PACKAGE_CONTRACTS:
+            try:
+                full_body = self.client.get_object(Bucket=self.bucket, Key=object_key)["Body"].read(
+                    MAX_DOCUMENT_UPLOAD_BYTES + 1
+                )
+            except Exception as exc:
+                raise ObjectStorageRequestError("get_object", retryable=False) from exc
+            content_matches = len(
+                full_body
+            ) <= MAX_DOCUMENT_UPLOAD_BYTES and _matches_ooxml_package(full_body, declared_mime_type)
+        if not content_matches:
             # Best-effort cleanup: delete the offending object so private storage does not
             # retain content that fails verification. A delete failure does not mask the
             # verification error.

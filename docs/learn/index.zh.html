@@ -41,8 +41,8 @@
           <a class="doc-link" href="backend.zh.html"><b>后端 · apps/api</b><span>80 个文件:FastAPI 路由/Schema/Service/Persistence 逐文件详解、认证机制、Provider 适配器、幂等协调器。</span></a>
           <a class="doc-link" href="worker.zh.html"><b>Worker · workers/ai-worker</b><span>37 个文件:Celery 任务、文档摄取、LangGraph 工作流、Outbox 模式、RAGAS 评估、进程监管。</span></a>
           <a class="doc-link" href="infra.zh.html"><b>基础设施 · infra + scripts</b><span>20 个文件:31 张表的 SQL 迁移逐文件详解、Qdrant 集合配置、OpenAPI 规范、运维脚本。</span></a>
-          <a class="doc-link" href="cicd.zh.html"><b>CI/CD · GitHub Actions + Docker + Render</b><span>ci.yml 逐 Job 详解、两个 Dockerfile 逐行分析、render.yaml 配置、依赖管理双锁策略。</span></a>
-          <a class="doc-link" href="contracts-tests.zh.html"><b>合约与测试 · packages/shared + tests</b><span>contracts.ts 逐类型详解、三层契约镜像、38 个测试文件逐文件分析、Hermetic 测试策略。</span></a>
+          <a class="doc-link" href="cicd.zh.html"><b>CI/CD · GitHub Actions + Docker + Render</b><span>逐 Job 解析 ci.yml、解释唯一的 Render 部署 Dockerfile、render.yaml 配置和双锁依赖策略。</span></a>
+          <a class="doc-link" href="contracts-tests.zh.html"><b>合约与测试</b><span>OpenAPI 与 Pydantic 镜像、47 个测试文件和 Hermetic 验证策略。</span></a>
           <a class="doc-link" href="flows.zh.html"><b>切面分析 · 核心业务流程</b><span>4 个大厂面试级流程:Grounded Ask 全链路、文档摄取 Outbox、LangGraph 证据审查、幂等+事务一致性,逐文件追踪请求传递路径。</span></a>
           <a class="doc-link" href="ai-stack.zh.html"><b>AI 智能体技术栈 · 混合 RAG + MCP + LangGraph</b><span>三大基石深度解析:五路由检索式混合 RAG 含 RRF 融合和双重重排、六工具三资源 MCP 服务器、六节点 LangGraph 证据工作流含检查点和人工审核。</span></a>
         </div>
@@ -55,7 +55,7 @@
         <div class="notice"><strong>什么是 monorepo?</strong> monorepo 是一种将多个相关项目放在同一个版本控制仓库中管理的策略。优势是共享配置、统一版本锁定、跨项目重构更方便。ResearchMate 的前端(<code>apps/web</code>)、后端 API(<code>apps/api</code>)和 AI Worker(<code>workers/ai-worker</code>)都在同一个仓库里。</div>
         <dl class="repo-map">
           <dt><code>apps/web/</code></dt><dd>Next.js 前端应用,部署在 Vercel。包含页面路由、React 组件、API 客户端和认证逻辑。</dd>
-          <dt><code>apps/api/</code></dt><dd>FastAPI 后端 REST API,提供 45 个 <code>/api/v1</code> 操作。包含路由、Pydantic 模型、服务编排和 PostgreSQL 持久化层。</dd>
+          <dt><code>apps/api/</code></dt><dd>FastAPI 后端 REST API，提供 49 个 <code>/api/v1</code> 操作，包含路由、Pydantic 模型、服务编排和 PostgreSQL 持久化层。</dd>
           <dt><code>workers/ai-worker/</code></dt><dd>Celery Worker + Outbox Dispatcher,负责文档解析、向量索引、LangGraph 工作流和评估。与 API 合并部署在同一个 Render 容器。</dd>
           <dt><code>packages/shared/</code></dt><dd>前后端共享的 TypeScript 类型契约(<code>contracts.ts</code>),定义 API 数据形状的权威来源。</dd>
           <dt><code>infra/</code></dt><dd>基础设施配置:Supabase SQL 迁移文件、Qdrant 集合配置、OpenAPI 规范。</dd>
@@ -95,7 +95,7 @@
         <div class="doc-index">
           <a class="doc-link" href="../architecture/index.zh.html#stack"><b>架构与技术栈</b><span>运行时边界、技术栈论证、故障恢复、部署计划和 CI/CD 详解。</span></a>
           <a class="doc-link" href="../contracts/data/index.zh.html#tables"><b>数据库设计</b><span>31 张表的完整字段、关系、完整性和 RLS 台账。</span></a>
-          <a class="doc-link" href="../contracts/api/index.zh.html#operations"><b>API 设计</b><span>45 个 REST 操作的完整契约和集成状态。</span></a>
+          <a class="doc-link" href="../contracts/api/index.zh.html#operations"><b>API 设计</b><span>49 个 REST 操作的完整契约和集成状态。</span></a>
           <a class="doc-link" href="../product/index.zh.html#capabilities"><b>产品能力</b><span>场景、当前能力、验收标准和非目标。</span></a>
           <a class="doc-link" href="../index.zh.html"><b>项目概览</b><span>证据快照、验证状态和交付边界。</span></a>
         </div>

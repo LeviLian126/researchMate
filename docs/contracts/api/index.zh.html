@@ -30,9 +30,9 @@
   <div class="hero">
     <p class="eyebrow">FastAPI / JSON over HTTP</p>
     <h1>API 合约</h1>
-    <p class="lede">本页记录了 46 个维护中的 FastAPI REST 操作，涵盖个人聊天、项目对话、来源、测验、就绪检查、证据审查、评估、可靠性和管理。路由和 OpenAPI 记录仅证明合约本身，不证明受管后台进程或云集成。</p>
+    <p class="lede">本页记录了 49 个维护中的 FastAPI REST 操作，涵盖个人聊天、项目对话、来源、测验、就绪检查、证据审查、评估、可靠性和管理。路由和 OpenAPI 记录仅证明合约本身，不证明受管后台进程或云集成。</p>
   <div class="meta">
-    <span class="status local">46 个已实现的 REST 操作</span>
+    <span class="status local">49 个已实现的 REST 操作</span>
     <span class="status partial">Current-ref CI 证据待定</span>
     <span class="status partial">Bearer · 本地开发身份</span>
     <span class="status partial">运行时/OpenAPI 错误偏差</span>
@@ -327,7 +327,7 @@
      <details id="schema-upload"><summary><code>UploadUrlRequest</code>、<code>UploadUrlResponse</code> 和 <code>UploadCompleteRequest</code></summary><dl class="kv">
       <dt>UploadUrlRequest</dt><dd><code>project_id: UUID</code>；个人聊天附件的可选 <code>conversation_id: UUID</code>；<code>filename: string 1..240</code>；<code>file_type</code>：<code>pdf | docx | pptx | xlsx | txt | md | csv | tsv | json | jsonl | xml | html | yaml | toml | rst | log | tex | bib | py | ipynb | js | jsx | ts | tsx | css | scss | sql | sh | ps1 | java | c | cpp | h | hpp | cs | go | rs | php | rb | swift | kt | kts</code>。文件扩展名与 <code>mime_type: string 3..120</code> 必须同时匹配所选类型；<code>size_bytes: 1..26,214,400</code>。</dd>
       <dt>UploadUrlResponse</dt><dd><code>document_id: UUID</code>; <code>upload_url: string 1..4096</code>; <code>r2_object_key: string 16..512</code>; <code>expires_in_seconds: 60..900</code>.</dd>
-      <dt>UploadCompleteRequest</dt><dd>整个请求体可选/为 null。存在时：<code>checksum_sha256?: 恰好 64 字符</code>；<code>extracted_text?: string ≤200,000</code>。</dd>
+      <dt>UploadCompleteRequest</dt><dd>整个请求体可选或为 null。存在时：<code>checksum_sha256?: 恰好 64 字符</code>；<code>extracted_text?: string 1..1,048,576</code>。提取文本只用于有界的本地内存回退；生产摄入会验证并解析私有对象存储中的原文件。</dd>
      </dl></details>
      <details id="schema-document"><summary><code>DocumentRecord</code> 与 <code>JobRecord</code></summary><dl class="kv">
       <dt>DocumentRecord</dt><dd>文档、拥有者和项目 UUID；个人附件的可选对话 UUID；文件名、文件类型、MIME 类型、字节大小；<code>status: uploaded|parsing|parsed|indexing|ready|failed|expired|deleted</code>；可选的错误、过期和删除字段；创建/更新时间戳。</dd>
@@ -357,7 +357,7 @@
     <section id="planned-operations">
      <p class="eyebrow">扩展合约</p>
      <h2>证据审查、评估、可靠性和 MCP 操作</h2>
-     <p class="sub">生成的 OpenAPI 现包含 46 个 REST 操作，包括个人聊天引导、跨工作空间对话导航、对话范围附件、拥有者范围对话 CRUD、同源私有对象上传代理和两个运行时 rerank 操作。其路由、schema、拥有权/角色、幂等性和确定性仓库行为有代码证据。本次发布已上线，已认证上传/摄取/检索路径通过；托管检查点恢复、遥测导出和更广的提供商故障演练仍为集成未验证。MCP 是独立的协议边界，不计入 REST。</p>
+     <p class="sub">生成的 OpenAPI 现包含 49 个 REST 操作，包括个人聊天引导、跨工作空间对话导航、对话范围附件、拥有者范围对话 CRUD、同源私有对象上传代理和运行时 rerank 操作。其路由、schema、拥有权/角色、幂等性和确定性仓库行为有代码证据。本次发布已上线，已认证上传/摄取/检索路径通过；托管检查点恢复、遥测导出和更广的提供商故障演练仍为集成未验证。MCP 是独立的协议边界，不计入 REST。</p>
      <div class="notice"><strong>共享约定：</strong> bearer 认证；API 中的拥有者/项目权限检查；命令上的 <code>Idempotency-Key</code>；带请求 ID 的当前错误信封；Postgres 中的权威操作状态；持久化 SSE 重放；以及 Redis 作为交付而非不可替代状态。Supabase JWT 支持的项目创建/列表/读取已针对密码和 GitHub 身份验证，跨用户 API 隐藏通过。直接 RLS 查询和分布式交付尚未验证。</div>
      <div class="notice warning"><strong>如何阅读各行：</strong> 请求和成功结构描述已实现的路由 schema。本地 LangGraph、RAGAS、严格检查点序列化器和 MCP 初始化测试现已通过。故障/恢复和验收行仍指明分布式系统门槛；它们不是受管检查点、提供商、队列或云运行时通过的证据。</div>
 
@@ -528,7 +528,7 @@
    </aside>
   </div>
  </main>
- <footer class="shell footer">ResearchMate API 合约 · 46 个 OpenAPI REST 操作 · 发布已上线，认证 Hybrid RAG 路径已验证</footer>
+ <footer class="shell footer">ResearchMate API 合约 · 49 个 OpenAPI REST 操作 · 发布已上线，认证 Hybrid RAG 路径已验证</footer>
  <script src="../../assets/site.js"></script>
 </body>
 </html>

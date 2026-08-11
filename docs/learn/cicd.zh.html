@@ -47,10 +47,10 @@
     <div class="hero">
       <p class="eyebrow">GitHub Actions / Docker / Render / Vercel / uv / npm workspaces</p>
       <h1>CI/CD . 流水线与部署</h1>
-      <p class="lede">ResearchMate 通过五 Job 的 GitHub Actions 流水线对每次 push 和 pull request 进行门控,用两个多阶段 Dockerfile 产出加固的容器镜像,并通过单个 Render Free 服务在 CI 检查通过后自动部署。本页逐文件解析定义构建、测试、扫描与部署生命周期的全部配置文件。</p>
+      <p class="lede">ResearchMate 通过五个 GitHub Actions Job 门控变更，只保留一个多阶段 Dockerfile。CI 检查的正是 Render 为合并后端构建的镜像，所需检查通过后由单个 Render Free 服务自动部署。</p>
       <div class="meta">
         <span class="status local">5 个 CI Job</span>
-        <span class="status local">2 个 Dockerfile</span>
+        <span class="status local">1 个部署 Dockerfile</span>
         <span class="status local">render.yaml 中 48 个环境变量</span>
         <span class="status local">11 个 sync:false 密钥</span>
         <span class="status local">checksPass 自动部署</span>
@@ -66,7 +66,7 @@
         <div class="grid two">
           <article class="fact"><b>CI/CD</b><p>持续集成 / 持续部署 (Continuous Integration / Continuous Deployment) 是通过可复现的流水线自动测试、构建、扫描并部署每次代码变更的实践。ResearchMate 将 CI 视为发布就绪的唯一事实来源:除非全部五个门控 Job 通过且 ci-success 聚合器确认每个结果均为 success,否则任何 commit 都不会进入生产环境。</p></article>
           <article class="fact"><b>GitHub Actions</b><p>工作流自动化平台,在 push 到 main 或 develop 以及每个 pull request 时触发。researchmate-ci 工作流使用 concurrency group 配合 cancel-in-progress 取消过时运行,将每个 action 固定到主版本号,并运行五个具有显式 timeout-minutes(20 至 35 分钟)的 Job。ci-success Job 使用 if: always() 配合 needs 聚合全部四个质量门控。</p></article>
-          <article class="fact"><b>Docker</b><p>容器化引擎,产出可复现的运行时镜像。两个 Dockerfile 均使用多阶段构建,固定 uv 阶段并以 python:3.13-slim 为基础镜像。分层 COPY 指令将依赖清单与源码分离以最大化构建缓存命中。API 镜像以非 root 用户(uid 10001)运行;worker 镜像额外安装系统库并预下载 Docling 模型。CI 使用 hadolint 和 Trivy 验证两者。</p></article>
+          <article class="fact"><b>Docker</b><p>仓库只保留一个多阶段 Dockerfile，因为 Render 在同一镜像中运行 API、worker 和 dispatcher。镜像固定 uv 和 <code>python:3.13-slim</code>，安装锁定的 workspace、原生解析库和 Docling 模型，随后移除构建工具，并以 uid 10001 运行。CI 对这一个部署制品执行 lint、构建和扫描。</p></article>
           <article class="fact"><b>Render</b><p>云部署平台,将合并的 backend-plus-worker 服务作为单个 Free 层 Docker web 服务托管在 Oregon 区域。render.yaml 声明一个包含 48 条目的 envVarGroups 块(37 条带值,11 条 sync:false 密钥),autoDeployTrigger 设为 checksPass,并使用 buildFilter 将重建限制在相关路径变更时触发。healthCheckPath /api/v1/readyz 确认运行时就绪。</p></article>
           <article class="fact"><b>Vercel</b><p>apps/web 中 Next.js 16.3.0 前端应用的部署平台。Vercel 独立于后端构建并服务生产前端。render.yaml 中的 CORS_ALLOWED_ORIGINS 设为 Vercel 源地址,使 API 接受来自已部署前端的浏览器请求。</p></article>
           <article class="fact"><b>uv</b><p>Astral 开发的 Python 包管理器与项目管理器,在 CI 和 Dockerfile 中固定为 0.12.1 版本。uv 解析 monorepo workspace(apps/api + workers/ai-worker),通过 uv.lock 以 --frozen 标志安装锁定依赖,并支持 --all-packages 在一条命令中安装所有 workspace 成员。setup-uv action 在 CI 中启用缓存以加速运行。</p></article>
@@ -288,7 +288,7 @@
           <div class="journey-step">
             <span class="step-no">STEP 1</span>
             <b>Dockerfile lint</b>
-            <small>hadolint v2.15.1 检查两个 Dockerfile (<code>--ignore DL3008</code>)</small>
+            <small>hadolint v2.15.1 检查 <code>workers/ai-worker/Dockerfile</code>（<code>--ignore DL3008</code>）</small>
             <p style="margin-top:8px;font-size:12px;">Dockerfile 符合最佳实践，忽略 DL3008（apt 版本固定）</p>
           </div>
           <div class="journey-step">
@@ -299,24 +299,18 @@
           </div>
           <div class="journey-step">
             <span class="step-no">STEP 3</span>
-            <b>API 镜像构建</b>
-            <small>构建 <code>researchmate-api:ci</code> (load, cache gha)</small>
-            <p style="margin-top:8px;font-size:12px;">API Dockerfile 成功构建，使用 GHA 缓存加速</p>
+            <b>最终 Render 镜像构建</b>
+            <small>构建 <code>researchmate-render:ci</code></small>
+            <p style="margin-top:8px;font-size:12px;">最终 Render runtime 镜像成功构建。</p>
           </div>
           <div class="journey-step">
             <span class="step-no">STEP 4</span>
-            <b>Worker 依赖构建</b>
-            <small>构建 <code>researchmate-worker-dependencies:ci</code></small>
-            <p style="margin-top:8px;font-size:12px;">Worker Dockerfile 的 dependencies target 成功构建</p>
-          </div>
-          <div class="journey-step">
-            <span class="step-no">STEP 5</span>
             <b>漏洞扫描</b>
-            <small>Trivy 0.73.0 <code>--exit-code 1 --ignore-unfixed --severity HIGH,CRITICAL</code> 两个镜像</small>
+            <small>Trivy 0.73.0 扫描最终 Render 镜像，参数为 <code>--exit-code 1 --ignore-unfixed --severity HIGH,CRITICAL</code></small>
             <p style="margin-top:8px;font-size:12px;">零可修复 HIGH/CRITICAL CVE（<code>--ignore-unfixed</code> 跳过无补丁项）</p>
           </div>
         </div>
-        <div class="notice"><strong>门控条件:</strong> Dockerfile lint 通过，两个镜像构建成功，零可修复 HIGH/CRITICAL CVE。</div>
+        <div class="notice"><strong>门控条件：</strong>部署 Dockerfile 通过 lint，最终 runtime 镜像构建成功，且没有可修复的 HIGH 或 CRITICAL CVE。</div>
 
         <h3>Flow 5: ci-success — 稳定聚合门禁 <span class="status">verified</span></h3>
         <p class="sub">无显式超时（使用默认值）。此 Job 是稳定的外部发布契约——内部 Job 名称可自由演进，但聚合门禁名称保持不变，确保 Render 的 checksPass 依赖不受影响。</p>
@@ -384,45 +378,13 @@ npm run check:lint
         <div class="notice"><strong>恢复与回滚:</strong> 若部署后健康检查失败，Render 自动回滚到上一个稳定版本。若 CI 门控失败，开发者需修复后重新 push，工作流从步骤 1 重新开始。所有状态转换（planned / ready / executed / verified）均通过 GitHub Actions 日志和 Render 部署记录留痕，可追溯每次变更的执行结果。</div>
       </section>
 
-      <section id="api-dockerfile">
-        <p class="eyebrow">Dockerfile . API</p>
-        <h2>apps/api/Dockerfile . 两阶段、非 root、内置健康检查</h2>
-        <p class="sub">API Dockerfile 产出在 Render 管理的代理后运行 uvicorn 的精简生产镜像。它优先考虑缓存效率、最小权限执行和内置健康验证。</p>
-        <div class="grid two">
-          <article class="fact"><b>多阶段构建</b><p>阶段 1 从 <code>ghcr.io/astral-sh/uv:0.12.1</code> 复制 uv 和 uvx 二进制文件。阶段 2 在 <code>python:3.13-slim</code> 上构建运行时。uv 二进制作为静态资源复制,因此最终镜像不携带构建工具链。</p></article>
-          <article class="fact"><b>非 root 用户</b><p>创建专用组 <code>researchmate</code>(gid 10001)和用户(uid 10001),使用 <code>--no-create-home --shell /usr/sbin/nologin</code>。<code>USER 10001:10001</code> 指令确保进程在容器内永不以 root 身份运行。</p></article>
-          <article class="fact"><b>分层 COPY</b><p>依赖清单在源码之前复制:先 <code>pyproject.toml uv.lock</code>,然后 <code>apps/api/pyproject.toml</code> 和 <code>workers/ai-worker/pyproject.toml</code>,最后 <code>apps/api</code> 源码。此顺序让 Docker 缓存 <code>uv sync</code> 层,仅在依赖变更时才失效。</p></article>
-          <article class="fact"><b>uv sync</b><p><code>uv sync --frozen --no-dev --package researchmate-api</code> 精确安装 API workspace 成员的锁定生产依赖,跳过 dev 工具并拒绝锁文件漂移。</p></article>
-          <article class="fact"><b>HEALTHCHECK</b><p><code>--interval=30s --timeout=5s --start-period=20s --retries=3</code> 调用 <code>python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/healthz', timeout=3)"</code>。连续三次失败将容器标记为 unhealthy。</p></article>
-          <article class="fact"><b>CMD (shell form)</b><p><code>sh -c "exec python -m uvicorn researchmate_api.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 2 --proxy-headers"</code>。必须使用 shell form 以安全展开 Render 运行时 PORT 值。<code>--proxy-headers</code> 标志信任 Render 负载均衡器的 X-Forwarded-* 头。</p></article>
-        </div>
-        <div class="command-block"><code>FROM ghcr.io/astral-sh/uv:0.12.1 AS uv
-FROM python:3.13-slim AS runtime
-
-COPY --from=uv /uv /uvx /bin/
-RUN groupadd --gid 10001 researchmate \
-    &amp;&amp; useradd --uid 10001 --gid researchmate --no-create-home --shell /usr/sbin/nologin researchmate
-
-COPY pyproject.toml uv.lock /app/
-COPY apps/api/pyproject.toml /app/apps/api/pyproject.toml
-COPY workers/ai-worker/pyproject.toml /app/workers/ai-worker/pyproject.toml
-COPY apps/api /app/apps/api
-RUN uv sync --frozen --no-dev --package researchmate-api
-
-USER 10001:10001
-EXPOSE 8000
-HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-  CMD ["python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/healthz', timeout=3)"]
-CMD ["sh", "-c", "exec python -m uvicorn researchmate_api.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 2 --proxy-headers"]</code></div>
-      </section>
-
       <section id="worker-dockerfile">
-        <p class="eyebrow">Dockerfile . Worker</p>
-        <h2>workers/ai-worker/Dockerfile . 三阶段、系统依赖、角色切换</h2>
-        <p class="sub">worker Dockerfile 构建 Render Free 层使用的 CPU-only 合并 backend-plus-worker 运行时。它添加 Docling 所需的系统库,预下载 ML 模型,并通过环境变量在 dispatcher 和 worker 角色之间切换。</p>
+        <p class="eyebrow">Dockerfile · Render 部署</p>
+        <h2>workers/ai-worker/Dockerfile · 唯一运行时镜像</h2>
+        <p class="sub">该文件构建 Render 使用的 CPU-only 合并运行时，同时包含 API、worker 和 dispatcher。只保留一个部署制品，可以避免 CI 专用镜像与生产镜像漂移。</p>
         <div class="grid two">
           <article class="fact"><b>三个阶段</b><p>阶段 1 (<code>uv</code>) 复制 uv 二进制。阶段 2 (<code>dependencies</code>) 在 python:3.13-slim 上安装系统包和 Python 依赖。阶段 3 (<code>runtime</code>) 继承 dependencies,下载 Docling 模型并设置所有权,将模型制品保留在单独的可缓存层中。</p></article>
-          <article class="fact"><b>系统依赖</b><p><code>apt-get install --yes --no-install-recommends libgl1 libglib2.0-0</code> 提供 Docling 和 OpenCV 进行 PDF 渲染与图像处理所需的共享库。apt 缓存立即清理以最小化镜像大小。</p></article>
+          <article class="fact"><b>系统依赖</b><p><code>libgl1</code> 和 <code>libglib2.0-0</code> 支持文档渲染，<code>libmagic1</code> 在摄取前提供服务端 MIME 检测；apt 缓存在同一层清理。</p></article>
           <article class="fact"><b>Docling 模型</b><p><code>docling-tools models download layout tableformer rapidocr -o /opt/docling/models</code> 将三个模型包预取到 <code>DOCLING_ARTIFACTS_PATH=/opt/docling/models</code>。<code>chown -R researchmate:researchmate /opt/docling</code> 确保非 root 用户在运行时可以读取它们。</p></article>
           <article class="fact"><b>--all-packages</b><p><code>uv sync --frozen --no-dev --all-packages</code> 在一个解析图中安装每个 workspace 成员(researchmate-api + researchmate-worker)。这是必需的,因为 Render 通过 <code>python -m researchmate_worker.render_combined</code> 运行合并运行时,该模块导入两个包。</p></article>
           <article class="fact"><b>角色切换</b><p>CMD 检查 <code>RESEARCHMATE_PROCESS_ROLE</code>。当设为 <code>dispatcher</code> 时,运行 <code>exec researchmate-dispatch-outbox</code>。否则启动 Celery worker,消费 5 个队列(ingestion, deletion, workflow, evaluation, reliability),设置 <code>--concurrency=2</code>。</p></article>
@@ -433,7 +395,7 @@ FROM python:3.13-slim AS dependencies
 
 COPY --from=uv /uv /uvx /bin/
 RUN apt-get update \
-    &amp;&amp; apt-get install --yes --no-install-recommends libgl1 libglib2.0-0 \
+    &amp;&amp; apt-get install --yes --no-install-recommends libgl1 libglib2.0-0 libmagic1 \
     &amp;&amp; rm -rf /var/lib/apt/lists/*
 
 COPY pyproject.toml uv.lock /app/
@@ -577,8 +539,8 @@ uv sync --frozen --no-dev --all-packages</code></div>
         <h2>相关文档</h2>
         <div class="doc-index">
           <a class="doc-link" href="../architecture/index.zh.html"><b>Architecture &amp; stack</b><span>系统概览、部署拓扑和托管服务边界</span></a>
-          <a class="doc-link" href="backend.zh.html"><b>Backend 学习</b><span>在 API Docker 镜像和 Render 上运行的 FastAPI 应用</span></a>
-          <a class="doc-link" href="worker.zh.html"><b>Worker 学习</b><span>构建到 worker Docker 镜像中的 Celery worker 和 LangGraph 运行时</span></a>
+          <a class="doc-link" href="backend.zh.html"><b>Backend 学习</b><span>运行在 Render 组合镜像中的 FastAPI 应用</span></a>
+          <a class="doc-link" href="worker.zh.html"><b>Worker 学习</b><span>运行在同一 Render 镜像中的 Celery worker 和 LangGraph 运行时</span></a>
           <a class="doc-link" href="infra.zh.html"><b>Infrastructure</b><span>托管服务配置、Supabase migrations 和 Qdrant provision 脚本</span></a>
           <a class="doc-link" href="frontend.zh.html"><b>Frontend 学习</b><span>部署到 Vercel 的 Next.js 应用</span></a>
           <a class="doc-link" href="contracts-tests.zh.html"><b>Contracts &amp; Tests</b><span>CI 强制执行的测试套件、契约检查和覆盖率阈值</span></a>
@@ -589,8 +551,7 @@ uv sync --frozen --no-dev --all-packages</code></div>
     <aside class="toc"><b>本页目录</b>
       <a href="#stack">技术栈基础</a>
       <a href="#ci-pipeline">CI/CD 工作流</a>
-      <a href="#api-dockerfile">API Dockerfile</a>
-      <a href="#worker-dockerfile">Worker Dockerfile</a>
+      <a href="#worker-dockerfile">Render Dockerfile</a>
       <a href="#render-yaml">render.yaml</a>
       <a href="#dependency-mgmt">依赖管理</a>
       <a href="#env-example">.env.example</a>

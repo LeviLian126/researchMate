@@ -16,7 +16,7 @@
       <p class="eyebrow">运行时形态 / 技术论证 / 部署边界</p>
       <h1>系统架构与部署边界</h1>
       <p class="lede">本页面定义系统边界和技术决策。所选的免费层拓扑使用 Vercel Hobby 进行 Web 部署，使用一个 Render Free Web Service 运行 FastAPI、一个 Celery <code>solo</code> worker 和发件箱分发器。后端修正 <code>c5c89f5</code> 通过了 GitHub Actions 运行 <code>30694324845</code> 并在 Render 上线；前端修正 <code>ce54452</code> 通过了运行 <code>30694892524</code> 并部署在 Vercel Production 上。8 月 1 日的已认证 Chrome 流程完成了普通对话、刷新恢复、文本层 PDF 上传和索引、带页码引用的接地回答、Web 搜索、七题 Quiz 生成和刷新恢复，以及清理。热启动观测时间为普通对话 6.7 秒、接地回答 16.3 秒、Web 搜索 14.6 秒、Quiz 53.3 秒。NVIDIA 排序可用性、提供商切换、直接 RLS、扫描版 PDF OCR 和性能分布仍是明确的验证边界。</p>
-      <div class="meta"><span class="status local">已实现 · 45 个 REST 操作</span><span class="status local">主要托管流程已通过</span><span class="status local">低内存 PDF 解析器已上线</span><span class="status partial">性能、重排序、遥测和 OCR 调优进行中</span></div>
+      <div class="meta"><span class="status local">已实现 · 49 个 REST 操作</span><span class="status local">主要托管流程已通过</span><span class="status local">低内存 PDF 解析器已上线</span><span class="status partial">性能、重排序、遥测和 OCR 调优进行中</span></div>
     </div>
     <div class="layout"><div class="content">
       <section id="current-architecture">
@@ -25,7 +25,7 @@
           <div class="visual-head"><div><h3>仓库请求和证据边界</h3><p>实心节点有仓库或确定性测试证据。默认内存仓库在重启时丢失状态；已应用隔离的 Supabase 开发 schema 且直接 psycopg 查询现在成功，但 FastAPI 尚未完成已认证的托管请求。</p></div><div class="legend"><span><i class="is-local"></i>已实现</span><span><i class="is-partial"></i>集成未验证</span></div></div>
           <div class="architecture-map">
             <div class="arch-column"><span>体验层</span><button type="button" aria-pressed="true" class="arch-node" data-arch-node data-title="Next.js 体验" data-detail="公开根是一个认证入口。已认证路由共享可折叠的对话和项目栏。普通对话支持范围化附件；专业项目共享来源、对话记忆和内联 Quiz 抽屉。评估和可靠性位于普通导航之外。"><b>Next.js web</b><small>个人对话 · 专业项目 · 一个 Web 选项</small></button></div>
-            <div class="arch-column"><span>应用层</span><button type="button" aria-pressed="false" class="arch-node" data-arch-node data-title="FastAPI 应用" data-detail="四十五个 /api/v1 REST 操作验证模型、解析身份、执行权限、暴露 OpenAPI，并将存活检查与依赖就绪检查分离。"><b>FastAPI /api/v1</b><small>45 个 REST 操作 · 存活/就绪 · 认证</small></button></div>
+            <div class="arch-column"><span>应用层</span><button type="button" aria-pressed="false" class="arch-node" data-arch-node data-title="FastAPI 应用" data-detail="四十九个 /api/v1 REST 操作验证模型、解析身份、执行权限、暴露 OpenAPI，并将存活检查与依赖就绪检查分离。"><b>FastAPI /api/v1</b><small>49 个 REST 操作 · 存活/就绪 · 认证</small></button></div>
             <div class="arch-column"><span>证据域</span><button type="button" aria-pressed="false" class="arch-node" data-arch-node data-title="证据服务" data-detail="来源策略选择本地、有界 Tavily Web 或混合行为；本地和 Qdrant 检索保持按所有者/项目过滤；已验证的构建器发出带引用的 Ask、Quiz、Claim、关系和报告结构。"><b>策略 + 检索器 + 构建器</b><small>有界接地行为</small></button></div>
             <div class="arch-column"><span>状态/工作</span><button type="button" aria-pressed="false" class="arch-node" data-arch-node data-title="显式运行时选择" data-detail="本地/测试默认使用内存同步回退。预览/生产环境在缺少 Postgres、Supabase JWT、S3 兼容对象存储、NVIDIA、Tavily、Qdrant、worker 和所需可观测性配置时关闭。"><b>内存或 Postgres 适配器</b><small>本地回退 · 持久化目标路径</small></button></div>
           </div>
@@ -89,7 +89,7 @@ npm run check:migrations</code></pre></article>
         <p class="eyebrow">技术决策</p><h2>组件职责和移除触发条件</h2>
         <div class="stack-ledger"><table><thead><tr><th>技术</th><th>当前状态</th><th>解决的问题</th><th>场景为何需要</th><th>所需验证</th><th>移除或重新审视条件</th></tr></thead><tbody>
           <tr><td>Next.js + TypeScript</td><td><span class="status local">已实现</span></td><td>工作区、异步状态、报告审查、追踪图和实验 UI。</td><td>多个长期运行的资源和交互式证据关系共享一个类型化客户端。</td><td>类型检查、浏览器流程、可访问性、流式/重连测试。</td><td>静态或服务端渲染 UI 能以更少状态表达所有已接受的交互。</td></tr>
-          <tr><td>FastAPI + Pydantic + OpenAPI</td><td><span class="status local">已实现 45 个 REST 操作</span></td><td>类型化 REST/SSE 边界、个人对话引导、对话范围文件、项目记忆、所有者范围对话 CRUD、运行时重排序配置、验证、身份、存活、就绪和显式失败合约。</td><td>Web、MCP、worker、部署检查和评估消费者需要稳定的领域操作。</td><td>合约、权限、OpenAPI 漂移、托管就绪、超时、SSE 重连和错误测试。</td><td>单个 Next.js 运行时能安全地承担 Python/AI 工作负载和合约。</td></tr>
+          <tr><td>FastAPI + Pydantic + OpenAPI</td><td><span class="status local">已实现 49 个 REST 操作</span></td><td>类型化 REST/SSE 边界、个人对话引导、对话范围文件、项目记忆、所有者范围对话 CRUD、运行时重排序配置、验证、身份、存活、就绪和显式失败合约。</td><td>Web、MCP、worker、部署检查和评估消费者需要稳定的领域操作。</td><td>合约、权限、OpenAPI 漂移、托管就绪、超时、SSE 重连和错误测试。</td><td>单个 Next.js 运行时能安全地承担 Python/AI 工作负载和合约。</td></tr>
           <tr><td>Postgres + SQLAlchemy + Supabase migrations + RLS</td><td><span class="status partial">两个 JWT 主体独立写入/读取；API 隐藏通过</span></td><td>持久关系事实、事务、schema 演进、多用户隔离和审计。</td><td>声明、引用、关系、报告、运行、决策和评估需要完整性和连接。</td><td>证明直接 RLS 拒绝，然后测试事务、并发、备份和恢复。</td><td>关系模型或运营成本不再适合测量的访问模式。</td></tr>
           <tr><td>GitHub OAuth App through Supabase Auth</td><td><span class="status partial">已验证实时回调和双用户项目隔离</span></td><td>无需部署另一个身份服务的免费第三方登录。</td><td>Supabase 仍是 JWT 签发者，不可变的 <code>sub</code> UUID 仍是租户键；GitHub 仅提供认证。</td><td>证明会话过期/撤销、同邮箱账户关联、直接 RLS 和对象/向量租户隔离。</td><td>GitHub 取消免费 OAuth 访问或 Supabase 提供商行为无法保持所需的身份/隔离合约。</td></tr>
           <tr><td>NVIDIA NIM + OpenAI-compatible SDK</td><td><span class="status partial">适配器已实现；提供商未验证</span></td><td>模型驱动的接地合成和流式传输，无需将领域代码耦合到供应商响应对象。</td><td>证据审查需要在有界证据上进行结构化声明和合成；确定性模板仅保留为单元测试/本地回退。</td><td>开发提供商冒烟测试、超时/错误映射、结构化输出有效性、忠实度、token/成本和模型版本评估。</td><td>更小的模型或另一个 OpenAI 兼容端点满足已接受的质量/延迟/成本边界。</td></tr>
@@ -134,7 +134,7 @@ npm run check:migrations</code></pre></article>
           <tr><td>Outbox Dispatcher</td><td>可靠地将已提交的 Postgres 意图移动到 Redis。</td><td>同一 Render Free 服务</td><td><span class="status partial">托管心跳和空/积压就绪检查就绪</span>；发布仍未测试。</td><td>证明发布、过期声明恢复和过期发件箱就绪失败。</td></tr>
           <tr><td>PostgreSQL</td><td>权威用户、项目、文档、声明、报告、任务和评估。</td><td><a href="https://supabase.com/pricing">Supabase Free development project</a></td><td><span class="status partial">Render 连接、schema、双用户写入/读取和 API 隐藏就绪</span>；合并探针成功执行 SQL 并验证所有必需的检查点表。</td><td>验证直接跨用户 RLS 以及重启安全的写入、并发和恢复。</td></tr>
           <tr><td>Supabase Auth + RLS</td><td>密码/魔法链接/GitHub 登录、JWT 签发和行级租户隔离。</td><td>Supabase Free + 一个免费 GitHub OAuth App</td><td><span class="status partial">密码和实时 GitHub OAuth JWT 项目往返通过；跨用户 API 隐藏通过</span>。8 月 4 日仪表板检查确认当前 Outlook 地址有一个用户行、一个已确认的仅 GitHub 身份、无自定义 SMTP，以及内置邮件程序的锁定每小时两邮件配额。客户端现在提供支持的注册确认重发端点、提供商对齐的 60 秒冷却、非枚举注册反馈和 HTTPS/同工作区重定向强制。客户端和 Supabase 服务器均对新密码强制八字符最小长度。</td><td>配置并验证带受控收件箱的自定义 SMTP；然后证明真实的注册 → 交付 → 确认 → 密码登录 → 重复注册序列、直接 RLS、刷新过期/撤销、显式同邮箱身份关联和对象/向量租户隔离。</td></tr>
-          <tr><td>Supabase Storage</td><td>通过 S3 兼容接口保存 PDF、OOXML、常见文本/数据、Notebook 和源码的私有原始文件及解析产物。</td><td>Supabase Free</td><td><span class="status local">格式契约、文本/HTML/Notebook、XLSX 和原有 Office 解析测试通过</span>；API 对 42 种格式同时绑定文件扩展名与 MIME，保留 25 MiB 上限、所有者隐藏和服务端对象键。</td><td>执行迁移 <code>202608110008</code>，通过托管存储验证代表性上传；扫描 PDF OCR 继续单独处理。</td></tr>
+          <tr><td>Supabase Storage</td><td>通过 S3 兼容接口保存 PDF、OOXML、常见文本/数据、Notebook 和源码的私有原始文件及解析产物。</td><td>Supabase Free</td><td><span class="status local">格式、MIME 与解析边界测试通过</span>；API 对 42 种格式同时绑定扩展名与 MIME，拒绝无法验证的内容，检查 OOXML 包内关键成员，并保留 25 MiB 上传上限。XLSX 解析还限制累计解压量、行数、单元格数、列数和共享字符串数。</td><td>执行迁移 <code>202608110008</code>，通过托管存储验证代表性上传；扫描 PDF OCR 继续单独处理。</td></tr>
           <tr><td>Redis</td><td>Celery 消息代理和短期任务协调；非业务事实。</td><td><a href="https://upstash.com/pricing/redis">Upstash Redis Free</a></td><td><span class="status partial">Render 就绪 PING 成功</span>；尚未发送任务消息。</td><td>证明消息代理交付、重复处理和 worker 重启。</td></tr>
           <tr><td>Qdrant</td><td>命名的 4096 维 dense 与 BM25 sparse 向量、加权融合和预重排序候选。</td><td><a href="https://qdrant.tech/documentation/cloud/create-cluster/">Qdrant Cloud Free</a></td><td><span class="status local"><code>researchmate_chunks_v3</code> 已上线</span>；影子回放通过 checksum/计数/过期清理/所有者过滤采样，切流后真实 DOCX 摄取和带引用回答通过。</td><td>积累分路由召回/精确率和延迟分布，并补充更新/删除及跨租户对抗测试。</td></tr>
           <tr><td>NVIDIA NIM</td><td>OpenAI 兼容的 LLM 生成、嵌入和可选排序。</td><td>NVIDIA API</td><td><span class="status partial">对话和嵌入生产路径通过；排序报告不可用并回退</span>。</td><td>分离提供商计时，验证排序端点/模型权限，限定超时，并与 Qdrant 和确定性排序比较质量/延迟。</td></tr>
@@ -156,9 +156,9 @@ npm run check:migrations</code></pre></article>
         <p class="eyebrow">CI/CD 和发布组件</p><h2>跨 Vercel 和 Render 的发布身份</h2>
         <div class="proof-chain">
           <div class="proof-step"><b>并行仓库关卡</b><small>GitHub Actions 运行独立的 Python、Web、浏览器 E2E 和容器作业，带依赖缓存和过期运行取消。稳定的 <code>ci-success</code> 作业为发布消费者聚合全部四个结果。</small></div>
-          <div class="proof-step"><b>锁定的 Python 图</b><small>一个根 <code>uv.lock</code> 解析 API、worker、仅 CPU 的 PyTorch 源和开发工具。本地脚本、CI 和两个生产 Dockerfile 使用 <code>--frozen</code> 安装相同的图。</small></div>
+          <div class="proof-step"><b>锁定的 Python 图</b><small>一个根 <code>uv.lock</code> 解析 API、worker、仅 CPU 的 PyTorch 源和开发工具。本地脚本、CI 和 Render 部署 Dockerfile 使用 <code>--frozen</code> 安装相同的图。</small></div>
           <div class="proof-step"><b>自动化浏览器验收</b><small>Playwright 运行确定性的无凭据 Chromium 流程，覆盖个人对话、引用、对话路由、项目创建和 Quiz 生成，同时拒绝云请求和浏览器运行时错误。</small></div>
-          <div class="proof-step"><b>容器关卡</b><small>Hadolint 验证两个 Dockerfile；BuildKit 构建 API 镜像和 worker 依赖目标；Trivy 在 <code>ci-success</code> 之前阻止未修补的高或严重镜像发现。</small></div>
+          <div class="proof-step"><b>容器关卡</b><small>Hadolint 验证唯一的 Render Dockerfile；BuildKit 构建最终 runtime 镜像，Trivy 在 <code>ci-success</code> 之前阻止可修复的高危或严重问题。</small></div>
           <div class="proof-step"><b>Vercel Production</b><small>Vercel 可以并行构建 <code>main</code> 提交，但其生产别名在提升之前等待 GitHub <code>ci-success</code> 部署检查。以前的部署仍可用于托管回滚。</small></div>
           <div class="proof-step"><b>合并后端发布</b><small>Render 使用 <code>checksPass</code>，仅在后端、迁移、锁文件或容器输入变更时构建，然后启动全部三个 Python 角色并要求托管就绪。仅文档变更不再重建或重启后端。</small></div>
         </div>

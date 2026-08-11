@@ -28,8 +28,8 @@ def test_ci_runs_the_full_test_build_contract_and_security_gate() -> None:
     assert "npx playwright install --with-deps chromium" in workflow
     assert "hadolint/hadolint:v2.15.1-debian" in workflow
     assert "aquasec/trivy:0.73.0" in workflow
-    assert "target: dependencies" in workflow
-    assert "researchmate-worker-dependencies:ci" in workflow
+    assert "target: dependencies" not in workflow
+    assert "researchmate-render:ci" in workflow
     assert "permissions:\n      contents: read" in workflow
 
 
@@ -37,7 +37,6 @@ def test_python_dependency_graph_is_locked_for_ci_and_images() -> None:
     """Require one frozen dependency graph across local, CI, and container installs."""
     workspace = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
     lock = (ROOT / "uv.lock").read_text(encoding="utf-8")
-    api_image = (ROOT / "apps/api/Dockerfile").read_text(encoding="utf-8")
     worker_image = (ROOT / "workers/ai-worker/Dockerfile").read_text(encoding="utf-8")
 
     assert "[tool.uv.workspace]" in workspace
@@ -45,7 +44,7 @@ def test_python_dependency_graph_is_locked_for_ci_and_images() -> None:
     assert 'name = "researchmate-api"' in lock
     assert 'name = "researchmate-ai-worker"' in lock
     assert not (ROOT / "requirements-dev.txt").exists()
-    assert "uv sync --frozen --no-dev --package researchmate-api" in api_image
+    assert not (ROOT / "apps/api/Dockerfile").exists()
     assert "uv sync --frozen --no-dev --all-packages" in worker_image
 
 
@@ -84,21 +83,14 @@ def test_retired_delivery_paths_are_inert_and_cloudflare_sources_are_archived() 
         assert (archive / name).is_file()
 
 
-def test_container_images_are_non_root_and_worker_prefetches_pdf_models() -> None:
-    """Require non-root images and deterministic worker model prefetch."""
-    api = (ROOT / "apps/api/Dockerfile").read_text(encoding="utf-8")
+def test_deployment_image_is_non_root_and_prefetches_pdf_models() -> None:
+    """Require one hardened deployment image with deterministic model prefetch."""
     worker = (ROOT / "workers/ai-worker/Dockerfile").read_text(encoding="utf-8")
 
-    assert "USER 10001:10001" in api
-    assert "HEALTHCHECK" in api
     assert "USER 10001:10001" in worker
-    assert "libmagic1" in api
     assert "libmagic1" in worker
-    assert "uv.lock" in api
     assert "uv.lock" in worker
-    assert "rm -f /bin/uv /bin/uvx" in api
     assert "rm -f /bin/uv /bin/uvx" in worker
-    assert "site-packages/pip-*.dist-info" in api
     assert "site-packages/pip-*.dist-info" in worker
     assert "docling-tools models download layout tableformer rapidocr" in worker
     assert "DOCLING_ARTIFACTS_PATH=/opt/docling/models" in worker

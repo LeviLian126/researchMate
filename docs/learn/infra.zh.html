@@ -43,15 +43,15 @@
   </div></nav>
   <main class="shell">
     <div class="hero">
-      <p class="eyebrow">Supabase / PostgreSQL RLS / Qdrant / 11 个迁移 / 45 个端点</p>
+      <p class="eyebrow">Supabase / PostgreSQL RLS / Qdrant / 11 个迁移 / 49 个操作</p>
       <h1>基础设施 . infra &amp; scripts</h1>
-      <p class="lede">ResearchMate 基础设施层定义全部持久化与协调设施:Supabase/PostgreSQL 是唯一真相源,Qdrant 执行路由式 Hybrid 检索,OpenAPI 锁定 45 个端点。本页覆盖 11 个 SQL 迁移、三种生产向量集合角色与 9 个运维脚本。</p>
+      <p class="lede">ResearchMate 基础设施层定义持久化与协调设施：Supabase/PostgreSQL 是真相源，Qdrant 执行路由式 Hybrid 检索，生成的 OpenAPI 锁定 43 条路径上的 49 个操作。</p>
       <div class="meta">
         <span class="status local">34 张表(31 业务 + 3 协调)</span>
         <span class="status local">11 个 SQL 迁移</span>
         <span class="status local">3 个 Qdrant 集合角色</span>
-        <span class="status local">45 个端点 / 11 个 tag</span>
-        <span class="status local">65 个 schema</span>
+        <span class="status local">49 个操作 / 12 个 tag</span>
+        <span class="status local">71 个 schema</span>
         <span class="status local">9 个脚本</span>
       </div>
     </div>
@@ -65,7 +65,7 @@
           <article class="fact"><b>PostgreSQL RLS</b><p>Row Level Security 在数据库层强制每行数据的访问控制。全部 31 张业务表均启用 RLS,通过 auth.uid() 实现按用户隔离。pipeline_versions 支持 developer/admin 角色策略,outbox_events 不设认证用户策略(仅 service-role)。</p></article>
           <article class="fact"><b>Database migrations</b><p>11 个 additive SQL 迁移按版本排序。最新迁移保存 section path、chunk 序号与稳定字符偏移,供检索溯源使用。</p></article>
           <article class="fact"><b>Qdrant collections</b><p>三种角色:保留 legacy retrieval 用于即时回滚,v2 执行 multivector late-interaction rerank,v3 影子集合存储命名 dense 与启用 IDF 的 BM25 向量。每个查询分支都重复 owner filter。</p></article>
-          <article class="fact"><b>OpenAPI spec</b><p>45 个端点分布在 11 个 tag 下,65 个 schema(含 HTTPBearer 安全方案)。openapi.yaml 由 export_openapi.py 从 FastAPI 应用确定性渲染,支持 --check 模式校验跟踪文件是否过期。</p></article>
+          <article class="fact"><b>OpenAPI spec</b><p>49 个操作分布在 43 条路径和 12 个 tag 下，共有 71 个 component schema。<code>openapi.yaml</code> 由 FastAPI 确定性渲染，<code>--check</code> 会拒绝漂移。</p></article>
         </div>
       </section>
       <section id="tree">
@@ -74,7 +74,7 @@
         <p class="sub">infra/ 包含 3 个子目录(openapi、qdrant、supabase),scripts/ 包含 9 个脚本文件。</p>
         <pre class="command-block"><code>infra/
   openapi/
-    openapi.yaml              168 KB  45 endpoints / 11 tags / 65 schemas
+    openapi.yaml              183 KB  49 operations / 12 tags / 71 schemas
   qdrant/
     researchmate_chunks.json  676 B   v1 collection config (dense + sparse + RRF)
   supabase/
@@ -531,8 +531,8 @@ scripts/
       </section>
       <section id="openapi">
         <p class="eyebrow">OpenAPI 规范详解</p>
-        <h2>45 个端点 / 11 个 tag / 65 个 schema</h2>
-        <p class="sub">openapi.yaml(168 KB)由 export_openapi.py 从 FastAPI 应用确定性渲染。39 个 path 上承载 45 个端点(method x path 组合),按 11 个 tag 分组。65 个 schema 含 64 个 component schema 和 HTTPBearer 安全方案。</p>
+        <h2>49 个操作 / 43 条路径 / 12 个 tag / 71 个 schema</h2>
+        <p class="sub"><code>openapi.yaml</code> 由 FastAPI 确定性渲染；当前合约包含 49 个 method/path 操作、43 条路径、12 个 tag 和 71 个 component schema。</p>
         <h3>Tag 分布</h3>
         <div class="scroll"><table class="dense">
           <thead><tr>
@@ -595,10 +595,11 @@ scripts/
               <td>16</td>
               <td><code>POST /api/v1/research-runs</code><br/><code>GET /api/v1/runs/{run_id}</code><br/><code>GET /api/v1/runs/{run_id}/events</code><br/><code>POST /api/v1/runs/{run_id}/decisions</code><br/><code>GET /api/v1/projects/{project_id}/claims</code><br/><code>GET /api/v1/projects/{project_id}/claim-relations</code><br/><code>GET /api/v1/projects/{project_id}/reports</code><br/><code>GET /api/v1/reports/{report_id}</code><br/><code>GET /api/v1/pipeline-versions</code><br/><code>GET /api/v1/evaluation-datasets</code><br/><code>POST /api/v1/reports/{report_id}/refresh</code><br/><code>POST /api/v1/evaluation-runs</code><br/><code>GET /api/v1/evaluation-runs/{evaluation_run_id}</code><br/><code>POST /api/v1/dev/reliability</code><br/><code>POST /api/v1/dev/fault-scenarios</code><br/><code>DELETE /api/v1/dev/fault-scenarios/{exercise_id}</code></td>
             </tr>
-            <tr><td><strong>合计</strong></td><td><strong>45</strong></td><td><strong>39 个 path / 11 个 tag</strong></td></tr>
+            <tr><td><code>answer-feedback</code></td><td>3</td><td>所有者范围的回答反馈创建、读取和汇总操作。</td></tr>
+            <tr><td><strong>合计</strong></td><td><strong>49</strong></td><td><strong>43 条路径 / 12 个 tag</strong></td></tr>
           </tbody></table></div>
-        <h3>65 个 schema(含 HTTPBearer)</h3>
-        <p>64 个 component schema + 1 个 HTTPBearer 安全方案 = 65。按字母排序:</p>
+        <h3>代表性 component schema</h3>
+        <p>生成的规范当前包含 71 个 component schema；下方卡片展示已建立的主要合约族。</p>
         <div class="grid">
           <article class="fact"><b>AskRequest</b></article>
           <article class="fact"><b>AskResponse</b></article>
@@ -796,7 +797,7 @@ scripts/
         <h2>相关文档</h2>
         <div class="doc-index">
           <a class="doc-link" href="../contracts/data/index.zh.html"><b>数据库契约</b><span>完整的表定义、RLS 策略与数据生命周期。</span></a>
-          <a class="doc-link" href="../contracts/api/index.zh.html"><b>API 契约</b><span>45 个端点的请求/响应规范与认证流程。</span></a>
+          <a class="doc-link" href="../contracts/api/index.zh.html"><b>API 契约</b><span>49 个操作的请求/响应规范与认证流程。</span></a>
           <a class="doc-link" href="../architecture/index.zh.html"><b>架构与技术栈</b><span>系统分层、数据流与安全边界。</span></a>
           <a class="doc-link" href="backend.zh.html"><b>后端学习</b><span>FastAPI 应用的逐文件源码解析。</span></a>
           <a class="doc-link" href="worker.zh.html"><b>Worker 学习</b><span>Celery worker 的任务交付与 lease 机制。</span></a>
