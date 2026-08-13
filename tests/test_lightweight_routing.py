@@ -13,10 +13,11 @@ from uuid import UUID
 
 from researchmate_api.config import Settings
 from researchmate_api.schemas.ask import AskRequest
-from researchmate_api.schemas.common import CurrentUser
+from researchmate_api.schemas.common import CurrentUser, SourceType
 from researchmate_api.schemas.document import UploadUrlRequest
 from researchmate_api.schemas.project import ProjectCreate
 from researchmate_api.services.grounded_query import GroundedQueryService
+from researchmate_api.services.qdrant_store import VectorStoreRequestError
 from researchmate_api.services.query_retrieval import LocalEvidenceRetriever
 from researchmate_api.services.rerank import RerankCoordinator
 from researchmate_api.services.retrieval import estimate_tokens
@@ -27,6 +28,7 @@ from researchmate_api.services.store import (
 from researchmate_worker.ingestion import (
     DocumentIngestionService,
     IngestionEvent,
+    IngestionFailure,
     IngestionRecord,
     PageProjection,
     ParsedBlock,
@@ -165,7 +167,8 @@ def test_lightweight_threshold_boundary() -> None:
     """A document whose token count equals the threshold is lightweight."""
     boundary_text = " ".join(f"word{i}" for i in range(10))
     store = FakeStore()
-    service = _service(store, parser_text=boundary_text, threshold=10)
+    # estimate_tokens for 10 "wordN" tokens = 15, so threshold must be 15.
+    service = _service(store, parser_text=boundary_text, threshold=15)
 
     assert service.handle(EVENT, worker_id="worker-1") == "succeeded"
     assert all(not c.has_vector for c in store.chunks)
@@ -535,10 +538,10 @@ def test_empty_corpus_is_lightweight() -> None:
 
 def test_single_chunk_exactly_at_threshold() -> None:
     """A single chunk with exactly threshold tokens is lightweight."""
-    # threshold=10, so 10 words should be lightweight.
     exact_text = " ".join(f"word{i}" for i in range(10))
     store = FakeStore()
-    service = _service(store, parser_text=exact_text, threshold=10)
+    # estimate_tokens for 10 "wordN" tokens = 15, so threshold must be 15.
+    service = _service(store, parser_text=exact_text, threshold=15)
 
     assert service.handle(EVENT, worker_id="worker-1") == "succeeded"
     assert len(store.chunks) >= 1
@@ -599,3 +602,108 @@ def test_no_pruning_when_only_lightweight_exists() -> None:
     candidate_ids = {c.chunk.id for c in outcome.candidates}
     assert all_chunk_ids == candidate_ids, "pure lightweight corpus has no pruning"
     store.reset()
+
+
+# ---------------------------------------------------------------------------
+# Integration tests: verify fixes for state consistency, lightweight-only
+# query path, and token counting alignment.
+# ---------------------------------------------------------------------------
+
+
+class FailingVectorProjection:
+    """Simulate a vector store failure to verify state consistency."""
+
+    def __init__(self) -> None:
+        self.upserted: list[ChunkEntry] = []
+
+    def upsert_chunks(self, chunks: list[ChunkEntry], *, pipeline_version: str) -> None:
+        self.upserted = chunks
+        raise VectorStoreRequestError("upsert", retryable=True)
+
+
+def test_vector_upsert_failure_not_persisted() -> None:
+    """When vector upsert fails, replace_content must not be called (Major #2).
+
+    Before the fix, has_vector was set to False before upsert for lightweight
+    chunks, and the heavyweight path never explicitly set has_vector=True after
+    a successful upsert. The fix defers has_vector marking until after the
+    upsert succeeds and ensures replace_content is only called after a
+    consistent state is reached.
+    """
+    store = FakeStore()
+    long_text = " ".join(f"word{i}" for i in range(20))
+    service = DocumentIngestionService(
+        store=store,
+        object_reader=FakeObjectReader(),
+        parser=VariableParser(text=long_text),
+        vector_projection=FailingVectorProjection(),
+        pipeline_version="pipeline-v1",
+        lease_seconds=120,
+        max_attempts=3,
+        max_upload_bytes=1024,
+        lightweight_token_threshold=10,
+    )
+
+    try:
+        service.handle(EVENT, worker_id="worker-1")
+        raise AssertionError("vector failure must raise IngestionFailure")
+    except IngestionFailure as exc:
+        assert exc.code == "VECTOR_STORE_UNAVAILABLE"
+
+    assert not store.chunks, "replace_content must not be called when upsert fails"
+    assert not store.ready, "mark_ready must not be called when upsert fails"
+    assert service.vector_projection.upserted, "upsert was attempted for heavyweight"
+
+
+def test_lightweight_only_grounded_query_returns_evidence() -> None:
+    """When all candidates are lightweight, grounded query must return evidence.
+
+    Before the fix, the elif lightweight_candidates branch was missing in
+    grounded_query.py. When no RAG candidates existed (all lightweight), both
+    the if and elif branches were skipped, leaving retrieved empty and
+    producing no citations. This tests the Minor #4 fix.
+    """
+    store = InMemoryResearchMateStore()
+    store.reset()
+    big_lightweight = " ".join(f"word{i}" for i in range(1500))
+    caller, project_id = _seed_workspace(store, documents=(big_lightweight,))
+    _mark_lightweight(store, document_filename="document-1.pdf")
+
+    grounded = _grounded_service(store)
+    response = grounded.execute(
+        caller,
+        AskRequest(project_id=project_id, message="What is routing?"),
+    )
+
+    assert response.validation_status == "passed"
+    assert response.citations, "lightweight-only corpus must produce citations"
+    store.reset()
+
+
+def test_token_counting_uses_estimate_tokens_for_cjk() -> None:
+    """is_lightweight_corpus uses estimate_tokens, not len(text.split()) (Minor #5).
+
+    CJK text '你好世界你好世界你好' has 10 characters. With len(split()),
+    it counts as 1 token (one whitespace-delimited word). With estimate_tokens,
+    it counts as 10 tokens. At threshold=5, the old split-based count would
+    classify it as lightweight (1 <= 5), but estimate_tokens correctly
+    classifies it as heavyweight (10 > 5).
+    """
+    store = FakeStore()
+    cjk_text = "你好世界你好世界你好"
+    service = _service(store, parser_text=cjk_text, threshold=5)
+
+    chunk = ChunkEntry(
+        id=UUID("00000000-0000-4000-8000-000000000010"),
+        user_id=USER_ID,
+        project_id=UUID("00000000-0000-4000-8000-000000000011"),
+        document_id=None,
+        source_type=SourceType.LOCAL_DOC,
+        source_title="cjk.pdf",
+        text=cjk_text,
+    )
+
+    assert estimate_tokens(cjk_text) == 10, "sanity: estimate_tokens counts 10 CJK tokens"
+    assert service.is_lightweight_corpus([chunk]) is False, (
+        "CJK text with 10 estimate_tokens must be heavyweight at threshold=5"
+    )

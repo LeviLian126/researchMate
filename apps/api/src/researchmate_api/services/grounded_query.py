@@ -173,6 +173,21 @@ class GroundedQueryService:
                 candidates,
                 self.settings.rerank_candidate_limit,
             )
+
+        # Separate lightweight and RAG candidates before rerank to apply budget caps early
+        lightweight_candidates = [c for c in candidates if not c.chunk.has_vector]
+        rag_candidates = [c for c in candidates if c.chunk.has_vector]
+
+        # Apply budget cap to lightweight candidates before rerank
+        if lightweight_candidates:
+            lightweight_budget = self.settings.retrieval_evidence_token_budget // 2
+            lightweight_candidates = pack_chunks(
+                [c.chunk for c in lightweight_candidates], lightweight_budget
+            )
+            lightweight_candidates = [
+                RetrievalCandidate(chunk=chunk, score=0.0) for chunk in lightweight_candidates
+            ]
+
         rerank_config = self.repository.get_runtime_rerank_config()
         selected_rerank_provider = (
             rerank_config.provider
@@ -180,25 +195,24 @@ class GroundedQueryService:
             else self.settings.rerank_provider_default
         )
         rerank_result = None
-        if candidates and not (full_context and not payload.web_enabled):
+        if rag_candidates and not (full_context and not payload.web_enabled):
             rerank_started = monotonic()
             rerank_result = self.reranker.execute(
                 selected_rerank_provider,
                 payload.message,
-                candidates,
+                rag_candidates,
                 user_id=str(user.id),
                 project_id=str(payload.project_id),
                 top_n=None,
             )
             reranked_chunks = [item.chunk for item in rerank_result.candidates]
-            lightweight_chunks = [c for c in reranked_chunks if not c.has_vector]
-            rag_chunks = [c for c in reranked_chunks if c.has_vector]
-            if lightweight_chunks:
-                lightweight_budget = self.settings.retrieval_evidence_token_budget // 2
-                rag_budget = self.settings.retrieval_evidence_token_budget - lightweight_budget
-                retrieved = pack_chunks(rag_chunks, rag_budget) + pack_chunks(
-                    lightweight_chunks, lightweight_budget
+            if lightweight_candidates:
+                rag_budget = self.settings.retrieval_evidence_token_budget - (
+                    self.settings.retrieval_evidence_token_budget // 2
                 )
+                retrieved = pack_chunks(reranked_chunks, rag_budget) + [
+                    c.chunk for c in lightweight_candidates
+                ]
             else:
                 retrieved = pack_chunks(
                     reranked_chunks,
@@ -209,14 +223,15 @@ class GroundedQueryService:
                     id=uuid4(),
                     tool_name="rerank_evidence",
                     input_summary={
-                        "candidate_count": len(candidates),
+                        "candidate_count": len(rag_candidates),
+                        "lightweight_count": len(lightweight_candidates),
                         "config_version": rerank_config.version,
                     },
                     output_summary={
                         "provider": rerank_result.provider,
                         "model": rerank_result.model,
                         "results": len(retrieved),
-                        "lightweight_results": len(lightweight_chunks),
+                        "lightweight_results": len(lightweight_candidates),
                         "degraded": rerank_result.degraded,
                         "fallback_reason": rerank_result.fallback_reason,
                     },
@@ -224,12 +239,15 @@ class GroundedQueryService:
                     latency_ms=round((monotonic() - rerank_started) * 1000),
                 )
             )
-        elif candidates:
+        elif rag_candidates:
             # Every relevant local candidate already fits; packing remains a size policy.
             retrieved = pack_chunks(
                 [item.chunk for item in candidates],
                 self.settings.full_context_token_limit,
             )
+        elif lightweight_candidates:
+            # No RAG candidates; use budget-capped lightweight chunks directly.
+            retrieved = [c.chunk for c in lightweight_candidates]
         plan = build_execution_plan(
             strategy,
             payload.web_enabled,
