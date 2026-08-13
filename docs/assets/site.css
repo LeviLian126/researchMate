@@ -404,4 +404,34 @@ html:not(.js) [data-filter-status] { display: none; }
   .snapshot-grid { grid-template-columns: 1fr; }
 }
 
+/* Back-to-top control: fixed pill with the shared clay accent, hidden until the reader scrolls. */
+.back-to-top {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 40;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border: 1px solid var(--g300);
+  border-radius: 999px;
+  background: var(--paper);
+  color: var(--g700);
+  cursor: pointer;
+  box-shadow: 0 6px 18px rgba(20, 20, 19, 0.08);
+  transition: border-color 0.15s ease, color 0.15s ease, transform 0.15s ease, opacity 0.15s ease;
+  opacity: 0;
+  pointer-events: none;
+}
+.back-to-top:not([hidden]) { opacity: 1; pointer-events: auto; }
+.back-to-top:hover, .back-to-top:focus-visible { border-color: var(--clay); color: var(--clay-dark); transform: translateY(-2px); }
+.back-to-top:focus-visible { outline: 2px solid var(--clay); outline-offset: 3px; }
+.back-to-top[hidden] { display: none; }
+
+@media (max-width: 520px) {
+  .back-to-top { right: 16px; bottom: 16px; width: 38px; height: 38px; }
+}
+
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }

@@ -38,6 +38,14 @@ dbButtons.forEach((button) => button.addEventListener('click', () => {
   dbItems.forEach((item) => { item.hidden = group !== 'all' && item.dataset.db !== group; });
 }));
 
+const backToTop = document.querySelector('[data-back-to-top]');
+if (backToTop) {
+  const toggle = () => { backToTop.hidden = window.scrollY < 320; };
+  window.addEventListener('scroll', toggle, { passive: true });
+  toggle();
+  backToTop.addEventListener('click', () => { window.scrollTo({ top: 0, behavior: 'smooth' }); });
+}
+
 const archButtons = [...document.querySelectorAll('[data-arch-node]')];
 const archTitle = document.querySelector('[data-arch-title]');
 const archBody = document.querySelector('[data-arch-body]');

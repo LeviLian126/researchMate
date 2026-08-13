@@ -8,10 +8,13 @@ relevant behavior does not satisfy verification. A green command is evidence, no
 understanding the code, and visual review alone is not a substitute for executable behavior.
 
 For the large-refactor, `HIGH_RISK`, and pre-release cases routed here by the top-level skill, use an
-independent subagent or fresh session that did not choose the implementation path. Give it the goal,
-acceptance, relevant diff, repository rules, tests, and raw runtime evidence—not the implementer's
-diagnosis or desired verdict. Small changes keep the top-level proportional verification rule and do
-not open an independent session by default.
+independent subagent or fresh session that did not choose the implementation path. Run verification
+in two phases so the subagent does not inherit the implementer's assumptions. In Phase 1, give it
+the goal, acceptance, interface signatures, schema, repository rules, and risk classification so
+it can design contract-first tests without seeing the implementation. In Phase 2, give it the
+implementation diff, Phase 1 tests, and raw runtime evidence so it can review the source and
+confirm coverage gaps—not the implementer's diagnosis or desired verdict. Small changes keep the
+top-level proportional verification rule and do not open an independent session by default.
 
 ## Read the relevant workflow
 

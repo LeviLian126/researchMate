@@ -56,6 +56,15 @@ contract.
 - Does the test execute the target code, or only verify mock calls and fixed return
   values? A test that asserts `mock.called` without checking real behavior is mock
   theater.
+
+Design tests from the public contract—interface signature, schema, acceptance criteria,
+and error specification—not from reading the implementation. Tests that mirror the code's
+internal branches share the implementer's assumptions and cannot expose the blind spots
+that produced the bug. Enumerate scenarios from the contract first (normal, boundary,
+error, state transition, concurrency, authorization), then read the code only to confirm
+coverage gaps. When an independent subagent writes tests, give it the interface and
+acceptance criteria, not the implementation diff.
+
 Build a compact risk map before asking for more tests. Use the goal and public boundary to decide
 which dimensions can reveal a material failure.
 

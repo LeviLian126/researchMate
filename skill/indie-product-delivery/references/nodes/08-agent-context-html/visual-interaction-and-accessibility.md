@@ -113,6 +113,22 @@ When adding a new HTML page, update the navigation bars of all sibling pages at 
 3. **Link suffix consistency**: navigation links on Chinese pages use the `.zh.html` suffix uniformly; English pages use `.html` uniformly. Language-switch links are the exception (they point to the other-language version).
 4. **Verification checklist**: after adding a page, check each sibling page's navigation bar one by one for the new page's link, label consistency, and correct link suffix, and confirm every page (including the new page itself) has an `<aside class="toc">` block and unified heading text that satisfy the TOC contract above. This step is not optional.
 
+## Back-to-top control
+
+Every HTML page — including landing pages, child pages, and archive pages — must contain exactly one back-to-top button with a consistent design across the entire site. The button lets readers return to the top of a long page without scrolling, and the unified icon lets an agent verify every page with a single grep before each commit.
+
+### Required back-to-top contract
+
+1. **Existence**: every standalone HTML page must have one `<button class="back-to-top" data-back-to-top hidden>` element, placed immediately before the `<script>` tag.
+2. **Unified icon**: all pages use the same inline SVG arrow icon. Do not substitute a different glyph, emoji, or text label. The icon is the visual identity of the control; variation breaks cross-page trust.
+3. **Design system**: the button follows the existing design tokens — clay accent on hover, paper-white background, `--g300` border, `999px` pill radius, `42×42px` fixed at bottom-right. The CSS lives in the shared `site.css` (or equivalent `document-system.css`), not per-page inline styles.
+4. **Behavior**: the button is `hidden` by default and appears after the reader scrolls past ~320px. Clicking it smoothly scrolls to the top. The show/hide logic lives in the shared `site.js`.
+5. **Accessibility**: the button has `aria-label="Back to top"`, is keyboard-focusable with a visible focus ring, and respects `prefers-reduced-motion`.
+
+### Why this rule is a hard constraint
+
+Long documentation pages without a quick return-to-top control force readers to scroll back through the entire page. When each page uses a different icon or position, readers lose the muscle memory of where the control lives. A single shared icon, position, and behavior — verifiable by `grep -r 'data-back-to-top' docs/` — closes this at once: every page has the control, every page uses the same design, and the agent can audit the whole site with one command.
+
 ## Process page visual presentation
 
 When a page needs to present a business process, request flow, or data pipeline, prefer a spatialized flow diagram over a plain-text proof-chain. Reference the `14-research-feature-explainer.html` archetype and pipeline pattern from HTML Effectiveness:

@@ -27,18 +27,25 @@ Preserve the user's stated constraints and distinguish local work from external 
 
 Use the relevant workflow for the product boundary involved. When production behavior may be harming users, data, money, privacy, security, or availability, contain the harm and gather direct evidence before pursuing growth or polish.
 
-Test runnable work locally and in the applicable server environment. For a small change,
-verify only the changed behavior and its affected server path; for a large refactor,
-`HIGH_RISK` change, or release, verify the relevant core flows and release evidence. Label
-the evidence by environment and do not treat local success as server success. If a target
-environment is genuinely unavailable after reasonable setup attempts, record the exact proof
-gap and continue with every safe alternative.
+Test runnable work locally and in the applicable server environment. When testing locally,
+install required dependencies but do not start local services for middleware like databases
+or message queues; instead, use mocks in test classes to verify behavior. For frontend
+improvements, render the changes in a browser to confirm visual and interactive correctness.
+
+For a small change, verify only the changed behavior and its affected server path; for a
+large refactor, `HIGH_RISK` change, or release, verify the relevant core flows and release
+evidence. Label the evidence by environment and do not treat local success as server
+success. If a target environment is genuinely unavailable after reasonable setup attempts,
+record the exact proof gap and continue with every safe alternative.
 
 Use an independent subagent or fresh session for large refactors, `HIGH_RISK` changes, and
-pre-release verification by default. Give it the goal, relevant diff, tests, and runtime
-evidence so it can challenge assumptions without inheriting the implementation path. For
-small local changes, do not open an independent session by default; complete the applicable
-local checks and affected server checks instead.
+pre-release verification by default. Run verification in two phases so the subagent does
+not inherit the implementer's assumptions. In Phase 1, give it the goal, interface
+signatures, schema, acceptance criteria, and risk classification so it can design
+contract-first tests without seeing the implementation. In Phase 2, give it the
+implementation diff, Phase 1 tests, and runtime evidence so it can review the source and
+confirm coverage gaps. For small local changes, do not open an independent session by
+default; complete the applicable local checks and affected server checks instead.
 
 You may investigate, implement, test, or improve quality beyond the listed steps when that work helps complete the request. Do not silently expand product meaning or collaboration-system scope.
 
@@ -143,6 +150,21 @@ Before handoff, ask: does each component have one clear responsibility, is depen
 direction understandable, can the core behavior be tested without brittle coupling, and
 would the next feature require a local extension rather than a rewrite of unrelated code?
 
+## Edit in place and reuse existing code
+
+Prefer reusing existing functions, abstractions, and patterns over introducing new ones. Before
+writing new code, search the repository for an existing function or module that already solves
+the problem or can be extended with a small, cohesive change. Reuse keeps the codebase
+understandable and avoids the drift that comes from parallel implementations of the same policy.
+
+When modifying an existing file—whether documentation or source—do not append new content at
+the end merely because it is convenient. Treat the file as a logical article: interleave new
+content into the section where it belongs, and renumber or restructure subsequent sections so
+the whole file stays coherent. For example, when adding a new concern that logically belongs
+between section 2 and section 3, insert it as the new section 3 and shift every later section
+back by one. The goal is to preserve the file's narrative flow and maintainability, not to
+minimize the size of the diff.
+
 ## Choose branches and worktrees deliberately
 
 Use `main` for ordinary specified work by default. Confirm the requested outcome and
@@ -155,10 +177,9 @@ for review, and merge it into `main` only after the evidence shows that the impr
 meets the user's expected outcome. Keep exploratory code and findings on that pushed branch
 when it does not meet the condition; do not force it into `main`.
 
-For exceptional parallel implementation explicitly requested by the user, give each writing
-agent a non-overlapping responsibility and its own branch or worktree, and assign one
-integration owner. Serialize work that changes shared contracts, schemas, core types, or
-the same files.
+Always open your own worktree before modifying files. After implementation and verification
+are complete inside the worktree, merge back to `main`, confirm no conflicts, then commit and
+push. Remove your own worktree after successful merge; never remove another agent's worktree.
 
 ## Maintain useful source commentary
 
