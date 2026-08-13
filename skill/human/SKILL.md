@@ -1,11 +1,33 @@
 ---
 name: human
-description: "Rewrite text to remove AI-flavored structure and rhythm. Use for chat responses, technical docs, HTML boards, release notes, code reviews, bilingual CN/EN text. Invoke with /human or when indie skill routes to humanize HTML board content."
+description: "Rewrite any AI-generated text to work better for human readers. Use for conversations, documents, code comments, annotations, emails, reports, or any text that will be read by humans after AI generation. Invoke with /human."
 ---
 
 # Human
 
+**Background:** This skill is modeled after the ADHD skill's approach to shaping output for human cognition. The ADHD skill focuses on making text work for readers with attention challenges by leading with actionable content, breaking rhythm, and removing cognitive friction. The `human` skill applies the same principles to any AI-generated text—whether it's a chat response, a document, a code comment, or an email—making it work better for all human readers, not just those with ADHD.
+
 AI 味的来源是结构，不是词汇。删光 "delve" 和 "tapestry" 没用——骨架还是 context-first、均匀节奏、开场+收尾。这个 skill 先修结构，再修词。
+
+## When to use
+
+Use this skill for **any text that will be read by humans after AI generation**:
+
+- **Conversations**: Chat responses, Q&A, explanations
+- **Documents**: README files, guides, reports, proposals, architecture notes
+- **Code**: Comments, docstrings, inline annotations, commit messages
+- **Communication**: Emails, Slack messages, meeting notes
+- **Reviews**: Code reviews, document reviews, feedback
+- **Release notes**: Changelogs, version updates, migration guides
+
+If a human will read it, it should follow these principles.
+
+## Connection to humanizer
+
+This skill complements the `humanizer` skill. While `humanizer` focuses on detecting and removing 33 specific AI lexical patterns (words and phrases), this skill addresses the deeper structural issues that make text feel AI-generated. Use both together for maximum effect:
+
+1. **human** (this skill): Fix structure, rhythm, and flow first
+2. **humanizer**: Then clean up remaining lexical patterns if needed
 
 ## 五条结构原则
 
