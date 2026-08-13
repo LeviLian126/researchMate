@@ -178,9 +178,10 @@ for review, and merge it into `main` only after the evidence shows that the impr
 meets the user's expected outcome. Keep exploratory code and findings on that pushed branch
 when it does not meet the condition; do not force it into `main`.
 
-Always open your own worktree before modifying files. After implementation and verification
-are complete inside the worktree, merge back to `main`, confirm no conflicts, then commit and
-push. Remove your own worktree after successful merge; never remove another agent's worktree.
+Within a thread, open one worktree before modifying files. All subsequent subagents and the
+main agent work in that same worktree — subagents must not open their own. After all
+implementation and verification are complete inside the worktree, merge back to `main`,
+confirm no conflicts, then commit and push. Remove the worktree after successful merge.
 
 ## Maintain useful source commentary
 

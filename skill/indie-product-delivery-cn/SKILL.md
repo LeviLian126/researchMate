@@ -127,7 +127,7 @@ HTML 项目看板进行比较。仅当此任务使其重要的产品、架构、
 
 仅当任务真正是探索性的或用户明确要求时,才创建探索性分支。在实现之前定义成功条件,push 分支供评审,仅在证据表明改进满足用户预期结果后才合并到 `main`。当不满足条件时,将探索性代码和发现保留在该 pushed 分支上;不要强制其进入 `main`。
 
-在修改文件之前,必须先开自己的 worktree。在 worktree 内完成实现和验收后,合并回 `main`,确认无冲突再 commit 和 push,然后删除自己的 worktree(不要删除其他 agent 的 worktree)。
+在同一个 thread 内,修改文件之前先开一个 worktree。所有后续 subagent 和主 agent 都在该 worktree 内工作——subagent 不得另开 worktree。在 worktree 内完成所有实现和验收后,合并回 `main`,确认无冲突再 commit 和 push,然后删除该 worktree。
 
 ## Maintain useful source commentary
 
