@@ -1,4 +1,4 @@
-﻿# Frontend Build
+# Frontend Build
 
 Build a truthful, resilient user surface whose states, interactions, accessibility, layout, and
 integration behavior remain coherent with real data and failure conditions. Treat visual quality
@@ -28,7 +28,7 @@ component.
 | look up concrete code patterns (stack / animation / fonts / icons / z-index) | `implementation-patterns.md` |
 | handle external material, audit existing work, or modernize safely | `prototype-and-redesign.md` |
 | verify in a browser, debug rendering/integration failures, or hand off | `browser-proof-and-debug.md` |
-| write long-form help, explanation, or documentation inside a frontend surface | run the `humanizer` skill by default |
+| write long-form help, explanation, or documentation inside a frontend surface | run the `human` skill by default |
 | build or refresh durable HTML project documentation | `../08-agent-context-html/README.md` |
 
 ## Output contract

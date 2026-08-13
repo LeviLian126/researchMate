@@ -21,7 +21,7 @@
 
 | 需求 | 阅读 |
 | --- | --- |
-| 可读的技术散文与文档结构 | 默认运行 `humanizer` skill |
+| 可读的技术散文与文档结构 | 默认运行 `human` skill |
 | 看板契约、章节打磨、读者测试与交接 | 本 workflow 加上 `validation-and-handoff.md` |
 | 项目、市场、功能、路线图、架构、数据库或 API 覆盖 | `project-board-content-and-evidence.md` |
 | HTML Effectiveness 重构、空间形式、布局安全与交互 | `visual-interaction-and-accessibility.md` |

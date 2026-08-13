@@ -25,7 +25,7 @@
 | 查找具体代码模式（技术栈 / 动画 / 字体 / 图标 / z-index） | `implementation-patterns.md` |
 | 处理外部素材、审计现有工作或安全现代化 | `prototype-and-redesign.md` |
 | 在浏览器中验证、调试渲染/集成失败或交接 | `browser-proof-and-debug.md` |
-| 在前端界面中编写长篇帮助、说明或文档 | 默认运行 `humanizer` 技能 |
+| 在前端界面中编写长篇帮助、说明或文档 | 默认运行 `human` 技能 |
 | 构建或刷新持久的 HTML 项目文档 | `../08-agent-context-html/README.md` |
 
 ## 输出契约

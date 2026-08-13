@@ -81,7 +81,7 @@ Choose the node that owns the present decision or action. Node numbers identify 
 Before every commit or push, compare the latest source and configuration against the HTML
 project board under `docs/`. Enter Node08 and update the board only when this task leaves its
 important product, architecture, implementation, evidence, release, risk, or next-action facts
-stale; otherwise do not modify it. When the board is updated, run the `humanizer` skill after
+stale; otherwise do not modify it. When the board is updated, run the `human` skill after
 its technical facts and structure are stable. Keep meaningful product and data facts; omit
 trivial implementation trivia such as button dimensions unless it is part of a real design
 contract.

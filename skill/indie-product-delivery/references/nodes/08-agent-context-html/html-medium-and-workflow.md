@@ -26,7 +26,7 @@ Read these files before building the corresponding part of a board:
 
 | Need | Read |
 | --- | --- |
-| readable technical prose and document structure | run the `humanizer` skill by default |
+| readable technical prose and document structure | run the `human` skill by default |
 | board contract, section refinement, reader testing, and handoff | this workflow plus `validation-and-handoff.md` |
 | project, market, feature, roadmap, architecture, database, or API coverage | `project-board-content-and-evidence.md` |
 | HTML Effectiveness reconstruction, spatial forms, layout safety, and interaction | `visual-interaction-and-accessibility.md` |

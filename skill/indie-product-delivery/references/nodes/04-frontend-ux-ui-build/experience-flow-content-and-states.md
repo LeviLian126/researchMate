@@ -1,4 +1,4 @@
-﻿# Experience Flow, Content, and States
+# Experience Flow, Content, and States
 
 > **Goal:** Recover the frontend surface, define its user job and experience spine, then design
 > information architecture, content, and complete visible states around user decisions.
@@ -117,7 +117,7 @@ result of pressing it.
 | long / generated text | remains readable, bounded, and recoverable when missing or malformed |
 
 When the surface contains long-form help, explanation, or documentation, also apply the default
-`humanizer` skill. Keep short interface copy focused on the action and state instead of forcing it
+`human` skill. Keep short interface copy focused on the action and state instead of forcing it
 through a long-form prose style.
 
 ### Content self-audit
