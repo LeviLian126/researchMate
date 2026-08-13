@@ -9,7 +9,6 @@ description: >
   architecture, or implementation work, follow the delivery discipline rules: shared
   worktree per thread, two-phase testing for large refactors, edit in place, evidence-backed
   claims, HTML board sync. Invoke with /human; stays on until "stop human mode".
-disable-model-invocation: true
 license: MIT
 metadata:
   tags: "ADHD, Output Style, Human Writing, Anti-AI-Patterns, Productivity"

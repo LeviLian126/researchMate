@@ -20,6 +20,16 @@ Tooling baseline:
 - Type checker: `pyright` in `basic` mode (project config in root `pyproject.toml`).
 - Pre-commit hooks: see `.pre-commit-config.yaml`.
 
+## Output style and delivery discipline
+
+All AI-generated output must follow the rules in `skill/human/SKILL.md`. This includes:
+
+- ADHD-shaped output: lead with the next action, number multi-step work, restate state across turns, suppress tangents, give specific time estimates, make wins visible.
+- Human-sounding writing: no filler, no sycophancy, no hedging, no rhetorical scaffolding, no fabricated specificity.
+- Delivery discipline: one worktree per thread (shared by all agents), two-phase testing for large refactors, edit in place, evidence-backed claims, HTML board sync before commit.
+
+Invoke with `/human` to activate the full output style. The delivery discipline rules apply to all responses.
+
 ## Required patterns
 
 ### 1. Every Python module starts with `from __future__ import annotations`

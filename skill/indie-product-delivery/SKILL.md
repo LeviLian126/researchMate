@@ -7,6 +7,8 @@ description: "Use for outcome-first, evidence-backed delivery and review of boot
 
 ## Context
 
+Before inspecting facts, read `../human/SKILL.md` and follow its output style and delivery discipline rules. These rules apply to all responses in this session.
+
 Inspect the smallest set of current facts that can change the result:
 
 - the repository, product surface, environment, and relevant existing behavior;
