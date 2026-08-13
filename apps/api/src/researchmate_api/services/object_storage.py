@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from io import BytesIO
 from pathlib import Path
@@ -12,6 +13,8 @@ from zipfile import BadZipFile, ZipFile
 from researchmate_api.config import Settings
 from researchmate_api.schemas.document import MAX_DOCUMENT_UPLOAD_BYTES, MIME_BY_TYPE
 
+LOGGER = logging.getLogger(__name__)
+
 
 class ObjectStorageConfigurationError(RuntimeError):
     """Signal incomplete object-storage configuration."""
@@ -20,11 +23,20 @@ class ObjectStorageConfigurationError(RuntimeError):
 class ObjectStorageRequestError(RuntimeError):
     """Normalize an object-storage operation failure and retryability."""
 
-    def __init__(self, operation: str, *, retryable: bool) -> None:
+    def __init__(
+        self,
+        operation: str,
+        *,
+        retryable: bool,
+        status_code: int | None = None,
+        provider_code: str | None = None,
+    ) -> None:
         """Capture the failed storage operation and retry classification."""
         super().__init__(f"Object storage {operation} failed")
         self.operation = operation
         self.retryable = retryable
+        self.status_code = status_code
+        self.provider_code = provider_code
 
 
 class UploadVerificationError(RuntimeError):
@@ -226,10 +238,10 @@ class S3CompatibleObjectStorage:
             raise ObjectStorageConfigurationError(
                 "S3-compatible object storage is not fully configured"
             )
-        endpoint_url = settings.object_storage_endpoint_url_resolved
-        access_key_id = settings.object_storage_access_key_id_resolved
-        secret_access_key = settings.object_storage_secret_access_key_resolved
-        bucket = settings.object_storage_bucket_resolved
+        endpoint_url = settings.object_storage_endpoint_url
+        access_key_id = settings.object_storage_access_key_id
+        secret_access_key = settings.object_storage_secret_access_key
+        bucket = settings.object_storage_bucket
         if not endpoint_url or not access_key_id or not secret_access_key or not bucket:
             raise ObjectStorageConfigurationError(
                 "S3-compatible object storage is not fully configured"
@@ -367,11 +379,15 @@ class S3CompatibleObjectStorage:
     def _normalize_error(operation: str, exc: Exception) -> ObjectStorageRequestError:
         """Convert provider exceptions into stable retryable storage failures."""
         response = getattr(exc, "response", None)
-        status = None
+        status: int | None = None
+        provider_code: str | None = None
         if isinstance(response, dict):
             metadata = response.get("ResponseMetadata")
             if isinstance(metadata, dict):
                 status = metadata.get("HTTPStatusCode")
+            error_block = response.get("Error")
+            if isinstance(error_block, dict):
+                provider_code = error_block.get("Code")
         retryable = isinstance(exc, (TimeoutError, ConnectionError)) or status in {
             408,
             409,
@@ -381,8 +397,18 @@ class S3CompatibleObjectStorage:
             503,
             504,
         }
-        return ObjectStorageRequestError(operation, retryable=retryable)
-
-
-# Retained for existing deployments that still provide the legacy R2_* variables.
-R2ObjectStorage = S3CompatibleObjectStorage
+        LOGGER.warning(
+            "object_storage_%s_failed exc_type=%s status=%s provider_code=%s retryable=%s",
+            operation,
+            type(exc).__name__,
+            status,
+            provider_code,
+            retryable,
+            exc_info=True,
+        )
+        return ObjectStorageRequestError(
+            operation,
+            retryable=retryable,
+            status_code=status,
+            provider_code=provider_code,
+        )

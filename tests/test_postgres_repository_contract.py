@@ -93,10 +93,10 @@ def test_preview_requires_postgres_and_database_url() -> None:
         "langfuse_enabled": True,
         "langfuse_public_key": SecretStr("fake-key"),
         "langfuse_secret_key": SecretStr("fake-key"),
-        "r2_account_id": "account",
-        "r2_access_key_id": SecretStr("access"),
-        "r2_secret_access_key": SecretStr("secret"),
-        "r2_bucket": "bucket",
+        "object_storage_endpoint_url": "https://example.test",
+        "object_storage_access_key_id": SecretStr("access"),
+        "object_storage_secret_access_key": SecretStr("secret"),
+        "object_storage_bucket": "bucket",
         "redis_url": "rediss://example.test:6379",
     }
     with pytest.raises(ValidationError):

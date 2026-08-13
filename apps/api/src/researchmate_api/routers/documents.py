@@ -97,17 +97,22 @@ async def upload_document_content(
                 )
             )
         except ObjectStorageRequestError as exc:
+            detail = (
+                "The object storage upload failed. Retry later."
+                if exc.retryable
+                else "The object storage upload failed."
+            )
+            if exc.provider_code:
+                detail = f"{detail} provider={exc.provider_code} status={exc.status_code}"
             raise_api_error(
                 status.HTTP_503_SERVICE_UNAVAILABLE,
                 "OBJECT_STORAGE_UNAVAILABLE",
-                "The object storage upload failed. Retry later."
-                if exc.retryable
-                else "The object storage upload failed.",
+                detail,
             )
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
-# Generate a local R2 signed upload URL placeholder and create an uploaded document record.
+# Reserve document metadata and return a signed object-upload request.
 @router.post("/documents/upload-url", response_model=UploadUrlResponse)
 def create_upload_url(
     payload: UploadUrlRequest,
@@ -196,12 +201,17 @@ def complete_upload(
     except UploadVerificationError as exc:
         raise_api_error(status.HTTP_409_CONFLICT, exc.code, str(exc))
     except ObjectStorageRequestError as exc:
+        detail = (
+            "The uploaded object could not be verified. Retry later."
+            if exc.retryable
+            else "The uploaded object could not be verified."
+        )
+        if exc.provider_code:
+            detail = f"{detail} provider={exc.provider_code} status={exc.status_code}"
         raise_api_error(
             status.HTTP_503_SERVICE_UNAVAILABLE,
             "OBJECT_STORAGE_UNAVAILABLE",
-            "The uploaded object could not be verified. Retry later."
-            if exc.retryable
-            else "The uploaded object could not be verified.",
+            detail,
         )
     except ObjectStorageConfigurationError:
         raise_api_error(

@@ -12,7 +12,6 @@ from researchmate_api.config import Settings
 from researchmate_api.schemas.document import MIME_BY_TYPE
 from researchmate_api.services.object_storage import (
     ObjectStorageRequestError,
-    R2ObjectStorage,
     S3CompatibleObjectStorage,
     UploadVerificationError,
     _detect_mime_type,
@@ -73,53 +72,22 @@ class FakeS3Client:
         return {"Body": _Body(body)}
 
 
-def r2_settings() -> Settings:
-    """Build complete legacy R2 settings for adapter tests."""
+def s3_settings() -> Settings:
+    """Build complete S3-compatible storage settings for adapter tests."""
     return Settings(
         app_env="test",
         llm_provider="fake",
-        r2_account_id="account",
-        r2_access_key_id=SecretStr("access"),
-        r2_secret_access_key=SecretStr("secret"),
-        r2_bucket="researchmate-test",
+        object_storage_endpoint_url="https://upload.example.test",
+        object_storage_access_key_id=SecretStr("access"),
+        object_storage_secret_access_key=SecretStr("secret"),
+        object_storage_bucket="researchmate-test",
     )
-
-
-def test_r2_adapter_presigns_and_normalizes_metadata(tmp_path) -> None:
-    """Verify R2 signing, metadata normalization, and downloads."""
-    client = FakeS3Client()
-    storage = R2ObjectStorage(r2_settings(), client=client)
-
-    url = storage.presign_upload("users/u/document.pdf", content_type="application/pdf")
-    metadata = storage.head("users/u/document.pdf")
-    destination = tmp_path / "document.pdf"
-    storage.download_to_file("users/u/document.pdf", destination)
-    storage.delete("users/u/document.pdf")
-
-    assert url == "https://upload.example.test/signed"
-    assert client.presign_call == (
-        "put_object",
-        {
-            "Params": {
-                "Bucket": "researchmate-test",
-                "Key": "users/u/document.pdf",
-                "ContentType": "application/pdf",
-            },
-            "ExpiresIn": 600,
-            "HttpMethod": "PUT",
-        },
-    )
-    assert metadata.size_bytes == 123
-    assert metadata.etag == "etag-value"
-    assert destination.read_bytes() == b"document bytes"
-    assert client.downloaded == ("researchmate-test", "users/u/document.pdf")
-    assert client.deleted == {"Bucket": "researchmate-test", "Key": "users/u/document.pdf"}
 
 
 def test_s3_adapter_uploads_server_received_stream() -> None:
     """Keep proxy uploads private and preserve their verified MIME metadata."""
     client = FakeS3Client()
-    storage = S3CompatibleObjectStorage(r2_settings(), client=client)
+    storage = S3CompatibleObjectStorage(s3_settings(), client=client)
 
     storage.upload_stream(
         "users/u/document.pdf", BytesIO(b"pdf bytes"), content_type="application/pdf"
@@ -133,8 +101,8 @@ def test_s3_adapter_uploads_server_received_stream() -> None:
     )
 
 
-def test_generic_s3_endpoint_uses_its_own_credential_set() -> None:
-    """Keep generic S3 credentials separate from legacy R2 values."""
+def test_s3_endpoint_configuration() -> None:
+    """Verify S3-compatible storage configuration."""
     settings = Settings(
         app_env="test",
         llm_provider="fake",
@@ -147,7 +115,6 @@ def test_generic_s3_endpoint_uses_its_own_credential_set() -> None:
 
     storage = S3CompatibleObjectStorage(settings, client=FakeS3Client())
 
-    assert settings.uses_generic_object_storage is True
     assert settings.object_storage_configured is True
     assert storage.bucket == "researchmate-test"
 
@@ -166,7 +133,7 @@ def test_verify_uploaded_content_accepts_matching_magic_bytes() -> None:
     """Allow the upload when the stored bytes match the declared MIME type."""
     client = FakeS3Client()
     client.fetched_bytes["users/u/document.pdf"] = _PDF_BYTES
-    storage = S3CompatibleObjectStorage(r2_settings(), client=client)
+    storage = S3CompatibleObjectStorage(s3_settings(), client=client)
 
     # No exception is raised for a matching upload.
     storage.verify_uploaded_content("users/u/document.pdf", declared_mime_type="application/pdf")
@@ -178,7 +145,7 @@ def test_verify_uploaded_content_rejects_disguised_upload_and_deletes_object() -
     """Reject and delete an uploaded object whose bytes do not match its declared MIME."""
     client = FakeS3Client()
     client.fetched_bytes["users/u/document.pdf"] = _PNG_BYTES
-    storage = S3CompatibleObjectStorage(r2_settings(), client=client)
+    storage = S3CompatibleObjectStorage(s3_settings(), client=client)
 
     with pytest.raises(UploadVerificationError) as raised:
         storage.verify_uploaded_content(
@@ -199,7 +166,7 @@ def test_verify_uploaded_content_fails_closed_when_libmagic_missing(monkeypatch)
     )
     client = FakeS3Client()
     client.fetched_bytes["users/u/document.pdf"] = b"not really a pdf"
-    storage = S3CompatibleObjectStorage(r2_settings(), client=client)
+    storage = S3CompatibleObjectStorage(s3_settings(), client=client)
 
     with pytest.raises(ObjectStorageRequestError, match="mime_detection"):
         storage.verify_uploaded_content(
@@ -240,7 +207,7 @@ def test_verify_uploaded_content_rejects_generic_zip_disguised_as_xlsx() -> None
         archive.writestr("notes.txt", "not a workbook")
     client = FakeS3Client()
     client.fetched_bytes["users/u/not-a-workbook.xlsx"] = disguised.getvalue()
-    storage = S3CompatibleObjectStorage(r2_settings(), client=client)
+    storage = S3CompatibleObjectStorage(s3_settings(), client=client)
 
     with pytest.raises(UploadVerificationError, match="does not match"):
         storage.verify_uploaded_content(
@@ -263,7 +230,7 @@ def test_verify_uploaded_content_rejects_ooxml_member_name_without_package_contr
         archive.writestr("xl/workbook.xml", "not XML")
     client = FakeS3Client()
     client.fetched_bytes["users/u/counterfeit.xlsx"] = workbook.getvalue()
-    storage = S3CompatibleObjectStorage(r2_settings(), client=client)
+    storage = S3CompatibleObjectStorage(s3_settings(), client=client)
 
     with pytest.raises(UploadVerificationError, match="does not match"):
         storage.verify_uploaded_content(
@@ -295,7 +262,7 @@ def test_verify_uploaded_content_rejects_bogus_ooxml_contract_elements() -> None
         )
     client = FakeS3Client()
     client.fetched_bytes["users/u/bogus.xlsx"] = package.getvalue()
-    storage = S3CompatibleObjectStorage(r2_settings(), client=client)
+    storage = S3CompatibleObjectStorage(s3_settings(), client=client)
 
     with pytest.raises(UploadVerificationError, match="does not match"):
         storage.verify_uploaded_content(
@@ -354,7 +321,7 @@ def test_verify_uploaded_content_accepts_minimal_valid_ooxml_package(
     object_key = f"users/u/document.{extension}"
     client = FakeS3Client()
     client.fetched_bytes[object_key] = package.getvalue()
-    storage = S3CompatibleObjectStorage(r2_settings(), client=client)
+    storage = S3CompatibleObjectStorage(s3_settings(), client=client)
 
     storage.verify_uploaded_content(object_key, declared_mime_type=declared_mime_type)
 

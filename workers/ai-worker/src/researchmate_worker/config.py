@@ -50,10 +50,6 @@ class WorkerSettings(BaseSettings):
     pdf_parser_backend: Literal["pypdf", "docling"] = "pypdf"
     docling_artifacts_path: Path | None = None
     max_upload_bytes: int = Field(default=26_214_400, ge=1, le=104_857_600)
-    r2_account_id: str | None = None
-    r2_access_key_id: SecretStr | None = None
-    r2_secret_access_key: SecretStr | None = None
-    r2_bucket: str | None = None
     object_storage_endpoint_url: str | None = None
     object_storage_access_key_id: SecretStr | None = None
     object_storage_secret_access_key: SecretStr | None = None
@@ -97,69 +93,13 @@ class WorkerSettings(BaseSettings):
     )
 
     @property
-    def r2_endpoint_url(self) -> str | None:
-        if not self.r2_account_id:
-            return None
-        return f"https://{self.r2_account_id}.r2.cloudflarestorage.com"
-
-    @property
-    def r2_configured(self) -> bool:
+    def object_storage_configured(self) -> bool:
         return all(
-            (
-                self.r2_account_id,
-                self.r2_access_key_id,
-                self.r2_secret_access_key,
-                self.r2_bucket,
-            )
-        )
-
-    @property
-    def uses_generic_object_storage(self) -> bool:
-        return any(
             (
                 self.object_storage_endpoint_url,
                 self.object_storage_access_key_id,
                 self.object_storage_secret_access_key,
                 self.object_storage_bucket,
-            )
-        )
-
-    @property
-    def object_storage_endpoint_url_resolved(self) -> str | None:
-        return (
-            self.object_storage_endpoint_url
-            if self.uses_generic_object_storage
-            else self.r2_endpoint_url
-        )
-
-    @property
-    def object_storage_access_key_id_resolved(self) -> SecretStr | None:
-        return (
-            self.object_storage_access_key_id
-            if self.uses_generic_object_storage
-            else self.r2_access_key_id
-        )
-
-    @property
-    def object_storage_secret_access_key_resolved(self) -> SecretStr | None:
-        return (
-            self.object_storage_secret_access_key
-            if self.uses_generic_object_storage
-            else self.r2_secret_access_key
-        )
-
-    @property
-    def object_storage_bucket_resolved(self) -> str | None:
-        return self.object_storage_bucket if self.uses_generic_object_storage else self.r2_bucket
-
-    @property
-    def object_storage_configured(self) -> bool:
-        return all(
-            (
-                self.object_storage_endpoint_url_resolved,
-                self.object_storage_access_key_id_resolved,
-                self.object_storage_secret_access_key_resolved,
-                self.object_storage_bucket_resolved,
             )
         )
 

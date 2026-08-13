@@ -27,10 +27,6 @@ class Settings(BaseSettings):
     redis_url: str | None = None
     runtime_heartbeat_max_age_seconds: int = Field(default=150, ge=30, le=600)
     outbox_pending_max_age_seconds: int = Field(default=180, ge=30, le=1800)
-    r2_account_id: str | None = None
-    r2_access_key_id: SecretStr | None = None
-    r2_secret_access_key: SecretStr | None = None
-    r2_bucket: str | None = None
     object_storage_endpoint_url: str | None = None
     object_storage_access_key_id: SecretStr | None = None
     object_storage_secret_access_key: SecretStr | None = None
@@ -120,77 +116,14 @@ class Settings(BaseSettings):
         return None
 
     @property
-    def r2_endpoint_url(self) -> str | None:
-        """Build the account-scoped Cloudflare R2 endpoint when configured."""
-        if not self.r2_account_id:
-            return None
-        return f"https://{self.r2_account_id}.r2.cloudflarestorage.com"
-
-    @property
-    def r2_configured(self) -> bool:
-        """Report whether every legacy R2 credential field is present."""
+    def object_storage_configured(self) -> bool:
+        """Report whether the object-storage backend is complete."""
         return all(
-            (
-                self.r2_account_id,
-                self.r2_access_key_id,
-                self.r2_secret_access_key,
-                self.r2_bucket,
-            )
-        )
-
-    @property
-    def uses_generic_object_storage(self) -> bool:
-        """Select an explicit S3-compatible endpoint without mixing credential sets."""
-        return any(
             (
                 self.object_storage_endpoint_url,
                 self.object_storage_access_key_id,
                 self.object_storage_secret_access_key,
                 self.object_storage_bucket,
-            )
-        )
-
-    @property
-    def object_storage_endpoint_url_resolved(self) -> str | None:
-        """Resolve the active generic S3 or R2 endpoint."""
-        return (
-            self.object_storage_endpoint_url
-            if self.uses_generic_object_storage
-            else self.r2_endpoint_url
-        )
-
-    @property
-    def object_storage_access_key_id_resolved(self) -> SecretStr | None:
-        """Resolve the access-key identifier for the selected storage backend."""
-        return (
-            self.object_storage_access_key_id
-            if self.uses_generic_object_storage
-            else self.r2_access_key_id
-        )
-
-    @property
-    def object_storage_secret_access_key_resolved(self) -> SecretStr | None:
-        """Resolve the secret access key for the selected storage backend."""
-        return (
-            self.object_storage_secret_access_key
-            if self.uses_generic_object_storage
-            else self.r2_secret_access_key
-        )
-
-    @property
-    def object_storage_bucket_resolved(self) -> str | None:
-        """Resolve the bucket for the selected storage backend."""
-        return self.object_storage_bucket if self.uses_generic_object_storage else self.r2_bucket
-
-    @property
-    def object_storage_configured(self) -> bool:
-        """Report whether the selected object-storage backend is complete."""
-        return all(
-            (
-                self.object_storage_endpoint_url_resolved,
-                self.object_storage_access_key_id_resolved,
-                self.object_storage_secret_access_key_resolved,
-                self.object_storage_bucket_resolved,
             )
         )
 
