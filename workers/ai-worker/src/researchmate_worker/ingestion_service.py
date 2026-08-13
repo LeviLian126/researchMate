@@ -9,6 +9,7 @@ from tempfile import TemporaryDirectory
 
 from researchmate_api.services.object_storage import ObjectStorageRequestError
 from researchmate_api.services.qdrant_store import VectorStoreRequestError
+from researchmate_api.services.retrieval import estimate_tokens
 from researchmate_api.services.store import ChunkEntry
 
 from researchmate_worker.ingestion_models import (
@@ -54,7 +55,7 @@ class DocumentIngestionService:
 
     def is_lightweight_corpus(self, chunks: list[ChunkEntry]) -> bool:
         """Return True when total chunk tokens are at or below the lightweight threshold."""
-        total_tokens = sum(len(chunk.text.split()) for chunk in chunks)
+        total_tokens = sum(estimate_tokens(chunk.text) for chunk in chunks)
         return total_tokens <= self.lightweight_token_threshold
 
     def handle(self, event: IngestionEvent, *, worker_id: str) -> str:
@@ -79,16 +80,24 @@ class DocumentIngestionService:
             )
             if not pages or not chunks:
                 raise IngestionFailure("NO_EXTRACTABLE_TEXT", retryable=False)
-            if self.is_lightweight_corpus(chunks):
-                for chunk in chunks:
-                    chunk.has_vector = False
+
+            is_lightweight = self.is_lightweight_corpus(chunks)
+
+            if is_lightweight:
                 LOGGER.info(
                     "ingestion_lightweight_skip_vector document_id=%s token_count=%s",
                     record.document_id,
-                    sum(len(c.text.split()) for c in chunks),
+                    sum(estimate_tokens(c.text) for c in chunks),
                 )
             else:
                 self.vector_projection.upsert_chunks(chunks, pipeline_version=self.pipeline_version)
+                for chunk in chunks:
+                    chunk.has_vector = True
+
+            if is_lightweight:
+                for chunk in chunks:
+                    chunk.has_vector = False
+
             self.store.replace_content(
                 record,
                 worker_id=worker_id,
