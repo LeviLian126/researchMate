@@ -39,13 +39,14 @@ success. If a target environment is genuinely unavailable after reasonable setup
 record the exact proof gap and continue with every safe alternative.
 
 Use an independent subagent or fresh session for large refactors, `HIGH_RISK` changes, and
-pre-release verification by default. Run verification in two phases so the subagent does
-not inherit the implementer's assumptions. In Phase 1, give it the goal, interface
-signatures, schema, acceptance criteria, and risk classification so it can design
-contract-first tests without seeing the implementation. In Phase 2, give it the
-implementation diff, Phase 1 tests, and runtime evidence so it can review the source and
-confirm coverage gaps. For small local changes, do not open an independent session by
-default; complete the applicable local checks and affected server checks instead.
+pre-release verification by default. Use the same subagent across both phases to preserve
+context and save tokens. In Phase 1, give it the goal, interface signatures, schema,
+acceptance criteria, and risk classification, and forbid it from reading the implementation
+source so it must design contract-first tests from the public contract alone. In Phase 2,
+lift the source restriction: give it the implementation diff, Phase 1 tests, and runtime
+evidence so it can review the source and confirm coverage gaps. For small local changes,
+do not open an independent session by default; complete the applicable local checks and
+affected server checks instead.
 
 You may investigate, implement, test, or improve quality beyond the listed steps when that work helps complete the request. Do not silently expand product meaning or collaboration-system scope.
 

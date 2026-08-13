@@ -62,8 +62,9 @@ and error specification—not from reading the implementation. Tests that mirror
 internal branches share the implementer's assumptions and cannot expose the blind spots
 that produced the bug. Enumerate scenarios from the contract first (normal, boundary,
 error, state transition, concurrency, authorization), then read the code only to confirm
-coverage gaps. When an independent subagent writes tests, give it the interface and
-acceptance criteria, not the implementation diff.
+coverage gaps. In Phase 1, the same subagent writes tests while forbidden from reading
+the implementation source—give it only the interface, schema, and acceptance criteria.
+In Phase 2, lift the restriction so it can review the source and confirm coverage gaps.
 
 Build a compact risk map before asking for more tests. Use the goal and public boundary to decide
 which dimensions can reveal a material failure.
