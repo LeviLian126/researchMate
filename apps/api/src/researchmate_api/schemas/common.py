@@ -47,6 +47,11 @@ SNIPPET_QUOTE_SHORT = 180
 SNIPPET_QUOTE_MEDIUM = 220
 SNIPPET_QUOTE_LONG = 260
 
+# Token threshold at or below which a document is classified as lightweight.
+# Lightweight documents skip embedding and Qdrant upsert during ingestion and
+# are always injected directly into the query context.
+LIGHTWEIGHT_DOCUMENT_TOKEN_THRESHOLD_DEFAULT = 4000
+
 
 # Define task types. Task only controls the execution goal.
 class TaskType(str, Enum):

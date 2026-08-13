@@ -190,10 +190,20 @@ class GroundedQueryService:
                 project_id=str(payload.project_id),
                 top_n=None,
             )
-            retrieved = pack_chunks(
-                [item.chunk for item in rerank_result.candidates],
-                self.settings.retrieval_evidence_token_budget,
-            )
+            reranked_chunks = [item.chunk for item in rerank_result.candidates]
+            lightweight_chunks = [c for c in reranked_chunks if not c.has_vector]
+            rag_chunks = [c for c in reranked_chunks if c.has_vector]
+            if lightweight_chunks:
+                lightweight_budget = self.settings.retrieval_evidence_token_budget // 2
+                rag_budget = self.settings.retrieval_evidence_token_budget - lightweight_budget
+                retrieved = pack_chunks(rag_chunks, rag_budget) + pack_chunks(
+                    lightweight_chunks, lightweight_budget
+                )
+            else:
+                retrieved = pack_chunks(
+                    reranked_chunks,
+                    self.settings.retrieval_evidence_token_budget,
+                )
             tool_calls.append(
                 ToolCallTrace(
                     id=uuid4(),
@@ -206,6 +216,7 @@ class GroundedQueryService:
                         "provider": rerank_result.provider,
                         "model": rerank_result.model,
                         "results": len(retrieved),
+                        "lightweight_results": len(lightweight_chunks),
                         "degraded": rerank_result.degraded,
                         "fallback_reason": rerank_result.fallback_reason,
                     },

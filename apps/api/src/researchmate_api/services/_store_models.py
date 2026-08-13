@@ -50,6 +50,7 @@ class ChunkEntry:
     chunk_index: int | None = None
     char_start: int | None = None
     char_end: int | None = None
+    has_vector: bool = True
     metadata: dict[str, object] = field(default_factory=dict)
     created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 

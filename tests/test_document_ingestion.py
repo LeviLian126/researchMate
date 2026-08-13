@@ -131,6 +131,7 @@ def service(
         lease_seconds=120,
         max_attempts=3,
         max_upload_bytes=1024,
+        lightweight_token_threshold=0,
     )
 
 

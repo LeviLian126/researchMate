@@ -77,6 +77,8 @@ class LocalEvidenceRetriever:
         history: list[ConversationMessage] | None = None,
     ) -> RetrievalOutcome:
         """Route the complete authorized corpus, then retrieve or use it in full."""
+        lightweight_chunks = [c for c in chunks if not c.has_vector]
+        rag_chunks = [c for c in chunks if c.has_vector]
         corpus_tokens = sum(estimate_tokens(chunk.text) for chunk in chunks)
         plan = plan_retrieval(
             query,
@@ -98,12 +100,18 @@ class LocalEvidenceRetriever:
             )
             return self._outcome(candidates, plan, corpus_tokens=corpus_tokens)
 
-        candidates, degraded, reason = self._hybrid_candidates(
-            user,
-            project_id,
-            plan,
-            chunks,
-            document_ids=document_ids,
+        if rag_chunks:
+            candidates, degraded, reason = self._hybrid_candidates(
+                user,
+                project_id,
+                plan,
+                rag_chunks,
+                document_ids=document_ids,
+            )
+        else:
+            candidates, degraded, reason = [], False, "all_lightweight_corpus"
+        candidates.extend(
+            RetrievalCandidate(chunk=chunk, score=0.0) for chunk in lightweight_chunks
         )
         selected_tokens = sum(estimate_tokens(item.chunk.text) for item in candidates)
         return RetrievalOutcome(

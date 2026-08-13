@@ -81,7 +81,7 @@ class ChunkPersistenceMixin:
                     select c.id, c.user_id, c.project_id, c.document_id, c.source_type,
                            c.source_title, c.text, c.page_no, c.slide_no, c.url,
                            c.section_title, c.section_path, c.chunk_index,
-                           c.char_start, c.char_end, c.metadata, c.created_at
+                           c.char_start, c.char_end, c.has_vector, c.metadata, c.created_at
                     from chunks c
                     left join documents d on d.id=c.document_id and d.user_id=c.user_id
                     where c.user_id = :user_id and c.project_id = :project_id
@@ -125,7 +125,7 @@ class ChunkPersistenceMixin:
                     select c.id,c.user_id,c.project_id,c.document_id,c.source_type,
                            c.source_title,c.text,c.page_no,c.slide_no,c.url,
                            c.section_title,c.section_path,c.chunk_index,
-                           c.char_start,c.char_end,c.metadata,c.created_at
+                           c.char_start,c.char_end,c.has_vector,c.metadata,c.created_at
                     from chunks c
                     join documents d on d.id=c.document_id and d.user_id=c.user_id
                     where c.user_id=:user_id and c.project_id=:project_id
@@ -156,7 +156,7 @@ class ChunkPersistenceMixin:
                     """
                    select id, user_id, project_id, document_id, source_type, source_title,
                           text, page_no, slide_no, url, section_title, section_path,
-                          chunk_index, char_start, char_end, metadata, created_at
+                          chunk_index, char_start, char_end, has_vector, metadata, created_at
                    from chunks
                    where user_id = :user_id and project_id = :project_id
                      and id = any(:chunk_ids) and source_type = 'local_doc'

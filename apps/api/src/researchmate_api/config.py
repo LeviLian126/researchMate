@@ -8,6 +8,8 @@ from typing import Literal
 from pydantic import Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from researchmate_api.schemas.common import LIGHTWEIGHT_DOCUMENT_TOKEN_THRESHOLD_DEFAULT
+
 
 class Settings(BaseSettings):
     """Validated runtime configuration shared by API boundaries and adapters."""
@@ -68,6 +70,12 @@ class Settings(BaseSettings):
     chat_summary_trigger_tokens: int = Field(default=8000, ge=1000, le=50000)
     full_context_token_limit: int = Field(default=12000, ge=1000, le=50000)
     retrieval_evidence_token_budget: int = Field(default=8000, ge=1000, le=30000)
+    lightweight_document_token_threshold: int = Field(
+        default=LIGHTWEIGHT_DOCUMENT_TOKEN_THRESHOLD_DEFAULT,
+        ge=500,
+        le=20000,
+        description="Documents at or below this token count skip embedding and Qdrant upsert.",
+    )
     ask_max_output_tokens: int = Field(default=2048, ge=128, le=8192)
     web_search_provider: Literal["disabled", "tavily"] = "disabled"
     tavily_api_key: SecretStr | None = None

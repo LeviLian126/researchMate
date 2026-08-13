@@ -115,6 +115,7 @@ def build_ingestion_service() -> DocumentIngestionService:
         lease_seconds=settings.ingestion_lease_seconds,
         max_attempts=settings.ingestion_max_attempts,
         max_upload_bytes=settings.max_upload_bytes,
+        lightweight_token_threshold=settings.lightweight_document_token_threshold,
     )
 
 

@@ -154,12 +154,13 @@ class SqlIngestionStore:
                         insert into chunks (
                           id, user_id, project_id, document_id, source_type, source_title,
                           page_no, slide_no, section_title, section_path, chunk_index,
-                          char_start, char_end, text, token_count, qdrant_point_id, metadata
+                          char_start, char_end, text, token_count, qdrant_point_id,
+                          has_vector, metadata
                         ) values (
                           :id, :user_id, :project_id, :document_id, 'local_doc', :source_title,
                           :page_no, :slide_no, :section_title, :section_path, :chunk_index,
                           :char_start, :char_end, :text, :token_count, :qdrant_point_id,
-                          cast(:metadata as jsonb)
+                          :has_vector, cast(:metadata as jsonb)
                         )
                         """
                     ),
@@ -178,7 +179,8 @@ class SqlIngestionStore:
                         "char_end": chunk.char_end,
                         "text": chunk.text,
                         "token_count": len(chunk.text.split()),
-                        "qdrant_point_id": str(chunk.id),
+                        "qdrant_point_id": str(chunk.id) if chunk.has_vector else None,
+                        "has_vector": chunk.has_vector,
                         "metadata": json.dumps(
                             {
                                 **chunk.metadata,
