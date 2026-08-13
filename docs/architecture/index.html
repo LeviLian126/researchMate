@@ -149,7 +149,6 @@ npm run check:migrations</code></pre></article>
           <article class="access-rail"><h3>Public-demo target</h3><p>Vercel Hobby remains the web host; one selected Render Free service is the only backend compute target. This free environment has no production SLA and must not hold real user data.</p></article>
           <article class="access-rail"><h3>Readiness boundary</h3><p><code>/api/v1/readyz</code> checks Postgres, Redis, Qdrant, worker and dispatcher heartbeat freshness, outbox backlog, and LangGraph checkpoint tables; object storage/LLM/Tavily remain configuration-only to avoid charged probe calls. The managed endpoint returned HTTP 200 with no failed component after deployment <code>dep-d9le54vlk1mc73c22p60</code>, retaining the runtime baseline established on <code>66c31a8</code>.</p></article>
         </div>
-        <div class="notice"><strong>Historical alternative:</strong> Cloudflare deployment was fully removed from active workflows, application configuration, npm commands, and dependencies on 26 July 2026. Its inert source snapshots and rationale remain in the <a href="../archive/cloudflare/index.html">archived deployment plan</a>.</div>
       </section>
 
       <section id="cicd">

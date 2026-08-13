@@ -48,14 +48,13 @@ def test_python_dependency_graph_is_locked_for_ci_and_images() -> None:
     assert "uv sync --frozen --no-dev --all-packages" in worker_image
 
 
-def test_retired_delivery_paths_are_inert_and_cloudflare_sources_are_archived() -> None:
-    """Keep retired release paths inert and archived."""
+def test_retired_delivery_paths_are_inert() -> None:
+    """Keep retired release paths inert."""
     active_workflows = "\n".join(
         path.read_text(encoding="utf-8") for path in (ROOT / ".github/workflows").glob("*.yml")
     )
     web_package = (ROOT / "apps/web/package.json").read_text(encoding="utf-8")
     package_lock = (ROOT / "package-lock.json").read_text(encoding="utf-8")
-    archive = ROOT / "docs/archive/cloudflare"
 
     assert "cloudflare" not in active_workflows.lower()
     assert "generate chinese documentation" not in active_workflows.lower()
@@ -69,18 +68,6 @@ def test_retired_delivery_paths_are_inert_and_cloudflare_sources_are_archived() 
     assert "wrangler" not in web_package.lower()
     assert "node_modules/@opennextjs/cloudflare" not in package_lock
     assert "node_modules/wrangler" not in package_lock
-
-    release_snapshot = (archive / "release-workflow.yml").read_text(encoding="utf-8")
-    assert "workflow_dispatch:" in release_snapshot
-    assert "CLOUDFLARE_API_TOKEN" in release_snapshot
-    assert "wrangler deploy --config wrangler.jsonc" in release_snapshot
-    for name in (
-        "release-workflow.yml",
-        "open-next.config.ts",
-        "wrangler.jsonc",
-        "web-package-fragment.json",
-    ):
-        assert (archive / name).is_file()
 
 
 def test_deployment_image_is_non_root_and_prefetches_pdf_models() -> None:
