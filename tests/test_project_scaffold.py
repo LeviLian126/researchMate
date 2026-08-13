@@ -8,7 +8,6 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 AUTHORITATIVE_DOCS = [
     "docs/architecture/index.html",
-    "docs/archive/cloudflare/index.html",
     "docs/contracts/api/index.html",
     "docs/contracts/data/index.html",
     "docs/index.html",
@@ -30,7 +29,6 @@ def test_required_contract_files_exist() -> None:
         "docs/assets/site.css",
         "docs/product/index.html",
         "docs/architecture/index.html",
-        "docs/archive/cloudflare/index.html",
         "docs/contracts/data/index.html",
         "docs/contracts/api/index.html",
         "infra/openapi/openapi.yaml",
@@ -144,21 +142,7 @@ def test_docs_separate_current_truth_from_archived_plans() -> None:
     ):
         assert retired not in combined
 
-    archive = (ROOT / "docs/archive/cloudflare/index.html").read_text(encoding="utf-8")
-    assert "not current guidance" in archive
-    assert "release-workflow.yml" in archive
-
-    current_pages = [
-        (ROOT / "docs/index.html").read_text(encoding="utf-8"),
-        (ROOT / "docs/product/index.html").read_text(encoding="utf-8"),
-        (ROOT / "docs/architecture/index.html").read_text(encoding="utf-8"),
-    ]
-    assert all(source.count("archive/cloudflare/index.html") == 1 for source in current_pages)
-    assert all(
-        "archive/cloudflare/index.html" not in source.split("<nav", 1)[1].split("</nav>", 1)[0]
-        for source in current_pages
-    )
-    assert all("release #4" not in source.lower() for source in current_pages)
+    assert "release #4" not in combined.lower()
 
 
 def test_database_and_api_docs_reconcile_complete_source_contracts() -> None:

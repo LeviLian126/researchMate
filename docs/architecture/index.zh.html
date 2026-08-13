@@ -149,7 +149,6 @@ npm run check:migrations</code></pre></article>
           <article class="access-rail"><h3>公开演示目标</h3><p>Vercel Hobby 仍是 Web 主机；一个选定的 Render Free 服务是唯一的后端计算目标。此免费环境无生产 SLA，且不得保存真实用户数据。</p></article>
           <article class="access-rail"><h3>就绪边界</h3><p><code>/api/v1/readyz</code> 检查 Postgres、Redis、Qdrant、worker 和分发器心跳新鲜度、发件箱积压和 LangGraph 检查点表；对象存储/LLM/Tavily 保持仅配置以避免计费探测调用。托管端点在部署 <code>dep-d9le54vlk1mc73c22p60</code> 后返回 HTTP 200，无失败组件，保留了 <code>66c31a8</code> 上建立的运行时基线。</p></article>
         </div>
-        <div class="notice"><strong>历史替代方案：</strong>Cloudflare 部署已于 2026 年 7 月 26 日从活跃工作流、应用配置、npm 命令和依赖项中完全移除。其惰性源码快照和理由保留在<a href="../archive/cloudflare/index.zh.html">已归档的部署方案</a>中。</div>
       </section>
 
       <section id="cicd">

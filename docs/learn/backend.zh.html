@@ -76,7 +76,7 @@
           <article class="fact"><b>OpenTelemetry</b><p>分布式链路追踪。OTLPSpanExporter 将 span 发送到 collector 端点。FastAPIInstrumentor 自动插桩应用。Resource 标记 service.name 和 deployment.environment.name。tracer provider 由 ObservabilityRuntime 拥有,在退出时安全关闭。</p></article>
           <article class="fact"><b>Langfuse</b><p>LLM 可观测性。provider_observation 为每次 NVIDIA chat 和 embedding 调用创建 generation 或 embedding observation,记录模型、输入元数据和使用量。LANGFUSE_ENABLED 为 false 时回退到 _NoopObservation。</p></article>
           <article class="fact"><b>OpenAI SDK</b><p>NVIDIA NIM 端点的客户端。OpenAI(base_url=nvidia_base_url, api_key, timeout, max_retries=0) 用于 chat.completions.create 和 embeddings.create。SDK 被 NvidiaChatProvider 和 NvidiaEmbeddingProvider 封装,services 层从不直接调用。</p></article>
-          <article class="fact"><b>boto3</b><p>S3 兼容对象存储客户端。S3CompatibleObjectStorage 封装 boto3.client("s3"),提供 presign_upload(签名 PUT URL)和 head(读取对象元数据)。支持 Cloudflare R2(账户级 endpoint)或任意通用 S3 endpoint。</p></article>
+          <article class="fact"><b>boto3</b><p>S3 兼容对象存储客户端。S3CompatibleObjectStorage 封装 boto3.client("s3"),提供 presign_upload(签名 PUT URL)和 head(读取对象元数据)。支持任意通用 S3 endpoint。</p></article>
           <article class="fact"><b>httpx</b><p>OpenAI SDK 和 Tavily web search provider 使用的 HTTP 传输层。提供同步 HTTP 请求和可配置超时。Tavily 适配器向 api.tavily.com 发送搜索查询,将结果归一化为 ChunkEntry 对象。</p></article>
           <article class="fact"><b>MCP</b><p>Model Context Protocol 服务端。FastMCP 通过 Streamable HTTP 暴露 6 个 tools(list_projects、search_project、search_conversation、ask_grounded、get_run_trace、run_evaluation)和 3 个 resources(project documents、conversation documents、run summary),使用与 REST 相同的 bearer 中间件认证。</p></article>
         </div>
