@@ -71,3 +71,6 @@ Thumbs.db
 
 # Resume outputs
 resume/
+
+# CodeAgent CLI state
+.cac/
