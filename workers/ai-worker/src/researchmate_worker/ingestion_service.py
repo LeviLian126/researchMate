@@ -100,6 +100,9 @@ class DocumentIngestionService:
                 self.vector_projection.upsert_chunks(chunks, pipeline_version=self.pipeline_version)
                 for chunk in chunks:
                     chunk.has_vector = True
+                if self.wiki_compiler is not None:
+                    overview_chunks = self._compile_overview_wiki(chunks, record)
+                    chunks = chunks + overview_chunks
 
             self.store.replace_content(
                 record,
@@ -156,6 +159,42 @@ class DocumentIngestionService:
                 type(exc).__name__,
             )
         return chunks
+
+    def _compile_overview_wiki(
+        self, chunks: list[ChunkEntry], record: IngestionRecord
+    ) -> list[ChunkEntry]:
+        """Compile an overview Wiki page for a long document.
+
+        Unlike ``_compile_wiki`` which REPLACES the lightweight chunks with
+        compiled wiki pages, this method RETURNS ADDITIONAL overview chunks
+        that are appended to the original RAG chunks (the long document stays
+        embedded in Qdrant for retrieval). Failure-tolerant: returns an empty
+        list on error so ingestion still succeeds with the vector path.
+        """
+        try:
+            overview_chunks = self.wiki_compiler.compile_overview(  # type: ignore[union-attr]
+                chunks,
+                filename=record.filename,
+                user_id=record.user_id,
+                project_id=record.project_id,
+                document_id=record.document_id,
+            )
+            if not overview_chunks:
+                LOGGER.warning("wiki_overview_returned_empty document_id=%s", record.document_id)
+                return []
+            LOGGER.info(
+                "ingestion_wiki_overview_compiled document_id=%s pages=%s",
+                record.document_id,
+                len(overview_chunks),
+            )
+            return overview_chunks
+        except Exception as exc:
+            LOGGER.warning(
+                "wiki_overview_compilation_failed document_id=%s error=%s",
+                record.document_id,
+                type(exc).__name__,
+            )
+            return []
 
     def _record_failure(
         self,

@@ -107,6 +107,16 @@ class WikiCompiler(Protocol):
         document_id: UUID,
     ) -> list[ChunkEntry]: ...
 
+    def compile_overview(
+        self,
+        chunks: list[ChunkEntry],
+        *,
+        filename: str,
+        user_id: UUID,
+        project_id: UUID,
+        document_id: UUID,
+    ) -> list[ChunkEntry]: ...
+
 
 class IngestionStore(Protocol):
     """Define lease-safe ingestion persistence and terminal transitions."""

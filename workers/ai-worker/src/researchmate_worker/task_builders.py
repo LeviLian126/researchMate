@@ -75,6 +75,25 @@ class WorkerWikiCompiler:
         )
         return wiki_pages_to_chunks(pages)
 
+    def compile_overview(
+        self,
+        chunks: list[ChunkEntry],
+        *,
+        filename: str,
+        user_id: UUID,
+        project_id: UUID,
+        document_id: UUID,
+    ) -> list[ChunkEntry]:
+        """Compile overview wiki-page chunks for a long document via the LLM compiler."""
+        pages = self._compiler.compile_overview(
+            chunks,
+            filename=filename,
+            user_id=user_id,
+            project_id=project_id,
+            document_id=document_id,
+        )
+        return wiki_pages_to_chunks(pages)
+
 
 def _worker_engine(database_url: str) -> Engine:
     """Build a worker task engine with a bounded, recycled connection pool.

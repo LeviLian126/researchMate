@@ -76,6 +76,7 @@ class WikiPage:
     aliases: list[str] = field(default_factory=list)
     links: list[str] = field(default_factory=list)
     source_chunk_ids: list[UUID] = field(default_factory=list)
+    references: list[dict[str, object]] = field(default_factory=list)
     created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     updated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
