@@ -56,6 +56,31 @@ class ChunkEntry:
 
 
 @dataclass
+class WikiPage:
+    """Represent one LLM-compiled wiki page with source provenance and links.
+
+    Wiki pages are derived from lightweight document chunks by the LLM compiler.
+    They replace the original chunks in the retrieval pipeline so that short
+    documents enter the query context as structured, linkable knowledge entries
+    rather than raw text fragments. The original document text is preserved in
+    the document store; wiki pages are a derived explanation layer.
+    """
+
+    id: UUID
+    user_id: UUID
+    project_id: UUID
+    document_id: UUID
+    title: str
+    page_type: str
+    content: str
+    aliases: list[str] = field(default_factory=list)
+    links: list[str] = field(default_factory=list)
+    source_chunk_ids: list[UUID] = field(default_factory=list)
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+
+
+@dataclass
 class UploadReservation:
     """Track an in-memory object upload reservation."""
 

@@ -13,6 +13,7 @@ from researchmate_worker.ingestion_models import (
     ParsedBlock,
     ParserAdapterError,
     VectorProjection,
+    WikiCompiler,
 )
 from researchmate_worker.ingestion_projections import build_projections
 from researchmate_worker.ingestion_service import DocumentIngestionService
@@ -31,5 +32,6 @@ __all__ = [
     "ParserAdapterError",
     "SqlIngestionStore",
     "VectorProjection",
+    "WikiCompiler",
     "build_projections",
 ]

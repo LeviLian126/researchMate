@@ -94,6 +94,20 @@ class VectorProjection(Protocol):
     def upsert_chunks(self, chunks: list[ChunkEntry], *, pipeline_version: str) -> None: ...
 
 
+class WikiCompiler(Protocol):
+    """Define LLM-powered wiki compilation independent of a chat provider SDK."""
+
+    def compile(
+        self,
+        chunks: list[ChunkEntry],
+        *,
+        filename: str,
+        user_id: UUID,
+        project_id: UUID,
+        document_id: UUID,
+    ) -> list[ChunkEntry]: ...
+
+
 class IngestionStore(Protocol):
     """Define lease-safe ingestion persistence and terminal transitions."""
 

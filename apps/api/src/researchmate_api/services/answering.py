@@ -8,7 +8,13 @@ from uuid import uuid4
 
 from pydantic import BaseModel, Field, ValidationError
 
-from researchmate_api.schemas.common import MAX_TEXT_LENGTH, Citation, SourceSummary, SourceType
+from researchmate_api.schemas.common import (
+    MAX_EVIDENCE_TEXT_LENGTH,
+    MAX_TEXT_LENGTH,
+    Citation,
+    SourceSummary,
+    SourceType,
+)
 from researchmate_api.schemas.conversation import ConversationMessage
 from researchmate_api.services.llm import ChatProvider, LLMResult
 from researchmate_api.services.retrieval import snippet
@@ -97,6 +103,29 @@ def _repair_grounded_result(
     )
 
 
+def _build_evidence_entry(index: int, chunk: ChunkEntry) -> dict[str, object]:
+    """Format one evidence entry, adding wiki structure when available.
+
+    Wiki-compiled chunks carry metadata (title, type, links, aliases) that
+    helps the LLM treat the evidence as structured knowledge entries rather
+    than raw text fragments. Non-wiki chunks get the legacy flat format.
+    """
+    entry: dict[str, object] = {
+        "evidence_id": index,
+        "source_type": _source_type(chunk.source_type).value,
+        "location": {"page": chunk.page_no, "slide": chunk.slide_no, "url": chunk.url},
+        "text": chunk.text[:MAX_EVIDENCE_TEXT_LENGTH],
+    }
+    metadata = chunk.metadata
+    if isinstance(metadata, dict) and metadata.get("wiki_mode"):
+        entry["wiki_title"] = chunk.source_title
+        entry["wiki_type"] = metadata.get("wiki_type", "reference")
+        wiki_links = metadata.get("wiki_links")
+        if isinstance(wiki_links, list) and wiki_links:
+            entry["wiki_links"] = wiki_links
+    return entry
+
+
 def build_llm_grounded_answer(
     provider: ChatProvider,
     query: str,
@@ -107,15 +136,7 @@ def build_llm_grounded_answer(
     """Generate and validate a grounded answer from allowlisted evidence."""
     if not chunks:
         raise ProviderOutputError("Grounded generation requires at least one evidence chunk")
-    evidence = [
-        {
-            "evidence_id": index,
-            "source_type": _source_type(chunk.source_type).value,
-            "location": {"page": chunk.page_no, "slide": chunk.slide_no, "url": chunk.url},
-            "text": chunk.text[:1600],
-        }
-        for index, chunk in enumerate(chunks, start=1)
-    ]
+    evidence = [_build_evidence_entry(index, chunk) for index, chunk in enumerate(chunks, start=1)]
     messages = [
         {
             "role": "system",
