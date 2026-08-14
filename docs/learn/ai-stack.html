@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8"/>
   <meta content="width=device-width,initial-scale=1" name="viewport"/>
-  <meta content="ResearchMate AI agent stack deep dive: routed Hybrid RAG with five routes and dual rerank, MCP server with six tools and three resources, LangGraph evidence workflow with six nodes, checkpointing, and human-in-the-loop review." name="description"/>
+  <meta content="ResearchMate AI agent stack deep dive: Wiki-guided Hybrid RAG with three-layer retrieval, routed five-route Hybrid RAG with dual rerank, MCP server with six tools and three resources, LangGraph evidence workflow with six nodes, checkpointing, and human-in-the-loop review." name="description"/>
   <title>ResearchMate . AI agent stack</title>
   <link href="../assets/site.css" rel="stylesheet"/>
   <style>
@@ -27,7 +27,7 @@
   <style>.module-nav{border-top:1px solid var(--g200)}.module-nav .shell{padding:6px 0 12px}.module-nav a{font-size:11.5px;padding:5px 11px}</style>
 </head>
 <body>
-  <header class="mast"><div class="shell mast-row"><a class="brand" href="../index.html">ResearchMate documentation</a><div class="mast-right"><span class="stamp">AI stack . 11 August 2026</span><a class="lang-toggle" href="ai-stack.zh.html" hreflang="zh" lang="zh">中文</a></div></div></header>
+  <header class="mast"><div class="shell mast-row"><a class="brand" href="../index.html">ResearchMate documentation</a><div class="mast-right"><span class="stamp">AI stack . 14 August 2026</span><a class="lang-toggle" href="ai-stack.zh.html" hreflang="zh" lang="zh">中文</a></div></div></header>
   <nav aria-label="Documentation" class="global"><div class="shell">
     <a href="../index.html">Overview</a>
     <a href="../product/index.html">Product &amp; roadmap</a>
@@ -48,10 +48,11 @@
   </div></nav>
   <main class="shell">
     <div class="hero">
-      <p class="eyebrow">Hybrid RAG / MCP / LangGraph</p>
+      <p class="eyebrow">Wiki-guided Hybrid RAG / MCP / LangGraph</p>
       <h1>AI agent stack . Retrieval, Protocol, Orchestration</h1>
-      <p class="lede">ResearchMate's AI agent stack is a cohesive subsystem spanning the FastAPI backend and the Celery worker. Three foundations compose it: a routed Hybrid RAG retriever that chooses among five observable routes before fused retrieval and dual rerank; an MCP server that exposes six tools and three resources over Streamable HTTP under the same bearer auth as REST; and a LangGraph evidence workflow that orchestrates a six-node stateful graph with parallel fan-out, PostgreSQL checkpointing, and human-in-the-loop review. This page goes file-by-file through every component, decision tree, and integration seam.</p>
+      <p class="lede">ResearchMate's AI agent stack is a cohesive subsystem spanning the FastAPI backend and the Celery worker. Four foundations compose it: a Wiki-guided Hybrid RAG retriever that compiles LLM-structured Wiki pages as a first retrieval layer; a routed Hybrid RAG retriever that chooses among five observable routes before fused retrieval and dual rerank; an MCP server that exposes six tools and three resources over Streamable HTTP under the same bearer auth as REST; and a LangGraph evidence workflow that orchestrates a six-node stateful graph with parallel fan-out, PostgreSQL checkpointing, and human-in-the-loop review. This page goes file-by-file through every component, decision tree, and integration seam.</p>
       <div class="meta">
+        <span class="status local">Wiki-guided Hybrid RAG</span>
         <span class="status local">5 retrieval routes</span>
         <span class="status local">3 rerank providers</span>
         <span class="status local">6 MCP tools . 3 resources</span>
@@ -119,17 +120,101 @@
 
         <h3>Key source files</h3>
         <pre><code>apps/api/src/researchmate_api/services/
-  query_planning.py        (RetrievalRoute, plan_retrieval, _expanded_plan)
+  wiki_compiler.py         (WikiCompiler, compile, compile_overview, WikiPage, wiki_pages_to_chunks)
+  query_planning.py        (RetrievalRoute, plan_retrieval, _expanded_plan, wiki_first_routing check)
   query_retrieval.py       (LocalEvidenceRetriever, route orchestration)
-  qdrant_hybrid_query.py   (execute_hybrid_query, RRF fusion)
+  qdrant_hybrid_query.py   (execute_hybrid_query, RRF fusion with Wiki support)
   rerank.py                (RerankCoordinator, 3 reranker implementations)
   grounded_query.py        (GroundedQueryService, end-to-end orchestrator)
-  retrieval.py            (bm25_candidates, fuse_candidates, pack_chunks)
+  retrieval.py             (bm25_candidates, fuse_candidates, pack_chunks)
   qdrant_store.py          (QdrantHybridStore, upsert/query/delete)
   _store_text.py           (chunk_text, paragraph splitting)
   _store_models.py         (ChunkEntry dataclass)
   _store_chunks.py         (project_chunks, conversation_chunks)</code></pre>
       </section>
+
+      <section id="wiki-rag">
+        <p class="eyebrow">Wiki-guided Hybrid RAG</p>
+        <h2>LLM Wiki compilation . three-layer retrieval architecture</h2>
+        <p class="sub">ResearchMate now adds an LLM-compiled structured Wiki layer as the first retrieval tier. When a document is ingested, a WikiCompiler synthesizes a concise overview page that captures section headings, key concepts, and relationships; each Wiki page carries structured references back to source chunks. At query time, the planner checks whether Wiki candidates exist before routing &mdash; if they do and the route is FULL_CONTEXT or SEMANTIC, Qdrant is skipped entirely and Wiki chunks are returned directly (score=1.0, reason="wiki_first_routing"). EXACT queries still flow through the full RAG pipeline; HYBRID and EXPANDED_HYBRID run dual-path parallel with a 50/50 budget split.</p>
+
+        <h3>Three-layer architecture</h3>
+        <div class="stack-ledger"><table><thead><tr><th>Layer</th><th>Purpose</th><th>Mechanism</th><th>Evidence source</th></tr></thead><tbody>
+          <tr><td><b>Wiki layer</b></td><td>Structured knowledge for navigation</td><td>LLM compilation at ingest time; overview pages cached per document</td><td>WikiPage references &rarr; source chunk_id, page_no</td></tr>
+          <tr><td><b>RAG layer</b></td><td>Fine-grained evidence for answers</td><td>Hybrid BM25 + dense retrieval with RRF fusion and dual rerank</td><td>Qdrant collection with ChunkEntry objects</td></tr>
+          <tr><td><b>Raw Source</b></td><td>Ground truth</td><td>S3-compatible object storage (PDFs, PPTX, text files)</td><td>boto3 presigned URLs</td></tr>
+        </tbody></table></div>
+
+        <h3>Wiki compilation modes</h3>
+        <div class="grid two">
+          <article class="fact"><b>Short-document mode (&le;4000 tokens)</b><p>Documents below the <code>WIKI_COMPILE_TOKEN_THRESHOLD</code> boundary get a full Wiki compilation: the LLM produces a single WikiPage that replaces original chunks in retrieval results (<code>has_vector=false</code>). The compiled Wiki preserves all factual content in a condensed structured format.</p></article>
+          <article class="fact"><b>Long-document overview (>4000 tokens)</b><p>Larger documents trigger <code>compile_overview()</code>: the LLM generates a high-level overview page sampled to <code>WIKI_OVERVIEW_MAX_INPUT_TOKENS = 6000</code> token budget. The overview Wikipedia page is appended alongside Qdrant RAG blocks (<code>has_vector=false</code> for overview, <code>has_vector=true</code> for RAG blocks). This keeps the overview compact while preserving deep evidence from the full RAG pipeline.</p></article>
+        </div>
+
+        <h3>Wiki-first routing decision tree</h3>
+        <p>The router in <code>query_planning.py</code> checks for Wiki candidates after determining the route. The decision logic:</p>
+        <div class="proof-chain">
+          <div class="proof-step"><b>FULL_CONTEXT or SEMANTIC + Wiki exists</b><small>Skip Qdrant entirely; return Wiki chunks with score=1.0 and reason="wiki_first_routing". No vector search cost.</small></div>
+          <div class="proof-step"><b>EXACT query</b><small>Full RAG pipeline regardless of Wiki presence &mdash; exact identifier matching takes priority. Wiki chunks are appended but scored 0.0.</small></div>
+          <div class="proof-step"><b>HYBRID or EXPANDED_HYBRID</b><small>Dual-path parallel: 50% token budget to Wiki chunks, 50% to Qdrant RAG. Results merged via weighted RRF.</small></div>
+          <div class="proof-step"><b>No Wiki or compilation failed</b><small>Graceful degradation &mdash; fall through to standard RAG pipeline as if Wiki layer never existed.</small></div>
+        </div>
+
+        <h3>Structured references for traceability</h3>
+        <p>Every <code>WikiPage</code> dataclass carries a <code>references: list[dict]</code> field where each entry contains <code>{document_id, section_title, page_no, chunk_id}</code>. The <code>wiki_pages_to_chunks()</code> helper converts these into <code>ChunkEntry</code>-compatible metadata with a <code>wiki_references</code> key, so every citation in the final answer can be traced back through the Wiki page to the exact source location within the S3-stored PDF or PPTX.</p>
+
+        <h3>Graceful degradation contract</h3>
+        <div class="notice"><strong>Wiki compilation failure fallback:</strong> If the LLM provider is misconfigured, returns invalid JSON, or times out, <code>WikiCompiler.compile()</code> catches the exception and returns <code>[]</code> (no Wiki candidates). The downstream router sees an empty wiki list and falls through to standard Qdrant RAG without any behavioral change. The Wiki layer is an optimization, not a correctness requirement.</div>
+
+        <h3>Key source files</h3>
+        <pre><code>apps/api/src/researchmate_api/services/
+  wiki_compiler.py         (WikiCompiler, compile, compile_overview, WikiPage, wiki_pages_to_chunks)
+  query_planning.py        (RetrievalRoute, wiki_first_routing check)
+  query_retrieval.py       (LocalEvidenceRetriever, Wiki candidate integration)
+  qdrant_hybrid_query.py   (execute_hybrid_query, RRF fusion with Wiki support)</code></pre>
+
+      <section id="wiki-rag">
+        <p class="eyebrow">Wiki-guided retrieval</p>
+        <h2>Wiki-guided Hybrid RAG . Three-layer retrieval architecture</h2>
+        <p class="sub">The Wiki layer sits between raw storage and RAG retrieval &mdash; LLM-compiled structured pages provide navigation shortcuts for short documents or overview context for long ones.</p>
+
+        <h3>Three layers of knowledge</h3>
+        <div class="stack-ledger"><table><thead><tr><th>Layer</th><th>Purpose</th><th>Implementation</th></tr></thead><tbody>
+          <tr><td><b>Raw Source</b></td><td>Source of truth</td><td>S3-compatible object storage</td></tr>
+          <tr><td><b>Wiki</b></td><td>Knowledge navigation</td><td>LLM-compiled structured pages</td></tr>
+          <tr><td><b>RAG</b></td><td>Evidence retrieval</td><td>Qdrant hybrid + rerank</td></tr>
+        </tbody></table></div>
+
+        <h3>Ingestion flow with Wiki compilation</h3>
+        <div class="proof-chain">
+          <div class="proof-step"><b>Document upload</b><small>Parse &rarr; Chunk into bounded text blocks</small></div>
+          <div class="proof-step"><b>Short doc (&le;4000 tokens)</b><small>Full Wiki compilation replaces original chunks (has_vector=False)</small></div>
+          <div class="proof-step"><b>Long doc (>4000 tokens)</b><small>Qdrant upsert (has_vector=True) + Overview Wiki appended (has_vector=False)</small></div>
+        </div>
+
+        <h3>Wiki-first routing strategy</h3>
+        <div class="grid two">
+          <article class="fact"><b>Wiki-first routing</b><p>When Wiki candidates exist AND query route is FULL_CONTEXT or SEMANTIC, skip Qdrant entirely and return Wiki chunks (score=1.0, reason="wiki_first_routing"). EXACT queries still go through full RAG pipeline.</p></article>
+          <article class="fact"><b>Graceful degradation</b><p>Wiki compilation failure is non-blocking &mdash; system falls back to original RAG blocks without error propagation.</p></article>
+        </div>
+
+        <div class="notice"><strong>Structured references:</strong> Each WikiPage carries a <code>references: list[dict[str, object]]</code> field mapping back to source evidence with <code>{document_id, section_title, page_no, chunk_id}</code>. This enables traceability from synthesized Wiki knowledge back to raw source fragments while maintaining a clean separation between navigation aids and proof-bearing evidence.</div>
+
+        <h3>Key constants and methods</h3>
+        <div class="grid two">
+          <article class="fact"><b>Constants</b><p><code>WIKI_OVERVIEW_MAX_INPUT_TOKENS = 6000</code> (in schemas/common.py) guards against overlong overview compilation. Token thresholds for short/long detection use the same 4000-token boundary.</p></article>
+          <article class="fact"><b>Methods</b><p><code>WikiCompiler.compile_overview()</code>, <code>WikiCompiler._sample_for_overview()</code>, <code>wiki_pages_to_chunks()</code> (adds <code>wiki_references</code> to metadata), <code>IngestionService._compile_overview_wiki()</code> (called after Qdrant upsert for long docs).</p></article>
+        </div>
+
+        <h3>Key source files</h3>
+        <pre><code>apps/api/src/researchmate_api/services/
+  wiki_compiler.py         (WikiCompiler, compile_overview, WikiPage, wiki_pages_to_chunks)
+  query_retrieval.py       (wiki-first routing check)
+  ingestion.py             (IngestionService._compile_overview_wiki)
+workers/ai-worker/src/researchmate_worker/
+  tasks.py                 (trigger overview compilation after Qdrant upsert)</code></pre>
+      </section>
+
 
       <section id="mcp">
         <p class="eyebrow">Model Context Protocol</p>
@@ -260,13 +345,14 @@ tests/
 
       <section id="integration">
         <p class="eyebrow">End-to-end integration</p>
-        <h2>How the three foundations connect</h2>
-        <p class="sub">The three foundations are not isolated &mdash; they share domain services, auth, and the same Postgres truth.</p>
+        <h2>How the four foundations connect</h2>
+        <p class="sub">The four foundations are not isolated &mdash; they share domain services, auth, and the same Postgres truth.</p>
 
         <h3>Ask path . Hybrid RAG exposed via REST and MCP</h3>
         <div class="proof-chain">
           <div class="proof-step"><b>User asks a question</b><small>Browser &rarr; <code>POST /api/v1/ask</code> (REST) or MCP <code>ask_grounded</code> tool &mdash; both reach <code>GroundedQueryService.execute()</code></small></div>
           <div class="proof-step"><b>Route planning</b><small><code>LocalEvidenceRetriever.retrieve()</code> calls <code>plan_retrieval()</code> &mdash; one of five routes chosen</small></div>
+          <div class="proof-step"><b>Wiki-first routing</b><small>When Wiki candidates exist and route is FULL_CONTEXT or SEMANTIC, skip Qdrant and return Wiki chunks directly (score=1.0)</small></div>
           <div class="proof-step"><b>Hybrid retrieval + RRF</b><small><code>execute_hybrid_query()</code> fuses BM25 + dense branches with weighted RRF in Qdrant</small></div>
           <div class="proof-step"><b>Dual rerank</b><small><code>RerankCoordinator.execute()</code> chains Qdrant &rarr; NVIDIA &rarr; deterministic</small></div>
           <div class="proof-step"><b>Context packing + answer</b><small><code>pack_chunks()</code> bounds to 8000-token budget &rarr; <code>generate_answer()</code> produces grounded answer with citations</small></div>
@@ -293,7 +379,7 @@ tests/
           <a class="doc-link" href="../architecture/index.html#stack"><b>Architecture &amp; stack</b><span>Technology decisions table with LangGraph, MCP, and routed hybrid retrieval rows</span></a>
           <a class="doc-link" href="backend.html"><b>Backend learning</b><span>FastAPI routers, services, and persistence &mdash; MCP as one of 12 backend dependencies</span></a>
           <a class="doc-link" href="worker.html"><b>Worker learning</b><span>Celery tasks, document ingestion, LangGraph workflow &mdash; LangGraph as one of 8 worker foundations</span></a>
-          <a class="doc-link" href="flows.html"><b>Flow analysis</b><span>Grounded Ask with the five-route Hybrid RAG matrix and LangGraph evidence review traced as business flows</span></a>
+          <a class="doc-link" href="flows.html"><b>Flow analysis</b><span>Grounded Ask with the five-route Hybrid RAG matrix; Wiki-first routing decision tree; LangGraph evidence review traced as business flows</span></a>
           <a class="doc-link" href="../contracts/api/index.html#planned-mcp"><b>API contracts</b><span>POST /mcp/ gateway contract with tool and resource definitions</span></a>
         </div>
       </section>
@@ -302,6 +388,8 @@ tests/
     <aside class="toc"><b>On this page</b>
       <a href="#stack">Tech stack</a>
       <a href="#hybrid-rag">Hybrid RAG</a>
+      <a href="#wiki-rag">Wiki-guided RAG</a>
+      <a href="#wiki-rag">Wiki-guided RAG</a>
       <a href="#mcp">MCP server</a>
       <a href="#langgraph">LangGraph</a>
       <a href="#evaluation-lab">Evaluation Lab</a>
@@ -309,7 +397,7 @@ tests/
       <a href="#further-reading">Further reading</a>
     </aside></div>
   </main>
-  <footer class="shell footer">ResearchMate AI agent stack deep dive . written 11 August 2026</footer>
+  <footer class="shell footer">ResearchMate AI agent stack deep dive . written 14 August 2026</footer>
   <script src="../assets/site.js"></script>
 </body>
 </html>
