@@ -578,6 +578,340 @@ def test_store_reset_clears_all_wiki_pages() -> None:
 
 
 # ---------------------------------------------------------------------------
+# Phase 1 (black-box): compile_overview contract — single overview page
+# ---------------------------------------------------------------------------
+
+
+def test_compile_overview_empty_chunks_raises_no_chunks_error() -> None:
+    """An empty chunks list is rejected before the overview LLM call."""
+    provider = FakeChatProvider(proposal_payload())
+
+    with pytest.raises(WikiCompilationError) as exc_info:
+        WikiCompiler(provider).compile_overview(
+            [],
+            filename="doc.pdf",
+            user_id=USER_ID,
+            project_id=PROJECT_ID,
+            document_id=DOCUMENT_ID,
+        )
+
+    assert exc_info.value.code == "NO_CHUNKS"
+
+
+def test_compile_overview_single_chunk_returns_one_page() -> None:
+    """A single chunk with a valid proposal yields exactly one overview page."""
+    chunks = make_source_chunks(1)
+    provider = FakeChatProvider(
+        proposal_payload(
+            valid_proposal(title="Overview", page_type="overview", source_chunk_indices=[0])
+        )
+    )
+
+    pages = WikiCompiler(provider).compile_overview(
+        chunks,
+        filename="doc.pdf",
+        user_id=USER_ID,
+        project_id=PROJECT_ID,
+        document_id=DOCUMENT_ID,
+    )
+
+    assert len(pages) == 1
+    assert pages[0].title == "Overview"
+    assert pages[0].page_type == "overview"
+
+
+def test_compile_overview_multiple_chunks_returns_one_page() -> None:
+    """Multiple chunks still compile to a single overview page."""
+    chunks = make_source_chunks(4)
+    provider = FakeChatProvider(
+        proposal_payload(valid_proposal(title="Multi Overview", source_chunk_indices=[0, 1, 2, 3]))
+    )
+
+    pages = WikiCompiler(provider).compile_overview(
+        chunks,
+        filename="doc.pdf",
+        user_id=USER_ID,
+        project_id=PROJECT_ID,
+        document_id=DOCUMENT_ID,
+    )
+
+    assert len(pages) == 1
+    assert pages[0].title == "Multi Overview"
+
+
+def test_compile_overview_two_proposals_returns_only_first() -> None:
+    """compile_overview always keeps the first proposal, regardless of count."""
+    chunks = make_source_chunks(2)
+    provider = FakeChatProvider(
+        proposal_payload(
+            valid_proposal(title="First", source_chunk_indices=[0]),
+            valid_proposal(title="Second", source_chunk_indices=[1]),
+        )
+    )
+
+    pages = WikiCompiler(provider).compile_overview(
+        chunks,
+        filename="doc.pdf",
+        user_id=USER_ID,
+        project_id=PROJECT_ID,
+        document_id=DOCUMENT_ID,
+    )
+
+    assert len(pages) == 1
+    assert pages[0].title == "First"
+
+
+def test_compile_overview_empty_array_raises_empty_output_error() -> None:
+    """A valid but empty JSON array surfaces as EMPTY_OUTPUT."""
+    chunks = make_source_chunks(1)
+    provider = FakeChatProvider(proposal_payload())
+
+    with pytest.raises(WikiCompilationError) as exc_info:
+        WikiCompiler(provider).compile_overview(
+            chunks,
+            filename="doc.pdf",
+            user_id=USER_ID,
+            project_id=PROJECT_ID,
+            document_id=DOCUMENT_ID,
+        )
+
+    assert exc_info.value.code == "EMPTY_OUTPUT"
+
+
+def test_compile_overview_invalid_json_raises_error() -> None:
+    """Non-JSON output is rejected before any page is built."""
+    chunks = make_source_chunks(1)
+    provider = FakeChatProvider("this is not json at all")
+
+    with pytest.raises(WikiCompilationError) as exc_info:
+        WikiCompiler(provider).compile_overview(
+            chunks,
+            filename="doc.pdf",
+            user_id=USER_ID,
+            project_id=PROJECT_ID,
+            document_id=DOCUMENT_ID,
+        )
+
+    assert exc_info.value.code in {"INVALID_FORMAT", "JSON_PARSE_FAILED"}
+
+
+def test_compile_overview_large_chunks_still_returns_one_page() -> None:
+    """A corpus of many large chunks still compiles to a single overview page."""
+    # Each chunk is large enough that the corpus exceeds the overview input
+    # token budget, forcing the sampler to run; compile_overview still returns
+    # one page built from the sampled subset.
+    chunks = [make_chunk(text=("topic " * 2000), chunk_index=i) for i in range(6)]
+    provider = FakeChatProvider(
+        proposal_payload(valid_proposal(title="Big Overview", source_chunk_indices=[0]))
+    )
+
+    pages = WikiCompiler(provider).compile_overview(
+        chunks,
+        filename="doc.pdf",
+        user_id=USER_ID,
+        project_id=PROJECT_ID,
+        document_id=DOCUMENT_ID,
+    )
+
+    assert len(pages) == 1
+    assert pages[0].title == "Big Overview"
+
+
+def test_compile_overview_receives_chunk_text_in_prompt() -> None:
+    """The chunk text is embedded into the prompt sent to the LLM."""
+    chunks = make_source_chunks(2)
+    provider = FakeChatProvider(
+        proposal_payload(valid_proposal(title="Prompted Overview", source_chunk_indices=[0]))
+    )
+
+    WikiCompiler(provider).compile_overview(
+        chunks,
+        filename="doc.pdf",
+        user_id=USER_ID,
+        project_id=PROJECT_ID,
+        document_id=DOCUMENT_ID,
+    )
+
+    # The sampled chunks text must reach the captured messages.
+    assert provider.received_messages != []
+    user_msg = provider.received_messages[-1]["content"]
+    assert chunks[0].text in user_msg
+    assert chunks[1].text in user_msg
+
+
+def test_compile_overview_propagates_page_type_from_llm_response() -> None:
+    """The page_type returned by the LLM is preserved on the WikiPage."""
+    chunks = make_source_chunks(1)
+    provider = FakeChatProvider(
+        proposal_payload(
+            valid_proposal(title="TypedOverview", page_type="overview", source_chunk_indices=[0])
+        )
+    )
+
+    pages = WikiCompiler(provider).compile_overview(
+        chunks,
+        filename="doc.pdf",
+        user_id=USER_ID,
+        project_id=PROJECT_ID,
+        document_id=DOCUMENT_ID,
+    )
+
+    assert pages[0].page_type == "overview"
+
+
+def test_compile_overview_resolves_source_chunk_ids_from_indices() -> None:
+    """source_chunk_indices are converted to source_chunk_ids from sampled chunks."""
+    chunks = make_source_chunks(3)
+    provider = FakeChatProvider(
+        proposal_payload(
+            valid_proposal(
+                title="ProvenanceOverview",
+                source_chunk_indices=[0, 2],
+            )
+        )
+    )
+
+    pages = WikiCompiler(provider).compile_overview(
+        chunks,
+        filename="doc.pdf",
+        user_id=USER_ID,
+        project_id=PROJECT_ID,
+        document_id=DOCUMENT_ID,
+    )
+
+    assert pages[0].source_chunk_ids == [chunks[0].id, chunks[2].id]
+
+
+# ---------------------------------------------------------------------------
+# Phase 1 (black-box): structured references contract
+# ---------------------------------------------------------------------------
+
+
+def test_compile_proposal_has_references_matching_source_chunks() -> None:
+    """WikiPage carries references for every source chunk."""
+    chunks = make_source_chunks(2)
+    provider = FakeChatProvider(
+        proposal_payload(valid_proposal(title="RefPage", source_chunk_indices=[0, 1]))
+    )
+
+    pages = WikiCompiler(provider).compile(
+        chunks,
+        filename="doc.pdf",
+        user_id=USER_ID,
+        project_id=PROJECT_ID,
+        document_id=DOCUMENT_ID,
+    )
+
+    assert len(pages[0].references) == 2
+
+
+def test_compile_reference_document_id_matches_chunk_document_id_as_string() -> None:
+    """Each reference document_id matches the chunk's document_id (as string)."""
+    chunks = make_source_chunks(1)
+    provider = FakeChatProvider(proposal_payload(valid_proposal(source_chunk_indices=[0])))
+
+    pages = WikiCompiler(provider).compile(
+        chunks,
+        filename="doc.pdf",
+        user_id=USER_ID,
+        project_id=PROJECT_ID,
+        document_id=DOCUMENT_ID,
+    )
+
+    assert pages[0].references[0]["document_id"] == str(chunks[0].document_id)
+
+
+def test_compile_reference_chunk_id_matches_chunk_id_as_string() -> None:
+    """Each reference chunk_id matches the chunk's id (as string)."""
+    chunks = make_source_chunks(1)
+    provider = FakeChatProvider(proposal_payload(valid_proposal(source_chunk_indices=[0])))
+
+    pages = WikiCompiler(provider).compile(
+        chunks,
+        filename="doc.pdf",
+        user_id=USER_ID,
+        project_id=PROJECT_ID,
+        document_id=DOCUMENT_ID,
+    )
+
+    assert pages[0].references[0]["chunk_id"] == str(chunks[0].id)
+
+
+def test_wiki_pages_to_chunks_carries_references_in_metadata() -> None:
+    """wiki_pages_to_chunks projects the references list into chunk metadata."""
+    source_chunk_id = UUID("60000000-0000-4000-8000-000000000001")
+    references = [
+        {
+            "document_id": str(DOCUMENT_ID),
+            "section_title": "Intro",
+            "page_no": 1,
+            "chunk_id": str(source_chunk_id),
+        }
+    ]
+    page = WikiPage(
+        id=UUID("60000000-0000-4000-8000-000000000002"),
+        user_id=USER_ID,
+        project_id=PROJECT_ID,
+        document_id=DOCUMENT_ID,
+        title="Ref Page",
+        page_type="concept",
+        content="body",
+        source_chunk_ids=[source_chunk_id],
+        references=references,
+    )
+
+    chunks = wiki_pages_to_chunks([page])
+
+    assert chunks[0].metadata["wiki_references"] == references
+
+
+def test_compile_reference_document_id_is_none_when_chunk_has_none() -> None:
+    """A chunk with document_id=None projects to None in the reference."""
+    chunk = make_chunk(text="No document chunk.", chunk_index=0, document_id=None)
+    provider = FakeChatProvider(proposal_payload(valid_proposal(source_chunk_indices=[0])))
+
+    pages = WikiCompiler(provider).compile(
+        [chunk],
+        filename="doc.pdf",
+        user_id=USER_ID,
+        project_id=PROJECT_ID,
+        document_id=DOCUMENT_ID,
+    )
+
+    assert pages[0].references[0]["document_id"] is None
+
+
+def test_compile_reference_carries_section_title_and_page_no() -> None:
+    """section_title and page_no from the chunk appear on the reference."""
+    chunk = ChunkEntry(
+        id=UUID("20000000-0000-4000-8000-000000000020"),
+        user_id=USER_ID,
+        project_id=PROJECT_ID,
+        document_id=DOCUMENT_ID,
+        source_type=SourceType.LOCAL_DOC,
+        source_title="sectioned.pdf",
+        text="Some section content.",
+        chunk_index=0,
+        section_title="Methodology",
+        page_no=7,
+        has_vector=False,
+    )
+    provider = FakeChatProvider(proposal_payload(valid_proposal(source_chunk_indices=[0])))
+
+    pages = WikiCompiler(provider).compile(
+        [chunk],
+        filename="sectioned.pdf",
+        user_id=USER_ID,
+        project_id=PROJECT_ID,
+        document_id=DOCUMENT_ID,
+    )
+
+    ref = pages[0].references[0]
+    assert ref["section_title"] == "Methodology"
+    assert ref["page_no"] == 7
+
+
+# ---------------------------------------------------------------------------
 # Phase 2 (white-box): branches surfaced from reading the implementation.
 # ---------------------------------------------------------------------------
 
@@ -917,6 +1251,204 @@ def test_build_evidence_entry_omits_wiki_links_when_empty() -> None:
     assert entry["wiki_title"] == "Lonely Page"
     assert entry["wiki_type"] == "reference"
     assert "wiki_links" not in entry
+
+
+# ---------------------------------------------------------------------------
+# Phase 2 (white-box): compile_overview sampler boundaries and error routing
+# ---------------------------------------------------------------------------
+
+
+def test_compile_overview_prefers_complete_bounded_when_available() -> None:
+    """compile_overview routes through complete_bounded when the provider offers it."""
+    chunks = make_source_chunks(1)
+    provider = BoundedChatProvider(
+        proposal_payload(valid_proposal(title="BoundedOverview", source_chunk_indices=[0]))
+    )
+
+    pages = WikiCompiler(provider).compile_overview(
+        chunks,
+        filename="doc.pdf",
+        user_id=USER_ID,
+        project_id=PROJECT_ID,
+        document_id=DOCUMENT_ID,
+    )
+
+    assert [p.title for p in pages] == ["BoundedOverview"]
+    # The bounded budget passed by the compiler is surfaced to the provider.
+    assert provider.bounded_calls == [(8192,)]
+
+
+def test_compile_overview_malformed_array_json_raises_parse_error() -> None:
+    """Output containing array brackets but unparseable JSON raises JSON_PARSE_FAILED."""
+    chunks = make_source_chunks(1)
+    provider = FakeChatProvider("[this is not valid json]")
+
+    with pytest.raises(WikiCompilationError) as exc_info:
+        WikiCompiler(provider).compile_overview(
+            chunks,
+            filename="doc.pdf",
+            user_id=USER_ID,
+            project_id=PROJECT_ID,
+            document_id=DOCUMENT_ID,
+        )
+
+    assert exc_info.value.code == "JSON_PARSE_FAILED"
+
+
+def test_compile_overview_non_array_json_raises_invalid_format() -> None:
+    """A JSON object (no array delimiters) is rejected as INVALID_FORMAT."""
+    chunks = make_source_chunks(1)
+    provider = FakeChatProvider(json.dumps({"title": "Not an array"}))
+
+    with pytest.raises(WikiCompilationError) as exc_info:
+        WikiCompiler(provider).compile_overview(
+            chunks,
+            filename="doc.pdf",
+            user_id=USER_ID,
+            project_id=PROJECT_ID,
+            document_id=DOCUMENT_ID,
+        )
+
+    assert exc_info.value.code == "INVALID_FORMAT"
+
+
+def test_compile_overview_all_proposals_skipped_raises_empty_output() -> None:
+    """When every proposal is filtered out, EMPTY_OUTPUT is raised."""
+    chunks = make_source_chunks(1)
+    provider = FakeChatProvider(
+        proposal_payload(
+            # Out-of-range index (relative to sampled chunks) -> skipped.
+            valid_proposal(source_chunk_indices=[99])
+        )
+    )
+
+    with pytest.raises(WikiCompilationError) as exc_info:
+        WikiCompiler(provider).compile_overview(
+            chunks,
+            filename="doc.pdf",
+            user_id=USER_ID,
+            project_id=PROJECT_ID,
+            document_id=DOCUMENT_ID,
+        )
+
+    assert exc_info.value.code == "EMPTY_OUTPUT"
+
+
+def test_compile_overview_single_chunk_under_budget_returns_full_sample() -> None:
+    """With one chunk the total fits the budget; sampler returns the full list."""
+    chunks = make_source_chunks(1)
+    provider = FakeChatProvider(proposal_payload(valid_proposal(source_chunk_indices=[0])))
+
+    pages = WikiCompiler(provider).compile_overview(
+        chunks,
+        filename="doc.pdf",
+        user_id=USER_ID,
+        project_id=PROJECT_ID,
+        document_id=DOCUMENT_ID,
+    )
+
+    # Single chunk: not sampled; the proposal references index 0 and survives.
+    assert pages[0].source_chunk_ids == [chunks[0].id]
+
+
+def test_compile_overview_two_chunks_over_budget_returns_both() -> None:
+    """When total exceeds the budget but only two chunks exist, both are kept.
+
+    _sample_for_overview short-circuits when len(chunks) <= 2, returning the
+    full list regardless of token count, so first/last pinning is not applied.
+    """
+    chunks = [
+        make_chunk(text="topic " * 4000, chunk_index=0),
+        make_chunk(text="topic " * 4000, chunk_index=1),
+    ]
+    provider = FakeChatProvider(proposal_payload(valid_proposal(source_chunk_indices=[0, 1])))
+
+    pages = WikiCompiler(provider).compile_overview(
+        chunks,
+        filename="doc.pdf",
+        user_id=USER_ID,
+        project_id=PROJECT_ID,
+        document_id=DOCUMENT_ID,
+    )
+
+    # Both chunks survive; the proposal references both indices and resolves.
+    assert pages[0].source_chunk_ids == [chunks[0].id, chunks[1].id]
+
+
+def test_compile_overview_many_chunks_over_budget_keeps_first_pin() -> None:
+    """Sampling always pins the first chunk, so index 0 always resolves.
+
+    compile_overview passes the SAMPLED chunk list to _build_pages. The first
+    chunk is always in the sample (pinned), so a proposal referencing index 0
+    resolves to the original first chunk's id regardless of corpus size.
+    """
+    # Each chunk is large enough that the corpus exceeds the overview budget.
+    chunks = [make_chunk(text=("z " * 4000), chunk_index=i) for i in range(5)]
+    provider = FakeChatProvider(proposal_payload(valid_proposal(source_chunk_indices=[0])))
+
+    pages = WikiCompiler(provider).compile_overview(
+        chunks,
+        filename="doc.pdf",
+        user_id=USER_ID,
+        project_id=PROJECT_ID,
+        document_id=DOCUMENT_ID,
+    )
+
+    # The first chunk is pinned by the sampler, so it remains in the sample and
+    # proposal index 0 resolves to its id even though other chunks were dropped.
+    assert pages[0].source_chunk_ids == [chunks[0].id]
+
+
+def test_compile_overview_out_of_range_index_in_proposal_is_dropped() -> None:
+    """Out-of-range indices in the proposal are filtered per-index; siblings kept."""
+    chunks = make_source_chunks(2)
+    provider = FakeChatProvider(proposal_payload(valid_proposal(source_chunk_indices=[0, 99])))
+
+    pages = WikiCompiler(provider).compile_overview(
+        chunks,
+        filename="doc.pdf",
+        user_id=USER_ID,
+        project_id=PROJECT_ID,
+        document_id=DOCUMENT_ID,
+    )
+
+    assert len(pages) == 1
+    assert pages[0].source_chunk_ids == [chunks[0].id]
+
+
+def test_compile_overview_proposal_with_empty_indices_skipped_raises_empty_output() -> None:
+    """source_chunk_indices is min_length=1; empty list fails validation and is skipped."""
+    chunks = make_source_chunks(1)
+    provider = FakeChatProvider(proposal_payload(valid_proposal(source_chunk_indices=[])))
+
+    with pytest.raises(WikiCompilationError) as exc_info:
+        WikiCompiler(provider).compile_overview(
+            chunks,
+            filename="doc.pdf",
+            user_id=USER_ID,
+            project_id=PROJECT_ID,
+            document_id=DOCUMENT_ID,
+        )
+
+    assert exc_info.value.code == "EMPTY_OUTPUT"
+
+
+def test_compile_overview_reference_chunk_id_is_string_for_sampled_chunks() -> None:
+    """compile_overview also fills references for the sampled subset."""
+    chunks = make_source_chunks(2)
+    provider = FakeChatProvider(proposal_payload(valid_proposal(source_chunk_indices=[0, 1])))
+
+    pages = WikiCompiler(provider).compile_overview(
+        chunks,
+        filename="doc.pdf",
+        user_id=USER_ID,
+        project_id=PROJECT_ID,
+        document_id=DOCUMENT_ID,
+    )
+
+    refs = pages[0].references
+    assert [r["chunk_id"] for r in refs] == [str(chunks[0].id), str(chunks[1].id)]
+    assert all(r["document_id"] == str(DOCUMENT_ID) for r in refs)
 
 
 # ---------------------------------------------------------------------------

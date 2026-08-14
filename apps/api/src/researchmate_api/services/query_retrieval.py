@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from uuid import UUID
 
@@ -19,6 +20,8 @@ from researchmate_api.services.retrieval import (
 )
 from researchmate_api.services.scope_policy import require_workspace_scope
 from researchmate_api.services.store import ChunkEntry, ResearchMateRepository
+
+LOGGER = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -87,6 +90,41 @@ class LocalEvidenceRetriever:
             full_context_limit=self.settings.full_context_token_limit,
             provider=self.planner_provider,
         )
+        # Wiki-first routing: when Wiki-mode chunks exist and the query is general
+        # (FULL_CONTEXT or SEMANTIC route), skip Qdrant entirely and return only
+        # the Wiki chunks at score 1.0. Exact/Hybrid/Expanded-hybrid routes still
+        # run the existing flow so targeted retrieval stays grounded.
+        wiki_chunks = [
+            c
+            for c in lightweight_chunks
+            if isinstance(c.metadata, dict) and c.metadata.get("wiki_mode")
+        ]
+        if wiki_chunks and plan.route in (
+            RetrievalRoute.FULL_CONTEXT,
+            RetrievalRoute.SEMANTIC,
+        ):
+            LOGGER.info(
+                "wiki_first_routing project_id=%s route=%s wiki_count=%d",
+                project_id,
+                plan.route,
+                len(wiki_chunks),
+            )
+            wiki_candidates = [RetrievalCandidate(chunk=c, score=1.0) for c in wiki_chunks]
+            wiki_tokens = sum(estimate_tokens(chunk.text) for chunk in wiki_chunks)
+            return RetrievalOutcome(
+                candidates=wiki_candidates,
+                strategy="full_context",
+                full_context=True,
+                estimated_tokens=wiki_tokens,
+                route=plan.route,
+                route_reason="wiki_first_routing",
+                query_count=1,
+                dense_weight=0.0,
+                lexical_weight=0.0,
+                planner_degraded=plan.degraded,
+                degraded=False,
+                reason="wiki_first_routing",
+            )
         if plan.route == RetrievalRoute.FULL_CONTEXT:
             relevance = bm25_candidates(chunks, query, limit=1)
             general_request = any(

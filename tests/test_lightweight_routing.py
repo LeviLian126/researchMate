@@ -707,3 +707,274 @@ def test_token_counting_uses_estimate_tokens_for_cjk() -> None:
     assert service.is_lightweight_corpus([chunk]) is False, (
         "CJK text with 10 estimate_tokens must be heavyweight at threshold=5"
     )
+
+
+# ---------------------------------------------------------------------------
+# Phase 1 (black-box): Wiki-first routing in LocalEvidenceRetriever.retrieve
+# ---------------------------------------------------------------------------
+
+
+WIKI_PROJECT_ID = UUID("00000000-0000-4000-8000-000000000021")
+
+
+def _wiki_chunk(
+    *,
+    text: str,
+    chunk_index: int = 0,
+    wiki_type: str = "overview",
+    title: str = "Wiki Overview",
+    document_id: UUID | None = None,
+) -> ChunkEntry:
+    """Build a Wiki-mode chunk (has_vector=False with wiki metadata)."""
+    return ChunkEntry(
+        id=UUID(f"70000000-0000-4000-8000-{chunk_index:012d}"),
+        user_id=USER_ID,
+        project_id=WIKI_PROJECT_ID,
+        document_id=document_id,
+        source_type=SourceType.LOCAL_DOC,
+        source_title=title,
+        text=text,
+        chunk_index=chunk_index,
+        has_vector=False,
+        metadata={
+            "wiki_mode": True,
+            "wiki_type": wiki_type,
+            "wiki_links": [],
+            "wiki_aliases": [],
+            "wiki_source_chunk_ids": [],
+        },
+    )
+
+
+def _non_wiki_lightweight_chunk(*, text: str, chunk_index: int = 0) -> ChunkEntry:
+    """Build a lightweight chunk WITHOUT wiki metadata (plain has_vector=False)."""
+    return ChunkEntry(
+        id=UUID(f"80000000-0000-4000-8000-{chunk_index:012d}"),
+        user_id=USER_ID,
+        project_id=WIKI_PROJECT_ID,
+        document_id=None,
+        source_type=SourceType.LOCAL_DOC,
+        source_title=f"raw-{chunk_index}.pdf",
+        text=text,
+        chunk_index=chunk_index,
+        has_vector=False,
+        metadata={},
+    )
+
+
+def _retrieve(
+    chunks: list[ChunkEntry],
+    settings: Settings,
+    *,
+    query: str,
+) -> object:
+    """Run a LocalEvidenceRetriever over the supplied chunks without a project store.
+
+    The retriever only needs an empty store for the workspace-scope assertion
+    and the wiki chunk set under test; no Qdrant hybrid store is wired.
+    """
+    store = InMemoryResearchMateStore()
+    store.reset()
+    caller = _user()
+    store.ensure_user(caller)
+    retriever = LocalEvidenceRetriever(settings, store, hybrid_store=None)
+    outcome = retriever.retrieve(caller, WIKI_PROJECT_ID, query, chunks)
+    store.reset()
+    return outcome
+
+
+def _small_settings() -> Settings:
+    """Default settings (full_context_token_limit=12000) trigger FULL_CONTEXT."""
+    return Settings(
+        app_env="test",
+        llm_provider="fake",
+        embedding_provider="fake",
+        web_search_provider="disabled",
+        nvidia_api_key=None,
+        rerank_provider_default="auto",
+    )
+
+
+def test_wiki_first_routing_full_context_returns_only_wiki_chunks() -> None:
+    """Wiki chunks + FULL_CONTEXT route yield only wiki candidates at score 1.0."""
+    chunks = [
+        _wiki_chunk(text="Wiki page body about the corpus.", chunk_index=0),
+        _wiki_chunk(text="Second wiki page body.", chunk_index=1, title="Wiki Page Two"),
+    ]
+    settings = _small_settings()
+
+    outcome = _retrieve(chunks, settings, query="summarize the documents")
+
+    assert outcome.reason == "wiki_first_routing"
+    assert outcome.degraded is False
+    assert len(outcome.candidates) == 2
+    wiki_ids = {c.id for c in chunks}
+    candidate_ids = {c.chunk.id for c in outcome.candidates}
+    assert candidate_ids == wiki_ids
+    assert all(c.score == 1.0 for c in outcome.candidates)
+
+
+def test_wiki_first_routing_semantic_route_returns_only_wiki_chunks() -> None:
+    """Wiki chunks + SEMANTIC route yield only wiki candidates at score 1.0."""
+    # Exceed the 1000-token full_context limit so SEMANTIC becomes reachable,
+    # while the query contains a SEMANTIC keyword ('how').
+    big_wiki = _wiki_chunk(text="wiki " * 1500, chunk_index=0)
+    settings = _settings()
+
+    outcome = _retrieve([big_wiki], settings, query="how does retrieval work")
+
+    assert outcome.reason == "wiki_first_routing"
+    assert outcome.degraded is False
+    assert [c.chunk.id for c in outcome.candidates] == [big_wiki.id]
+    assert outcome.candidates[0].score == 1.0
+
+
+def test_wiki_first_routing_exact_route_skips_wiki_first_path() -> None:
+    """EXACT route does NOT take the wiki-first return path."""
+    # A query with a quoted identifier triggers EXACT. The corpus exceeds the
+    # 1000-token limit so FULL_CONTEXT is not selected.
+    big_wiki = _wiki_chunk(text="wiki " * 1500, chunk_index=0)
+    settings = _settings()
+
+    outcome = _retrieve([big_wiki], settings, query='find "GPT-4"')
+
+    assert outcome.reason != "wiki_first_routing"
+
+
+def test_wiki_first_routing_absent_when_no_wiki_chunks() -> None:
+    """Non-wiki lightweight chunks never take the wiki-first path."""
+    chunks = [_non_wiki_lightweight_chunk(text="plain " * 1500, chunk_index=0)]
+    settings = _small_settings()
+
+    outcome = _retrieve(chunks, settings, query="summarize the documents")
+
+    assert outcome.reason != "wiki_first_routing"
+    assert outcome.candidates, "non-wiki lightweight FULL_CONTEXT still returns candidates"
+
+
+def test_wiki_first_routing_with_mixed_chunks_returns_only_wiki() -> None:
+    """Wiki + non-wiki lightweight under FULL_CONTEXT yields only the wiki chunk."""
+    wiki = _wiki_chunk(text="Wiki page body.", chunk_index=0)
+    non_wiki = _non_wiki_lightweight_chunk(text="Plain raw chunk body.", chunk_index=1)
+    settings = _small_settings()
+
+    outcome = _retrieve([wiki, non_wiki], settings, query="summarize the documents")
+
+    assert outcome.reason == "wiki_first_routing"
+    assert [c.chunk.id for c in outcome.candidates] == [wiki.id]
+    assert outcome.candidates[0].score == 1.0
+
+
+# ---------------------------------------------------------------------------
+# Phase 2 (white-box): Wiki-first routing boundary conditions
+# ---------------------------------------------------------------------------
+
+
+def test_wiki_first_routing_all_wiki_semantic_full_context_invariance() -> None:
+    """Both FULL_CONTEXT and SEMANTIC return wiki chunks when all chunks are wiki."""
+    chunks = [
+        _wiki_chunk(text="alpha wiki page body.", chunk_index=0, title="Alpha"),
+        _wiki_chunk(text="beta wiki page body.", chunk_index=1, title="Beta"),
+    ]
+    small_settings = _small_settings()
+
+    outcome = _retrieve(chunks, small_settings, query="summarize the documents")
+
+    # FULL_CONTEXT variant: both wiki chunks returned with score 1.0.
+    assert outcome.reason == "wiki_first_routing"
+    assert {c.chunk.id for c in outcome.candidates} == {chunks[0].id, chunks[1].id}
+
+    # SEMANTIC variant: same wiki-first contract (corpus > 1000 limit, 'how' query).
+    big_chunks = [
+        _wiki_chunk(text="alpha " * 1500, chunk_index=0, title="Alpha"),
+        _wiki_chunk(text="beta " * 1500, chunk_index=1, title="Beta"),
+    ]
+    big_settings = _settings()
+    outcome_sem = _retrieve(big_chunks, big_settings, query="how does this work")
+    assert outcome_sem.reason == "wiki_first_routing"
+    assert {c.chunk.id for c in outcome_sem.candidates} == {big_chunks[0].id, big_chunks[1].id}
+
+
+def test_wiki_first_routing_metadata_dict_guard_handles_non_dict_metadata() -> None:
+    """The isinstance(c.metadata, dict) guard tolerates a None metadata chunk.
+
+    The retriever filters wiki chunks using
+    isinstance(c.metadata, dict) and c.metadata.get('wiki_mode'). A chunk
+    whose metadata object is None must not raise — it is silently excluded
+    from wiki-first selection.
+    """
+    wiki = _wiki_chunk(text="Wiki body.", chunk_index=0)
+    non_wiki = ChunkEntry(
+        id=UUID("80000000-0000-4000-8000-000000000099"),
+        user_id=USER_ID,
+        project_id=WIKI_PROJECT_ID,
+        document_id=None,
+        source_type=SourceType.LOCAL_DOC,
+        source_title="odd.pdf",
+        text="plain",
+        chunk_index=1,
+        has_vector=False,
+        metadata=None,  # type: ignore[arg-type]
+    )
+    settings = _small_settings()
+
+    outcome = _retrieve([wiki, non_wiki], settings, query="summarize the documents")
+
+    assert outcome.reason == "wiki_first_routing"
+    assert [c.chunk.id for c in outcome.candidates] == [wiki.id]
+
+
+def test_wiki_first_routing_hybrid_route_skips_wiki_first_path() -> None:
+    """HYBRID route does NOT take the wiki-first return path.
+
+    A query with no EXACT/SEMANTIC signal over a corpus exceeding 1000 tokens
+    selects HYBRID. Wiki-first bypass is reserved for FULL_CONTEXT and SEMANTIC.
+    """
+    big_wiki = _wiki_chunk(text="wiki " * 1500, chunk_index=0)
+    settings = _settings()
+
+    outcome = _retrieve([big_wiki], settings, query="random topic without keyword")
+
+    assert outcome.reason != "wiki_first_routing"
+
+
+def test_wiki_first_routing_absent_when_metadata_lacks_wiki_mode_key() -> None:
+    """Chunks with metadata dict but no wiki_mode key skip the wiki-first path."""
+    chunk = ChunkEntry(
+        id=UUID("80000000-0000-4000-8000-000000000040"),
+        user_id=USER_ID,
+        project_id=WIKI_PROJECT_ID,
+        document_id=None,
+        source_type=SourceType.LOCAL_DOC,
+        source_title="metaless.pdf",
+        text="plain corpus body text",
+        chunk_index=0,
+        has_vector=False,
+        metadata={"other_key": "value"},
+    )
+    settings = _small_settings()
+
+    outcome = _retrieve([chunk], settings, query="summarize the documents")
+
+    assert outcome.reason != "wiki_first_routing"
+
+
+def test_wiki_first_routing_falsy_wiki_mode_skips_path() -> None:
+    """A falsy wiki_mode value (e.g. False) keeps the chunk off the wiki path."""
+    chunk = ChunkEntry(
+        id=UUID("80000000-0000-4000-8000-000000000050"),
+        user_id=USER_ID,
+        project_id=WIKI_PROJECT_ID,
+        document_id=None,
+        source_type=SourceType.LOCAL_DOC,
+        source_title="disabled.pdf",
+        text="plain corpus body text",
+        chunk_index=0,
+        has_vector=False,
+        metadata={"wiki_mode": False},
+    )
+    settings = _small_settings()
+
+    outcome = _retrieve([chunk], settings, query="summarize the documents")
+
+    assert outcome.reason != "wiki_first_routing"

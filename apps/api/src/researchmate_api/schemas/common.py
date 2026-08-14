@@ -63,6 +63,12 @@ WIKI_MAX_LINKS = 20
 WIKI_MAX_SOURCE_CHUNKS = 20
 WIKI_PAGE_TYPE_LENGTH = 50
 
+# Maximum input token budget for overview Wiki compilation of long documents.
+# Long documents exceed the lightweight threshold and are embedded into Qdrant;
+# overview Wiki compilation selects a representative subset of their chunks to
+# summarize into an overview page without exceeding the LLM context window.
+WIKI_OVERVIEW_MAX_INPUT_TOKENS = 6000
+
 
 # Define task types. Task only controls the execution goal.
 class TaskType(str, Enum):
