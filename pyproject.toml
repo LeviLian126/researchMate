@@ -32,6 +32,7 @@ include = [
   "apps/api/src/researchmate_api",
   "workers/ai-worker/src/researchmate_worker",
   "scripts/apply_migrations.py",
+  "scripts/check_evaluation_gate.py",
   "scripts/provision_qdrant_hybrid.py",
   "scripts/provision_qdrant_rerank.py",
 ]

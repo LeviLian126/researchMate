@@ -9,7 +9,7 @@
   <link href="../assets/site.css" rel="stylesheet"/>
 </head>
 <body>
-  <header class="mast"><div class="shell mast-row"><a class="brand" href="../index.zh.html">ResearchMate 文档</a><div class="mast-right"><span class="stamp">学习指南 · 2026 年 8 月 6 日</span><a class="lang-toggle" href="index.html" hreflang="en" lang="en">English</a></div></div></header>
+  <header class="mast"><div class="shell mast-row"><a class="brand" href="../index.zh.html">ResearchMate 文档</a><div class="mast-right"><span class="stamp">学习指南 · 2026 年 8 月 14 日</span><a class="lang-toggle" href="index.html" hreflang="en" lang="en">English</a></div></div></header>
   <nav aria-label="文档" class="global"><div class="shell">
     <a href="../index.zh.html">概览</a>
     <a href="../product/index.zh.html">产品与路线图</a>
@@ -44,7 +44,7 @@
           <a class="doc-link" href="cicd.zh.html"><b>CI/CD · GitHub Actions + Docker + Render</b><span>逐 Job 解析 ci.yml、解释唯一的 Render 部署 Dockerfile、render.yaml 配置和双锁依赖策略。</span></a>
           <a class="doc-link" href="contracts-tests.zh.html"><b>合约与测试</b><span>OpenAPI 与 Pydantic 镜像、47 个测试文件和 Hermetic 验证策略。</span></a>
           <a class="doc-link" href="flows.zh.html"><b>切面分析 · 核心业务流程</b><span>4 个大厂面试级流程:Grounded Ask 全链路、文档摄取 Outbox、LangGraph 证据审查、幂等+事务一致性,逐文件追踪请求传递路径。</span></a>
-          <a class="doc-link" href="ai-stack.zh.html"><b>AI 智能体技术栈 · 混合 RAG + MCP + LangGraph</b><span>三大基石深度解析:五路由检索式混合 RAG 含 RRF 融合和双重重排、六工具三资源 MCP 服务器、六节点 LangGraph 证据工作流含检查点和人工审核。</span></a>
+          <a class="doc-link" href="ai-stack.zh.html"><b>AI 智能体技术栈 · 混合 RAG + MCP + LangGraph</b><span>三大基石深度解析：Wiki 引导的混合 RAG，含五路由检索、RRF 融合、双重重排和 Wiki 优先路由；六工具三资源 MCP 服务器；六节点 LangGraph 证据工作流含检查点和人工审核。</span></a>
         </div>
       </section>
 
@@ -57,10 +57,10 @@
           <dt><code>apps/web/</code></dt><dd>Next.js 前端应用,部署在 Vercel。包含页面路由、React 组件、API 客户端和认证逻辑。</dd>
           <dt><code>apps/api/</code></dt><dd>FastAPI 后端 REST API，提供 49 个 <code>/api/v1</code> 操作，包含路由、Pydantic 模型、服务编排和 PostgreSQL 持久化层。</dd>
           <dt><code>workers/ai-worker/</code></dt><dd>Celery Worker + Outbox Dispatcher,负责文档解析、向量索引、LangGraph 工作流和评估。与 API 合并部署在同一个 Render 容器。</dd>
-          <dt><code>packages/shared/</code></dt><dd>前后端共享的 TypeScript 类型契约(<code>contracts.ts</code>),定义 API 数据形状的权威来源。</dd>
+          <dt><code>packages/shared/</code></dt><dd>于 2026-08-08 移除；共享 TypeScript 契约已移入应用本地模块。</dd>
           <dt><code>infra/</code></dt><dd>基础设施配置:Supabase SQL 迁移文件、Qdrant 集合配置、OpenAPI 规范。</dd>
           <dt><code>scripts/</code></dt><dd>运维脚本:数据库迁移执行器、Qdrant rerank 回填、OpenAPI 导出等。</dd>
-          <dt><code>tests/</code></dt><dd>Python 测试套件(36 个文件),覆盖单元测试、HTTP 集成测试、契约检视和发布安全。</dd>
+          <dt><code>tests/</code></dt><dd>Python 测试套件(44 个文件),覆盖单元测试、HTTP 集成测试、契约检视和发布安全。</dd>
           <dt><code>docs/</code></dt><dd>浏览器可打开的项目文档(HTML),即你正在查看的页面。</dd>
           <dt><code>.github/workflows/</code></dt><dd>GitHub Actions CI 流水线定义(<code>ci.yml</code>)。</dd>
           <dt><code>skill/</code></dt><dd>gstack 开发技能库,包含 land-and-deploy、qa、review 等工作流技能。</dd>
@@ -109,7 +109,7 @@
       <a href="#reading-paths">延伸阅读</a>
     </aside></div>
   </main>
-  <footer class="shell footer">ResearchMate 技术学习指南 · 编写于 2026 年 8 月 6 日</footer>
+  <footer class="shell footer">ResearchMate 技术学习指南 · 编写于 2026 年 8 月 14 日</footer>
   <button class="back-to-top" aria-label="Back to top" data-back-to-top hidden>
     <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="M9 3L3 9l1.4 1.4L9 5.8l4.6 4.6L15 9L9 3z" fill="currentColor"/></svg>
   </button>

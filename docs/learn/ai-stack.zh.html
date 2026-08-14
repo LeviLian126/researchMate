@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8"/>
   <meta content="width=device-width, initial-scale=1" name="viewport"/>
-  <meta content="ResearchMate AI 智能体技术栈深度解析：五路由混合 RAG 与双重重排、六工具三资源 MCP 服务器、六节点 LangGraph 证据工作流含检查点与人工审核。" name="description"/>
+  <meta content="ResearchMate AI 智能体技术栈深度解析：Wiki 引导的三层混合 RAG、五路由混合 RAG 与双重重排、六工具三资源 MCP 服务器、六节点 LangGraph 证据工作流含检查点与人工审核。" name="description"/>
   <title>ResearchMate . AI 智能体技术栈</title>
   <link href="../assets/site.css" rel="stylesheet"/>
   <style>
@@ -27,7 +27,7 @@
   <style>.module-nav{border-top:1px solid var(--g200)}.module-nav .shell{padding:6px 0 12px}.module-nav a{font-size:11.5px;padding:5px 11px}</style>
 </head>
 <body>
-  <header class="mast"><div class="shell mast-row"><a class="brand" href="../index.html">ResearchMate 文档</a><div class="mast-right"><span class="stamp">AI 技术栈 . 2026 年 8 月 11 日</span><a class="lang-toggle" href="ai-stack.html" hreflang="en" lang="en">English</a></div></div></header>
+  <header class="mast"><div class="shell mast-row"><a class="brand" href="../index.html">ResearchMate 文档</a><div class="mast-right"><span class="stamp">AI 技术栈 . 2026 年 8 月 14 日</span><a class="lang-toggle" href="ai-stack.html" hreflang="en" lang="en">English</a></div></div></header>
   <nav aria-label="文档" class="global"><div class="shell">
     <a href="../index.html">概览</a>
     <a href="../product/index.html">产品与路线图</a>
@@ -48,16 +48,18 @@
   </div></nav>
   <main class="shell">
     <div class="hero">
-      <p class="eyebrow">混合 RAG / MCP / LangGraph</p>
+      <p class="eyebrow">Wiki 引导的混合 RAG / MCP / LangGraph</p>
       <h1>AI 智能体技术栈 . 检索、协议、编排</h1>
-      <p class="lede">ResearchMate 的 AI 智能体技术栈是一个横跨 FastAPI 后端和 Celery worker 的内聚子系统。三大基石构成它：一个路由式混合 RAG 检索器，在融合检索和双重重排之前从五条可观测路由中选择；一个 MCP 服务器，在 Streamable HTTP 上以与 REST 相同的 Bearer 认证暴露六个工具和三个资源；以及一个 LangGraph 证据工作流，编排一个六节点有状态图，支持并行扇出、PostgreSQL 检查点和人工审核。本页逐文件讲解每个组件、决策树和集成接缝。</p>
+      <p class="lede">ResearchMate 的 AI 智能体技术栈是一个横跨 FastAPI 后端和 Celery worker 的内聚子系统。四大基石构成它：一个 Wiki 引导的混合 RAG 检索器，将 LLM 编译的结构化 Wiki 页面作为第一层检索；一个路由式混合 RAG 检索器，在融合检索和双重重排之前从五条可观测路由中选择；一个 MCP 服务器，在 Streamable HTTP 上以与 REST 相同的 Bearer 认证暴露六个工具和三个资源；以及一个 LangGraph 证据工作流，编排一个六节点有状态图，支持并行扇出、PostgreSQL 检查点和人工审核。本页逐文件讲解每个组件、决策树和集成接缝。</p>
       <div class="meta">
+        <span class="status local">Wiki 引导的混合 RAG</span>
         <span class="status local">5 条检索路由</span>
         <span class="status local">3 个重排提供者</span>
         <span class="status local">6 个 MCP 工具 . 3 个资源</span>
         <span class="status local">6 节点 LangGraph</span>
         <span class="status local">PostgresSaver 检查点</span>
         <span class="status local">人工审核</span>
+        <span class="status local">3 个检索评估模式</span>
       </div>
     </div>
     <div class="layout"><div class="content">
@@ -118,16 +120,58 @@
 
         <h3>关键源文件</h3>
         <pre><code>apps/api/src/researchmate_api/services/
-  query_planning.py        (RetrievalRoute, plan_retrieval, _expanded_plan)
+  wiki_compiler.py         (WikiCompiler, compile, compile_overview, WikiPage, wiki_pages_to_chunks)
+  query_planning.py        (RetrievalRoute, plan_retrieval, _expanded_plan, wiki_first_routing 检查)
   query_retrieval.py       (LocalEvidenceRetriever, 路由编排)
-  qdrant_hybrid_query.py   (execute_hybrid_query, RRF 融合)
+  qdrant_hybrid_query.py   (execute_hybrid_query, 带 Wiki 支持的 RRF 融合)
   rerank.py                (RerankCoordinator, 3 个重排器实现)
   grounded_query.py        (GroundedQueryService, 端到端编排器)
-  retrieval.py            (bm25_candidates, fuse_candidates, pack_chunks)
+  retrieval.py             (bm25_candidates, fuse_candidates, pack_chunks)
   qdrant_store.py          (QdrantHybridStore, upsert/query/delete)
   _store_text.py           (chunk_text, 段落分割)
   _store_models.py         (ChunkEntry dataclass)
   _store_chunks.py         (project_chunks, conversation_chunks)</code></pre>
+      </section>
+
+      <section id="wiki-rag">
+        <p class="eyebrow">Wiki 引导的混合 RAG</p>
+        <h2>LLM Wiki 编译 . 三层检索架构</h2>
+        <p class="sub">ResearchMate 现在添加 LLM 编译的结构化 Wiki 层作为第一层检索。文档摄取时，WikiCompiler 合成一个简洁的概览页面，捕获章节标题、关键概念和关系；每个 Wiki 页面携带结构化引用回到源分块。查询时，规划器在路由前检查是否存在 Wiki 候选 &mdash; 如果存在且路由为 FULL_CONTEXT 或 SEMANTIC，则完全跳过 Qdrant 并直接返回 Wiki 分块（score=1.0，reason="wiki_first_routing"）。EXACT 查询仍流经完整 RAG 管道；HYBRID 和 EXPANDED_HYBRID 以 50/50 预算拆分运行双路并行。</p>
+
+        <h3>三层架构</h3>
+        <div class="stack-ledger"><table><thead><tr><th>层次</th><th>目的</th><th>机制</th><th>证据来源</th></tr></thead><tbody>
+          <tr><td><b>Wiki 层</b></td><td>知识导航的结构化数据</td><td>摄取时 LLM 编译；每文档缓存概览页面</td><td>WikiPage 引用 &rarr; 源 chunk_id、page_no</td></tr>
+          <tr><td><b>RAG 层</b></td><td>答案的细粒度证据</td><td>混合 BM25 + 稠密检索，带 RRF 融合和双重重排</td><td>带 ChunkEntry 对象的 Qdrant 集合</td></tr>
+          <tr><td><b>原始源</b></td><td>真相源</td><td>S3 兼容对象存储（PDF、PPTX、文本文件）</td><td>boto3 预签名 URL</td></tr>
+        </tbody></table></div>
+
+        <h3>Wiki 编译模式</h3>
+        <div class="grid two">
+          <article class="fact"><b>短文档模式（&le;4000 tokens）</b><p>低于 <code>WIKI_COMPILE_TOKEN_THRESHOLD</code> 边界的文档获得完整 Wiki 编译：LLM 生成单个 WikiPage，在检索结果中替换原始分块（<code>has_vector=false</code>）。编译的 Wiki 以压缩结构格式保留所有事实内容。</p></article>
+          <article class="fact"><b>长文档概览（>4000 tokens）</b><p>较大文档触发 <code>compile_overview()</code>：LLM 生成高级概览页面，采样到 <code>WIKI_OVERVIEW_MAX_INPUT_TOKENS = 6000</code> token 预算。概览 Wiki 页面与 Qdrant RAG 分块一起追加（概览 <code>has_vector=false</code>，RAG 分块 <code>has_vector=true</code>）。这使概览紧凑，同时从完整 RAG 管道保留深度证据。</p></article>
+        </div>
+
+        <h3>Wiki 优先路由决策树</h3>
+        <p><code>query_planning.py</code> 中的路由器在确定路由后检查 Wiki 候选。决策逻辑：</p>
+        <div class="proof-chain">
+          <div class="proof-step"><b>FULL_CONTEXT 或 SEMANTIC + Wiki 存在</b><small>完全跳过 Qdrant；返回 Wiki 分块，score=1.0，reason="wiki_first_routing"。无向量搜索成本。</small></div>
+          <div class="proof-step"><b>EXACT 查询</b><small>无论 Wiki 是否存在都走完整 RAG 管道 &mdash; 精确标识符匹配优先。Wiki 分块被追加但得分 0.0。</small></div>
+          <div class="proof-step"><b>HYBRID 或 EXPANDED_HYBRID</b><small>双路并行：50% token 预算给 Wiki 分块，50% 给 Qdrant RAG。结果通过加权 RRF 合并。</small></div>
+          <div class="proof-step"><b>无 Wiki 或编译失败</b><small>优雅降级 &mdash; 回退到标准 RAG 管道，如同 Wiki 层从未存在过。</small></div>
+        </div>
+
+        <h3>可追溯性的结构化引用</h3>
+        <p>每个 <code>WikiPage</code> 数据类携带 <code>references: list[dict]</code> 字段，其中每个条目包含 <code>{document_id, section_title, page_no, chunk_id}</code>。<code>wiki_pages_to_chunks()</code> 辅助函数将这些转换为带 <code>wiki_references</code> 键的 <code>ChunkEntry</code> 兼容元数据，因此最终答案中的每个引用都可以通过 Wiki 页面追溯到 S3 存储的 PDF 或 PPTX 中的确切源位置。</p>
+
+        <h3>优雅降级契约</h3>
+        <div class="notice"><strong>Wiki 编译失败回退：</strong>如果 LLM 提供者配置错误、返回无效 JSON 或超时，<code>WikiCompiler.compile()</code> 捕获异常并返回 <code>[]</code>（无 Wiki 候选）。下游路由器看到空的 wiki 列表并回退到标准 Qdrant RAG，没有任何行为变化。Wiki 层是优化，不是正确性要求。</div>
+
+        <h3>关键源文件</h3>
+        <pre><code>apps/api/src/researchmate_api/services/
+  wiki_compiler.py         (WikiCompiler, compile, compile_overview, WikiPage, wiki_pages_to_chunks)
+  query_planning.py        (RetrievalRoute, plan_retrieval, _expanded_plan, wiki_first_routing 检查)
+  query_retrieval.py       (LocalEvidenceRetriever, Wiki 候选集成)
+  qdrant_hybrid_query.py   (execute_hybrid_query, 带 Wiki 支持的 RRF 融合)</code></pre>
       </section>
 
       <section id="mcp">
@@ -186,6 +230,48 @@ tests/
   test_mcp_boundary.py     (认证、SDK 缺失、工具调用测试)</code></pre>
       </section>
 
+      <section id="wiki-rag">
+        <p class="eyebrow">Wiki 引导的检索</p>
+        <h2>Wiki 引导的混合 RAG . 三层检索架构</h2>
+        <p class="sub">Wiki 层位于原始存储和 RAG 检索之间 &mdash; LLM 编译的结构化页面为短文档提供导航快捷方式，或为长文档提供概览上下文。</p>
+
+        <h3>知识的三层</h3>
+        <div class="stack-ledger"><table><thead><tr><th>层</th><th>目的</th><th>实现</th></tr></thead><tbody>
+          <tr><td><b>原始源</b></td><td>真相来源</td><td>S3 兼容对象存储</td></tr>
+          <tr><td><b>Wiki</b></td><td>知识导航</td><td>LLM 编译的结构化页面</td></tr>
+          <tr><td><b>RAG</b></td><td>证据检索</td><td>Qdrant 混合 + 重排</td></tr>
+        </tbody></table></div>
+
+        <h3>带 Wiki 编译的摄取流程</h3>
+        <div class="proof-chain">
+          <div class="proof-step"><b>文档上传</b><small>解析 &rarr; 分块为有界文本块</small></div>
+          <div class="proof-step"><b>短文档（&le;4000 tokens）</b><small>完整 Wiki 编译替换原始块（has_vector=False）</small></div>
+          <div class="proof-step"><b>长文档（>4000 tokens）</b><small>Qdrant upsert（has_vector=True）+ 追加概览 Wiki（has_vector=False）</small></div>
+        </div>
+
+        <h3>Wiki 优先路由策略</h3>
+        <div class="grid two">
+          <article class="fact"><b>Wiki 优先路由</b><p>当 Wiki 候选存在且查询路由为 FULL_CONTEXT 或 SEMANTIC 时，完全跳过 Qdrant 并返回 Wiki 分块（score=1.0, reason="wiki_first_routing"）。EXACT 查询仍走完整 RAG 管道。</p></article>
+          <article class="fact"><b>优雅降级</b><p>Wiki 编译失败是非阻塞的 &mdash; 系统回退到原始 RAG 模块，不传播错误。</p></article>
+        </div>
+
+        <div class="notice"><strong>结构化引用：</strong>每个 WikiPage 携带一个 <code>references: list[dict[str, object]]</code> 字段，映射回包含 <code>{document_id, section_title, page_no, chunk_id}</code> 的来源证据。这使得从合成的 Wiki 知识追溯到原始源片段成为可能，同时在导航辅助和承载证据之间保持清晰的分隔。</div>
+
+        <h3>关键常量和方法</h3>
+        <div class="grid two">
+          <article class="fact"><b>常量</b><p><code>WIKI_OVERVIEW_MAX_INPUT_TOKENS = 6000</code>（在 schemas/common.py 中）防止过长的概览编译。短/长检测的 token 阈值使用相同的 4000-token 边界。</p></article>
+          <article class="fact"><b>方法</b><p><code>WikiCompiler.compile_overview()</code>、<code>WikiCompiler._sample_for_overview()</code>、<code>wiki_pages_to_chunks()</code>（向元数据添加 <code>wiki_references</code>）、<code>IngestionService._compile_overview_wiki()</code>（在 Qdrant upsert 后对长文档调用）。</p></article>
+        </div>
+
+        <h3>关键源文件</h3>
+        <pre><code>apps/api/src/researchmate_api/services/
+  wiki_compiler.py         (WikiCompiler, compile_overview, WikiPage, wiki_pages_to_chunks)
+  query_retrieval.py       (wiki-first 路由检查)
+  ingestion.py             (IngestionService._compile_overview_wiki)
+workers/ai-worker/src/researchmate_worker/
+  tasks.py                 (在 Qdrant upsert 后触发概览编译)</code></pre>
+      </section>
+
       <section id="langgraph">
         <p class="eyebrow">LangGraph 证据工作流</p>
         <h2>LangGraph . 六节点有状态图含人工审核</h2>
@@ -239,15 +325,34 @@ tests/
   tasks.py                 (run_workflow Celery 任务, Command(resume=...))</code></pre>
       </section>
 
+      <section id="evaluation-lab">
+        <p class="eyebrow">质量反馈循环</p>
+        <h2>评估实验室 . 真实检索消融和已审查的 Bad Cases</h2>
+        <p class="sub">评估路径改变执行策略，而不仅仅是标签。它还将显式用户反馈转化为已审查的相关性判断，不信任客户端提供的证据。</p>
+        <div class="stack-ledger"><table><thead><tr><th>流水线模式</th><th>稠密权重</th><th>稀疏权重</th><th>目的</th></tr></thead><tbody>
+          <tr><td><code>dense_only</code></td><td>1.0</td><td>0.0</td><td>跳过词典预取以隔离语义向量检索。</td></tr>
+          <tr><td><code>sparse_only</code></td><td>0.0</td><td>1.0</td><td>跳过嵌入和稠密预取以隔离词典检索。</td></tr>
+          <tr><td><code>hybrid</code></td><td>依赖路由</td><td>依赖路由</td><td>使用生产查询规划器和加权双通道融合。</td></tr>
+        </tbody></table></div>
+        <div class="grid two">
+          <article class="fact"><b>排序指标</b><p><code>evidence_recall</code> 衡量预期块是否出现在检索集合中。倒数排名记录第一个相关位置；二元 NDCG 奖励将所有判定相关的块放在接近顶部的位置。当用例没有预期证据时，排序指标保持未评分，而不是制造零值。</p></article>
+          <article class="fact"><b>基线比较</b><p>每个持久运行存储有效的流水线配置、检索通道权重、每用例结果、聚合和前一个成功的基线摘要。工程 UI 一起呈现候选和基线，包括明确的回归和执行失败。</p></article>
+          <article class="fact"><b>反馈捕获</b><p>拇指反馈键控到成功的拥有 Ask 运行。API 从持久化的服务端状态重建问题、答案、引用和检索候选；浏览器不能伪造这些快照。</p></article>
+          <article class="fact"><b>Bad Case 提升</b><b></b><p>开发者审查负面反馈，仅从服务端记录的本地文档候选中选择预期块，并原子性地创建下一个冻结的 <code>Answer feedback regressions</code> 数据集版本。Web 候选在可信 trace 中仍然可见，但不能进入此数据集，因为评估器当前仅重放 Qdrant 本地文档检索。重新提升会在新快照中替换早期的用例，而不是复制它。</p></article>
+        </div>
+        <div class="notice"><strong>当前证据边界：</strong>指标逻辑、检索分支选择、反馈所有权、不可变提升、UI 渲染和发布门禁脚本具有本地自动化证据。填充的托管提供商比较和生产提升仍然未声明。</div>
+      </section>
+
       <section id="integration">
         <p class="eyebrow">端到端集成</p>
-        <h2>三大基石如何连接</h2>
-        <p class="sub">三大基石并非孤立 &mdash; 它们共享领域服务、认证和同一个 Postgres 真相。</p>
+        <h2>四大基石如何连接</h2>
+        <p class="sub">四大基石并非孤立 &mdash; 它们共享领域服务、认证和同一个 Postgres 真相。</p>
 
         <h3>Ask 路径 . 混合 RAG 通过 REST 和 MCP 暴露</h3>
         <div class="proof-chain">
           <div class="proof-step"><b>用户提问</b><small>浏览器 &rarr; <code>POST /api/v1/ask</code>（REST）或 MCP <code>ask_grounded</code> 工具 &mdash; 两者都到达 <code>GroundedQueryService.execute()</code></small></div>
           <div class="proof-step"><b>路由规划</b><small><code>LocalEvidenceRetriever.retrieve()</code> 调用 <code>plan_retrieval()</code> &mdash; 从五条路由中选择一条</small></div>
+          <div class="proof-step"><b>Wiki 优先路由</b><small>当 Wiki 候选存在且路由为 FULL_CONTEXT 或 SEMANTIC 时，跳过 Qdrant 直接返回 Wiki 分块（score=1.0）</small></div>
           <div class="proof-step"><b>混合检索 + RRF</b><small><code>execute_hybrid_query()</code> 在 Qdrant 中以加权 RRF 融合 BM25 + 稠密分支</small></div>
           <div class="proof-step"><b>双重重排</b><small><code>RerankCoordinator.execute()</code> 链式 Qdrant &rarr; NVIDIA &rarr; 确定性</small></div>
           <div class="proof-step"><b>上下文打包 + 生成答案</b><small><code>pack_chunks()</code> 限制到 8000-token 预算 &rarr; <code>generate_answer()</code> 产生带引用的 grounded 答案</small></div>
@@ -274,7 +379,7 @@ tests/
           <a class="doc-link" href="../architecture/index.zh.html#stack"><b>架构与技术栈</b><span>技术决策表，含 LangGraph、MCP 和路由式混合检索行</span></a>
           <a class="doc-link" href="backend.zh.html"><b>后端学习</b><span>FastAPI 路由、服务和持久层 &mdash; MCP 作为 12 个后端依赖之一</span></a>
           <a class="doc-link" href="worker.zh.html"><b>Worker 学习</b><span>Celery 任务、文档摄取、LangGraph 工作流 &mdash; LangGraph 作为 8 个 worker 基石之一</span></a>
-          <a class="doc-link" href="flows.zh.html"><b>切面分析</b><span>Grounded Ask 的五路由混合 RAG 矩阵和 LangGraph 证据审核作为业务流追踪</span></a>
+          <a class="doc-link" href="flows.zh.html"><b>切面分析</b><span>Grounded Ask 的五路由混合 RAG 矩阵；Wiki 优先路由决策树；LangGraph 证据审核作为业务流追踪</span></a>
           <a class="doc-link" href="../contracts/api/index.zh.html#planned-mcp"><b>API 合约</b><span>POST /mcp/ 网关合约，含工具和资源定义</span></a>
         </div>
       </section>
@@ -283,13 +388,16 @@ tests/
     <aside class="toc"><b>本页导航</b>
       <a href="#stack">技术栈</a>
       <a href="#hybrid-rag">混合 RAG</a>
+      <a href="#wiki-rag">Wiki 引导的 RAG</a>
+      <a href="#wiki-rag">Wiki 引导的 RAG</a>
+      <a href="#evaluation-lab">评估实验室</a>
       <a href="#mcp">MCP 服务器</a>
       <a href="#langgraph">LangGraph</a>
       <a href="#integration">集成</a>
       <a href="#further-reading">延伸阅读</a>
     </aside></div>
   </main>
-  <footer class="shell footer">ResearchMate AI 智能体技术栈深度解析 . 写于 2026 年 8 月 11 日</footer>
+  <footer class="shell footer">ResearchMate AI 智能体技术栈深度解析 . 写于 2026 年 8 月 14 日</footer>
   <script src="../assets/site.js"></script>
 </body>
 </html>

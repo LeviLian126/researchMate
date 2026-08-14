@@ -13,7 +13,7 @@ export function ProjectNav({
   current,
 }: {
   projectId: string;
-  current: "chat" | "library" | "research" | "evidence" | "quiz" | "labs";
+  current: "chat" | "library" | "research" | "quiz" | "labs";
 }) {
   const [project, setProject] = useState<ProjectRecord | null>(null);
 

@@ -254,51 +254,6 @@ export function onAuthStateChange(listener: SessionListener): () => void {
   return () => listeners.delete(listener);
 }
 
-/** Signs in with email and password and persists the resulting session. */
-export async function signInWithPassword(email: string, password: string): Promise<BrowserAuthSession> {
-  const payload = await authRequest("/token?grant_type=password", { method: "POST", body: JSON.stringify({ email: normalizeAuthEmail(email), password }) });
-  const session = toSession(payload);
-  persist(session);
-  return session;
-}
-
-/** Creates an account and reports whether email confirmation is still required. */
-export async function signUpWithPassword(
-  email: string,
-  password: string,
-): Promise<"signed_in" | "confirmation_required"> {
-  const payload = await authRequest("/signup", {
-    method: "POST",
-    body: JSON.stringify({ email: normalizeAuthEmail(email), password }),
-  });
-  if (typeof payload.access_token !== "string" || typeof payload.refresh_token !== "string") {
-    return "confirmation_required";
-  }
-  persist(toSession(payload));
-  return "signed_in";
-}
-
-/** Requests a passwordless sign-in link for the supplied browser destination. */
-export async function sendMagicLink(email: string, redirectTo: string): Promise<void> {
-  await authRequest(`/otp?redirect_to=${encodeURIComponent(workspaceRedirect(redirectTo))}`, {
-    method: "POST",
-    body: JSON.stringify({ email: normalizeAuthEmail(email), create_user: false }),
-  });
-}
-
-/** Resends an existing signup confirmation through Supabase's rate-limited endpoint. */
-export async function resendSignupConfirmation(email: string, redirectTo: string): Promise<void> {
-  await authRequest(`/resend?redirect_to=${encodeURIComponent(workspaceRedirect(redirectTo))}`, {
-    method: "POST",
-    body: JSON.stringify({ type: "signup", email: normalizeAuthEmail(email) }),
-  });
-}
-
-/** Canonicalizes email input without retaining it outside the active form. */
-export function normalizeAuthEmail(email: string): string {
-  return email.trim().toLowerCase();
-}
-
 /** Restricts provider callbacks to this deployment's authenticated workspace. */
 function workspaceRedirect(redirectTo: string): string {
   if (typeof window === "undefined") throw new Error("Authentication links require a browser.");

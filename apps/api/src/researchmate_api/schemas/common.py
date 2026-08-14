@@ -69,6 +69,51 @@ WIKI_PAGE_TYPE_LENGTH = 50
 # summarize into an overview page without exceeding the LLM context window.
 WIKI_OVERVIEW_MAX_INPUT_TOKENS = 6000
 
+# Developer-trace bounds. Each limit constrains an admin-visible diagnostic
+# field so trace payloads stay privacy-bounded and storage-stable.
+MAX_TOOL_NAME_LENGTH = 120
+MAX_ERROR_MESSAGE_LENGTH = 500
+MAX_ROUTER_REASON_LENGTH = 2000
+MAX_RETRIEVED_CHUNKS_SUMMARY = 80
+MAX_TOOL_CALLS_SUMMARY = 40
+MAX_ERRORS_SUMMARY = 20
+MIN_LATENCY_MS = 0
+
+# Evidence workflow bounds. These constrain research runs, human decisions,
+# pipeline configuration, evaluation runs, and fault exercises against a
+# shared source of truth so backend services and storage layers stay aligned.
+MIN_RESEARCH_GOAL_LENGTH = 20
+MAX_RESEARCH_GOAL_LENGTH = 12_000
+MAX_COST_USD = 25
+MAX_DOCUMENT_IDS_LENGTH = 200
+MIN_INTERRUPT_KEY_LENGTH = 1
+MAX_INTERRUPT_KEY_LENGTH = 160
+MAX_FORCE_SECTIONS_LENGTH = 100
+MIN_METRICS_LENGTH = 1
+MAX_METRICS_LENGTH = 6
+MIN_MAX_PARALLELISM = 1
+MAX_MAX_PARALLELISM = 20
+MIN_DURATION_SECONDS = 1
+MAX_DURATION_SECONDS = 60
+
+# Document upload bounds. These constrain upload metadata and reservation
+# responses so clients and storage backends share one source of truth.
+MAX_UPLOAD_FILENAME_LENGTH = 240
+MIN_UPLOAD_MIME_TYPE_LENGTH = 3
+MAX_UPLOAD_MIME_TYPE_LENGTH = 120
+MIN_UPLOAD_URL_LENGTH = 1
+MAX_UPLOAD_URL_LENGTH = 4096
+MIN_R2_OBJECT_KEY_LENGTH = 16
+MAX_R2_OBJECT_KEY_LENGTH = 512
+MIN_UPLOAD_EXPIRES_IN_SECONDS = 60
+MAX_UPLOAD_EXPIRES_IN_SECONDS = 900
+
+# Quiz content bounds. These constrain topic queries, single-choice options,
+# and per-question explanations so quiz generation respects LLM context limits.
+MAX_TOPIC_QUERY_LENGTH = 1000
+MAX_QUIZ_OPTIONS_LENGTH = 4
+MAX_QUIZ_EXPLANATION_LENGTH = 2000
+
 
 # Define task types. Task only controls the execution goal.
 class TaskType(str, Enum):

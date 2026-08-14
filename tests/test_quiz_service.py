@@ -298,7 +298,11 @@ def test_llm_provider_invalid_output_raises_unavailable(repository) -> None:
 
 
 def test_select_chunks_all_ready_documents_covers_one_chunk_per_document(repository) -> None:
-    """Cover at least one chunk per document in the all_ready_documents scope."""
+    """Cover at least one chunk per document in the all_ready_documents scope.
+
+    Observes the chunk selection through the public QuizService.create method.
+    The coverage field in the response reflects the _select_chunks output.
+    """
     caller = user()
     repository.ensure_user(caller)
     project = repository.create_project(caller, ProjectCreate(name="multi-evidence"))
@@ -316,17 +320,22 @@ def test_select_chunks_all_ready_documents_covers_one_chunk_per_document(reposit
             ),
         )
         assert repository.complete_document(caller, reservation.document_id, text) is not None
-    # Build the chunks list the same way the repository exposes them for the service.
-    chunks = repository.project_chunks(caller, project.id) or []
-    retrieved, coverage = QuizService._select_chunks(
-        chunks,
-        QuizRequest(project_id=project.id, prompt="multi-document"),
+
+    service = QuizService(repository=repository, chat_provider=None)
+    response = service.create(
+        caller,
+        QuizRequest(
+            project_id=project.id,
+            prompt="multi-document quiz",
+            single_choice_count=1,
+        ),
     )
-    assert coverage.documents_available == 2
-    assert coverage.documents_covered == 2
-    assert len(retrieved) <= 50
-    # Every chunk is retrievable because both documents are ready.
-    assert len(retrieved) == len(chunks)
+
+    assert response.coverage.documents_available == 2
+    assert response.coverage.documents_covered == 2
+    assert response.coverage.chunks_selected <= 50
+    assert response.quiz_set.questions, "quiz must be generated with source-backed citations"
+    assert all(question.source_citations for question in response.quiz_set.questions)
 
 
 def test_invalid_quiz_request_question_total_raises_validation_error(repository) -> None:

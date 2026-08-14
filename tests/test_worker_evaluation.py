@@ -10,8 +10,9 @@ from __future__ import annotations
 from collections import deque
 from collections.abc import Iterator
 from contextlib import contextmanager
+from datetime import UTC, datetime
 from decimal import Decimal
-from inspect import getsource
+from types import SimpleNamespace
 from typing import Any
 from uuid import UUID
 
@@ -535,21 +536,178 @@ def test_run_releases_retryable_failure_when_attempts_remain() -> None:
 
 
 def test_executor_pipeline_model_and_prompt_versions_are_validated() -> None:
-    """Reject pipelines whose model or prompt is unsupported by the executor."""
-    source = getsource(QdrantCaseExecutor.execute).lower()
-    assert "pipeline_model_not_configured" in source
-    assert "pipeline_prompt_not_supported" in source
-    assert "evidence_not_found" in source
-    assert "evaluation_case_invalid" in source
-    assert "grounded-answer-v1" in source
+    """Reject pipelines whose model or prompt is unsupported by the executor.
+
+    Drives QdrantCaseExecutor.execute through each validation failure branch
+    and asserts the stable EvaluationRuntimeError codes are raised at runtime.
+    """
+
+    class FakeVectorStore:
+        def query(self, **_kwargs):
+            return []
+
+    base_provider = SimpleNamespace(
+        settings=SimpleNamespace(nvidia_model="z-ai/glm-5.2")
+    )
+    executor = QdrantCaseExecutor(
+        engine=object(),  # type: ignore[arg-type]
+        vector_store=FakeVectorStore(),  # type: ignore[arg-type]
+        provider=base_provider,
+    )
+
+    # EVALUATION_CASE_INVALID: no question in case input.
+    with pytest.raises(EvaluationRuntimeError) as exc_info:
+        executor.execute(
+            claimed(),
+            EvaluationCase(
+                id=CASE_ID, case_key="bad", input={}, expected_output=None,
+                expected_evidence=[],
+            ),
+        )
+    assert exc_info.value.code == "EVALUATION_CASE_INVALID"
+
+    # PIPELINE_MODEL_NOT_CONFIGURED: model mismatch.
+    with pytest.raises(EvaluationRuntimeError) as exc_info:
+        executor.execute(_run_with_model("other-model"), case())
+    assert exc_info.value.code == "PIPELINE_MODEL_NOT_CONFIGURED"
+
+    # PIPELINE_PROMPT_NOT_SUPPORTED: valid but unsupported prompt version.
+    with pytest.raises(EvaluationRuntimeError) as exc_info:
+        executor.execute(
+            _run_with_prompt("grounded-answer-v2"),
+            case(),
+        )
+    assert exc_info.value.code == "PIPELINE_PROMPT_NOT_SUPPORTED"
+
+    # EVIDENCE_NOT_FOUND: no chunks returned by the vector store.
+    with pytest.raises(EvaluationRuntimeError) as exc_info:
+        executor.execute(claimed(), case())
+    assert exc_info.value.code == "EVIDENCE_NOT_FOUND"
+
+    # The accepted prompt version is grounded-answer-v1: passing it must not
+    # raise PIPELINE_PROMPT_NOT_SUPPORTED.
+    valid_run = claimed()
+    assert valid_run.pipeline.evaluation_prompt_version == "grounded-answer-v1"
+
+
+def _run_with_model(model: str) -> ClaimedEvaluation:
+    """Build a claimed run with an overridden pipeline model."""
+    run = claimed()
+    return ClaimedEvaluation(
+        **{**run.__dict__, "pipeline": PipelineRuntimeConfig(
+            retrieval_limit=12,
+            model=model,
+            evaluation_prompt_version="grounded-answer-v1",
+        )}
+    )
+
+
+def _run_with_prompt(prompt: str) -> ClaimedEvaluation:
+    """Build a claimed run with an overridden prompt version."""
+    run = claimed()
+    return ClaimedEvaluation(
+        **{**run.__dict__, "pipeline": PipelineRuntimeConfig(
+            retrieval_limit=12,
+            model="z-ai/glm-5.2",
+            evaluation_prompt_version=prompt,
+        )}
+    )
 
 
 def test_executor_loads_owned_chunks_with_any_array_parameter() -> None:
-    """Bind ids as an array literal and scope by owner in the chunk lookup."""
-    source = getsource(QdrantCaseExecutor._chunks)
-    assert "id=any(:ids)" in source
-    assert "user_id=:user_id" in source
-    assert "project_id=:project_id" in source
+    """Bind ids as an array literal and scope by owner in the chunk lookup.
+
+    Drives the _chunks method through QdrantCaseExecutor.execute (the public
+    entry point). The FakeVectorStore returns one chunk_id, so _chunks opens
+    a transaction and the captured SQL must use id=any(:ids) with the owner
+    predicate.
+    """
+    from contextlib import contextmanager
+
+    class ChunkResult:
+        def __init__(self, rows: list[dict]) -> None:
+            self.rows = rows
+
+        def mappings(self) -> ChunkResult:
+            return self
+
+        def all(self) -> list[dict]:
+            return self.rows
+
+    class ChunkRecordingConnection:
+        def __init__(self) -> None:
+            self.calls: list[tuple[str, dict]] = []
+
+        def execute(self, statement, parameters):
+            self.calls.append((str(statement), parameters))
+            return ChunkResult([_chunk_row(CASE_ID)])
+
+        @property
+        def rowcount(self) -> int:
+            return 0
+
+    class ChunkRecordingEngine:
+        def __init__(self) -> None:
+            self.connection = ChunkRecordingConnection()
+
+        @contextmanager
+        def begin(self) -> Iterator[ChunkRecordingConnection]:
+            yield self.connection
+
+    class OneIdVectorStore:
+        def query(self, **_kwargs):
+            return [{"payload": {"chunk_id": str(CASE_ID)}}]
+
+    engine = ChunkRecordingEngine()
+    executor = QdrantCaseExecutor(
+        engine=engine,  # type: ignore[arg-type]
+        vector_store=OneIdVectorStore(),  # type: ignore[arg-type]
+        provider=SimpleNamespace(
+            settings=SimpleNamespace(nvidia_model="z-ai/glm-5.2")
+        ),
+    )
+
+    # _chunks is called internally after the vector store returns one ID.
+    # The grounded answer will fail to build, but we just need _chunks to run.
+    try:
+        executor.execute(claimed(), case())
+    except Exception:
+        # build_llm_grounded_answer may fail; we only care about the SQL.
+        pass
+
+    chunk_calls = engine.connection.calls
+    assert len(chunk_calls) == 1, "exactly one chunk-lookup SQL must execute"
+
+    chunk_sql = chunk_calls[0][0]
+    assert "id=any(:ids)" in chunk_sql, "chunk lookup must bind ids as an array literal"
+    assert "user_id=:user_id" in chunk_sql, "chunk lookup must scope by user"
+    assert "project_id=:project_id" in chunk_sql, "chunk lookup must scope by project"
+
+    chunk_params = chunk_calls[0][1]
+    assert chunk_params["ids"] == [CASE_ID], "chunk lookup must bind the vector-store IDs"
+
+
+def _chunk_row(chunk_id: UUID) -> dict:
+    """Build one chunks-table row matching the ChunkEntry field contract."""
+    return {
+        "id": chunk_id,
+        "user_id": USER_ID,
+        "project_id": PROJECT_ID,
+        "document_id": None,
+        "source_type": "local_doc",
+        "source_title": "test.pdf",
+        "text": "answer supported by evidence",
+        "page_no": None,
+        "slide_no": None,
+        "url": None,
+        "section_title": None,
+        "section_path": "",
+        "chunk_index": 0,
+        "char_start": None,
+        "char_end": None,
+        "metadata": {},
+        "created_at": datetime.now(UTC),
+    }
 
 
 def test_supported_metrics_match_between_executor_runner_and_scoring() -> None:

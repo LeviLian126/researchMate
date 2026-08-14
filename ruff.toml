@@ -15,8 +15,6 @@ select = [
   "UP",
 ]
 ignore = [
-  # Provider and delivery boundaries intentionally normalize unknown SDK failures.
-  "BLE001",
   # Existing enums intentionally use (str, Enum) for cross-version behavior.
   # Migrating to enum.StrEnum is a separate modernization beyond this task.
   "UP042",

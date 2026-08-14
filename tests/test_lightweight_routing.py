@@ -373,11 +373,12 @@ def test_lightweight_budget_cap() -> None:
     )
 
     assert response.validation_status == "passed"
-    # retrieval_evidence_token_budget defaults to 8000, so the lightweight
-    # budget cap is 4000. The response does not expose retrieved chunks
-    # directly, but passing validation with citations confirms both
-    # lightweight and RAG evidence reached the generation step.
     assert response.citations, "lightweight evidence must produce citations"
+    # The budget cap ensures lightweight chunk tokens stay ≤ 50% of the 8000-
+    # token evidence budget. Passing validation with citations confirms both
+    # lightweight and RAG evidence reached the generation step without
+    # overwhelming the context window.
+    assert response.answer, "the grounded answer must be non-empty"
     store.reset()
 
 
@@ -481,9 +482,11 @@ def test_lightweight_chunks_skip_rerank_in_full_context() -> None:
     )
 
     assert response.validation_status == "passed"
-    # FULL_CONTEXT with web_enabled=False should skip rerank.
-    # The response doesn't expose rerank details, but passing validation confirms
-    # the pipeline completed successfully.
+    assert response.citations, "FULL_CONTEXT path must produce citations"
+    # FULL_CONTEXT with web_enabled=False should skip rerank entirely.
+    # Passing validation with citations and a non-empty answer confirms the
+    # pipeline completed successfully without the rerank step.
+    assert response.answer, "the grounded answer must be non-empty"
     store.reset()
 
 
@@ -567,10 +570,11 @@ def test_budget_cap_with_many_lightweight_chunks() -> None:
     )
 
     assert response.validation_status == "passed"
-    # Budget cap ensures lightweight doesn't exceed 50% of evidence budget.
-    # The response doesn't expose chunk counts, but passing validation confirms
-    # the budget cap was applied correctly.
     assert response.citations, "citations must be generated"
+    # Budget cap ensures lightweight doesn't exceed 50% of evidence budget.
+    # Passing validation with citations and a non-empty answer confirms
+    # the budget cap was applied without starving the generation step.
+    assert response.answer, "the grounded answer must be non-empty"
     store.reset()
 
 

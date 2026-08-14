@@ -170,59 +170,86 @@ def generate_quiz_set(
     citation_by_chunk = {citation.chunk_id: citation for citation in citations if citation.chunk_id}
     source_chunks = chunks or []
     total = max(1, single_choice_count + fill_blank_count + subjective_count)
-    for index in range(min(single_choice_count, len(source_chunks), total)):
-        chunk = source_chunks[index % len(source_chunks)]
-        quote = snippet(chunk.text, SNIPPET_QUOTE_SHORT)
-        citation = citation_by_chunk.get(chunk.id)
-        questions.append(
-            QuizQuestion(
-                id=uuid4(),
-                type="single_choice",
-                question=f"根据资料片段，下列哪项最能概括第 {index + 1} 个知识点？",
-                options=[
-                    quote,
-                    "与资料无关的泛化说法",
-                    "没有来源支撑的最新网络结论",
-                    "仅包含调试或内部 trace 信息的说法",
-                ],
-                answer=quote,
-                explanation="正确选项直接来自本地资料片段，其他选项不符合 local-first 与可溯源要求。",
-                difficulty=Difficulty.MEDIUM,
-                source_citations=[citation] if citation else [],
+
+    def build_question(
+        *,
+        count: int,
+        chunk_offset: int,
+        snippet_length: int,
+        question_type: Literal["single_choice", "fill_blank", "subjective"],
+        question_text: str,
+        explanation: str,
+        distractors: list[str] | None = None,
+        cap_total: int | None = None,
+    ) -> None:
+        """Append one bounded batch of single-type questions to the running list.
+
+        Each iteration picks a chunk from ``source_chunks`` at
+        ``(offset + chunk_offset) % len(source_chunks)``, snips it to the requested
+        length, looks up the matching citation, and appends a configured
+        ``QuizQuestion``. For ``single_choice`` the snipped quote becomes the first
+        option followed by ``distractors`` so the answer matches options[0]; other
+        types pass ``options=None``. ``cap_total`` mirrors the single_choice quirk
+        where the iteration count is also bounded by the overall quiz total.
+        """
+        if not source_chunks:
+            return
+        upper = min(count, len(source_chunks))
+        if cap_total is not None:
+            upper = min(upper, cap_total)
+        for offset in range(upper):
+            chunk = source_chunks[(offset + chunk_offset) % len(source_chunks)]
+            quote = snippet(chunk.text, snippet_length)
+            citation = citation_by_chunk.get(chunk.id)
+            if question_type == "single_choice":
+                if distractors is None or len(distractors) != 3:
+                    raise ValueError("single_choice requires exactly three distractors")
+                options: list[str] | None = [quote, *distractors]
+            else:
+                options = None
+            questions.append(
+                QuizQuestion(
+                    id=uuid4(),
+                    type=question_type,
+                    question=question_text.format(index=offset + 1),
+                    options=options,
+                    answer=quote,
+                    explanation=explanation,
+                    difficulty=Difficulty.MEDIUM,
+                    source_citations=[citation] if citation else [],
+                )
             )
-        )
-    for offset in range(min(fill_blank_count, len(source_chunks))):
-        chunk = source_chunks[(offset + single_choice_count) % len(source_chunks)]
-        quote = snippet(chunk.text, SNIPPET_QUOTE_MEDIUM)
-        citation = citation_by_chunk.get(chunk.id)
-        questions.append(
-            QuizQuestion(
-                id=uuid4(),
-                type="fill_blank",
-                question=f"根据资料补全知识点 {offset + 1} 的关键内容。",
-                answer=quote,
-                explanation="参考答案来自对应资料片段，作答应覆盖其中的关键术语或事实。",
-                difficulty=Difficulty.MEDIUM,
-                source_citations=[citation] if citation else [],
-            )
-        )
-    for offset in range(min(subjective_count, len(source_chunks))):
-        chunk = source_chunks[
-            (offset + single_choice_count + fill_blank_count) % len(source_chunks)
-        ]
-        quote = snippet(chunk.text, SNIPPET_QUOTE_LONG)
-        citation = citation_by_chunk.get(chunk.id)
-        questions.append(
-            QuizQuestion(
-                id=uuid4(),
-                type="subjective",
-                question=f"结合项目资料，分析知识点 {offset + 1}，并说明其依据。",
-                answer=quote,
-                explanation="开放题按是否覆盖资料中的核心事实、推理是否连贯及是否保留依据评分。",
-                difficulty=Difficulty.MEDIUM,
-                source_citations=[citation] if citation else [],
-            )
-        )
+
+    build_question(
+        count=single_choice_count,
+        chunk_offset=0,
+        snippet_length=SNIPPET_QUOTE_SHORT,
+        question_type="single_choice",
+        question_text="根据资料片段，下列哪项最能概括第 {index} 个知识点？",
+        distractors=[
+            "与资料无关的泛化说法",
+            "没有来源支撑的最新网络结论",
+            "仅包含调试或内部 trace 信息的说法",
+        ],
+        explanation="正确选项直接来自本地资料片段，其他选项不符合 local-first 与可溯源要求。",
+        cap_total=total,
+    )
+    build_question(
+        count=fill_blank_count,
+        chunk_offset=single_choice_count,
+        snippet_length=SNIPPET_QUOTE_MEDIUM,
+        question_type="fill_blank",
+        question_text="根据资料补全知识点 {index} 的关键内容。",
+        explanation="参考答案来自对应资料片段，作答应覆盖其中的关键术语或事实。",
+    )
+    build_question(
+        count=subjective_count,
+        chunk_offset=single_choice_count + fill_blank_count,
+        snippet_length=SNIPPET_QUOTE_LONG,
+        question_type="subjective",
+        question_text="结合项目资料，分析知识点 {index}，并说明其依据。",
+        explanation="开放题按是否覆盖资料中的核心事实、推理是否连贯及是否保留依据评分。",
+    )
     if not questions and source_chunks:
         chunk = source_chunks[0]
         citation = citation_by_chunk.get(chunk.id)

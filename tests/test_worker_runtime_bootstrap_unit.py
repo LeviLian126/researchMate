@@ -5,7 +5,6 @@ from __future__ import annotations
 import sys
 from collections.abc import Iterator
 from contextlib import contextmanager
-from inspect import getsource
 from types import SimpleNamespace
 from typing import Any
 from uuid import UUID
@@ -19,17 +18,38 @@ USER_ID = UUID("00000000-0000-4000-8000-000000000202")
 PROJECT_ID = UUID("00000000-0000-4000-8000-000000000203")
 
 
+class ExecResult:
+    """Provide mappings().one_or_none() and rowcount over one configured value."""
+
+    def __init__(self, *, row: dict | None = None, rowcount: int = 0) -> None:
+        self._row = row
+        self._rowcount = rowcount
+
+    def mappings(self) -> ExecResult:
+        return self
+
+    def one_or_none(self) -> dict | None:
+        return self._row
+
+    @property
+    def rowcount(self) -> int:
+        return self._rowcount
+
+
 class RecordingConnection:
     """Records SQLAlchemy-style execute calls for boundary assertions."""
 
-    def __init__(self) -> None:
+    def __init__(self, *, result: ExecResult | None = None) -> None:
         self.calls: list[tuple[str, dict | None]] = []
+        self._result = result or ExecResult()
 
-    def execute(self, statement: Any, parameters: dict[str, Any] | None = None) -> SimpleNamespace:
+    def execute(
+        self, statement: Any, parameters: dict[str, Any] | None = None
+    ) -> ExecResult:
         """Record one SQL statement and its safe parameters."""
         # boundary: opaque test double for SQLAlchemy statements/parameters.
         self.calls.append((str(statement), parameters))
-        return SimpleNamespace()
+        return self._result
 
 
 class RecordingEngine:
@@ -190,7 +210,11 @@ def test_task_builders_fail_closed_without_managed_configuration(monkeypatch) ->
 
 
 def test_bootstrap_failure_update_is_bounded_and_optional(monkeypatch) -> None:
-    """Skip absent databases and write a bounded terminal error when configured."""
+    """Skip absent databases and write a bounded terminal error when configured.
+
+    # testing private method: no public API exposes this failure boundary without
+    # triggering a full service-construction failure chain.
+    """
     tasks._mark_workflow_bootstrap_failed(SimpleNamespace(database_url=None), JOB_ID, "ignored")
     engine = RecordingEngine()
     monkeypatch.setattr(tasks, "create_engine", lambda *_args, **_kwargs: engine)
@@ -208,14 +232,35 @@ def test_bootstrap_failure_update_is_bounded_and_optional(monkeypatch) -> None:
     assert len(parameters["code"]) == 120
 
 
-def test_job_bootstrap_failure_does_not_overwrite_an_active_worker_lease() -> None:
-    """Only fail pending or expired jobs when construction fails before claim."""
-    source = getsource(tasks._mark_job_bootstrap_failed).lower()
-    job_update = source.split("returning type", 1)[0]
+def test_job_bootstrap_failure_does_not_overwrite_an_active_worker_lease(monkeypatch) -> None:
+    """Only fail pending or expired jobs when construction fails before claim.
 
-    assert "status='pending'" in job_update
-    assert "lease_expires_at < now()" in job_update
-    assert "status in ('pending','running')" not in job_update
+    Drives _mark_job_bootstrap_failed through a RecordingEngine and asserts the
+    captured SQL gates on pending or expired-lease running jobs, NOT any running
+    job (which would clobber an active worker lease).
+    """
+    engine = RecordingEngine()
+    monkeypatch.setattr(tasks, "create_engine", lambda *_args, **_kwargs: engine)
+
+    tasks._mark_job_bootstrap_failed(
+        SimpleNamespace(database_url="postgresql+psycopg://db"),
+        JOB_ID,
+        "BOOTSTRAP_FAILED",
+    )
+
+    sql, _ = engine.connection.calls[0]
+    assert "status='pending'" in sql, (
+        "bootstrap failure must target pending jobs"
+    )
+    assert "lease_expires_at < now()" in sql, (
+        "bootstrap failure must only clobber running jobs with expired leases"
+    )
+    assert "returning type" in sql.lower(), (
+        "bootstrap failure must use RETURNING to check if the row was affected"
+    )
+    assert "status in ('pending','running')" not in sql.lower(), (
+        "bootstrap failure must NOT clobber any running job regardless of lease"
+    )
 
 
 def test_task_bootstrap_failure_marks_job_terminal(monkeypatch) -> None:

@@ -9,7 +9,22 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field, model_validator
 
-from researchmate_api.schemas.common import MAX_REASON_LENGTH
+from researchmate_api.schemas.common import (
+    MAX_COST_USD,
+    MAX_DOCUMENT_IDS_LENGTH,
+    MAX_DURATION_SECONDS,
+    MAX_FORCE_SECTIONS_LENGTH,
+    MAX_INTERRUPT_KEY_LENGTH,
+    MAX_MAX_PARALLELISM,
+    MAX_METRICS_LENGTH,
+    MAX_REASON_LENGTH,
+    MAX_RESEARCH_GOAL_LENGTH,
+    MIN_DURATION_SECONDS,
+    MIN_INTERRUPT_KEY_LENGTH,
+    MIN_MAX_PARALLELISM,
+    MIN_METRICS_LENGTH,
+    MIN_RESEARCH_GOAL_LENGTH,
+)
 
 RunStatus = Literal["pending", "running", "waiting_human", "succeeded", "failed", "cancelled"]
 
@@ -17,7 +32,7 @@ RunStatus = Literal["pending", "running", "waiting_human", "succeeded", "failed"
 class SourceScope(BaseModel):
     """Constrain the documents and web access available to a research run."""
 
-    document_ids: list[UUID] = Field(default_factory=list, max_length=200)
+    document_ids: list[UUID] = Field(default_factory=list, max_length=MAX_DOCUMENT_IDS_LENGTH)
     allow_web: bool = False
 
     @model_validator(mode="after")
@@ -32,11 +47,11 @@ class ResearchRunCreate(BaseModel):
     """Validate a request to start a bounded research workflow."""
 
     project_id: UUID
-    research_goal: str = Field(min_length=20, max_length=12_000)
+    research_goal: str = Field(min_length=MIN_RESEARCH_GOAL_LENGTH, max_length=MAX_RESEARCH_GOAL_LENGTH)
     source_scope: SourceScope = Field(default_factory=SourceScope)
     pipeline_version_id: UUID
     review_policy: Literal["strict", "balanced"] = "strict"
-    max_cost_usd: Decimal | None = Field(default=None, gt=0, le=25)
+    max_cost_usd: Decimal | None = Field(default=None, gt=0, le=MAX_COST_USD)
 
 
 class ResearchRunAccepted(BaseModel):
@@ -60,7 +75,7 @@ class WorkflowRunRecord(BaseModel):
     progress: int = Field(ge=0, le=100)
     current_node: str | None = None
     review_required: bool = False
-    output: dict[str, Any] | None = None
+    output: dict[str, Any] | None = None  # boundary: opaque external payload
     error_code: str | None = None
     created_at: datetime
     started_at: datetime | None = None
@@ -76,7 +91,7 @@ class RunEventRecord(BaseModel):
     event_type: str
     attempt: int = Field(ge=0)
     status: str
-    safe_payload: dict[str, Any] = Field(default_factory=dict)
+    safe_payload: dict[str, Any] = Field(default_factory=dict)  # boundary: opaque external payload
     latency_ms: int | None = Field(default=None, ge=0)
     created_at: datetime
 
@@ -84,9 +99,12 @@ class RunEventRecord(BaseModel):
 class HumanDecisionCreate(BaseModel):
     """Validate a human decision used to resume a paused workflow."""
 
-    interrupt_key: str = Field(min_length=1, max_length=160)
+    interrupt_key: str = Field(
+        min_length=MIN_INTERRUPT_KEY_LENGTH,
+        max_length=MAX_INTERRUPT_KEY_LENGTH,
+    )
     decision: Literal["approve", "edit", "reject"]
-    edited_payload: dict[str, Any] | None = None
+    edited_payload: dict[str, Any] | None = None  # boundary: opaque external payload
     reason: str | None = Field(default=None, max_length=MAX_REASON_LENGTH)
 
     @model_validator(mode="after")
@@ -177,7 +195,7 @@ class ReportSectionRecord(BaseModel):
     position: int = Field(ge=0)
     heading: str
     body_markdown: str
-    evidence_snapshot: dict[str, Any]
+    evidence_snapshot: dict[str, Any]  # boundary: opaque external payload
     validation_status: Literal["pending", "passed", "failed", "retrying"]
 
 
@@ -193,7 +211,7 @@ class PipelineVersionSummary(BaseModel):
     pipeline_version_id: UUID
     name: str
     version: int = Field(ge=1)
-    configuration: dict[str, Any]
+    configuration: dict[str, Any]  # boundary: opaque external payload
     code_sha: str
     accepted_at: datetime | None = None
 
@@ -224,8 +242,8 @@ class EvaluationDatasetListResponse(BaseModel):
 class ReportRefreshCreate(BaseModel):
     """Validate the evidence changes that require report regeneration."""
 
-    changed_document_ids: list[UUID] = Field(default_factory=list, max_length=200)
-    force_sections: list[str] = Field(default_factory=list, max_length=100)
+    changed_document_ids: list[UUID] = Field(default_factory=list, max_length=MAX_DOCUMENT_IDS_LENGTH)
+    force_sections: list[str] = Field(default_factory=list, max_length=MAX_FORCE_SECTIONS_LENGTH)
     pipeline_version_id: UUID
 
     @model_validator(mode="after")
@@ -260,9 +278,9 @@ class EvaluationRunCreate(BaseModel):
             "retrieval_ndcg",
             "faithfulness",
         ]
-    ] = Field(min_length=1, max_length=6)
-    max_parallelism: int = Field(default=4, ge=1, le=20)
-    max_cost_usd: Decimal | None = Field(default=None, gt=0, le=25)
+    ] = Field(min_length=MIN_METRICS_LENGTH, max_length=MAX_METRICS_LENGTH)
+    max_parallelism: int = Field(default=4, ge=MIN_MAX_PARALLELISM, le=MAX_MAX_PARALLELISM)
+    max_cost_usd: Decimal | None = Field(default=None, gt=0, le=MAX_COST_USD)
     labels: list[str] = Field(default_factory=list, max_length=20)
 
 
@@ -283,8 +301,8 @@ class EvaluationRunRecord(BaseModel):
     pipeline_version_id: UUID
     status: Literal["pending", "running", "succeeded", "failed", "cancelled"]
     progress: int = Field(ge=0, le=100)
-    summary: dict[str, Any] | None = None
-    scores: list[dict[str, Any]] = Field(default_factory=list)
+    summary: dict[str, Any] | None = None  # boundary: opaque external payload
+    scores: list[dict[str, Any]] = Field(default_factory=list)  # boundary: opaque external payload
     created_at: datetime
     started_at: datetime | None = None
     completed_at: datetime | None = None
@@ -311,7 +329,7 @@ class FaultScenarioCreate(BaseModel):
 
     scenario: Literal["llm_timeout", "qdrant_unavailable", "worker_interrupt", "r2_failure"]
     target_run_id: UUID | None = None
-    duration_seconds: int = Field(ge=1, le=60)
+    duration_seconds: int = Field(ge=MIN_DURATION_SECONDS, le=MAX_DURATION_SECONDS)
 
 
 class FaultScenarioAccepted(BaseModel):
@@ -333,7 +351,7 @@ class FaultScenarioRecord(BaseModel):
     status: Literal["pending", "running", "succeeded", "failed"]
     attempts: int = Field(ge=0)
     expires_at: datetime
-    safe_result: dict[str, Any] = Field(default_factory=dict)
+    safe_result: dict[str, Any] = Field(default_factory=dict)  # boundary: opaque external payload
     error_code: str | None = None
     created_at: datetime
     started_at: datetime | None = None

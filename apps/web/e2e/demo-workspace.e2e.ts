@@ -22,7 +22,9 @@ test("completes the deterministic research workspace journey", async ({ page }) 
   await expect(page.getByRole("heading", { name: "Welcome back" })).toHaveCount(0);
   await expect(page.getByRole("textbox", { name: "Message" })).toBeEnabled();
 
-  const sidebar = page.locator(".app-sidebar");
+  // The desktop sidebar is the aside labelled with its navigation role, not a
+  // styling-only class name (which can be removed without behavior change).
+  const sidebar = page.getByRole("complementary", { name: "Workspace navigation" });
   const resizeHandle = page.getByRole("separator", { name: "Resize sidebar" });
   await expect(resizeHandle).toBeVisible();
   const sidebarBeforeResize = await sidebar.boundingBox();

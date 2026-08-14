@@ -1,7 +1,35 @@
 // Renders versioned retrieval metrics and baseline deltas without inventing missing scores.
 
+/** Pipeline identity captured for a single evaluation run. */
+interface EvaluationPipeline {
+  retrieval_mode?: string;
+}
+
+/** Per-metric aggregate surfaced by the evaluation summary. */
+interface EvaluationMetric {
+  mean_value?: number;
+  pass_rate?: number;
+}
+
+/** Per-metric baseline delta used to surface regression direction. */
+interface EvaluationBaselineComparison {
+  mean_delta?: number;
+  pass_rate_delta?: number;
+}
+
+/** Durable summary record authored by the worker after a run completes. */
+interface EvaluationSummary {
+  execution_succeeded?: boolean;
+  quality_passed?: boolean;
+  regression_detected?: boolean;
+  pipeline?: EvaluationPipeline;
+  baseline_pipeline?: EvaluationPipeline;
+  metric_summary?: Record<string, EvaluationMetric>;
+  baseline_comparison?: Record<string, EvaluationBaselineComparison>;
+}
+
 interface EvaluationReportProps {
-  summary: Record<string, unknown>;
+  summary: EvaluationSummary;
 }
 
 interface MetricRow {
@@ -21,28 +49,22 @@ const METRIC_LABELS: Record<string, string> = {
   faithfulness: "Faithfulness",
 };
 
-function objectValue(value: unknown): Record<string, unknown> | null {
-  return value && typeof value === "object" && !Array.isArray(value)
-    ? value as Record<string, unknown>
-    : null;
-}
-
-function numberValue(value: unknown): number | null {
+function finiteNumber(value: number | undefined): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
-function metricRows(summary: Record<string, unknown>): MetricRow[] {
-  const metrics = objectValue(summary.metric_summary) ?? {};
-  const comparisons = objectValue(summary.baseline_comparison) ?? {};
-  return Object.entries(metrics).map(([name, raw]) => {
-    const metric = objectValue(raw) ?? {};
-    const comparison = objectValue(comparisons[name]) ?? {};
+function metricRows(summary: EvaluationSummary): MetricRow[] {
+  const metrics = summary.metric_summary ?? {};
+  const comparisons = summary.baseline_comparison ?? {};
+  return Object.entries(metrics).map(([name, metric]) => {
+    // Baseline comparisons are optional per metric; defend against missing entries.
+    const comparison = comparisons[name] ?? {};
     return {
       name,
-      mean: numberValue(metric.mean_value),
-      passRate: numberValue(metric.pass_rate),
-      meanDelta: numberValue(comparison.mean_delta),
-      passRateDelta: numberValue(comparison.pass_rate_delta),
+      mean: finiteNumber(metric.mean_value),
+      passRate: finiteNumber(metric.pass_rate),
+      meanDelta: finiteNumber(comparison.mean_delta),
+      passRateDelta: finiteNumber(comparison.pass_rate_delta),
     };
   });
 }
@@ -60,8 +82,8 @@ function delta(value: number | null): string {
 /** Turns the durable run summary into a comparison table used for release decisions. */
 export function EvaluationReport({ summary }: EvaluationReportProps) {
   const rows = metricRows(summary);
-  const pipeline = objectValue(summary.pipeline);
-  const baselinePipeline = objectValue(summary.baseline_pipeline);
+  const pipeline = summary.pipeline;
+  const baselinePipeline = summary.baseline_pipeline;
   const regression = summary.regression_detected === true;
   const executionSucceeded = summary.execution_succeeded === true;
   const qualityPassed = summary.quality_passed === true;
@@ -73,15 +95,13 @@ export function EvaluationReport({ summary }: EvaluationReportProps) {
         <div className="rounded-lg border border-border/60 bg-background/60 p-3">
           <span className="text-sm text-muted-foreground">Candidate mode</span>
           <p className="font-semibold text-foreground">
-            {typeof pipeline?.retrieval_mode === "string" ? pipeline.retrieval_mode : "Not recorded"}
+            {pipeline?.retrieval_mode ?? "Not recorded"}
           </p>
         </div>
         <div className="rounded-lg border border-border/60 bg-background/60 p-3">
           <span className="text-sm text-muted-foreground">Baseline mode</span>
           <p className="font-semibold text-foreground">
-            {typeof baselinePipeline?.retrieval_mode === "string"
-              ? baselinePipeline.retrieval_mode
-              : "No baseline"}
+            {baselinePipeline?.retrieval_mode ?? "No baseline"}
           </p>
         </div>
         <div className="rounded-lg border border-border/60 bg-background/60 p-3">

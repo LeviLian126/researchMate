@@ -183,7 +183,9 @@ class CeleryTaskPublisher:
         "fault.exercise.requested": "researchmate.run_fault_simulation",
     }
 
-    def __init__(self, celery_app: Any, queue: str = "ingestion") -> None:
+    def __init__(
+        self, celery_app: Any, queue: str = "ingestion"
+    ) -> None:  # boundary: Celery SDK app instance, Celery docs type it as Any
         self.celery_app = celery_app
         self.queue = queue
 

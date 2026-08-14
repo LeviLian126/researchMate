@@ -3,7 +3,7 @@
 
 import { useParams } from "next/navigation";
 import { FormEvent, useCallback, useEffect, useState } from "react";
-import { RefreshCw, Zap } from "lucide-react";
+import { AlertTriangle, RefreshCw } from "lucide-react";
 import { ProjectNav } from "../../../../components/project-nav";
 import { EvaluationReport } from "../../../../components/evaluation-report";
 import { FeedbackReviewQueue } from "../../../../components/feedback-review-queue";
@@ -54,15 +54,15 @@ export default function EngineeringLabsPage() {
 
   if (access !== "allowed") {
     return (
-      <main className="min-h-[100dvh] bg-gradient-to-br from-accent via-background to-background">
+      <main className="min-h-[100dvh] bg-background">
         <ProjectNav projectId={projectId} current="labs" />
         <div className="mx-auto max-w-2xl px-6 py-16">
           {access === "loading" ? (
-            <div className="rounded-2xl border border-white/30 bg-white/70 p-6 text-center text-sm text-muted-foreground shadow-lg shadow-primary/5 backdrop-blur-xl" role="status">
+            <div className="rounded-2xl border border-border/60 bg-card p-6 text-center text-sm text-muted-foreground shadow-sm" role="status">
               Checking Engineering access…
             </div>
           ) : (
-            <div className="rounded-2xl border border-white/30 bg-white/70 p-6 shadow-lg shadow-primary/5 backdrop-blur-xl">
+            <div className="rounded-2xl border border-border/60 bg-card p-6 shadow-sm">
               <StateNotice state={{ title: "Developer access required", detail: "Evaluation, reliability, and fault controls are not part of the normal project workspace.", kind: "permission" }} />
             </div>
           )}
@@ -203,10 +203,10 @@ function EngineeringLabsWorkspace() {
   }
 
   return (
-    <main className="min-h-[100dvh] bg-gradient-to-br from-accent via-background to-background">
+    <main className="min-h-[100dvh] bg-background">
       <ProjectNav projectId={projectId} current="labs" />
-      <div className="mx-auto max-w-6xl space-y-6 px-6 py-8">
-        <header className={glassPanel}>
+      <div className="mx-auto max-w-5xl space-y-6 px-6 py-8">
+        <div className={glassPanel}>
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Engineering evidence</p>
@@ -215,7 +215,7 @@ function EngineeringLabsWorkspace() {
             </div>
             <Badge variant="outline" className="shrink-0 border-primary/30 text-primary">developer only</Badge>
           </div>
-        </header>
+        </div>
 
         {notice && (
           <StateNotice state={notice} action={<Button type="button" variant="outline" size="sm" onClick={() => setNotice(null)}>Dismiss</Button>} />
@@ -290,17 +290,17 @@ function EngineeringLabsWorkspace() {
             </div>
             {evaluation ? (
               <>
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="rounded-lg border border-border/50 bg-white/40 p-3">
-                    <span className="text-xs text-muted-foreground">Progress</span>
-                    <p className="text-lg font-semibold text-foreground">{evaluation.progress}%</p>
+                <div className="grid gap-3 sm:grid-cols-4">
+                  <div className="rounded-lg border border-border/50 bg-white/40 p-4 sm:col-span-2">
+                    <span className="text-sm text-muted-foreground">Progress</span>
+                    <p className="text-2xl font-semibold text-foreground">{evaluation.progress}%</p>
                   </div>
                   <div className="rounded-lg border border-border/50 bg-white/40 p-3">
-                    <span className="text-xs text-muted-foreground">Scores</span>
+                    <span className="text-sm text-muted-foreground">Scores</span>
                     <p className="text-lg font-semibold text-foreground">{evaluation.scores.length}</p>
                   </div>
                   <div className="rounded-lg border border-border/50 bg-white/40 p-3">
-                    <span className="text-xs text-muted-foreground">State</span>
+                    <span className="text-sm text-muted-foreground">State</span>
                     <p className="text-lg font-semibold text-foreground">{evaluation.status}</p>
                   </div>
                 </div>
@@ -337,29 +337,29 @@ function EngineeringLabsWorkspace() {
               </select>
             </label>
             {reliability ? (
-              <div className="grid grid-cols-3 overflow-hidden rounded-xl border border-border/50">
+              <div className="grid grid-cols-2 overflow-hidden rounded-xl border border-border/50 sm:grid-cols-4">
                 <div className="border-b border-r border-border/50 p-4">
-                  <span className="text-xs text-muted-foreground">Runs</span>
+                  <span className="text-sm text-muted-foreground">Runs</span>
                   <p className="text-lg font-semibold text-foreground">{reliability.run_count}</p>
                 </div>
-                <div className="border-b border-r border-border/50 p-4">
-                  <span className="text-xs text-muted-foreground">Success</span>
-                  <p className="text-lg font-semibold text-foreground">{Math.round(reliability.success_rate * 100)}%</p>
+                <div className="border-b border-r border-border/50 p-6 sm:col-span-2 sm:row-span-1">
+                  <span className="text-sm text-muted-foreground">Success</span>
+                  <p className="text-2xl font-semibold text-foreground">{Math.round(reliability.success_rate * 100)}%</p>
                 </div>
-                <div className="border-b border-border/50 p-4">
-                  <span className="text-xs text-muted-foreground">Errors</span>
+                <div className="border-b border-border/50 p-4 sm:border-b">
+                  <span className="text-sm text-muted-foreground">Errors</span>
                   <p className="text-lg font-semibold text-foreground">{Math.round(reliability.error_rate * 100)}%</p>
                 </div>
-                <div className="border-r border-border/50 p-4">
-                  <span className="text-xs text-muted-foreground">Retries</span>
+                <div className="border-b border-r border-border/50 p-4">
+                  <span className="text-sm text-muted-foreground">Retries</span>
                   <p className="text-lg font-semibold text-foreground">{reliability.retry_count}</p>
                 </div>
-                <div className="border-r border-border/50 p-4">
-                  <span className="text-xs text-muted-foreground">P95</span>
+                <div className="border-b border-r border-border/50 p-4 sm:border-b-0">
+                  <span className="text-sm text-muted-foreground">P95</span>
                   <p className="text-lg font-semibold text-foreground">{reliability.p95_latency_ms == null ? "not sampled" : `${reliability.p95_latency_ms} ms`}</p>
                 </div>
                 <div className="p-4">
-                  <span className="text-xs text-muted-foreground">Cost</span>
+                  <span className="text-sm text-muted-foreground">Cost</span>
                   <p className="text-lg font-semibold text-foreground">${Number(reliability.cost_usd).toFixed(4)}</p>
                 </div>
               </div>
@@ -384,7 +384,7 @@ function EngineeringLabsWorkspace() {
               </select>
             </label>
             <Button type="submit" disabled={busy !== null} className="w-full">
-              <Zap strokeWidth={1.5} className="size-4" />
+              <AlertTriangle strokeWidth={1.5} className="size-4" />
               {busy === "fault" ? "Scheduling…" : "Run 10-second exercise"}
             </Button>
             <p className="text-xs text-muted-foreground">Use a disposable preview environment. Existing canonical business state remains in PostgreSQL.</p>

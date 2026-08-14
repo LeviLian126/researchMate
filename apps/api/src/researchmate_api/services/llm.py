@@ -15,6 +15,9 @@ from researchmate_api.observability import provider_observation
 class ChatCompletionClient(Protocol):
     """Describe the OpenAI-compatible client surface used by the adapter."""
 
+    # boundary: SDK payload — the OpenAI client's `chat` namespace is a dynamic
+    # attribute surface whose concrete type is SDK-specific and intentionally
+    # untyped here so any OpenAI-compatible client satisfies the protocol.
     chat: Any
 
 
@@ -79,7 +82,8 @@ class NvidiaChatProvider:
         *,
         stream: bool,
         max_tokens: int | None = None,
-    ) -> Any:
+    ) -> Any:  # boundary: SDK payload — OpenAI ChatCompletion response object is
+        # SDK-defined and varies across compatible providers; callers narrow via getattr.
         safe_messages = list(messages)
         output_limit = max_tokens or self.settings.llm_max_tokens
         try:
@@ -141,7 +145,8 @@ class NvidiaChatProvider:
         completion = self._request(messages, stream=False, max_tokens=max_tokens)
         return self._result(completion)
 
-    def _result(self, completion: Any) -> LLMResult:
+    def _result(self, completion: Any) -> LLMResult:  # boundary: SDK payload — same
+        # OpenAI ChatCompletion object returned by _request; narrowed via getattr below.
         choices = getattr(completion, "choices", None) or []
         if not choices or getattr(choices[0], "message", None) is None:
             raise ValueError("LLM provider returned no completion choice")

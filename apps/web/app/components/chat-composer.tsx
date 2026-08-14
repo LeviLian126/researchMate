@@ -57,7 +57,7 @@ export function ChatComposer({
       )}
       <form
         onSubmit={onSubmit}
-        className="mx-auto flex max-w-3xl items-end gap-2 rounded-2xl border border-white/30 bg-white/70 p-2 shadow-lg shadow-primary/5 backdrop-blur-xl transition-all duration-300 ease-out focus-within:scale-[1.01] focus-within:shadow-xl focus-within:shadow-primary/10"
+        className="mx-auto flex max-w-3xl items-end gap-2 rounded-2xl border border-border/60 bg-card p-2 shadow-md transition-all duration-300 ease-out focus-within:scale-[1.01] focus-within:shadow-lg focus-within:shadow-primary/10"
       >
         <input
           ref={fileInput}
@@ -96,8 +96,6 @@ export function ChatComposer({
         />
         <label
           className={cn(
-            "composer-web",
-            webEnabled && "is-active",
             "flex cursor-pointer items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all",
             webEnabled
               ? "bg-accent text-accent-foreground"
