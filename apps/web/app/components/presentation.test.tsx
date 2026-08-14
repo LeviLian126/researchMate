@@ -97,7 +97,10 @@ describe("chat presentation states", () => {
     );
     expect(markup).toContain("paper.pdf");
     expect(markup).toContain("Ask about your files");
-    expect(markup).toContain("composer-web is-active");
+    // Assert on the observable web-scope toggle state, not internal class names.
+    expect(markup).toContain("Web");
+    expect(markup).toContain('type="checkbox"');
+    expect(markup).toContain("checked");
   });
 });
 

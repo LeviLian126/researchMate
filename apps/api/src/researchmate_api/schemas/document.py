@@ -9,7 +9,18 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from researchmate_api.schemas.common import DocumentStatus
+from researchmate_api.schemas.common import (
+    MAX_R2_OBJECT_KEY_LENGTH,
+    MAX_UPLOAD_EXPIRES_IN_SECONDS,
+    MAX_UPLOAD_FILENAME_LENGTH,
+    MAX_UPLOAD_MIME_TYPE_LENGTH,
+    MAX_UPLOAD_URL_LENGTH,
+    MIN_R2_OBJECT_KEY_LENGTH,
+    MIN_UPLOAD_EXPIRES_IN_SECONDS,
+    MIN_UPLOAD_MIME_TYPE_LENGTH,
+    MIN_UPLOAD_URL_LENGTH,
+    DocumentStatus,
+)
 
 type DocumentFileType = Literal[
     "pdf",
@@ -131,9 +142,12 @@ class UploadUrlRequest(BaseModel):
 
     project_id: UUID
     conversation_id: UUID | None = None
-    filename: str = Field(min_length=1, max_length=240)
+    filename: str = Field(min_length=1, max_length=MAX_UPLOAD_FILENAME_LENGTH)
     file_type: DocumentFileType
-    mime_type: str = Field(min_length=3, max_length=120)
+    mime_type: str = Field(
+        min_length=MIN_UPLOAD_MIME_TYPE_LENGTH,
+        max_length=MAX_UPLOAD_MIME_TYPE_LENGTH,
+    )
     size_bytes: int = Field(gt=0, le=MAX_DOCUMENT_UPLOAD_BYTES)
 
     model_config = ConfigDict(extra="forbid")
@@ -156,9 +170,18 @@ class UploadUrlResponse(BaseModel):
     """Return a bounded direct-upload reservation and storage identity."""
 
     document_id: UUID
-    upload_url: str = Field(min_length=1, max_length=4096)
-    r2_object_key: str = Field(min_length=16, max_length=512)
-    expires_in_seconds: int = Field(ge=60, le=900)
+    upload_url: str = Field(
+        min_length=MIN_UPLOAD_URL_LENGTH,
+        max_length=MAX_UPLOAD_URL_LENGTH,
+    )
+    r2_object_key: str = Field(
+        min_length=MIN_R2_OBJECT_KEY_LENGTH,
+        max_length=MAX_R2_OBJECT_KEY_LENGTH,
+    )
+    expires_in_seconds: int = Field(
+        ge=MIN_UPLOAD_EXPIRES_IN_SECONDS,
+        le=MAX_UPLOAD_EXPIRES_IN_SECONDS,
+    )
 
 
 # Define the upload-complete notification.

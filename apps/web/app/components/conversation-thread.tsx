@@ -82,7 +82,7 @@ export function ConversationThread({
         {messages.map((item) => (
           <article
             key={item.id}
-            className={`conversation-message conversation-message--${item.role} ${item.role === "user" ? "flex justify-end" : "flex justify-start"}`}
+            className={item.role === "user" ? "flex justify-end" : "flex justify-start"}
           >
             <div className="max-w-[85%]">
               {item.role === "user" ? (

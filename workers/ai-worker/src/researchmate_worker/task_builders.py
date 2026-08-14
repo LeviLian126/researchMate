@@ -163,6 +163,8 @@ def build_ingestion_service() -> DocumentIngestionService:
             wiki_compiler = None
     return DocumentIngestionService(
         store=SqlIngestionStore(engine),
+        # type: ignore[arg-type] — WorkerSettings duck-types Settings fields; pydantic
+        # accepts it at runtime but the distinct class trips pyright's strict arg-type.
         object_reader=S3CompatibleObjectStorage(settings),  # type: ignore[arg-type]
         parser=DoclingDocumentParser(
             max_file_size=settings.max_upload_bytes,
@@ -193,6 +195,7 @@ def build_deletion_service() -> DocumentDeletionService:
             "Database, S3-compatible object storage, and Qdrant are required for deletion tasks"
         )
     engine = _worker_engine(psycopg_database_url(settings.database_url))
+    # type: ignore[arg-type] — WorkerSettings duck-types Settings fields; pyright sees the distinct class.
     embedding = NvidiaEmbeddingProvider(settings)  # type: ignore[arg-type]
     vector_store = QdrantHybridStore(settings, embedding)  # type: ignore[arg-type]
     return DocumentDeletionService(
@@ -217,6 +220,7 @@ def build_project_deletion_service() -> ProjectDeletionService:
             "Database, S3-compatible object storage, and Qdrant are required for deletion tasks"
         )
     engine = _worker_engine(psycopg_database_url(settings.database_url))
+    # type: ignore[arg-type] — WorkerSettings duck-types Settings fields; pyright sees the distinct class.
     embedding = NvidiaEmbeddingProvider(settings)  # type: ignore[arg-type]
     vector_store = QdrantHybridStore(settings, embedding)  # type: ignore[arg-type]
     return ProjectDeletionService(
@@ -239,6 +243,7 @@ def build_workflow_domain(settings: WorkerSettings) -> SqlEvidenceWorkflowDomain
     ):
         raise RuntimeError("NVIDIA chat and embedding providers are required for workflow tasks")
     engine = _worker_engine(psycopg_database_url(settings.database_url))
+    # type: ignore[arg-type] — WorkerSettings duck-types Settings fields; pyright sees the distinct class.
     embedding = NvidiaEmbeddingProvider(settings)  # type: ignore[arg-type]
     provider = BudgetedChatProvider(
         NvidiaChatProvider(settings),  # type: ignore[arg-type]
@@ -251,6 +256,7 @@ def build_workflow_domain(settings: WorkerSettings) -> SqlEvidenceWorkflowDomain
     return SqlEvidenceWorkflowDomain(
         engine=engine,
         provider=provider,
+        # type: ignore[arg-type] — WorkerSettings duck-types Settings; pydantic accepts it at runtime.
         vector_store=QdrantHybridStore(settings, embedding),  # type: ignore[arg-type]
         pipeline_version=settings.workflow_pipeline_version,
         web_search=(
@@ -266,6 +272,7 @@ def build_evaluation_runner(settings: WorkerSettings) -> EvaluationRunner:
     if not settings.database_url or not settings.qdrant_url or settings.nvidia_api_key is None:
         raise RuntimeError("Database, Qdrant, and NVIDIA are required for evaluation tasks")
     engine = _worker_engine(psycopg_database_url(settings.database_url))
+    # type: ignore[arg-type] — WorkerSettings duck-types Settings fields; pyright sees the distinct class.
     embedding = NvidiaEmbeddingProvider(settings)  # type: ignore[arg-type]
     provider = NvidiaChatProvider(settings)  # type: ignore[arg-type]
     return EvaluationRunner(

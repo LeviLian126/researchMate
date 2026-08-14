@@ -24,7 +24,7 @@ type AuthState = "loading" | "signed_out" | "signed_in" | "misconfigured" | "err
 /** Shared glass auth surface sitting on the cobalt gradient background. */
 function AuthShell({ children }: { children: ReactNode }) {
   return (
-    <main className="auth-shell grid min-h-[100dvh] place-items-center bg-gradient-to-br from-accent via-background to-background p-6">
+    <main className="grid min-h-[100dvh] place-items-center bg-gradient-to-br from-accent via-background to-background p-6">
       {children}
     </main>
   );
@@ -69,7 +69,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
     return (
       <>
         <div
-          className="demo-mode-banner flex flex-col gap-1 rounded-xl border border-white/30 bg-white/70 p-4 text-sm shadow-sm backdrop-blur-sm"
+          className="flex flex-col gap-1 rounded-xl border border-white/30 bg-white/70 p-4 text-sm shadow-sm backdrop-blur-sm"
           role="status"
         >
           <strong className="font-semibold text-foreground">Interactive static demo</strong>
@@ -152,7 +152,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
   return (
     <>
       <div
-        className="session-bar flex items-center justify-between gap-3 rounded-xl border border-white/30 bg-white/70 px-4 py-2.5 text-sm shadow-sm backdrop-blur-sm"
+        className="flex items-center justify-between gap-3 rounded-xl border border-white/30 bg-white/70 px-4 py-2.5 text-sm shadow-sm backdrop-blur-sm"
         role="status"
       >
         <span className="min-w-0 truncate text-muted-foreground">
@@ -202,7 +202,7 @@ function SignInPanel() {
     <AuthShell>
       <div className="flex w-full max-w-md flex-col items-center gap-6">
         <section className="flex w-full flex-col gap-6 rounded-2xl border border-white/30 bg-white/70 p-8 shadow-xl shadow-primary/5 backdrop-blur-xl">
-          <div className="auth-brand">
+          <div>
             <BrandLogo withName />
           </div>
           <div className="flex flex-col gap-2">
@@ -231,7 +231,7 @@ function SignInPanel() {
           </Button>
         </section>
         <a
-          className="auth-source-link text-sm text-muted-foreground transition-colors hover:text-foreground"
+          className="text-sm text-muted-foreground transition-colors hover:text-foreground"
           href="https://github.com/LeviLian126/researchMate"
         >
           GitHub ↗

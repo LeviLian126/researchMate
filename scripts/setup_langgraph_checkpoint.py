@@ -1,4 +1,11 @@
-"""Create LangGraph-owned checkpoint tables during an approved schema phase."""
+"""Create LangGraph-owned checkpoint tables during an approved schema phase.
+
+Manually invoked during the protected release migration phase (NOT called by
+render.yaml, the Dockerfile, or CI). Documented in docs/learn/infra.html as
+script #8. Requires ALLOW_SCHEMA_APPLY=1 as a guard against accidental runs.
+LangGraph owns and versions its checkpoint DDL; this must never run
+concurrently inside task delivery.
+"""
 
 from __future__ import annotations
 
@@ -17,8 +24,7 @@ def main() -> None:
 
     checkpoint_url = database_url.replace("postgresql+psycopg://", "postgresql://")
     with PostgresSaver.from_conn_string(checkpoint_url) as checkpointer:
-        # LangGraph owns and versions its checkpoint DDL. Run this only during the
-        # protected release migration phase, never concurrently inside task delivery.
+        # LangGraph owns its checkpoint DDL; see module docstring for run constraints.
         checkpointer.setup()
 
 

@@ -166,10 +166,15 @@ def build_mcp_server() -> tuple[Any, Any]:
             if "coordinator" in locals():
                 coordinator.abandon()
             raise ValueError(getattr(exc, "code", "INVALID_REQUEST")) from exc
-        except Exception:
+        except Exception as exc:
+            # Normalize the MCP error envelope: every tool failure surfaces as a
+            # ValueError whose message is the stable application error code so the
+            # MCP SDK wraps it into a uniform error response. Re-raising the
+            # original exception here would leak inconsistent exception types
+            # (PermissionError, RuntimeError, ...) that the SDK maps variably.
             if "coordinator" in locals():
                 coordinator.abandon()
-            raise
+            raise ValueError(getattr(exc, "code", "INTERNAL_ERROR")) from exc
         return response.model_dump(mode="json")
 
     @server.tool()
@@ -179,7 +184,7 @@ def build_mcp_server() -> tuple[Any, Any]:
         try:
             trace = TraceQueryService(ctx.repository).get(ctx.user, UUID(trace_id))
         except TraceAccessError as exc:
-            raise PermissionError(exc.code) from exc
+            raise ValueError(exc.code) from exc
         except ValueError as exc:
             raise ValueError("INVALID_TRACE_ID") from exc
         if trace is None:
@@ -197,7 +202,7 @@ def build_mcp_server() -> tuple[Any, Any]:
         """Launch a versioned evaluation with the same admin and idempotency rules as REST."""
         ctx = _identity()
         if ctx.user.role not in {"developer", "admin"}:
-            raise PermissionError("ADMIN_REQUIRED")
+            raise ValueError("ADMIN_REQUIRED")
         try:
             payload = EvaluationRunCreate(
                 dataset_id=UUID(dataset_id),

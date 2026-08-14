@@ -11,7 +11,7 @@ export interface NoticeState {
 export function StateNotice({ state, action }: { state: NoticeState; action?: ReactNode }) {
   return (
     <div
-      className={`state-notice state-notice--${state.kind ?? "info"} flex items-start justify-between gap-3 rounded-xl border border-white/30 bg-white/70 p-4 shadow-sm backdrop-blur-sm`}
+      className="flex items-start justify-between gap-3 rounded-xl border border-white/30 bg-white/70 p-4 shadow-sm backdrop-blur-sm"
       role={state.kind === "error" || state.kind === "provider" ? "alert" : "status"}
     >
       <div className="min-w-0 flex-1">

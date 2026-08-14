@@ -3,7 +3,7 @@ import type { FormEvent } from "react";
 import type { QuizSet } from "../lib/api";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { X, Sparkles, RefreshCw, Loader2 } from "lucide-react";
+import { GraduationCap, Loader2, RefreshCw, X } from "lucide-react";
 
 interface ProjectQuizDrawerProps {
   prompt: string;
@@ -68,7 +68,7 @@ export function ProjectQuizDrawer({
               </>
             ) : (
               <>
-                <Sparkles strokeWidth={1.5} />
+                <GraduationCap strokeWidth={1.5} />
                 Generate quiz
               </>
             )}

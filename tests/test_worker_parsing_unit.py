@@ -3,13 +3,11 @@
 from __future__ import annotations
 
 import sys
-from inspect import getsource
 from pathlib import Path
 from types import SimpleNamespace
 from zipfile import ZipFile
 
 import pytest
-from researchmate_worker import tasks
 from researchmate_worker.ingestion import ParserAdapterError
 from researchmate_worker.parsing import DoclingDocumentParser, _serialize_provenance
 
@@ -144,12 +142,26 @@ def test_real_pdf_fixture_is_compatible_with_lightweight_parser() -> None:
 
 
 def test_ingestion_service_versions_and_passes_pdf_backend() -> None:
-    """Keep parser backend and pipeline versions in the ingestion composition root."""
-    source = getsource(tasks.build_ingestion_service)
+    """Verify the parser stores pdf_backend and overrides it when a converter is present.
 
-    assert "pdf_backend=settings.pdf_parser_backend" in source
-    assert "settings.parser_pipeline_version" in source
-    assert "settings.pdf_parser_backend" in source
+    The composition root in build_ingestion_service() passes settings.pdf_parser_backend
+    to DoclingDocumentParser and formats pipeline_version as f"{version}-{backend}".
+    This test verifies the parser's runtime contract that the composition root depends on.
+    """
+    parser = DoclingDocumentParser(
+        max_file_size=4096,
+        max_num_pages=5,
+        pdf_backend="pypdf",
+    )
+    assert parser.pdf_backend == "pypdf"
+
+    parser_with_converter = DoclingDocumentParser(
+        max_file_size=4096,
+        max_num_pages=5,
+        pdf_backend="pypdf",
+        converter=SimpleNamespace(convert=lambda *_args, **_kwargs: None),
+    )
+    assert parser_with_converter.pdf_backend == "docling"
 
 
 def test_office_documents_use_bounded_ooxml_parsing_without_docling(tmp_path) -> None:

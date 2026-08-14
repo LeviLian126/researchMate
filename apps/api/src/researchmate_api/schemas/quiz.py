@@ -9,7 +9,10 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from researchmate_api.schemas.common import (
     MAX_PROMPT_LENGTH,
+    MAX_QUIZ_EXPLANATION_LENGTH,
+    MAX_QUIZ_OPTIONS_LENGTH,
     MAX_TEXT_LENGTH,
+    MAX_TOPIC_QUERY_LENGTH,
     Citation,
     Difficulty,
     SourceSummary,
@@ -26,7 +29,11 @@ class QuizRequest(BaseModel):
         min_length=1,
         max_length=MAX_PROMPT_LENGTH,
     )
-    topic_query: str | None = Field(default=None, min_length=1, max_length=1000)
+    topic_query: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=MAX_TOPIC_QUERY_LENGTH,
+    )
     resource_scope: Literal["all_ready_documents", "topic"] = "all_ready_documents"
     single_choice_count: int = Field(default=3, ge=0, le=20)
     fill_blank_count: int = Field(default=2, ge=0, le=20)
@@ -52,9 +59,12 @@ class QuizQuestion(BaseModel):
     id: UUID
     type: Literal["single_choice", "fill_blank", "subjective"]
     question: str = Field(min_length=1, max_length=MAX_TEXT_LENGTH)
-    options: list[str] | None = Field(default=None, max_length=4)
+    options: list[str] | None = Field(default=None, max_length=MAX_QUIZ_OPTIONS_LENGTH)
     answer: str = Field(min_length=1, max_length=MAX_TEXT_LENGTH)
-    explanation: str = Field(min_length=1, max_length=2000)
+    explanation: str = Field(
+        min_length=1,
+        max_length=MAX_QUIZ_EXPLANATION_LENGTH,
+    )
     difficulty: Difficulty = Difficulty.MEDIUM
     source_citations: list[Citation] = Field(default_factory=list, max_length=12)
 

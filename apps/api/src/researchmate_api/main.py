@@ -297,9 +297,12 @@ def create_app(
             # narrow the resolver via cast for the per-IP bucket assignment.
             client_ip = cast(Callable[[Request], str], get_remote_address)(request) or "unknown"
             bucket_scope = "researchmate-api:protected"
-            allowed = limiter._limiter.hit(  # type: ignore[attr-defined]
-                rate_limit_item, client_ip, bucket_scope, cost=1
-            )
+            # Use slowapi's public `limiter` property (returns the active RateLimiter,
+            # honoring the in-memory fallback when the primary storage is unavailable).
+            # The previous direct `_limiter` attribute access bypassed that fallback path
+            # and touched a private attribute; `limiter` is the supported accessor and is
+            # the same path slowapi's own request evaluator uses internally.
+            allowed = limiter.limiter.hit(rate_limit_item, client_ip, bucket_scope, cost=1)
             if not allowed:
                 response_status = 429
                 response = JSONResponse(

@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import logging
 import os
 from hashlib import sha256
 from typing import Any
+
+LOGGER = logging.getLogger(__name__)
 
 BACKFILL_VERSION = "20260809_native_bm25_dense_v1"
 FILTER_INDEXES = ("user_id", "project_id", "document_id", "source_type")
@@ -44,7 +47,7 @@ def main() -> None:
         "\n".join(f"{row[0]}:{sha256(row[6].encode()).hexdigest()}" for row in rows).encode()
     ).hexdigest()
     if _already_verified(psycopg, database_url, migration_model, len(rows), digest):
-        print(f"Hybrid replay already verified for {len(rows)} chunks in {collection}.")
+        LOGGER.info("Hybrid replay already verified for %s chunks in %s.", len(rows), collection)
         return
 
     expected_ids: set[str] = set()
@@ -73,13 +76,15 @@ def main() -> None:
                 )
             )
         qdrant.upsert(collection_name=collection, points=points, wait=True)
-        print(f"replayed={min(offset + len(batch), len(rows))}/{len(rows)}")
+        LOGGER.info("replayed=%s/%s", min(offset + len(batch), len(rows)), len(rows))
 
     _remove_stale(qdrant, models, collection, expected_ids)
     _verify(qdrant, models, collection, rows, sparse_model)
     _record(psycopg, database_url, migration_model, len(rows), digest)
     qdrant.close()
-    print(f"Verified native hybrid shadow collection {collection} with {len(rows)} chunks.")
+    LOGGER.info(
+        "Verified native hybrid shadow collection %s with %s chunks.", collection, len(rows)
+    )
 
 
 def _ensure_collection(
@@ -264,4 +269,5 @@ def _ensure_migration_table(
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
     main()

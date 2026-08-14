@@ -62,6 +62,12 @@ const SIDEBAR_MIN_WIDTH = 220;
 const SIDEBAR_MAX_WIDTH = 520;
 const SIDEBAR_DEFAULT_WIDTH = 300;
 const SIDEBAR_WIDTH_STORAGE_KEY = "researchmate_sidebar_width";
+// Viewport width below which the sidebar collapses by default on first load.
+const MOBILE_BREAKPOINT_PX = 820;
+// Hard cap on deletion-job polling attempts before surfacing "still processing".
+const POLLING_CAP = 20;
+// Interval between deletion-job status polls, in milliseconds.
+const POLL_INTERVAL_MS = 1500;
 
 interface DeletionJob {
   status: "pending" | "running" | "succeeded" | "failed" | "cancelled";
@@ -135,7 +141,7 @@ export function AppSidebar() {
   useEffect(() => {
     const saved = window.localStorage.getItem("researchmate_sidebar_collapsed");
     const savedWidth = window.localStorage.getItem(SIDEBAR_WIDTH_STORAGE_KEY);
-    setCollapsed(saved === null ? window.innerWidth <= 820 : saved === "true");
+    setCollapsed(saved === null ? window.innerWidth <= MOBILE_BREAKPOINT_PX : saved === "true");
     if (savedWidth !== null && Number.isFinite(Number(savedWidth))) {
       setSidebarWidth(
         Math.min(SIDEBAR_MAX_WIDTH, Math.max(SIDEBAR_MIN_WIDTH, Number(savedWidth))),
@@ -235,7 +241,7 @@ export function AppSidebar() {
       });
       setDeletingProject(null);
       setError(`Project removal job ${accepted.job_id} is pending.`);
-      for (let attempt = 0; attempt < 20; attempt += 1) {
+      for (let attempt = 0; attempt < POLLING_CAP; attempt += 1) {
         const job = await apiFetch<DeletionJob>(`/jobs/${accepted.job_id}`);
         if (job.status === "succeeded") {
           setProjects((current) => current.filter((project) => project.id !== projectId));
@@ -249,7 +255,7 @@ export function AppSidebar() {
           return;
         }
         setError(`Project removal is ${job.status}.`);
-        await new Promise((resolve) => window.setTimeout(resolve, 1_500));
+        await new Promise((resolve) => window.setTimeout(resolve, POLL_INTERVAL_MS));
       }
       setError(`Project removal is still processing. Track job ${accepted.job_id}.`);
     } catch (requestError) {
@@ -476,7 +482,7 @@ export function AppSidebar() {
             type="button"
             variant="outline"
             size="icon"
-            className="fixed left-4 top-4 z-40 rounded-lg border-white/40 bg-white/70 shadow-lg shadow-primary/5 backdrop-blur-xl md:hidden"
+            className="fixed left-4 top-4 z-40 rounded-lg border-border/60 bg-card shadow-md md:hidden"
             aria-label="Open workspace navigation"
           >
             <Menu strokeWidth={1.5} />
@@ -496,7 +502,7 @@ export function AppSidebar() {
       {/* Desktop sidebar */}
       <aside
         className={cn(
-          "app-sidebar relative hidden h-full shrink-0 flex-col overflow-hidden border-r border-white/30 bg-white/70 backdrop-blur-xl md:flex",
+          "relative hidden h-full shrink-0 flex-col overflow-hidden border-r border-border/60 bg-card md:flex",
           isResizing ? "transition-none" : "transition-[width] duration-300 ease-out",
         )}
         style={{ width: collapsed ? 72 : sidebarWidth }}
