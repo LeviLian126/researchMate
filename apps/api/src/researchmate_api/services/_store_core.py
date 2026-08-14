@@ -33,6 +33,7 @@ from researchmate_api.services._store_models import (
     ChunkEntry,
     IdempotencyDecision,
     UploadReservation,
+    WikiPage,
 )
 
 
@@ -53,6 +54,7 @@ class InMemoryStoreCore:
             self.jobs: dict[UUID, JobRecord] = {}
             self.uploads: dict[UUID, UploadReservation] = {}
             self.chunks: dict[UUID, ChunkEntry] = {}
+            self.wiki_pages: dict[UUID, WikiPage] = {}
             self.run_sources: dict[UUID, RunSourcesResponse] = {}
             self.traces: dict[UUID, DeveloperTrace] = {}
             self.quiz_sets: dict[UUID, QuizSet] = {}

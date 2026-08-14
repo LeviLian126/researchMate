@@ -12,11 +12,13 @@ from researchmate_api.services._store_models import (
     ChunkEntry,
     IdempotencyDecision,
     UploadReservation,
+    WikiPage,
 )
 from researchmate_api.services._store_projects import ProjectStoreMixin
 from researchmate_api.services._store_protocol import ResearchMateRepository
 from researchmate_api.services._store_runs import RunStoreMixin
 from researchmate_api.services._store_text import chunk_text
+from researchmate_api.services._store_wiki import WikiStoreMixin
 
 __all__ = [
     "ChunkEntry",
@@ -24,6 +26,7 @@ __all__ = [
     "InMemoryResearchMateStore",
     "ResearchMateRepository",
     "UploadReservation",
+    "WikiPage",
     "chunk_text",
     "store",
 ]
@@ -37,6 +40,7 @@ class InMemoryResearchMateStore(
     ChunkStoreMixin,
     ConversationStoreMixin,
     MemoryStoreMixin,
+    WikiStoreMixin,
     InMemoryStoreCore,
 ):
     """Provide a thread-safe, process-local implementation of the repository protocol."""

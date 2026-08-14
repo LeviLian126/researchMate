@@ -21,6 +21,7 @@ from researchmate_worker.ingestion_models import (
     ObjectReader,
     ParserAdapterError,
     VectorProjection,
+    WikiCompiler,
 )
 from researchmate_worker.ingestion_projections import build_projections
 
@@ -42,6 +43,7 @@ class DocumentIngestionService:
         max_attempts: int,
         max_upload_bytes: int,
         lightweight_token_threshold: int = 4000,
+        wiki_compiler: WikiCompiler | None = None,
     ) -> None:
         self.store = store
         self.object_reader = object_reader
@@ -52,6 +54,7 @@ class DocumentIngestionService:
         self.max_attempts = max_attempts
         self.max_upload_bytes = max_upload_bytes
         self.lightweight_token_threshold = lightweight_token_threshold
+        self.wiki_compiler = wiki_compiler
 
     def is_lightweight_corpus(self, chunks: list[ChunkEntry]) -> bool:
         """Return True when total chunk tokens are at or below the lightweight threshold."""
@@ -89,14 +92,14 @@ class DocumentIngestionService:
                     record.document_id,
                     sum(estimate_tokens(c.text) for c in chunks),
                 )
+                for chunk in chunks:
+                    chunk.has_vector = False
+                if self.wiki_compiler is not None:
+                    chunks = self._compile_wiki(chunks, record)
             else:
                 self.vector_projection.upsert_chunks(chunks, pipeline_version=self.pipeline_version)
                 for chunk in chunks:
                     chunk.has_vector = True
-
-            if is_lightweight:
-                for chunk in chunks:
-                    chunk.has_vector = False
 
             self.store.replace_content(
                 record,
@@ -122,6 +125,37 @@ class DocumentIngestionService:
         except Exception as exc:
             self._record_failure(record, worker_id, "INGESTION_INTERNAL_ERROR", False)
             raise IngestionFailure("INGESTION_INTERNAL_ERROR", retryable=False) from exc
+
+    def _compile_wiki(self, chunks: list[ChunkEntry], record: IngestionRecord) -> list[ChunkEntry]:
+        """Compile lightweight chunks into wiki pages, falling back on failure.
+
+        Wiki compilation is an enhancement: if the LLM call fails or returns
+        invalid output, the original raw chunks are preserved so ingestion
+        still succeeds with the lightweight (no-vector) path.
+        """
+        try:
+            compiled = self.wiki_compiler.compile(  # type: ignore[union-attr]
+                chunks,
+                filename=record.filename,
+                user_id=record.user_id,
+                project_id=record.project_id,
+                document_id=record.document_id,
+            )
+            if compiled:
+                LOGGER.info(
+                    "ingestion_wiki_compiled document_id=%s pages=%s",
+                    record.document_id,
+                    len(compiled),
+                )
+                return compiled
+            LOGGER.warning("wiki_compiler_returned_empty document_id=%s", record.document_id)
+        except Exception as exc:
+            LOGGER.warning(
+                "wiki_compilation_failed document_id=%s error=%s",
+                record.document_id,
+                type(exc).__name__,
+            )
+        return chunks
 
     def _record_failure(
         self,

@@ -18,7 +18,7 @@ from researchmate_api.schemas.project import ProjectCreate, ProjectRecord
 from researchmate_api.schemas.quiz import QuizSet
 from researchmate_api.schemas.sources import RunSourcesResponse
 from researchmate_api.schemas.trace import DeveloperTrace, ToolCallTrace
-from researchmate_api.services._store_models import ChunkEntry, IdempotencyDecision
+from researchmate_api.services._store_models import ChunkEntry, IdempotencyDecision, WikiPage
 
 
 class ResearchMateRepository(Protocol):
@@ -199,3 +199,11 @@ class ResearchMateRepository(Protocol):
     def conversation_chunks(
         self, user: CurrentUser, project_id: UUID, conversation_id: UUID
     ) -> list[ChunkEntry] | None: ...
+
+    def store_wiki_pages(self, pages: list[WikiPage]) -> None: ...
+
+    def project_wiki_pages(self, user: CurrentUser, project_id: UUID) -> list[WikiPage]: ...
+
+    def document_wiki_pages(self, user: CurrentUser, document_id: UUID) -> list[WikiPage]: ...
+
+    def delete_document_wiki_pages(self, document_id: UUID) -> None: ...

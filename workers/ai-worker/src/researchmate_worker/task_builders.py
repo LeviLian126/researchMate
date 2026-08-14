@@ -9,12 +9,14 @@ from uuid import UUID
 from pydantic import BaseModel
 from researchmate_api.config import Settings
 from researchmate_api.services.embedding import NvidiaEmbeddingProvider
-from researchmate_api.services.llm import NvidiaChatProvider
+from researchmate_api.services.llm import NvidiaChatProvider, ProviderConfigurationError
 from researchmate_api.services.object_storage import S3CompatibleObjectStorage
 from researchmate_api.services.qdrant_store import (
     QdrantHybridStore,
 )
+from researchmate_api.services.store import ChunkEntry
 from researchmate_api.services.web_search import TavilyWebSearchProvider
+from researchmate_api.services.wiki_compiler import WikiCompiler, wiki_pages_to_chunks
 from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine
 
@@ -36,10 +38,42 @@ from researchmate_worker.ingestion import (
     DocumentIngestionService,
     SqlIngestionStore,
 )
+from researchmate_worker.ingestion_models import WikiCompiler as WikiCompilerProtocol
 from researchmate_worker.parsing import DoclingDocumentParser
 from researchmate_worker.workflow_runtime import (
     SqlEvidenceWorkflowDomain,
 )
+
+
+class WorkerWikiCompiler:
+    """Adapt the API WikiCompiler to the worker WikiCompiler protocol.
+
+    The API-level WikiCompiler returns WikiPage objects; the worker protocol
+    returns ChunkEntry objects so the ingestion store can persist them via
+    the existing replace_content path without schema changes.
+    """
+
+    def __init__(self, provider: NvidiaChatProvider) -> None:
+        self._compiler = WikiCompiler(provider)
+
+    def compile(
+        self,
+        chunks: list[ChunkEntry],
+        *,
+        filename: str,
+        user_id: UUID,
+        project_id: UUID,
+        document_id: UUID,
+    ) -> list[ChunkEntry]:
+        """Compile chunks into wiki-page chunks via the LLM compiler."""
+        pages = self._compiler.compile(
+            chunks,
+            filename=filename,
+            user_id=user_id,
+            project_id=project_id,
+            document_id=document_id,
+        )
+        return wiki_pages_to_chunks(pages)
 
 
 def _worker_engine(database_url: str) -> Engine:
@@ -101,6 +135,13 @@ def build_ingestion_service() -> DocumentIngestionService:
         api_settings,
         embedding,
     )
+    wiki_compiler: WikiCompilerProtocol | None = None
+    if settings.llm_provider == "nvidia" and settings.nvidia_api_key is not None:
+        try:
+            chat_provider = NvidiaChatProvider(api_settings)
+            wiki_compiler = WorkerWikiCompiler(chat_provider)
+        except ProviderConfigurationError:
+            wiki_compiler = None
     return DocumentIngestionService(
         store=SqlIngestionStore(engine),
         object_reader=S3CompatibleObjectStorage(settings),  # type: ignore[arg-type]
@@ -116,6 +157,7 @@ def build_ingestion_service() -> DocumentIngestionService:
         max_attempts=settings.ingestion_max_attempts,
         max_upload_bytes=settings.max_upload_bytes,
         lightweight_token_threshold=settings.lightweight_document_token_threshold,
+        wiki_compiler=wiki_compiler,
     )
 
 

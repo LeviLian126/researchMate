@@ -52,6 +52,17 @@ SNIPPET_QUOTE_LONG = 260
 # are always injected directly into the query context.
 LIGHTWEIGHT_DOCUMENT_TOKEN_THRESHOLD_DEFAULT = 4000
 
+# Wiki compilation bounds. Lightweight documents below the token threshold are
+# eligible for LLM-powered wiki compilation. These constants bound the compiler
+# output so generated wiki pages stay within storage and context limits.
+WIKI_MAX_PAGES = 8
+WIKI_MAX_TITLE_LENGTH = 200
+WIKI_MAX_CONTENT_LENGTH = 8000
+WIKI_MAX_ALIASES = 10
+WIKI_MAX_LINKS = 20
+WIKI_MAX_SOURCE_CHUNKS = 20
+WIKI_PAGE_TYPE_LENGTH = 50
+
 
 # Define task types. Task only controls the execution goal.
 class TaskType(str, Enum):
