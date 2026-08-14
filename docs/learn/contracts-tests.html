@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8"/>
   <meta content="width=device-width,initial-scale=1" name="viewport"/>
-  <meta content="ResearchMate contracts and tests learning guide: OpenAPI as the source of truth, three-layer contract mirroring, 47 Python test files, hermetic testing, coverage, Vitest, and Playwright." name="description"/>
+  <meta content="ResearchMate contracts and tests learning guide: OpenAPI as the source of truth, three-layer contract mirroring, 48 Python test files, hermetic testing, coverage, Vitest, and Playwright." name="description"/>
   <title>ResearchMate &middot; Contracts &amp; Tests learning</title>
   <link href="../assets/site.css" rel="stylesheet"/>
   <style>
@@ -141,8 +141,8 @@
 
       <section id="test-tree">
         <p class="eyebrow">tests/ directory structure</p>
-        <h2>47 test files + shared test infrastructure</h2>
-        <p class="sub">The <code>tests/</code> directory contains 47 <code>test_*.py</code> files plus shared fixtures and workflow helpers.</p>
+        <h2>48 test files + shared test infrastructure</h2>
+        <p class="sub">The <code>tests/</code> directory contains 48 <code>test_*.py</code> files plus shared fixtures and workflow helpers.</p>
         <pre class="command-block"><code>tests/
 ├── pytest.ini                              # addopts: -p no:cacheprovider --basetemp=.pytest-temp
 ├── conftest.py                             # sys.path setup: API_SRC + WORKER_SRC
@@ -161,7 +161,7 @@
 │   ├── test_mcp_boundary.py                # MCP auth, runtime fallback, REST-equivalent policies
 │   └── test_runtime_foundation.py          # Auth, config, request ID, readiness foundations
 │
-├── Unit tests (16 files)
+├── Unit tests (17 files)
 │   ├── test_chat_answer_injection_boundary.py # Chat path wraps query as untrusted JSON
 │   ├── test_document_deletion.py           # Deletion order across external projections
 │   ├── test_document_ingestion.py          # Ingestion state transitions, content projections
@@ -177,7 +177,8 @@
 │   ├── test_postgres_repository_contract.py# Repository ownership, transaction, delivery
 │   ├── test_query_policies.py              # Retrieval, context, scope, trace, idempotency
 │   ├── test_runtime_safety_extensions.py   # Source scope, budget, pipeline-version safety
-│   └── test_web_search_provider.py         # Tavily sanitization, bounds, retry mapping
+│   ├── test_web_search_provider.py         # Tavily sanitization, bounds, retry mapping
+│   └── test_wiki_compiler.py               # Wiki compilation, chunk conversion, store CRUD
 │
 ├── Worker unit tests (7 files)
 │   ├── test_worker_config_unit.py          # Worker config projection, provider compatibility
@@ -266,7 +267,7 @@ def create_ready_document(client, headers=HEADERS) -> tuple[str, str]:
 
       <section id="unit-tests">
         <p class="eyebrow">Unit tests</p>
-        <h2>16 files &middot; isolated doubles and in-memory stores</h2>
+        <h2>17 files &middot; isolated doubles and in-memory stores</h2>
         <p class="sub">These tests verify individual modules, services, and provider adapters using lightweight doubles (SimpleNamespace, RecordingConnection, EmptyResult) and the in-memory store. No HTTP client is used.</p>
         <div class="grid two">
           <article class="fact"><b>test_chat_answer_injection_boundary.py</b><p>7 tests covering the prompt-injection boundary on the chat answer path: the user query is wrapped in a JSON payload with a <code>question</code> field, the system prompt tells the model the user message is untrusted data, prior turns are passed as a <code>conversation_history</code> JSON field, no raw user role with the untampered query is emitted to the model, the local-doc fallback still returns the Chinese standalone local answer, and only <code>user</code> and <code>assistant</code> history roles reach the model. Mirrors the grounded-answer path's prompt-injection boundary for the chat path in <code>services/answering.py::build_llm_chat_answer</code>.</p></article>

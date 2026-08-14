@@ -116,7 +116,7 @@
 │   ├── quiz.py                          # QuizRequest, QuizResponse, QuizSet, QuizCoverage
 │   ├── sources.py                       # RunSourcesResponse
 │   └── trace.py                         # DeveloperTrace, ToolCallTrace
-├── services/                            # 35 service files
+├── services/                            # 37 service files
 │   ├── grounded_query.py                # Ask orchestrator (unified pipeline)
 │   ├── answering.py                     # Answer builder (grounded / chat / deterministic)
 │   ├── query_context.py                 # Conversation context builder + summary compression
@@ -133,6 +133,7 @@
 │   ├── evidence_store.py                # EvidenceRepository protocol + InMemoryEvidenceRepository
 │   ├── quiz_generation.py               # Quiz set generation (LLM + deterministic fallback)
 │   ├── quiz_service.py                  # Quiz orchestration
+│   ├── wiki_compiler.py                 # LLM wiki compiler for lightweight docs
 │   ├── llm.py                           # ChatProvider Protocol + NvidiaChatProvider
 │   ├── embedding.py                     # NvidiaEmbeddingProvider (4096-dim)
 │   ├── qdrant_store.py                  # QdrantHybridStore (dense + sparse + rerank)
@@ -151,7 +152,8 @@
 │   ├── _store_limits.py                 # LimitStoreMixin (usage + idempotency)
 │   ├── _store_memory.py                 # MemoryStoreMixin (rerank config + summaries)
 │   ├── _store_projects.py               # ProjectStoreMixin
-│   └── _store_runs.py                   # RunStoreMixin (traces + quiz aggregates)
+│   ├── _store_runs.py                   # RunStoreMixin (traces + quiz aggregates)
+│   └── _store_wiki.py                   # WikiStoreMixin
 └── persistence/                         # 19 persistence files (excluding __init__.py)
     ├── postgres.py                      # PostgresResearchMateRepository assembler (10 mixins + core)
     ├── evidence_postgres.py             # PostgresEvidenceRepository assembler (5 mixins + base)
@@ -233,12 +235,12 @@
       </section>
 
       <section id="services-orchestration">
-        <p class="eyebrow">services/ . Orchestration group (15 files)</p>
+        <p class="eyebrow">services/ . Orchestration group (16 files)</p>
         <h2>Application orchestration services</h2>
         <p class="sub">These services coordinate business logic without owning adapter mechanics. They depend on the ResearchMateRepository protocol and provider Protocols, never on concrete adapter classes.</p>
         <dl class="kv">
           <dt>grounded_query.py</dt><dd><b>GroundedQueryService</b>. The unified Ask orchestrator. execute() runs the full pipeline: prepare conversation scope, retrieve local evidence (BM25 + Qdrant), optionally retrieve web evidence, rerank candidates, generate answer (grounded or chat), increment usage quota, and record the run with trace. Builds ToolCallTrace entries for each stage and packs runtime_metadata (context_strategy, rerank provider/model, token estimates, latency) into the persisted trace.</dd>
-          <dt>answering.py</dt><dd>Answer builder with three modes. build_llm_grounded_answer: constructs evidence JSON with server-assigned evidence_id integers, validates provider output against GroundedAnswerProposal schema, allows one schema repair, maps evidence_ids to Citation objects. build_grounded_answer: deterministic local answer from chunks. build_llm_chat_answer / build_chat_answer: plain chat without evidence. _extract_json_object handles markdown-fenced LLM output.</dd>
+          <dt>answering.py</dt><dd>Answer builder with three modes. build_llm_grounded_answer: constructs evidence JSON with server-assigned evidence_id integers, validates provider output against GroundedAnswerProposal schema, allows one schema repair, maps evidence_ids to Citation objects. _build_evidence_entry adds wiki metadata (wiki_title, wiki_type, wiki_links) to evidence entries for wiki-mode chunks. build_grounded_answer: deterministic local answer from chunks. build_llm_chat_answer / build_chat_answer: plain chat without evidence. _extract_json_object handles markdown-fenced LLM output.</dd>
           <dt>query_context.py</dt><dd><b>ConversationContextBuilder</b>. Loads conversation history, applies token budgets (recent=3500, summary=1500, trigger=8000), compresses old messages into LLM-generated summaries, and wraps cross-conversation project memory as untrusted data inside an XML-like block. bound_messages keeps newest messages within a hard token budget. _truncate_to_budget trims oversized messages.</dd>
           <dt>query_conversation.py</dt><dd><b>QueryConversationCoordinator</b>. prepare() validates the project is active, resolves an existing conversation, loads documents and chunks (workspace vs personal scope), rejects documents still in PARSING/INDEXING status, and builds conversation context. ensure_for_commit() creates the conversation only after generation succeeds, avoiding empty conversations on failure.</dd>
           <dt>query_errors.py</dt><dd>GroundedQueryError exception carrying code, message, and status_code. raise_grounded_error helper. Shared by all query_* modules to propagate stable errors without coupling to HTTP.</dd>
@@ -252,6 +254,7 @@
           <dt>evidence_generation.py</dt><dd>Evidence report generation. Creates draft reports from research run outputs, generates report sections with evidence snapshots, and handles incremental refresh when source documents change. Tracks validation_status per section.</dd>
           <dt>evidence_store.py</dt><dd><b>EvidenceRepository</b> Protocol defining the evidence-workflow persistence boundary: create/get research runs, append events, list claims and relations, list/get reports, list pipeline versions, create evaluation runs, reliability aggregates, fault scenarios. InMemoryEvidenceRepository provides a process-local implementation. EvidenceStoreError carries code, message, status_code.</dd>
           <dt>quiz_generation.py</dt><dd>Quiz set generation. generate_llm_quiz_set: constructs evidence JSON, validates provider output against QuizSetProposal schema (exactly 4 options for single_choice, evidence_ids within allowlist). generate_quiz_set: deterministic local quiz with Chinese-language questions sourced from chunk snippets. QuizGenerationError for invalid provider output.</dd>
+          <dt>wiki_compiler.py</dt><dd><b>WikiCompiler</b>. Transforms lightweight document chunks into structured wiki pages via LLM. WikiPageProposal validates LLM output (title, page_type, content, aliases, links, source_chunk_indices). wiki_pages_to_chunks() converts WikiPage objects to ChunkEntry with wiki_mode metadata for retrieval compatibility. WikiCompilationError on invalid LLM output. _extract_wikilinks pulls [[links]] from Markdown content.</dd>
         </dl>
         <div class="notice"><strong>Also:</strong> quiz_service.py orchestrates Quiz retrieval, generation, coverage measurement, usage quota, trace, and persistence. It validates project scope (workspace only), selects chunks (all_ready_documents or topic), generates via LLM or deterministic fallback, records the quiz run, and returns QuizResponse with honest QuizCoverage.</div>
       </section>
@@ -272,13 +275,13 @@
       </section>
 
       <section id="services-store">
-        <p class="eyebrow">services/ . Store group (12 files)</p>
+        <p class="eyebrow">services/ . Store group (13 files)</p>
         <h2>In-memory store: protocol, models, core, text utils, and mixins</h2>
         <p class="sub">The store group assembles InMemoryResearchMateStore from aggregate-focused mixins. The same ResearchMateRepository Protocol is implemented by both the in-memory store and PostgresResearchMateRepository, enabling zero-code swap via REPOSITORY_BACKEND.</p>
         <dl class="kv">
-          <dt>_store_protocol.py</dt><dd><b>ResearchMateRepository</b> Protocol. Declares the full persistence surface: ensure_user, create/ensure_personal/list/get/delete_project, upload-url/create/list/get/complete/delete_document, get_job, get_run_sources, get_trace, record_run, record_quiz_run, save/list_quiz_sets, conversation CRUD + messages, project/conversation chunks, usage + idempotency, rerank config, conversation summaries, and project memory. Every method takes CurrentUser as the first argument for owner scoping.</dd>
-          <dt>_store_models.py</dt><dd>Internal data models: ChunkEntry (id, user_id, project_id, document_id, source_type, page_no, slide_no, source_title, url, text), IdempotencyDecision (state: execute/replay/mismatch/in_progress, optional response), UploadReservation.</dd>
-          <dt>_store_core.py</dt><dd><b>InMemoryStoreCore</b>. Owns the RLock and all shared mutable state: profiles, projects, documents, jobs, uploads, chunks, run_sources, traces, quiz_sets, conversations, conversation_items, conversation_summaries, api_usage, idempotency_records, and runtime_rerank_config. reset() clears state for isolated tests. _create_job_locked creates JobRecords under the lock.</dd>
+          <dt>_store_protocol.py</dt><dd><b>ResearchMateRepository</b> Protocol. Declares the full persistence surface: ensure_user, create/ensure_personal/list/get/delete_project, upload-url/create/list/get/complete/delete_document, get_job, get_run_sources, get_trace, record_run, record_quiz_run, save/list_quiz_sets, conversation CRUD + messages, project/conversation chunks, usage + idempotency, rerank config, conversation summaries, project memory, and wiki page CRUD (store/project/document/delete). Every method takes CurrentUser as the first argument for owner scoping.</dd>
+          <dt>_store_models.py</dt><dd>Internal data models: ChunkEntry (id, user_id, project_id, document_id, source_type, page_no, slide_no, source_title, url, text), IdempotencyDecision (state: execute/replay/mismatch/in_progress, optional response), UploadReservation, WikiPage (id, title, page_type, content, aliases, links, source_chunk_ids).</dd>
+          <dt>_store_core.py</dt><dd><b>InMemoryStoreCore</b>. Owns the RLock and all shared mutable state: profiles, projects, documents, jobs, uploads, chunks, run_sources, traces, quiz_sets, conversations, conversation_items, conversation_summaries, api_usage, idempotency_records, runtime_rerank_config, and wiki_pages. reset() clears state for isolated tests. _create_job_locked creates JobRecords under the lock.</dd>
           <dt>_store_text.py</dt><dd>chunk_text(text, target_size=900). Deterministic paragraph-aware splitter that normalizes whitespace and handles oversized paragraphs by splitting at target_size boundaries.</dd>
           <dt>_store_chunks.py</dt><dd><b>ChunkStoreMixin</b>. project_chunks returns ready-document chunks for an owned project. conversation_chunks filters by conversation attachments. get_chunks_by_ids preserves visibility. Filters by DocumentStatus.READY and deleted_at is None.</dd>
           <dt>_store_conversations.py</dt><dd><b>ConversationStoreMixin</b>. Conversation CRUD, list messages (max 200), rename, delete with attachment cleanup. delete_conversation_with_attachments schedules document deletion atomically.</dd>
@@ -287,7 +290,8 @@
           <dt>_store_memory.py</dt><dd><b>MemoryStoreMixin</b>. Runtime rerank config (optimistic version control), conversation summary storage (rolling summary + message_count), and project_memory_context (cross-conversation memory for workspace projects, wrapped as untrusted data).</dd>
           <dt>_store_projects.py</dt><dd><b>ProjectStoreMixin</b>. ensure_user, create_project (workspace, 7-day TTL), ensure_personal_project (hidden, no expiry), list_projects (workspace only), get_project (owner check), delete_project (soft delete + dependent cleanup).</dd>
           <dt>_store_runs.py</dt><dd><b>RunStoreMixin</b>. get_run_sources, get_trace (role-gated), record_run (persists run, sources, trace, and optional messages atomically), save_quiz_set, record_quiz_run (snapshot-rollback on failure), list_quiz_sets.</dd>
-          <dt>store.py</dt><dd><b>InMemoryResearchMateStore</b> assembler. Multiple-inherits from 7 mixins + InMemoryStoreCore to provide a thread-safe, process-local ResearchMateRepository. A module-level singleton store is created at import time for development and testing.</dd>
+          <dt>_store_wiki.py</dt><dd><b>WikiStoreMixin</b>. store_wiki_pages, project_wiki_pages (owner-scoped), document_wiki_pages, delete_document_wiki_pages.</dd>
+          <dt>store.py</dt><dd><b>InMemoryResearchMateStore</b> assembler. Multiple-inherits from 8 mixins + InMemoryStoreCore to provide a thread-safe, process-local ResearchMateRepository. A module-level singleton store is created at import time for development and testing.</dd>
         </dl>
       </section>
 

@@ -248,7 +248,9 @@
           <div class="proof-step"><b>4. Checksum 校验</b><small>ingestion_service.py:下载字节的 SHA-256 与 record.checksum_sha256 比较;不匹配抛出 CHECKSUM_MISMATCH(不可重试)</small></div>
           <div class="proof-step"><b>5. 解析</b><small><code>parsing.py</code> 路由 42 种文件类型：轻量 PDF、有界 DOCX/PPTX/XLSX OOXML、HTML 可见文本、Notebook 输入单元和解码后的文本块。所有路径都返回带出处信息的 <code>list[ParsedBlock]</code>。</small></div>
           <div class="proof-step"><b>6. 投影</b><small>ingestion_projections.py:build_projections() 从 content_hash 派生确定性 UUID5 page + chunk ID;jobs.py chunk_text_for_index 切分文本</small></div>
-          <div class="proof-step"><b>7. 索引 + ready</b><small>ingestion_store.py:replace_content() 写入 pages + chunks(SELECT FOR UPDATE),QdrantHybridStore.upsert_chunks(),mark_ready() 将 job 转为 succeeded + document 转为 ready</small></div>
+          <div class="proof-step"><b>7. 轻量或向量索引</b><small>ingestion_service.py:is_lightweight_corpus() 累加 chunk token 数;不超过 lightweight_token_threshold(4000)时跳过 Qdrant upsert(has_vector=False),否则 QdrantHybridStore.upsert_chunks()(has_vector=True)</small></div>
+          <div class="proof-step"><b>8. Wiki 编译(仅轻量文档)</b><small>轻量文档经 WikiCompiler.compile() 通过 LLM 编译为结构化 wiki 页面(标题、[[wikilinks]]、来源引用);转换回 ChunkEntry 并标记 wiki_mode 元数据。LLM 失败时回退到原始 chunk。</small></div>
+          <div class="proof-step"><b>9. 持久化 + ready</b><small>ingestion_store.py:replace_content() 写入 pages + chunks(SELECT FOR UPDATE),mark_ready() 将 job 转为 succeeded + document 转为 ready</small></div>
         </div>
         <div class="notice"><strong>重试退避:</strong> 可重试失败时,task 以 countdown = min(300, 2^min(retries+1, 8)) 重新抛出。指数项上限为 2^8=256,整体延迟上限为 300 秒。不可重试失败调用 _mark_job_bootstrap_failed 或 mark_failed 使 job 成为终态。</div>
       </section>

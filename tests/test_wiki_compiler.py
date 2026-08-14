@@ -1,22 +1,27 @@
-"""Verify wiki compilation transforms lightweight chunks into structured pages.
+"""Test the LLM Wiki Compiler contract and ingestion integration.
 
-Tests cover:
-- WikiCompiler LLM call with schema-validated output
-- wiki_pages_to_chunks conversion for retrieval compatibility
-- WikiCompilationError on invalid LLM output
-- Ingestion integration: wiki compilation replaces lightweight chunks
-- WikiStoreMixin CRUD operations
+These tests are organized as ISTQB/IEEE 29119 aligned two-phase coverage:
+
+* Phase 1 (black-box): behaviors asserted from the public contract only.
+* Phase 2 (white-box): branches surfaced by reading the implementation.
+
+Both phases share hermetic in-memory doubles; no real LLM, DB, Qdrant, or
+HTTP traffic is exercised.
 """
 
 from __future__ import annotations
 
 import json
-from uuid import UUID, uuid4
+from dataclasses import dataclass, field
+from pathlib import Path
+from uuid import UUID
 
+import pytest
 from researchmate_api.schemas.common import CurrentUser, SourceType
 from researchmate_api.services._store_core import InMemoryStoreCore
 from researchmate_api.services._store_models import WikiPage
 from researchmate_api.services._store_wiki import WikiStoreMixin
+from researchmate_api.services.answering import _build_evidence_entry
 from researchmate_api.services.llm import LLMResult
 from researchmate_api.services.store import ChunkEntry
 from researchmate_api.services.wiki_compiler import (
@@ -24,19 +29,36 @@ from researchmate_api.services.wiki_compiler import (
     WikiCompiler,
     wiki_pages_to_chunks,
 )
+from researchmate_worker.ingestion_models import (
+    IngestionEvent,
+    IngestionRecord,
+    PageProjection,
+    ParsedBlock,
+)
+from researchmate_worker.ingestion_service import DocumentIngestionService
+from researchmate_worker.task_builders import WorkerWikiCompiler
 
 USER_ID = UUID("10000000-0000-4000-8000-000000000001")
 PROJECT_ID = UUID("10000000-0000-4000-8000-000000000002")
 DOCUMENT_ID = UUID("10000000-0000-4000-8000-000000000003")
 
 
+# ---------------------------------------------------------------------------
+# Shared test doubles
+# ---------------------------------------------------------------------------
+
+
 class FakeChatProvider:
-    """Return a canned LLM response for wiki compiler tests."""
+    """Return a canned completion payload for the wiki compiler."""
 
     def __init__(self, content: str) -> None:
         self._content = content
+        self.received_messages: list[dict[str, str]] = []
 
-    def complete(self, messages) -> LLMResult:  # type: ignore[override]
+    def complete(self, messages) -> LLMResult:  # type: ignore[no-untyped-def]
+        # Capture the messages list (an iterable of chat dicts) so tests can
+        # assert that the chunk text reached the prompt.
+        self.received_messages = list(messages)
         return LLMResult(
             content=self._content,
             reasoning=None,
@@ -46,493 +68,1091 @@ class FakeChatProvider:
         )
 
 
-def _make_chunks(texts: list[str]) -> list[ChunkEntry]:
-    """Create lightweight ChunkEntry objects from text fragments."""
+def make_chunk(
+    *,
+    text: str,
+    chunk_index: int = 0,
+    document_id: UUID = DOCUMENT_ID,
+    source_title: str = "source.pdf",
+) -> ChunkEntry:
+    """Build a lightweight source chunk for compiler tests."""
+    return ChunkEntry(
+        id=UUID(f"20000000-0000-4000-8000-{chunk_index:012d}"),
+        user_id=USER_ID,
+        project_id=PROJECT_ID,
+        document_id=document_id,
+        source_type=SourceType.LOCAL_DOC,
+        source_title=source_title,
+        text=text,
+        chunk_index=chunk_index,
+        has_vector=False,
+    )
+
+
+def make_source_chunks(count: int = 2) -> list[ChunkEntry]:
+    """Build a small set of raw chunks to feed into the compiler."""
     return [
-        ChunkEntry(
-            id=uuid4(),
-            user_id=USER_ID,
-            project_id=PROJECT_ID,
-            document_id=DOCUMENT_ID,
-            source_type=SourceType.LOCAL_DOC,
-            source_title="test.pdf",
-            text=text,
-            chunk_index=index,
-            has_vector=False,
-        )
-        for index, text in enumerate(texts)
+        make_chunk(text=f"Chunk {i} content about topic {i}.", chunk_index=i) for i in range(count)
     ]
 
 
+def proposal_payload(*proposals: dict) -> str:
+    """Serialize one or more proposal dicts as the LLM JSON output."""
+    return json.dumps(list(proposals))
+
+
+def valid_proposal(**overrides) -> dict:  # type: ignore[no-untyped-def]
+    """Build a minimally-valid wiki proposal dict."""
+    base = {
+        "title": "Sample Page",
+        "page_type": "concept",
+        "content": "Body text for the sample page.",
+        "aliases": ["alias-one"],
+        "links": ["Related Page"],
+        "source_chunk_indices": [0],
+    }
+    base.update(overrides)
+    return base
+
+
 # ---------------------------------------------------------------------------
-# WikiCompiler: valid LLM output
+# 1. WikiCompiler.compile — happy path and proposal conversion
 # ---------------------------------------------------------------------------
 
 
-def test_compile_valid_wiki_pages() -> None:
-    """Verify the compiler produces WikiPage objects from valid LLM output."""
-    llm_output = json.dumps(
-        [
-            {
-                "title": "Apollo",
-                "page_type": "project",
-                "content": "Apollo is a migration project. See [[Phoenix]] for history.",
-                "aliases": ["Phoenix v2"],
-                "links": ["Phoenix"],
-                "source_chunk_indices": [0, 1],
-            },
-            {
-                "title": "Phoenix",
-                "page_type": "reference",
-                "content": "Phoenix was the predecessor system. See [[Apollo]].",
-                "aliases": [],
-                "links": ["Apollo"],
-                "source_chunk_indices": [0],
-            },
-        ]
+def test_compile_produces_wiki_pages_from_valid_llm_output() -> None:
+    """Valid JSON proposals become WikiPage objects with provenance copied."""
+    chunks = make_source_chunks(2)
+    provider = FakeChatProvider(
+        proposal_payload(
+            valid_proposal(title="Alpha", source_chunk_indices=[0]),
+            valid_proposal(title="Beta", source_chunk_indices=[1]),
+        )
     )
-    provider = FakeChatProvider(llm_output)
-    compiler = WikiCompiler(provider)
-    chunks = _make_chunks(["Apollo replaces Phoenix.", "The migration is ongoing."])
-    pages = compiler.compile(
+
+    pages = WikiCompiler(provider).compile(
         chunks,
-        filename="design.pdf",
+        filename="doc.pdf",
         user_id=USER_ID,
         project_id=PROJECT_ID,
         document_id=DOCUMENT_ID,
     )
-    assert len(pages) == 2
-    assert pages[0].title == "Apollo"
-    assert pages[0].page_type == "project"
-    assert "Phoenix" in pages[0].links
-    assert len(pages[0].source_chunk_ids) == 2
-    assert pages[1].title == "Phoenix"
+
+    assert [p.title for p in pages] == ["Alpha", "Beta"]
+    assert all(p.user_id == USER_ID for p in pages)
+    assert all(p.project_id == PROJECT_ID for p in pages)
+    assert all(p.document_id == DOCUMENT_ID for p in pages)
+    assert [len(p.source_chunk_ids) for p in pages] == [1, 1]
+    assert pages[0].source_chunk_ids == [chunks[0].id]
+    assert pages[1].source_chunk_ids == [chunks[1].id]
+    # Each page gets a fresh UUID.
+    assert pages[0].id != pages[1].id
+    # Chunk text reaches the prompt messages.
+    assert any(chunks[0].text in m.get("content", "") for m in provider.received_messages)
 
 
-# ---------------------------------------------------------------------------
-# WikiCompiler: wikilink extraction from content
-# ---------------------------------------------------------------------------
+def test_compile_strips_json_markdown_fences() -> None:
+    """LLM output wrapped in ```json fences is still parsed."""
+    chunks = make_source_chunks(1)
+    provider = FakeChatProvider(f"```json\n{proposal_payload(valid_proposal(title='Fenced'))}\n```")
 
-
-def test_wikilinks_extracted_from_content() -> None:
-    """Verify [[wikilinks]] in content are extracted into the links list."""
-    llm_output = json.dumps(
-        [
-            {
-                "title": "Test Page",
-                "page_type": "concept",
-                "content": "Links to [[Alpha]] and [[Beta]] and [[Alpha]] again.",
-                "aliases": [],
-                "links": ["Gamma"],
-                "source_chunk_indices": [0],
-            },
-        ]
-    )
-    provider = FakeChatProvider(llm_output)
-    compiler = WikiCompiler(provider)
-    chunks = _make_chunks(["Some text."])
-    pages = compiler.compile(
+    pages = WikiCompiler(provider).compile(
         chunks,
-        filename="test.pdf",
+        filename="doc.pdf",
         user_id=USER_ID,
         project_id=PROJECT_ID,
         document_id=DOCUMENT_ID,
     )
-    assert len(pages) == 1
-    links = pages[0].links
-    assert "Alpha" in links
-    assert "Beta" in links
-    assert "Gamma" in links
-    # Deduplicated
-    assert links.count("Alpha") == 1
+
+    assert [p.title for p in pages] == ["Fenced"]
+
+
+def test_compile_extracts_wikilinks_and_deduplicates_with_links() -> None:
+    """[[wikilinks]] inside content are merged into links, deduplicated."""
+    chunks = make_source_chunks(1)
+    provider = FakeChatProvider(
+        proposal_payload(
+            valid_proposal(
+                title="Linked Page",
+                content="See [[Alpha]] and [[Beta]] and again [[Alpha]].",
+                links=["Beta"],
+                source_chunk_indices=[0],
+            )
+        )
+    )
+
+    pages = WikiCompiler(provider).compile(
+        chunks,
+        filename="doc.pdf",
+        user_id=USER_ID,
+        project_id=PROJECT_ID,
+        document_id=DOCUMENT_ID,
+    )
+
+    # Extracted wikilinks (in first-occurrence content order) come first,
+    # followed by the proposal's explicit links; union is deduplicated.
+    assert pages[0].links == ["Alpha", "Beta"]
 
 
 # ---------------------------------------------------------------------------
-# WikiCompiler: invalid LLM output
+# 2. WikiCompiler.compile — error paths
 # ---------------------------------------------------------------------------
+
+
+def test_compile_empty_chunks_raises_no_chunks_error() -> None:
+    """An empty chunks list is rejected before any LLM call."""
+    provider = FakeChatProvider(proposal_payload())
+
+    with pytest.raises(WikiCompilationError) as exc_info:
+        WikiCompiler(provider).compile(
+            [],
+            filename="doc.pdf",
+            user_id=USER_ID,
+            project_id=PROJECT_ID,
+            document_id=DOCUMENT_ID,
+        )
+
+    assert exc_info.value.code == "NO_CHUNKS"
 
 
 def test_compile_invalid_json_raises_error() -> None:
-    """Verify invalid JSON triggers WikiCompilationError."""
-    provider = FakeChatProvider("not json at all")
-    compiler = WikiCompiler(provider)
-    chunks = _make_chunks(["text"])
-    try:
-        compiler.compile(
+    """LLM output lacking any JSON array brackets surfaces as INVALID_FORMAT.
+
+    The compiler locates the array via raw.find('[')/rfind(']'); content with
+    neither bracket cannot be an array, so it raises INVALID_FORMAT before
+    json.loads is ever attempted.
+    """
+    chunks = make_source_chunks(1)
+    provider = FakeChatProvider("this is not json")
+
+    with pytest.raises(WikiCompilationError) as exc_info:
+        WikiCompiler(provider).compile(
             chunks,
-            filename="test.pdf",
+            filename="doc.pdf",
             user_id=USER_ID,
             project_id=PROJECT_ID,
             document_id=DOCUMENT_ID,
         )
-        assert False, "Expected WikiCompilationError"
-    except WikiCompilationError as exc:
-        assert exc.code in ("INVALID_FORMAT", "JSON_PARSE_FAILED", "NOT_ARRAY")
+
+    assert exc_info.value.code == "INVALID_FORMAT"
 
 
-def test_compile_empty_array_raises_error() -> None:
-    """Verify an empty JSON array triggers WikiCompilationError."""
-    provider = FakeChatProvider("[]")
-    compiler = WikiCompiler(provider)
-    chunks = _make_chunks(["text"])
-    try:
-        compiler.compile(
+def test_compile_malformed_array_json_raises_parse_error() -> None:
+    """Output containing array brackets but unparseable JSON raises JSON_PARSE_FAILED."""
+    chunks = make_source_chunks(1)
+    provider = FakeChatProvider("[this is not valid json]")
+
+    with pytest.raises(WikiCompilationError) as exc_info:
+        WikiCompiler(provider).compile(
             chunks,
-            filename="test.pdf",
+            filename="doc.pdf",
             user_id=USER_ID,
             project_id=PROJECT_ID,
             document_id=DOCUMENT_ID,
         )
-        assert False, "Expected WikiCompilationError"
-    except WikiCompilationError as exc:
-        assert exc.code == "EMPTY_OUTPUT"
+
+    assert exc_info.value.code == "JSON_PARSE_FAILED"
 
 
-def test_compile_skips_invalid_proposals() -> None:
-    """Verify proposals with out-of-range chunk indices are skipped."""
-    llm_output = json.dumps(
-        [
-            {
-                "title": "Valid Page",
-                "page_type": "concept",
-                "content": "Valid content.",
-                "aliases": [],
-                "links": [],
-                "source_chunk_indices": [0],
-            },
-            {
-                "title": "Invalid Page",
-                "page_type": "concept",
-                "content": "Invalid indices.",
-                "aliases": [],
-                "links": [],
-                "source_chunk_indices": [99],
-            },
-        ]
+def test_compile_non_array_json_raises_error() -> None:
+    """A JSON object (no array delimiters) is rejected as INVALID_FORMAT.
+
+    A plain JSON object has no '[' bracket, so the compiler reports an invalid
+    format at the array-location step rather than reaching the NOT_ARRAY branch
+    (JSON grammar guarantees any slice beginning with '[' parses to a list, so
+    NOT_ARRAY is only reachable by a value that has no '[' at all, which is the
+    INVALID_FORMAT path instead).
+    """
+    chunks = make_source_chunks(1)
+    provider = FakeChatProvider(json.dumps({"title": "Not an array"}))
+
+    with pytest.raises(WikiCompilationError) as exc_info:
+        WikiCompiler(provider).compile(
+            chunks,
+            filename="doc.pdf",
+            user_id=USER_ID,
+            project_id=PROJECT_ID,
+            document_id=DOCUMENT_ID,
+        )
+
+    assert exc_info.value.code == "INVALID_FORMAT"
+
+
+def test_compile_empty_array_raises_empty_output_error() -> None:
+    """A valid but empty JSON array surfaces as EMPTY_OUTPUT."""
+    chunks = make_source_chunks(1)
+    provider = FakeChatProvider(proposal_payload())
+
+    with pytest.raises(WikiCompilationError) as exc_info:
+        WikiCompiler(provider).compile(
+            chunks,
+            filename="doc.pdf",
+            user_id=USER_ID,
+            project_id=PROJECT_ID,
+            document_id=DOCUMENT_ID,
+        )
+
+    assert exc_info.value.code == "EMPTY_OUTPUT"
+
+
+def test_compile_all_proposals_skipped_raises_empty_output_error() -> None:
+    """When every proposal is filtered out, EMPTY_OUTPUT is raised."""
+    chunks = make_source_chunks(1)
+    provider = FakeChatProvider(
+        proposal_payload(
+            # Out-of-range index -> skipped.
+            valid_proposal(source_chunk_indices=[99]),
+            # Missing required field -> skipped by pydantic validation.
+            {"title": "NoType", "content": "x", "source_chunk_indices": [0]},
+        )
     )
-    provider = FakeChatProvider(llm_output)
-    compiler = WikiCompiler(provider)
-    chunks = _make_chunks(["one text"])
-    pages = compiler.compile(
+
+    with pytest.raises(WikiCompilationError) as exc_info:
+        WikiCompiler(provider).compile(
+            chunks,
+            filename="doc.pdf",
+            user_id=USER_ID,
+            project_id=PROJECT_ID,
+            document_id=DOCUMENT_ID,
+        )
+
+    assert exc_info.value.code == "EMPTY_OUTPUT"
+
+
+def test_compile_rejects_unknown_proposal_field_via_extra_forbid() -> None:
+    """extra=forbid drops proposals carrying unknown fields (skipped, not raised)."""
+    chunks = make_source_chunks(1)
+    provider = FakeChatProvider(
+        proposal_payload(
+            valid_proposal(bogus_field="nope", source_chunk_indices=[0]),
+            valid_proposal(title="Kept", source_chunk_indices=[0]),
+        )
+    )
+
+    pages = WikiCompiler(provider).compile(
         chunks,
-        filename="test.pdf",
+        filename="doc.pdf",
         user_id=USER_ID,
         project_id=PROJECT_ID,
         document_id=DOCUMENT_ID,
     )
-    # Only the valid page survives; the invalid one is filtered out.
-    assert len(pages) == 1
-    assert pages[0].title == "Valid Page"
+
+    assert [p.title for p in pages] == ["Kept"]
 
 
-# ---------------------------------------------------------------------------
-# wiki_pages_to_chunks: retrieval compatibility
-# ---------------------------------------------------------------------------
+def test_compile_skips_out_of_range_index_but_keeps_valid_proposals() -> None:
+    """A proposal with valid indices is kept alongside one with bad indices."""
+    chunks = make_source_chunks(2)
+    provider = FakeChatProvider(
+        proposal_payload(
+            valid_proposal(title="Good", source_chunk_indices=[0]),
+            valid_proposal(title="BadIdx", source_chunk_indices=[5]),
+        )
+    )
 
-
-def test_wiki_pages_to_chunks_preserves_metadata() -> None:
-    """Verify wiki pages convert to ChunkEntry with wiki metadata."""
-    page = WikiPage(
-        id=uuid4(),
+    pages = WikiCompiler(provider).compile(
+        chunks,
+        filename="doc.pdf",
         user_id=USER_ID,
         project_id=PROJECT_ID,
         document_id=DOCUMENT_ID,
-        title="Test Wiki Page",
+    )
+
+    assert [p.title for p in pages] == ["Good"]
+
+
+def test_compile_negative_chunk_index_proposal_is_skipped() -> None:
+    """Negative indices are out of range and the proposal is skipped."""
+    chunks = make_source_chunks(1)
+    provider = FakeChatProvider(
+        proposal_payload(
+            valid_proposal(title="Neg", source_chunk_indices=[-1]),
+            valid_proposal(title="Kept", source_chunk_indices=[0]),
+        )
+    )
+
+    pages = WikiCompiler(provider).compile(
+        chunks,
+        filename="doc.pdf",
+        user_id=USER_ID,
+        project_id=PROJECT_ID,
+        document_id=DOCUMENT_ID,
+    )
+
+    assert [p.title for p in pages] == ["Kept"]
+
+
+def test_wiki_compilation_error_carries_code_and_message() -> None:
+    """The error exposes both a stable code and a human message."""
+    err = WikiCompilationError("NO_CHUNKS", "no source chunks supplied")
+    assert err.code == "NO_CHUNKS"
+    assert err.message == "no source chunks supplied"
+    assert str(err) == "no source chunks supplied"
+
+
+# ---------------------------------------------------------------------------
+# 3. wiki_pages_to_chunks — metadata projection
+# ---------------------------------------------------------------------------
+
+
+def test_wiki_pages_to_chunks_preserves_metadata_and_provenance() -> None:
+    """WikiPage objects project back into ChunkEntry with wiki metadata."""
+    source_chunk_id = UUID("30000000-0000-4000-8000-000000000001")
+    page_id = UUID("40000000-0000-4000-8000-000000000001")
+    page = WikiPage(
+        id=page_id,
+        user_id=USER_ID,
+        project_id=PROJECT_ID,
+        document_id=DOCUMENT_ID,
+        title="Concept Page",
         page_type="concept",
-        content="# Test Wiki Page\n\nSome content with [[links]].",
-        aliases=["Alias1"],
-        links=["links"],
-        source_chunk_ids=[uuid4()],
+        content="Page body text.",
+        aliases=["alias-a"],
+        links=["Linked Page"],
+        source_chunk_ids=[source_chunk_id],
     )
+
     chunks = wiki_pages_to_chunks([page])
+
     assert len(chunks) == 1
-    chunk = chunks[0]
-    assert chunk.source_title == "Test Wiki Page"
-    assert chunk.has_vector is False
-    assert chunk.metadata["wiki_mode"] is True
-    assert chunk.metadata["wiki_type"] == "concept"
-    assert "links" in chunk.metadata["wiki_links"]
-    assert chunk.metadata["wiki_aliases"] == ["Alias1"]
+    assert chunks[0].id == page_id
+    assert chunks[0].user_id == USER_ID
+    assert chunks[0].project_id == PROJECT_ID
+    assert chunks[0].document_id == DOCUMENT_ID
+    assert chunks[0].source_type == SourceType.LOCAL_DOC
+    assert chunks[0].source_title == "Concept Page"
+    assert chunks[0].text == "Page body text."
+    assert chunks[0].chunk_index == 0
+    assert chunks[0].has_vector is False
+    assert chunks[0].metadata["wiki_mode"] is True
+    assert chunks[0].metadata["wiki_type"] == "concept"
+    assert chunks[0].metadata["wiki_links"] == ["Linked Page"]
+    assert chunks[0].metadata["wiki_aliases"] == ["alias-a"]
+    assert chunks[0].metadata["wiki_source_chunk_ids"] == [str(source_chunk_id)]
+
+
+def test_wiki_pages_to_chunks_assigns_sequential_chunk_indices() -> None:
+    """Multiple pages receive chunk_index 0, 1, 2, ... in order."""
+    pages = [
+        WikiPage(
+            id=UUID(f"50000000-0000-4000-8000-{i:012d}"),
+            user_id=USER_ID,
+            project_id=PROJECT_ID,
+            document_id=DOCUMENT_ID,
+            title=f"Page {i}",
+            page_type="concept",
+            content=f"body {i}",
+            source_chunk_ids=[],
+        )
+        for i in range(3)
+    ]
+
+    chunks = wiki_pages_to_chunks(pages)
+
+    assert [c.chunk_index for c in chunks] == [0, 1, 2]
+    # Page UUIDs are reused as chunk ids.
+    assert [c.id for c in chunks] == [p.id for p in pages]
+
+
+def test_wiki_pages_to_chunks_empty_pages_returns_empty_list() -> None:
+    """An empty page list projects to an empty chunk list."""
+    assert wiki_pages_to_chunks([]) == []
 
 
 # ---------------------------------------------------------------------------
-# WikiStoreMixin: in-memory CRUD
+# 4. WikiStoreMixin — store, retrieve, delete, reset
 # ---------------------------------------------------------------------------
 
 
-class TestStore(WikiStoreMixin, InMemoryStoreCore):
-    """Compose wiki mixin with core for isolated testing."""
-
-    __test__ = False
+class WikiMemoryStore(WikiStoreMixin, InMemoryStoreCore):
+    """Concrete in-memory store exercising the wiki mixin."""
 
 
-def test_wiki_store_crud() -> None:
-    """Verify wiki page store, retrieve, and delete operations."""
-    store = TestStore()
-    user = CurrentUser(id=USER_ID)
-    page = WikiPage(
-        id=uuid4(),
+def _uuid_for(title: str, salt: int = 0) -> UUID:
+    """Derive a deterministic valid UUID from a title so pages are keyed stably.
+
+    Uses zlib.crc32 (a stable, positive 32-bit hash) combined with a salt to
+    produce distinct UUIDs per title without relying on Python's randomized
+    built-in hash().
+    """
+    import zlib
+
+    digest = zlib.crc32(title.encode("utf-8")) + salt
+    # Spread the 32-bit digest across a valid RFC-4122 v4 layout.
+    hex32 = f"{digest:08x}" + f"{digest:08x}" + "40008000" + f"{digest & 0x0FFFFFFF:07x}1"
+    return UUID(hex32)
+
+
+def make_wiki_page(
+    *,
+    title: str,
+    document_id: UUID = DOCUMENT_ID,
+    project_id: UUID = PROJECT_ID,
+    salt: int = 0,
+) -> WikiPage:
+    """Build a WikiPage with stable identifiers for store tests."""
+    return WikiPage(
+        id=_uuid_for(title, salt=salt),
         user_id=USER_ID,
+        project_id=project_id,
+        document_id=document_id,
+        title=title,
+        page_type="concept",
+        content=f"Content for {title}.",
+        aliases=[],
+        links=[],
+        source_chunk_ids=[],
+    )
+
+
+def test_store_wiki_pages_persists_pages_by_id() -> None:
+    """Stored pages are retained and individually keyed by id."""
+    store = WikiMemoryStore()
+    page = make_wiki_page(title="Stored")
+
+    store.store_wiki_pages([page])
+
+    assert store.project_wiki_pages(CurrentUser(id=USER_ID), PROJECT_ID) == [page]
+
+
+def test_project_wiki_pages_filters_by_user_and_project() -> None:
+    """Only pages matching both user_id and project_id are returned."""
+    store = WikiMemoryStore()
+    other_user_page = WikiPage(
+        id=UUID("70000000-0000-4000-8000-000000000001"),
+        user_id=UUID("80000000-0000-4000-8000-000000000001"),
         project_id=PROJECT_ID,
         document_id=DOCUMENT_ID,
-        title="CRUD Test",
-        page_type="reference",
-        content="Content.",
+        title="Other User",
+        page_type="concept",
+        content="x",
     )
-    store.store_wiki_pages([page])
-    assert len(store.project_wiki_pages(user, PROJECT_ID)) == 1
-    assert len(store.document_wiki_pages(user, DOCUMENT_ID)) == 1
-    store.delete_document_wiki_pages(DOCUMENT_ID)
-    assert len(store.project_wiki_pages(user, PROJECT_ID)) == 0
+    other_project_page = make_wiki_page(
+        title="Other Project",
+        project_id=UUID("80000000-0000-4000-8000-000000000002"),
+    )
+    matching_page = make_wiki_page(title="Match")
+    store.store_wiki_pages([other_user_page, other_project_page, matching_page])
+
+    result = store.project_wiki_pages(CurrentUser(id=USER_ID), PROJECT_ID)
+
+    assert result == [matching_page]
 
 
-def test_wiki_store_reset_clears_pages() -> None:
-    """Verify reset() clears the wiki_pages dict."""
-    store = TestStore()
-    page = WikiPage(
-        id=uuid4(),
-        user_id=USER_ID,
-        project_id=PROJECT_ID,
-        document_id=DOCUMENT_ID,
-        title="Reset Test",
-        page_type="reference",
-        content="Content.",
-    )
-    store.store_wiki_pages([page])
-    assert len(store.wiki_pages) == 1
+def test_document_wiki_pages_filters_by_user_and_document() -> None:
+    """Only pages matching both user_id and document_id are returned."""
+    store = WikiMemoryStore()
+    doc_a = make_wiki_page(title="A", document_id=UUID("90000000-0000-4000-8000-000000000001"))
+    doc_b = make_wiki_page(title="B", document_id=DOCUMENT_ID)
+    store.store_wiki_pages([doc_a, doc_b])
+
+    result = store.document_wiki_pages(CurrentUser(id=USER_ID), DOCUMENT_ID)
+
+    assert result == [doc_b]
+
+
+def test_delete_document_wiki_pages_removes_only_matching_document() -> None:
+    """delete_document_wiki_pages drops pages for one document only."""
+    store = WikiMemoryStore()
+    target_doc = UUID("A1000000-0000-4000-8000-000000000001")
+    other_doc = DOCUMENT_ID
+    keep = make_wiki_page(title="Keep", document_id=other_doc)
+    drop = make_wiki_page(title="Drop", document_id=target_doc)
+    store.store_wiki_pages([keep, drop])
+
+    store.delete_document_wiki_pages(target_doc)
+
+    assert store.document_wiki_pages(CurrentUser(id=USER_ID), target_doc) == []
+    assert store.document_wiki_pages(CurrentUser(id=USER_ID), other_doc) == [keep]
+
+
+def test_store_reset_clears_all_wiki_pages() -> None:
+    """reset() wipes the wiki page collection along with other state."""
+    store = WikiMemoryStore()
+    store.store_wiki_pages([make_wiki_page(title="One"), make_wiki_page(title="Two")])
+    assert store.project_wiki_pages(CurrentUser(id=USER_ID), PROJECT_ID) != []
+
     store.reset()
-    assert len(store.wiki_pages) == 0
+
+    assert store.project_wiki_pages(CurrentUser(id=USER_ID), PROJECT_ID) == []
 
 
 # ---------------------------------------------------------------------------
-# Ingestion integration: wiki compilation replaces lightweight chunks
+# Phase 2 (white-box): branches surfaced from reading the implementation.
 # ---------------------------------------------------------------------------
 
 
-def _make_wiki_compiler_provider(pages: list[dict]) -> FakeChatProvider:
-    """Create a fake provider that returns the given wiki page proposals as JSON."""
-    return FakeChatProvider(json.dumps(pages))
+class BoundedChatProvider:
+    """Provider exposing complete_bounded, which the compiler prefers when set."""
+
+    def __init__(self, content: str) -> None:
+        self._content = content
+        self.bounded_calls: list[tuple[int]] = []
+
+    def complete(self, messages) -> LLMResult:  # type: ignore[no-untyped-def]
+        raise AssertionError("complete_bounded provider must not fall back to complete()")
+
+    def complete_bounded(self, messages, *, max_tokens: int) -> LLMResult:  # type: ignore[no-untyped-def]
+        self.bounded_calls.append((max_tokens,))
+        return LLMResult(
+            content=self._content,
+            reasoning=None,
+            model="fake-bounded",
+            prompt_tokens=10,
+            completion_tokens=20,
+        )
 
 
-def test_ingestion_wiki_compilation_replaces_chunks() -> None:
-    """Verify lightweight ingestion with wiki compiler produces wiki-form chunks."""
-    from researchmate_worker.ingestion_models import (
-        IngestionEvent,
-        IngestionRecord,
-    )
-    from researchmate_worker.ingestion_service import DocumentIngestionService
+def test_compile_prefers_complete_bounded_when_available() -> None:
+    """The compiler routes through complete_bounded when the provider offers it."""
+    chunks = make_source_chunks(1)
+    provider = BoundedChatProvider(proposal_payload(valid_proposal(title="Bounded")))
 
-    event = IngestionEvent(
-        job_id=UUID("20000000-0000-4000-8000-000000000001"),
+    pages = WikiCompiler(provider).compile(
+        chunks,
+        filename="doc.pdf",
         user_id=USER_ID,
         project_id=PROJECT_ID,
         document_id=DOCUMENT_ID,
     )
 
-    class WikiTestStore:
-        def __init__(self) -> None:
-            self.record = IngestionRecord(
-                job_id=event.job_id,
-                user_id=event.user_id,
-                project_id=event.project_id,
-                document_id=event.document_id,
-                filename="lightweight.pdf",
-                file_type="pdf",
-                r2_object_key="private/lightweight.pdf",
-                checksum_sha256=None,
-                attempts=1,
+    assert [p.title for p in pages] == ["Bounded"]
+    # The bounded budget passed by the compiler is surfaced to the provider.
+    assert provider.bounded_calls == [(8192,)]
+
+
+def test_compile_max_pages_caps_proposal_count() -> None:
+    """Only the first max_pages proposals are considered, even if more arrive."""
+    chunks = make_source_chunks(8)
+    provider = FakeChatProvider(
+        proposal_payload(
+            *[valid_proposal(title=f"P{i}", source_chunk_indices=[i]) for i in range(8)]
+        )
+    )
+
+    pages = WikiCompiler(provider, max_pages=3).compile(
+        chunks,
+        filename="doc.pdf",
+        user_id=USER_ID,
+        project_id=PROJECT_ID,
+        document_id=DOCUMENT_ID,
+    )
+
+    assert [p.title for p in pages] == ["P0", "P1", "P2"]
+
+
+def test_compile_filters_individual_bad_indices_not_whole_proposal() -> None:
+    """A proposal with mixed valid/invalid indices keeps the valid ones only.
+
+    The contract's 'skip on out-of-range' applies per-index: a proposal with
+    source_chunk_indices [0, 99] against two chunks is retained with [0],
+    not dropped entirely. Only when ALL indices are out of range is the
+    proposal skipped.
+    """
+    chunks = make_source_chunks(4)
+    provider = FakeChatProvider(
+        proposal_payload(
+            valid_proposal(title="Mixed", source_chunk_indices=[0, 99]),
+            valid_proposal(title="AllBad", source_chunk_indices=[100, 101]),
+        )
+    )
+
+    pages = WikiCompiler(provider).compile(
+        chunks,
+        filename="doc.pdf",
+        user_id=USER_ID,
+        project_id=PROJECT_ID,
+        document_id=DOCUMENT_ID,
+    )
+
+    assert [p.title for p in pages] == ["Mixed"]
+    # The valid index survives; the bad index is filtered out.
+    assert pages[0].source_chunk_ids == [chunks[0].id]
+
+
+def test_compile_parses_json_surrounded_by_prose() -> None:
+    """LLM output with prose before/after the array (no fences) still parses."""
+    chunks = make_source_chunks(1)
+    payload = proposal_payload(valid_proposal(title="Prose"))
+    provider = FakeChatProvider(f"Here are the wiki pages:\n{payload}\nThat was the output.")
+
+    pages = WikiCompiler(provider).compile(
+        chunks,
+        filename="doc.pdf",
+        user_id=USER_ID,
+        project_id=PROJECT_ID,
+        document_id=DOCUMENT_ID,
+    )
+
+    assert [p.title for p in pages] == ["Prose"]
+
+
+def test_compile_strips_plain_fences_without_json_label() -> None:
+    """Fences without the 'json' label are still stripped before parsing."""
+    chunks = make_source_chunks(1)
+    provider = FakeChatProvider(f"```\n{proposal_payload(valid_proposal(title='PlainFence'))}\n```")
+
+    pages = WikiCompiler(provider).compile(
+        chunks,
+        filename="doc.pdf",
+        user_id=USER_ID,
+        project_id=PROJECT_ID,
+        document_id=DOCUMENT_ID,
+    )
+
+    assert [p.title for p in pages] == ["PlainFence"]
+
+
+def test_compile_wikilinks_deduplication_across_repeats_and_proposal_links() -> None:
+    """Repeated wikilinks and overlapping proposal links collapse to first-seen."""
+    chunks = make_source_chunks(1)
+    provider = FakeChatProvider(
+        proposal_payload(
+            valid_proposal(
+                title="Dedupe",
+                content="[[A]] [[B]] [[A]] [[C]]",
+                links=["B", "D"],
+                source_chunk_indices=[0],
             )
-            self.stored_chunks: list[ChunkEntry] = []
+        )
+    )
 
-        def claim(self, event, *, worker_id, lease_seconds):
-            return self.record
+    pages = WikiCompiler(provider).compile(
+        chunks,
+        filename="doc.pdf",
+        user_id=USER_ID,
+        project_id=PROJECT_ID,
+        document_id=DOCUMENT_ID,
+    )
 
-        def replace_content(self, record, *, worker_id, pages, chunks, pipeline_version):
-            self.stored_chunks = chunks
+    # Order: content wikilinks first (A, B, C with dupes removed), then proposal
+    # links not already present (D). B and A appear once each despite repeats.
+    assert pages[0].links == ["A", "B", "C", "D"]
 
-        def mark_ready(self, record, *, worker_id):
-            pass
 
-        def mark_retryable(self, record, *, worker_id, code):
-            pass
+def test_compile_proposal_with_invalid_type_is_skipped() -> None:
+    """A proposal whose page_type exceeds length is skipped, siblings kept."""
+    chunks = make_source_chunks(1)
+    long_type = "x" * 51  # WIKI_PAGE_TYPE_LENGTH is 50.
+    provider = FakeChatProvider(
+        proposal_payload(
+            valid_proposal(title="TooLongType", page_type=long_type, source_chunk_indices=[0]),
+            valid_proposal(title="Kept", source_chunk_indices=[0]),
+        )
+    )
 
-        def mark_failed(self, record, *, worker_id, code):
-            pass
+    pages = WikiCompiler(provider).compile(
+        chunks,
+        filename="doc.pdf",
+        user_id=USER_ID,
+        project_id=PROJECT_ID,
+        document_id=DOCUMENT_ID,
+    )
 
-    class FakeObjectReader:
-        def download_to_file(self, object_key, destination):
-            destination.write_text("Lightweight document about Apollo and Phoenix migration.")
+    assert [p.title for p in pages] == ["Kept"]
 
-    class FakeParser:
-        def parse(self, source, *, file_type):
-            return [
-                type(
-                    "ParsedBlock",
-                    (),
-                    {
-                        "text": "Apollo replaces Phoenix in the migration.",
-                        "page_no": 1,
-                        "slide_no": None,
-                        "section_title": "Overview",
-                        "metadata": {},
-                    },
-                )(),
-                type(
-                    "ParsedBlock",
-                    (),
-                    {
-                        "text": "The payment database is migrated by Alice.",
-                        "page_no": 1,
-                        "slide_no": None,
-                        "section_title": "Details",
-                        "metadata": {},
-                    },
-                )(),
-            ]
 
-    class FakeVectorProjection:
-        def upsert_chunks(self, chunks, *, pipeline_version):
-            pass
+def test_compile_proposal_with_empty_source_indices_is_skipped() -> None:
+    """source_chunk_indices is min_length=1; an empty list fails validation and is skipped."""
+    chunks = make_source_chunks(1)
+    provider = FakeChatProvider(
+        proposal_payload(
+            valid_proposal(title="NoIdx", source_chunk_indices=[]),
+            valid_proposal(title="Kept", source_chunk_indices=[0]),
+        )
+    )
 
-    llm_output = json.dumps(
-        [
-            {
-                "title": "Apollo Migration",
-                "page_type": "project",
-                "content": "# Apollo Migration\n\nApollo replaces [[Phoenix]]. See [[Alice]].",
-                "aliases": [],
-                "links": ["Phoenix", "Alice"],
-                "source_chunk_indices": [0, 1],
-            },
+    pages = WikiCompiler(provider).compile(
+        chunks,
+        filename="doc.pdf",
+        user_id=USER_ID,
+        project_id=PROJECT_ID,
+        document_id=DOCUMENT_ID,
+    )
+
+    # The empty-indices proposal fails Pydantic validation (min_length=1) and
+    # is skipped; the valid sibling survives.
+    assert [p.title for p in pages] == ["Kept"]
+
+
+def test_compile_sends_chunks_in_index_order_and_truncates_text() -> None:
+    """The prompt embeds each chunk's text, truncated to the content max."""
+    chunks = [
+        make_chunk(text="A" * 10_000, chunk_index=0),  # exceeds 8000 char cap
+        make_chunk(text="B", chunk_index=1),
+    ]
+    provider = FakeChatProvider(proposal_payload(valid_proposal(title="Truncated")))
+
+    WikiCompiler(provider).compile(
+        chunks,
+        filename="doc.pdf",
+        user_id=USER_ID,
+        project_id=PROJECT_ID,
+        document_id=DOCUMENT_ID,
+    )
+
+    user_msg = provider.received_messages[-1]["content"]
+    # The oversized chunk is truncated to the WIKI_MAX_CONTENT_LENGTH cap.
+    assert "A" * 8000 in user_msg
+    assert "A" * 8001 not in user_msg
+    # The second chunk survives intact and is identifiable.
+    assert "B" in user_msg
+
+
+def test_worker_wiki_compiler_adapter_returns_chunks_with_wiki_metadata() -> None:
+    """WorkerWikiCompiler chains API compiler + wiki_pages_to_chunks end-to-end.
+
+    The worker adapter wraps the API WikiCompiler (returns list[WikiPage]) and
+    projects to list[ChunkEntry] so the ingestion store can persist compiled
+    pages via the existing replace_content path.
+    """
+    chunks = make_source_chunks(2)
+    provider = FakeChatProvider(
+        proposal_payload(
+            valid_proposal(title="Adapter Page", source_chunk_indices=[0, 1]),
+        )
+    )
+    adapter = WorkerWikiCompiler(provider)  # type: ignore[arg-type]
+
+    result = adapter.compile(
+        chunks,
+        filename="doc.pdf",
+        user_id=USER_ID,
+        project_id=PROJECT_ID,
+        document_id=DOCUMENT_ID,
+    )
+
+    assert len(result) == 1
+    compiled = result[0]
+    assert isinstance(compiled, ChunkEntry)
+    assert compiled.user_id == USER_ID
+    assert compiled.project_id == PROJECT_ID
+    assert compiled.document_id == DOCUMENT_ID
+    assert compiled.source_title == "Adapter Page"
+    assert compiled.source_type == SourceType.LOCAL_DOC
+    assert compiled.has_vector is False
+    assert compiled.metadata["wiki_mode"] is True
+    assert compiled.metadata["wiki_source_chunk_ids"] == [
+        str(chunks[0].id),
+        str(chunks[1].id),
+    ]
+
+
+def test_build_evidence_entry_surfaces_wiki_structure_for_compiled_chunks() -> None:
+    """Answer evidence formatting promotes wiki metadata for compiled chunks."""
+    chunk = ChunkEntry(
+        id=UUID("E0000000-0000-4000-8000-000000000001"),
+        user_id=USER_ID,
+        project_id=PROJECT_ID,
+        document_id=DOCUMENT_ID,
+        source_type=SourceType.LOCAL_DOC,
+        source_title="Concept Title",
+        text="Body text.",
+        chunk_index=0,
+        has_vector=False,
+        metadata={
+            "wiki_mode": True,
+            "wiki_type": "concept",
+            "wiki_links": ["Linked Page"],
+            "wiki_aliases": ["alias-a"],
+            "wiki_source_chunk_ids": [],
+        },
+    )
+
+    entry = _build_evidence_entry(1, chunk)
+
+    assert entry["wiki_title"] == "Concept Title"
+    assert entry["wiki_type"] == "concept"
+    assert entry["wiki_links"] == ["Linked Page"]
+    assert entry["source_type"] == "local_doc"
+    assert entry["text"] == "Body text."
+
+
+def test_build_evidence_entry_omits_wiki_fields_for_raw_chunks() -> None:
+    """Raw (non-wiki) chunks produce the legacy flat evidence format."""
+    chunk = ChunkEntry(
+        id=UUID("E0000000-0000-4000-8000-000000000002"),
+        user_id=USER_ID,
+        project_id=PROJECT_ID,
+        document_id=DOCUMENT_ID,
+        source_type=SourceType.LOCAL_DOC,
+        source_title="Raw Doc",
+        text="Raw body.",
+        chunk_index=0,
+        has_vector=True,
+        metadata={},
+    )
+
+    entry = _build_evidence_entry(2, chunk)
+
+    assert "wiki_title" not in entry
+    assert "wiki_type" not in entry
+    assert "wiki_links" not in entry
+    assert entry["text"] == "Raw body."
+
+
+def test_build_evidence_entry_omits_wiki_links_when_empty() -> None:
+    """wiki_links is only attached when the list is non-empty."""
+    chunk = ChunkEntry(
+        id=UUID("E0000000-0000-4000-8000-000000000003"),
+        user_id=USER_ID,
+        project_id=PROJECT_ID,
+        document_id=DOCUMENT_ID,
+        source_type=SourceType.LOCAL_DOC,
+        source_title="Lonely Page",
+        text="Body.",
+        chunk_index=0,
+        has_vector=False,
+        metadata={
+            "wiki_mode": True,
+            "wiki_type": "reference",
+            "wiki_links": [],
+            "wiki_aliases": [],
+            "wiki_source_chunk_ids": [],
+        },
+    )
+
+    entry = _build_evidence_entry(1, chunk)
+
+    assert entry["wiki_title"] == "Lonely Page"
+    assert entry["wiki_type"] == "reference"
+    assert "wiki_links" not in entry
+
+
+# ---------------------------------------------------------------------------
+# 5. Ingestion integration — wiki compiler replaces raw chunks
+# ---------------------------------------------------------------------------
+
+
+EVENT = IngestionEvent(
+    job_id=UUID("10000000-0000-4000-8000-000000000010"),
+    user_id=USER_ID,
+    project_id=PROJECT_ID,
+    document_id=DOCUMENT_ID,
+)
+
+
+@dataclass
+class FakeIngestionStore:
+    """Record ingestion lifecycle calls and capture replaced chunks."""
+
+    record: IngestionRecord = field(
+        default_factory=lambda: IngestionRecord(
+            job_id=EVENT.job_id,
+            user_id=EVENT.user_id,
+            project_id=EVENT.project_id,
+            document_id=EVENT.document_id,
+            filename="small.pdf",
+            file_type="pdf",
+            r2_object_key="private/small.pdf",
+            checksum_sha256=None,
+            attempts=1,
+        )
+    )
+    ready: bool = False
+    retry: str | None = None
+    failed: str | None = None
+    captured_chunks: list[ChunkEntry] = field(default_factory=list)
+    captured_pages: list[PageProjection] = field(default_factory=list)
+
+    def claim(
+        self, event: IngestionEvent, *, worker_id: str, lease_seconds: int
+    ) -> IngestionRecord:
+        return self.record
+
+    def replace_content(
+        self,
+        record: IngestionRecord,
+        *,
+        worker_id: str,
+        pages: list[PageProjection],
+        chunks: list[ChunkEntry],
+        pipeline_version: str,
+    ) -> None:
+        self.captured_pages = pages
+        self.captured_chunks = chunks
+
+    def mark_ready(self, record: IngestionRecord, *, worker_id: str) -> None:
+        self.ready = True
+
+    def mark_retryable(self, record: IngestionRecord, *, worker_id: str, code: str) -> None:
+        self.retry = code
+
+    def mark_failed(self, record: IngestionRecord, *, worker_id: str, code: str) -> None:
+        self.failed = code
+
+
+class FakeObjectReader:
+    """Write deterministic source bytes to a destination path."""
+
+    def __init__(self, content: bytes = b"source bytes") -> None:
+        self.content = content
+
+    def download_to_file(self, object_key: str, destination: Path) -> None:
+        destination.write_bytes(self.content)
+
+
+class FakeParser:
+    """Return a single short parsed block (lightweight by construction)."""
+
+    def __init__(self, text: str = "Short lightweight content.") -> None:
+        self.text = text
+
+    def parse(self, source: Path, *, file_type: str) -> list[ParsedBlock]:
+        return [
+            ParsedBlock(
+                text=self.text,
+                page_no=1,
+                section_title="Lightweight",
+                metadata={},
+            )
         ]
-    )
-    provider = FakeChatProvider(llm_output)
-    wiki_compiler = WikiCompiler(provider)
 
-    # Wrap to match the worker WikiCompiler protocol (returns ChunkEntry)
-    class WorkerWikiAdapter:
-        def compile(self, chunks, *, filename, user_id, project_id, document_id):
-            pages = wiki_compiler.compile(
-                chunks,
-                filename=filename,
-                user_id=user_id,
-                project_id=project_id,
-                document_id=document_id,
-            )
-            return wiki_pages_to_chunks(pages)
 
-    test_store = WikiTestStore()
-    service = DocumentIngestionService(
-        store=test_store,  # type: ignore[arg-type]
-        object_reader=FakeObjectReader(),  # type: ignore[arg-type]
-        parser=FakeParser(),  # type: ignore[arg-type]
-        vector_projection=FakeVectorProjection(),  # type: ignore[arg-type]
-        pipeline_version="test-v1",
-        lease_seconds=300,
+class FakeVectorProjection:
+    """Capture vector upserts without touching a vector store."""
+
+    def __init__(self) -> None:
+        self.captured: list[ChunkEntry] = []
+
+    def upsert_chunks(self, chunks: list[ChunkEntry], *, pipeline_version: str) -> None:
+        self.captured = chunks
+
+
+class FakeWorkerWikiCompiler:
+    """Adapter-shaped worker compiler returning canned compiled chunks.
+
+    Implements the worker WikiCompiler Protocol (returns list[ChunkEntry]).
+    """
+
+    def __init__(self, chunks: list[ChunkEntry]) -> None:
+        self._chunks = chunks
+        self.invoked = False
+
+    def compile(
+        self,
+        chunks: list[ChunkEntry],
+        *,
+        filename: str,
+        user_id: UUID,
+        project_id: UUID,
+        document_id: UUID,
+    ) -> list[ChunkEntry]:
+        self.invoked = True
+        return self._chunks
+
+
+class FailingWikiCompiler:
+    """Always raise, to exercise the ingestion fallback path."""
+
+    def __init__(self, error: Exception) -> None:
+        self.error = error
+
+    def compile(
+        self,
+        chunks: list[ChunkEntry],
+        *,
+        filename: str,
+        user_id: UUID,
+        project_id: UUID,
+        document_id: UUID,
+    ) -> list[ChunkEntry]:
+        raise self.error
+
+
+def build_ingestion_service(
+    store: FakeIngestionStore,
+    *,
+    wiki_compiler: object | None = None,
+) -> DocumentIngestionService:
+    """Assemble a service wired with hermetic doubles and lightweight routing."""
+    return DocumentIngestionService(
+        store=store,
+        object_reader=FakeObjectReader(),
+        parser=FakeParser(),
+        vector_projection=FakeVectorProjection(),
+        pipeline_version="pipeline-v1",
+        lease_seconds=120,
         max_attempts=3,
-        max_upload_bytes=10_000_000,
+        max_upload_bytes=1024,
         lightweight_token_threshold=4000,
-        wiki_compiler=WorkerWikiAdapter(),  # type: ignore[arg-type]
+        wiki_compiler=wiki_compiler,
     )
-    result = service.handle(event, worker_id="test-worker")
-    assert result == "succeeded"
-    # Wiki-compiled chunks should have wiki_mode metadata
-    assert len(test_store.stored_chunks) > 0
-    chunk = test_store.stored_chunks[0]
-    assert chunk.metadata.get("wiki_mode") is True
-    assert chunk.has_vector is False
-    assert "Apollo" in chunk.source_title
 
 
-def test_ingestion_wiki_fallback_on_failure() -> None:
-    """Verify ingestion falls back to raw chunks when wiki compilation fails."""
-    from researchmate_worker.ingestion_models import (
-        IngestionEvent,
-        IngestionRecord,
-    )
-    from researchmate_worker.ingestion_service import DocumentIngestionService
-
-    event = IngestionEvent(
-        job_id=UUID("30000000-0000-4000-8000-000000000001"),
+def make_compiled_chunk() -> ChunkEntry:
+    """A chunk produced by a successful wiki compilation (has_vector=False)."""
+    return ChunkEntry(
+        id=UUID("C0000000-0000-4000-8000-000000000001"),
         user_id=USER_ID,
         project_id=PROJECT_ID,
         document_id=DOCUMENT_ID,
+        source_type=SourceType.LOCAL_DOC,
+        source_title="Wiki Page Title",
+        text="Compiled wiki body.",
+        chunk_index=0,
+        has_vector=False,
+        metadata={"wiki_mode": True},
     )
 
-    class FallbackTestStore:
-        def __init__(self) -> None:
-            self.record = IngestionRecord(
-                job_id=event.job_id,
-                user_id=event.user_id,
-                project_id=event.project_id,
-                document_id=event.document_id,
-                filename="lightweight.pdf",
-                file_type="pdf",
-                r2_object_key="private/lightweight.pdf",
-                checksum_sha256=None,
-                attempts=1,
-            )
-            self.stored_chunks: list[ChunkEntry] = []
 
-        def claim(self, event, *, worker_id, lease_seconds):
-            return self.record
+def test_lightweight_ingestion_with_wiki_compiler_replaces_chunks() -> None:
+    """A lightweight document's chunks are replaced by compiled wiki chunks.
 
-        def replace_content(self, record, *, worker_id, pages, chunks, pipeline_version):
-            self.stored_chunks = chunks
+    The contract guarantees that when a wiki_compiler is supplied and
+    compilation succeeds with a non-empty result, the compiled chunks replace
+    the raw chunks (ingestion_service._compile_wiki returns them). The stored
+    chunks must carry the compiled wiki metadata, not the raw chunk provenance.
+    """
+    store = FakeIngestionStore()
+    compiled = make_compiled_chunk()
+    wiki = FakeWorkerWikiCompiler([compiled])
 
-        def mark_ready(self, record, *, worker_id):
-            pass
+    result = build_ingestion_service(store, wiki_compiler=wiki).handle(EVENT, worker_id="worker-1")
 
-        def mark_retryable(self, record, *, worker_id, code):
-            pass
-
-        def mark_failed(self, record, *, worker_id, code):
-            pass
-
-    class FakeObjectReader:
-        def download_to_file(self, object_key, destination):
-            destination.write_text("Short text.")
-
-    class FakeParser:
-        def parse(self, source, *, file_type):
-            return [
-                type(
-                    "ParsedBlock",
-                    (),
-                    {
-                        "text": "Short text content.",
-                        "page_no": 1,
-                        "slide_no": None,
-                        "section_title": None,
-                        "metadata": {},
-                    },
-                )(),
-            ]
-
-    class FakeVectorProjection:
-        def upsert_chunks(self, chunks, *, pipeline_version):
-            pass
-
-    class FailingWikiCompiler:
-        def compile(self, chunks, **kwargs):
-            raise WikiCompilationError("LLM_FAILED", "LLM call failed")
-
-    test_store = FallbackTestStore()
-    service = DocumentIngestionService(
-        store=test_store,  # type: ignore[arg-type]
-        object_reader=FakeObjectReader(),  # type: ignore[arg-type]
-        parser=FakeParser(),  # type: ignore[arg-type]
-        vector_projection=FakeVectorProjection(),  # type: ignore[arg-type]
-        pipeline_version="test-v1",
-        lease_seconds=300,
-        max_attempts=3,
-        max_upload_bytes=10_000_000,
-        lightweight_token_threshold=4000,
-        wiki_compiler=FailingWikiCompiler(),  # type: ignore[arg-type]
-    )
-    result = service.handle(event, worker_id="test-worker")
     assert result == "succeeded"
-    # Should fall back to raw chunks (no wiki metadata)
-    assert len(test_store.stored_chunks) > 0
-    chunk = test_store.stored_chunks[0]
-    assert chunk.metadata.get("wiki_mode") is None
+    assert wiki.invoked is True
+    assert store.captured_chunks == [compiled]
+    assert store.captured_chunks[0].has_vector is False
+    assert store.captured_chunks[0].metadata["wiki_mode"] is True
+    assert store.captured_chunks[0].source_title == "Wiki Page Title"
+
+
+def test_lightweight_ingestion_sets_has_vector_false_without_compiler() -> None:
+    """Lightweight chunks get has_vector=False even when no compiler is set."""
+    store = FakeIngestionStore()
+
+    result = build_ingestion_service(store, wiki_compiler=None).handle(EVENT, worker_id="worker-1")
+
+    assert result == "succeeded"
+    assert store.captured_chunks != []
+    assert all(c.has_vector is False for c in store.captured_chunks)
+
+
+def test_ingestion_falls_back_to_raw_chunks_when_wiki_compile_fails() -> None:
+    """A compiler exception is swallowed and raw chunks are stored instead."""
+    store = FakeIngestionStore()
+    wiki = FailingWikiCompiler(RuntimeError("LLM is down"))
+
+    result = build_ingestion_service(store, wiki_compiler=wiki).handle(EVENT, worker_id="worker-1")
+
+    assert result == "succeeded"
+    assert store.captured_chunks != []
+    # Fallback raw chunks are still lightweight (has_vector False).
+    assert all(c.has_vector is False for c in store.captured_chunks)
+    # None of the fallback chunks carry the wiki metadata injected by the stub.
+    assert all(c.metadata.get("wiki_mode") is not True for c in store.captured_chunks)
+
+
+def test_ingestion_falls_back_to_raw_chunks_when_compiler_returns_empty() -> None:
+    """An empty compiled list falls back to the raw lightweight chunks."""
+    store = FakeIngestionStore()
+    wiki = FakeWorkerWikiCompiler([])
+
+    result = build_ingestion_service(store, wiki_compiler=wiki).handle(EVENT, worker_id="worker-1")
+
+    assert result == "succeeded"
+    assert wiki.invoked is True
+    assert store.captured_chunks != []
+    assert all(c.has_vector is False for c in store.captured_chunks)
+    assert all(c.metadata.get("wiki_mode") is not True for c in store.captured_chunks)

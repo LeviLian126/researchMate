@@ -55,7 +55,7 @@
         <span class="status local">5 个核心文件</span>
         <span class="status local">11 个 routers</span>
         <span class="status local">10 个 schemas</span>
-        <span class="status local">35 个 services</span>
+        <span class="status local">37 个 services</span>
         <span class="status local">19 个 persistence</span>
         <span class="status local">6 MCP tools . 3 MCP resources</span>
       </div>
@@ -85,7 +85,7 @@
       <section id="tree">
         <p class="eyebrow">完整目录树</p>
         <h2>apps/api/src/researchmate_api/</h2>
-        <p class="sub">80 个源码文件,分布在 5 个顶层模块:5 核心、11 routers、10 schemas、35 services、19 persistence。</p>
+        <p class="sub">82 个源码文件,分布在 5 个顶层模块:5 核心、11 routers、10 schemas、37 services、19 persistence。</p>
         <pre class="command-block"><code>researchmate_api/
 ├── __init__.py
 ├── main.py                              # FastAPI app factory, middleware, error handlers
@@ -116,7 +116,7 @@
 │   ├── quiz.py                          # QuizRequest, QuizResponse, QuizSet, QuizCoverage
 │   ├── sources.py                       # RunSourcesResponse
 │   └── trace.py                         # DeveloperTrace, ToolCallTrace
-├── services/                            # 35 service files
+├── services/                            # 37 service files
 │   ├── grounded_query.py                # Ask orchestrator (unified pipeline)
 │   ├── answering.py                     # Answer builder (grounded / chat / deterministic)
 │   ├── query_context.py                 # Conversation context builder + summary compression
@@ -133,6 +133,7 @@
 │   ├── evidence_store.py                # EvidenceRepository protocol + InMemoryEvidenceRepository
 │   ├── quiz_generation.py               # Quiz set generation (LLM + deterministic fallback)
 │   ├── quiz_service.py                  # Quiz orchestration
+│   ├── wiki_compiler.py                 # LLM wiki compiler for lightweight docs
 │   ├── llm.py                           # ChatProvider Protocol + NvidiaChatProvider
 │   ├── embedding.py                     # NvidiaEmbeddingProvider (4096-dim)
 │   ├── qdrant_store.py                  # QdrantHybridStore (dense + sparse + rerank)
@@ -151,7 +152,8 @@
 │   ├── _store_limits.py                 # LimitStoreMixin (usage + idempotency)
 │   ├── _store_memory.py                 # MemoryStoreMixin (rerank config + summaries)
 │   ├── _store_projects.py               # ProjectStoreMixin
-│   └── _store_runs.py                   # RunStoreMixin (traces + quiz aggregates)
+│   ├── _store_runs.py                   # RunStoreMixin (traces + quiz aggregates)
+│   └── _store_wiki.py                   # WikiStoreMixin
 └── persistence/                         # 19 persistence files (excluding __init__.py)
     ├── postgres.py                      # PostgresResearchMateRepository assembler (10 mixins + core)
     ├── evidence_postgres.py             # PostgresEvidenceRepository assembler (5 mixins + base)
@@ -233,12 +235,12 @@
       </section>
 
       <section id="services-orchestration">
-        <p class="eyebrow">services/ . 编排服务组(15 个文件)</p>
+        <p class="eyebrow">services/ . 编排服务组(16 个文件)</p>
         <h2>应用编排服务</h2>
         <p class="sub">这些服务协调业务逻辑,不拥有适配器机制。它们依赖 ResearchMateRepository protocol 和 provider Protocols,从不依赖具体适配器类。</p>
         <dl class="kv">
           <dt>grounded_query.py</dt><dd><b>GroundedQueryService</b>。统一 Ask 编排器。execute() 运行完整管线:准备会话 scope、检索本地 evidence(BM25 + Qdrant)、可选检索 web evidence、rerank 候选、生成回答(grounded 或 chat)、增加使用配额、记录 run 和 trace。为每个阶段构建 ToolCallTrace,将 runtime_metadata(context_strategy、rerank provider/model、token 估算、延迟)打包到持久化 trace 中。</dd>
-          <dt>answering.py</dt><dd>回答构建器,三种模式。build_llm_grounded_answer:构建 evidence JSON(含服务端分配的 evidence_id 整数),校验 provider 输出是否符合 GroundedAnswerProposal schema,允许一次 schema 修复,将 evidence_ids 映射为 Citation 对象。build_grounded_answer:从 chunks 生成确定性本地回答。build_llm_chat_answer / build_chat_answer:无 evidence 的纯聊天。build_llm_chat_answer 现将用户查询包装为不可信 JSON 数据再传给 LLM,系统提示指示模型不得将其中的值视为指令,以封堵提示注入(与 grounded 路径一致)。_extract_json_object 处理 markdown-fenced LLM 输出。</dd>
+          <dt>answering.py</dt><dd>回答构建器,三种模式。build_llm_grounded_answer:构建 evidence JSON(含服务端分配的 evidence_id 整数),校验 provider 输出是否符合 GroundedAnswerProposal schema,允许一次 schema 修复,将 evidence_ids 映射为 Citation 对象。build_grounded_answer:从 chunks 生成确定性本地回答。build_llm_chat_answer / build_chat_answer:无 evidence 的纯聊天。build_llm_chat_answer 现将用户查询包装为不可信 JSON 数据再传给 LLM,系统提示指示模型不得将其中的值视为指令,以封堵提示注入(与 grounded 路径一致)。_build_evidence_entry 为 wiki-mode chunk 向 evidence 条目附加 wiki metadata(wiki_title、wiki_type、wiki_links),将结构化 wiki 信息透出给问答与引用路径。_extract_json_object 处理 markdown-fenced LLM 输出。</dd>
           <dt>query_context.py</dt><dd><b>ConversationContextBuilder</b>。加载会话历史,应用 token 预算(recent=3500、summary=1500、trigger=8000),将旧消息压缩为 LLM 生成的摘要,并将跨会话 project memory 作为不可信数据包装在 XML-like 块中。bound_messages 在硬 token 预算内保留最新消息。_truncate_to_budget 裁剪超长消息。</dd>
           <dt>query_conversation.py</dt><dd><b>QueryConversationCoordinator</b>。prepare() 验证项目 active 状态、解析已有会话、加载文档和 chunks(workspace vs personal scope)、拒绝仍处于 PARSING/INDEXING 状态的文档、构建会话 context。ensure_for_commit() 仅在生成成功后创建会话,避免失败时留下空会话。</dd>
           <dt>query_errors.py</dt><dd>GroundedQueryError 异常,携带 code、message 和 status_code。raise_grounded_error 辅助函数。所有 query_* 模块共享,在不耦合 HTTP 的情况下传播稳定错误。</dd>
@@ -252,6 +254,7 @@
           <dt>evidence_generation.py</dt><dd>Evidence report 生成。从 research run 输出创建 draft report,生成含 evidence snapshot 的 report section,处理源文档变更时的增量刷新。按 section 跟踪 validation_status。</dd>
           <dt>evidence_store.py</dt><dd><b>EvidenceRepository</b> Protocol,定义 evidence 工作流持久化边界:create/get research run、append event、list claim 和 relation、list/get report、list pipeline version、create evaluation run、reliability 聚合、fault scenario。InMemoryEvidenceRepository 提供进程内实现。EvidenceStoreError 携带 code、message、status_code。</dd>
           <dt>quiz_generation.py</dt><dd>Quiz set 生成。generate_llm_quiz_set:构建 evidence JSON,校验 provider 输出是否符合 QuizSetProposal schema(single_choice 恰好 4 个选项、evidence_ids 在白名单内)。generate_quiz_set:从 chunk 片段生成确定性本地 quiz(含中文题目)。QuizGenerationError 用于无效 provider 输出。</dd>
+          <dt>wiki_compiler.py</dt><dd><b>WikiCompiler</b>。将轻量级文档 chunk 转换为结构化 wiki 页面(标题、page_type、<code>[[wikilinks]]</code>、来源 provenance)。WikiPageProposal 通过 Pydantic 校验 LLM 输出(title、page_type、content、aliases、links、source_chunk_indices)。wiki_pages_to_chunks() 将 WikiPage 对象转换为带 wiki_mode metadata 的 ChunkEntry,保持与检索路径兼容。source_chunk_indices 映射到原始 chunk id,确保来源可追溯。WikiCompilationError 用于无效 LLM 输出。</dd>
         </dl>
         <div class="notice"><strong>此外:</strong>quiz_service.py 编排 Quiz 检索、生成、覆盖度测量、使用配额、trace 和持久化。它验证项目 scope(仅 workspace)、选择 chunks(all_ready_documents 或 topic)、通过 LLM 或确定性回退生成、记录 quiz run,并返回含诚实 QuizCoverage 的 QuizResponse。</div>
       </section>
@@ -272,13 +275,13 @@
       </section>
 
       <section id="services-store">
-        <p class="eyebrow">services/ . Store 组(12 个文件)</p>
+        <p class="eyebrow">services/ . Store 组(13 个文件)</p>
         <h2>内存 Store:protocol、models、core、text utils 与 mixins</h2>
         <p class="sub">Store 组将 InMemoryResearchMateStore 从面向聚合的 mixins 组装。同一个 ResearchMateRepository Protocol 由内存 store 和 PostgresResearchMateRepository 共同实现,通过 REPOSITORY_BACKEND 实现零代码切换。</p>
         <dl class="kv">
-          <dt>_store_protocol.py</dt><dd><b>ResearchMateRepository</b> Protocol。声明完整持久化接口:ensure_user、create/ensure_personal/list/get/delete_project、upload-url/create/list/get/complete/delete_document、get_job、get_run_sources、get_trace、record_run、record_quiz_run、save/list_quiz_sets、会话 CRUD + messages、project/conversation chunks、usage + idempotency、rerank config、会话摘要、project memory。每个方法的第一个参数是 CurrentUser,用于 owner scoping。</dd>
-          <dt>_store_models.py</dt><dd>内部数据模型:ChunkEntry(id、user_id、project_id、document_id、source_type、page_no、slide_no、source_title、url、text)、IdempotencyDecision(state: execute/replay/mismatch/in_progress、可选 response)、UploadReservation。</dd>
-          <dt>_store_core.py</dt><dd><b>InMemoryStoreCore</b>。拥有 RLock 和所有共享可变状态:profiles、projects、documents、jobs、uploads、chunks、run_sources、traces、quiz_sets、conversations、conversation_items、conversation_summaries、api_usage、idempotency_records、runtime_rerank_config。reset() 清空状态用于隔离测试。_create_job_locked 在锁内创建 JobRecord。</dd>
+          <dt>_store_protocol.py</dt><dd><b>ResearchMateRepository</b> Protocol。声明完整持久化接口:ensure_user、create/ensure_personal/list/get/delete_project、upload-url/create/list/get/complete/delete_document、get_job、get_run_sources、get_trace、record_run、record_quiz_run、save/list_quiz_sets、会话 CRUD + messages、project/conversation chunks、usage + idempotency、rerank config、会话摘要、project memory、wiki 持久化(store_wiki_pages、project_wiki_pages、document_wiki_pages、delete_document_wiki_pages)。每个方法的第一个参数是 CurrentUser,用于 owner scoping。</dd>
+          <dt>_store_models.py</dt><dd>内部数据模型:ChunkEntry(id、user_id、project_id、document_id、source_type、page_no、slide_no、source_title、url、text)、IdempotencyDecision(state: execute/replay/mismatch/in_progress、可选 response)、UploadReservation、WikiPage(id、user_id、project_id、document_id、title、page_type、content、aliases、links、source_chunk_ids)。</dd>
+          <dt>_store_core.py</dt><dd><b>InMemoryStoreCore</b>。拥有 RLock 和所有共享可变状态:profiles、projects、documents、jobs、uploads、chunks、run_sources、traces、quiz_sets、conversations、conversation_items、conversation_summaries、api_usage、idempotency_records、runtime_rerank_config、wiki_pages。reset() 清空状态用于隔离测试。_create_job_locked 在锁内创建 JobRecord。</dd>
           <dt>_store_text.py</dt><dd>chunk_text(text, target_size=900)。确定性段落感知分割器,归一化空白并在 target_size 边界拆分超长段落。</dd>
           <dt>_store_chunks.py</dt><dd><b>ChunkStoreMixin</b>。project_chunks 返回已拥有项目中的 ready-document chunks。conversation_chunks 按会话附件过滤。get_chunks_by_ids 保持可见性。按 DocumentStatus.READY 和 deleted_at is None 过滤。</dd>
           <dt>_store_conversations.py</dt><dd><b>ConversationStoreMixin</b>。会话 CRUD、列出消息(max 200)、重命名、删除(含附件清理)。delete_conversation_with_attachments 原子化调度文档删除和会话删除。</dd>
@@ -287,7 +290,8 @@
           <dt>_store_memory.py</dt><dd><b>MemoryStoreMixin</b>。Runtime rerank config(乐观版本控制)、会话摘要存储(滚动摘要 + message_count)、project_memory_context(workspace 项目的跨会话 memory,包装为不可信数据)。</dd>
           <dt>_store_projects.py</dt><dd><b>ProjectStoreMixin</b>。ensure_user、create_project(workspace,7 天 TTL)、ensure_personal_project(隐藏,无过期)、list_projects(仅 workspace)、get_project(owner 校验)、delete_project(软删除 + 依赖清理)。</dd>
           <dt>_store_runs.py</dt><dd><b>RunStoreMixin</b>。get_run_sources、get_trace(角色限制)、record_run(原子持久化 run、sources、trace 和可选 messages)、save_quiz_set、record_quiz_run(失败时快照回滚)、list_quiz_sets。</dd>
-          <dt>store.py</dt><dd><b>InMemoryResearchMateStore</b> 组装器。多重继承 7 个 mixins + InMemoryStoreCore,提供线程安全的进程内 ResearchMateRepository。模块级单例 store 在导入时创建,用于开发和测试。</dd>
+          <dt>_store_wiki.py</dt><dd><b>WikiStoreMixin</b>。store_wiki_pages 持久化 WikiPage 列表(含 links、aliases、source_chunk_ids),project_wiki_pages 按 owner+project 范围列出页面,document_wiki_pages 按文档过滤页面,delete_document_wiki_pages 在文档删除时级联清理关联 wiki 页。</dd>
+          <dt>store.py</dt><dd><b>InMemoryResearchMateStore</b> 组装器。多重继承 8 个 mixins + InMemoryStoreCore,提供线程安全的进程内 ResearchMateRepository。模块级单例 store 在导入时创建,用于开发和测试。</dd>
         </dl>
       </section>
 
