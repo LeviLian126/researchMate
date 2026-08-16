@@ -17,6 +17,8 @@ from researchmate_worker.outbox import (
 )
 from researchmate_worker.runtime_health import record_heartbeat
 
+WORKER_QUEUES = "ingestion,deletion,workflow,evaluation,reliability"
+
 
 def build_dispatcher(settings: WorkerSettings) -> OutboxDispatcher:
     """Construct a bounded dispatcher from validated managed-service settings."""
@@ -58,6 +60,14 @@ def main() -> None:
             store.engine,
             "dispatcher",
             metadata={"poll_seconds": max(0.25, args.poll_seconds)},
+        )
+        # The dispatcher and Celery worker share one supervised Render instance.
+        # Publishing both component heartbeats here removes a fourth Python process,
+        # preserving memory for workflow execution on the 512 MB free tier.
+        record_heartbeat(
+            store.engine,
+            "worker",
+            metadata={"queues": WORKER_QUEUES},
         )
         published = dispatcher.dispatch_once()
         if args.once:

@@ -182,7 +182,13 @@ def test_dispatcher_once_records_heartbeat_and_exits(monkeypatch) -> None:
 
     dispatch_outbox.main()
 
-    assert heartbeats == [((engine, "dispatcher"), {"metadata": {"poll_seconds": 0.25}})]
+    assert heartbeats == [
+        ((engine, "dispatcher"), {"metadata": {"poll_seconds": 0.25}}),
+        (
+            (engine, "worker"),
+            {"metadata": {"queues": dispatch_outbox.WORKER_QUEUES}},
+        ),
+    ]
 
 
 def test_task_builders_fail_closed_without_managed_configuration(monkeypatch) -> None:
