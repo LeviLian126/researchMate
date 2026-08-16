@@ -1,0 +1,50 @@
+name: langgraph-recovery-benchmark
+
+on:
+  workflow_dispatch:
+    inputs:
+      trials:
+        description: Independent checkpoint recovery trials
+        required: true
+        default: "1000"
+
+jobs:
+  postgres-checkpoint-recovery:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: recovery
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d recovery"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v9.0.0
+        with:
+          version: "0.12.1"
+          enable-cache: true
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - name: Install locked Python dependencies
+        run: uv sync --frozen --all-packages --group dev
+      - name: Measure process-restart recovery
+        env:
+          RECOVERY_BENCHMARK_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/recovery
+        run: >-
+          uv run --frozen python scripts/measure_langgraph_recovery.py
+          --trials ${{ inputs.trials }}
+          --batch-size 50
+          --minimum-rate 0.995
+          --confidence 0.95
