@@ -18,6 +18,8 @@ def test_render_blueprint_uses_one_shared_free_service_and_secret_prompts() -> N
     assert source.count("plan: free") == 1
     assert "researchmate-backend-dev" in source
     assert "dockerCommand: python -m researchmate_worker.render_combined" in source
+    assert "healthCheckPath: /api/v1/healthz" in source
+    assert "value: pdfium" in source
     assert "buildFilter:" in source
     for backend_path in (
         "apps/api/**",
@@ -72,6 +74,7 @@ def test_render_runtime_starts_api_worker_dispatcher_and_heartbeat() -> None:
     assert "uvicorn" in commands[0]
     assert "researchmate_api.main:app" in commands[0]
     assert "celery" in commands[1]
+    assert commands[1][:3] == ["nice", "-n", "10"]
     assert "--pool=solo" in commands[1]
     assert commands[2][-1] == "researchmate_worker.dispatch_outbox"
     assert commands[3][-1] == "researchmate_worker.worker_heartbeat"
@@ -108,6 +111,61 @@ def test_combined_runtime_waits_for_api_health_before_heavy_workers(monkeypatch)
     assert calls == [("127.0.0.1", 10000, 0.5)]
     assert requests == [("GET", "/api/v1/healthz")]
     assert closed == [True]
+
+
+def test_combined_runtime_serves_liveness_before_backfills(monkeypatch) -> None:
+    """Keep the API alive while optional Qdrant replay delays worker startup."""
+    events: list[str] = []
+
+    class FakeProcess:
+        def __init__(self, name: str) -> None:
+            self.name = name
+
+        def poll(self) -> int | None:
+            return 1 if self.name == "worker" else None
+
+        def send_signal(self, _signum: int) -> None:
+            events.append(f"stop:{self.name}")
+
+        def wait(self, *, timeout: int) -> int:
+            return 0
+
+        def kill(self) -> None:
+            events.append(f"kill:{self.name}")
+
+    def fake_popen(command: list[str]) -> FakeProcess:
+        name = "api" if command == ["api"] else command[0]
+        events.append(f"start:{name}")
+        return FakeProcess(name)
+
+    monkeypatch.setattr(
+        render_combined, "apply_schema_migrations", lambda: events.append("migrate")
+    )
+    monkeypatch.setattr(render_combined, "backfill_qdrant_rerank", lambda: events.append("rerank"))
+    monkeypatch.setattr(render_combined, "backfill_qdrant_hybrid", lambda: events.append("hybrid"))
+    monkeypatch.setattr(
+        render_combined,
+        "child_commands",
+        lambda _port: [["api"], ["worker"], ["dispatcher"], ["heartbeat"]],
+    )
+    monkeypatch.setattr(
+        render_combined,
+        "wait_for_api",
+        lambda _process, _port: events.append("api_ready") or True,
+    )
+    monkeypatch.setattr(render_combined.subprocess, "Popen", fake_popen)
+
+    assert render_combined.run(10000) == 1
+    assert events[:8] == [
+        "migrate",
+        "start:api",
+        "api_ready",
+        "rerank",
+        "hybrid",
+        "start:worker",
+        "start:dispatcher",
+        "start:heartbeat",
+    ]
 
 
 def test_render_image_uses_cpu_only_pytorch() -> None:

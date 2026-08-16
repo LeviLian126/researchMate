@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from io import BytesIO
 from pathlib import Path
 from typing import Any
@@ -10,12 +11,79 @@ from researchmate_worker.ingestion import ParsedBlock, ParserAdapterError
 from researchmate_worker.parsing._common import _ParserMixinBase
 from researchmate_worker.parsing_helpers import _package_version
 
+MAX_PDF_EXTRACTED_CHARS = 16 * 1024 * 1024
+LOGGER = logging.getLogger(__name__)
+
 
 class _PDFParserMixin(_ParserMixinBase):
     """Reserve Docling's visual pipeline for PDFs that lack an extractable text layer."""
 
     artifacts_path: Any | None
     converter: Any | None
+
+    def _parse_pdfium_lightweight(self, source: Path) -> list[ParsedBlock]:
+        """Extract text with native PDFium while bounding expanded page content."""
+        try:
+            import pypdfium2
+        except ImportError as exc:
+            raise ParserAdapterError("PARSER_NOT_INSTALLED") from exc
+        try:
+            document = pypdfium2.PdfDocument(source)
+        except (OSError, RuntimeError, ValueError, pypdfium2.PdfiumError) as exc:
+            LOGGER.warning("pdfium_open_failed error=%s", type(exc).__name__)
+            raise ParserAdapterError("PARSER_EXECUTION_FAILED") from exc
+        try:
+            if len(document) > self.max_num_pages:
+                raise ParserAdapterError("PARSER_PAGE_LIMIT_EXCEEDED")
+            blocks: list[ParsedBlock] = []
+            extracted_chars = 0
+            for page_index in range(len(document)):
+                page = document[page_index]
+                try:
+                    text_page = page.get_textpage()
+                    try:
+                        page_chars = text_page.count_chars()
+                        extracted_chars += page_chars
+                        if extracted_chars > MAX_PDF_EXTRACTED_CHARS:
+                            raise ParserAdapterError("PARSER_FILE_TOO_LARGE")
+                        text = text_page.get_text_range().strip()
+                    finally:
+                        text_page.close()
+                finally:
+                    page.close()
+                if not text:
+                    continue
+                page_no = page_index + 1
+                item_ref = f"pdf#page-{page_no}"
+                blocks.append(
+                    ParsedBlock(
+                        text=text,
+                        page_no=page_no,
+                        metadata={
+                            "parser_name": "pypdfium2",
+                            "parser_version": _package_version("pypdfium2"),
+                            "source_item_ref": item_ref,
+                            "source_ordinal": page_index,
+                            "source_label": "page_text",
+                            "source_level": None,
+                            "source_anchors": self._structural_anchor(
+                                item_ref,
+                                locator_kind="page",
+                                page_no=page_no,
+                            ),
+                        },
+                    )
+                )
+        except ParserAdapterError:
+            raise
+        except (OSError, RuntimeError, ValueError, pypdfium2.PdfiumError) as exc:
+            LOGGER.warning("pdfium_parse_failed error=%s", type(exc).__name__)
+            raise ParserAdapterError("PARSER_EXECUTION_FAILED") from exc
+        finally:
+            document.close()
+        if not blocks:
+            raise ParserAdapterError("PARSER_TEXT_LAYER_NOT_FOUND")
+        return blocks
 
     def _parse_pdf_lightweight(self, source: Path) -> list[ParsedBlock]:
         """Extract searchable PDF text without loading Docling's vision models."""

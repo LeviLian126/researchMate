@@ -79,6 +79,9 @@ def child_commands(port: int) -> list[list[str]]:
             f"--timeout-graceful-shutdown={GRACEFUL_SHUTDOWN_TIMEOUT_SECONDS}",
         ],
         [
+            "nice",
+            "-n",
+            "10",
             sys.executable,
             "-m",
             "celery",
@@ -129,8 +132,6 @@ def wait_for_api(
 def run(port: int) -> int:
     """Supervise combined deployment processes and propagate child failures."""
     apply_schema_migrations()
-    backfill_qdrant_rerank()
-    backfill_qdrant_hybrid()
     commands = child_commands(port)
     children: list[subprocess.Popen[bytes]] = []
 
@@ -144,6 +145,10 @@ def run(port: int) -> int:
         children.append(api_process)
         if not wait_for_api(api_process, port):
             return api_process.poll() or 1
+        # Keep the liveness endpoint schedulable while optional projection replay runs.
+        # Workers start only after replay completes, so they never consume a partial index.
+        backfill_qdrant_rerank()
+        backfill_qdrant_hybrid()
         children.extend(subprocess.Popen(command) for command in commands[1:])
         while True:
             for child in children:

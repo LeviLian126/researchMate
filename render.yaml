@@ -91,7 +91,7 @@ envVarGroups:
       - key: DOCLING_ARTIFACTS_PATH
         value: /opt/docling/models
       - key: PDF_PARSER_BACKEND
-        value: pypdf
+        value: pdfium
       - key: LANGGRAPH_STRICT_MSGPACK
         value: "true"
       - key: RAGAS_DO_NOT_TRACK
@@ -111,7 +111,7 @@ services:
     dockerfilePath: ./workers/ai-worker/Dockerfile
     dockerContext: .
     dockerCommand: python -m researchmate_worker.render_combined
-    healthCheckPath: /api/v1/readyz
+    healthCheckPath: /api/v1/healthz
     autoDeployTrigger: checksPass
     buildFilter:
       paths:

@@ -96,7 +96,7 @@ class DoclingDocumentParser(
         max_num_pages: int,
         artifacts_path: Path | None = None,
         converter: Any | None = None,
-        pdf_backend: str = "pypdf",
+        pdf_backend: str = "pdfium",
     ) -> None:
         self.max_file_size = max_file_size
         self.max_num_pages = max_num_pages
@@ -141,6 +141,8 @@ class DoclingDocumentParser(
                 if not blocks:
                     raise ParserAdapterError("PARSER_INCOMPLETE_RESULT")
                 return blocks
+            if self.pdf_backend == "pdfium":
+                return _PDFParserMixin._parse_pdfium_lightweight(self, source)
             if self.pdf_backend == "pypdf":
                 return self._parse_pdf_lightweight(source)
         except ParserAdapterError:

@@ -47,7 +47,7 @@ class WorkerSettings(BaseSettings):
     workflow_max_prompt_tokens: int = Field(default=32768, ge=1024, le=131072)
     langgraph_strict_msgpack: bool = True
     parser_max_pages: int = Field(default=300, ge=1, le=1000)
-    pdf_parser_backend: Literal["pypdf", "docling"] = "pypdf"
+    pdf_parser_backend: Literal["pdfium", "pypdf", "docling"] = "pdfium"
     docling_artifacts_path: Path | None = None
     max_upload_bytes: int = Field(default=26_214_400, ge=1, le=104_857_600)
     object_storage_endpoint_url: str | None = None

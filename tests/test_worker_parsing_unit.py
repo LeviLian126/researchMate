@@ -100,6 +100,58 @@ def test_pdf_parser_uses_lightweight_page_text_without_visual_models(tmp_path, m
     assert parser.converter is None
 
 
+def test_pdfium_parser_closes_native_page_resources(tmp_path, monkeypatch) -> None:
+    """Use the native text-layer parser without retaining page resources."""
+    source = tmp_path / "source.pdf"
+    source.write_bytes(b"%PDF synthetic")
+    closed: list[str] = []
+
+    class FakeTextPage:
+        def count_chars(self) -> int:
+            return 29
+
+        def get_text_range(self) -> str:
+            return "Aurora code is RM-20260730."
+
+        def close(self) -> None:
+            closed.append("text")
+
+    class FakePage:
+        def get_textpage(self) -> FakeTextPage:
+            return FakeTextPage()
+
+        def close(self) -> None:
+            closed.append("page")
+
+    class FakeDocument:
+        def __len__(self) -> int:
+            return 1
+
+        def __getitem__(self, index: int) -> FakePage:
+            assert index == 0
+            return FakePage()
+
+        def close(self) -> None:
+            closed.append("document")
+
+    monkeypatch.setitem(
+        sys.modules,
+        "pypdfium2",
+        SimpleNamespace(PdfDocument=lambda *_args, **_kwargs: FakeDocument()),
+    )
+    parser = DoclingDocumentParser(
+        max_file_size=4096,
+        max_num_pages=5,
+        pdf_backend="pdfium",
+    )
+
+    blocks = parser.parse(source, file_type="pdf")
+
+    assert [(block.page_no, block.text) for block in blocks] == [(1, "Aurora code is RM-20260730.")]
+    assert blocks[0].metadata["parser_name"] == "pypdfium2"
+    assert closed == ["text", "page", "document"]
+
+
 def test_pdf_parser_reports_missing_text_layer_without_docling_fallback(
     tmp_path, monkeypatch
 ) -> None:
@@ -126,19 +178,19 @@ def test_pdf_parser_reports_missing_text_layer_without_docling_fallback(
 
 
 def test_real_pdf_fixture_is_compatible_with_lightweight_parser() -> None:
-    """Exercise the installed pypdf adapter against a valid text-layer PDF."""
+    """Exercise the installed PDFium adapter against a valid text-layer PDF."""
     source = Path(__file__).parent / "fixtures" / "acceptance-text.pdf"
     parser = DoclingDocumentParser(
         max_file_size=4096,
         max_num_pages=5,
-        pdf_backend="pypdf",
+        pdf_backend="pdfium",
     )
 
     blocks = parser.parse(source, file_type="pdf")
 
     assert blocks[0].page_no == 1
     assert "RM-20260730" in blocks[0].text
-    assert blocks[0].metadata["parser_name"] == "pypdf"
+    assert blocks[0].metadata["parser_name"] == "pypdfium2"
 
 
 def test_ingestion_service_versions_and_passes_pdf_backend() -> None:

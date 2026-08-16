@@ -70,7 +70,7 @@
           <article class="fact"><b>CI/CD</b><p>持续集成 / 持续部署 (Continuous Integration / Continuous Deployment) 是通过可复现的流水线自动测试、构建、扫描并部署每次代码变更的实践。ResearchMate 将 CI 视为发布就绪的唯一事实来源:除非全部五个门控 Job 通过且 ci-success 聚合器确认每个结果均为 success,否则任何 commit 都不会进入生产环境。</p></article>
           <article class="fact"><b>GitHub Actions</b><p>工作流自动化平台,在 push 到 main 或 develop 以及每个 pull request 时触发。researchmate-ci 工作流使用 concurrency group 配合 cancel-in-progress 取消过时运行,将每个 action 固定到主版本号,并运行五个具有显式 timeout-minutes(20 至 35 分钟)的 Job。ci-success Job 使用 if: always() 配合 needs 聚合全部四个质量门控。</p></article>
           <article class="fact"><b>Docker</b><p>仓库只保留一个多阶段 Dockerfile，因为 Render 在同一镜像中运行 API、worker 和 dispatcher。镜像固定 uv 和 <code>python:3.13-slim</code>，安装锁定的 workspace、原生解析库和 Docling 模型，随后移除构建工具，并以 uid 10001 运行。CI 对这一个部署制品执行 lint、构建和扫描。</p></article>
-          <article class="fact"><b>Render</b><p>云部署平台,将合并的 backend-plus-worker 服务作为单个 Free 层 Docker web 服务托管在 Oregon 区域。render.yaml 声明一个包含 48 条目的 envVarGroups 块(37 条带值,11 条 sync:false 密钥),autoDeployTrigger 设为 checksPass,并使用 buildFilter 将重建限制在相关路径变更时触发。healthCheckPath /api/v1/readyz 确认运行时就绪。</p></article>
+          <article class="fact"><b>Render</b><p>云部署平台,将合并的 backend-plus-worker 服务作为单个 Free 层 Docker web 服务托管在 Oregon 区域。render.yaml 声明一个包含 48 条目的 envVarGroups 块(37 条带值,11 条 sync:false 密钥),autoDeployTrigger 设为 checksPass,并使用 buildFilter 将重建限制在相关路径变更时触发。Render 探测常量时间的 <code>/api/v1/healthz</code> 存活端点；运维仍通过 <code>/api/v1/readyz</code> 检查依赖就绪。</p></article>
           <article class="fact"><b>Vercel</b><p>apps/web 中 Next.js 16.3.0 前端应用的部署平台。Vercel 独立于后端构建并服务生产前端。render.yaml 中的 CORS_ALLOWED_ORIGINS 设为 Vercel 源地址,使 API 接受来自已部署前端的浏览器请求。</p></article>
           <article class="fact"><b>uv</b><p>Astral 开发的 Python 包管理器与项目管理器,在 CI 和 Dockerfile 中固定为 0.12.1 版本。uv 解析 monorepo workspace(apps/api + workers/ai-worker),通过 uv.lock 以 --frozen 标志安装锁定依赖,并支持 --all-packages 在一条命令中安装所有 workspace 成员。setup-uv action 在 CI 中启用缓存以加速运行。</p></article>
           <article class="fact"><b>npm workspaces</b><p>JavaScript monorepo 管理方案,通过根 package.json 中的 packageManager 声明 npm@11.6.0。workspaces 数组包含 apps/web。CI 运行 npm install --no-audit --no-fund 安装完整 workspace 树,package-lock.json 锁文件保证本地与 CI 环境间的可复现 JavaScript 依赖解析。</p></article>
@@ -91,7 +91,7 @@
           <div class="coverage-item"><b>5. container-quality</b><small>ready — hadolint + Trivy</small></div>
           <div class="coverage-item"><b>6. ci-success</b><small>verified — 聚合门禁</small></div>
           <div class="coverage-item"><b>7. Render 部署</b><small>executed — checksPass 提升</small></div>
-          <div class="coverage-item"><b>8. 健康检查上线</b><small>verified — /api/v1/readyz</small></div>
+          <div class="coverage-item"><b>8. 健康检查上线</b><small>verified — /api/v1/healthz</small></div>
         </div>
 
         <!-- 垂直时间线 -->
@@ -161,9 +161,9 @@
 
           <div class="event">
             <h3>5. 健康检查上线 <span class="status">verified</span></h3>
-            <p>Render 构建镜像、应用环境变量、启动容器。探测 /api/v1/readyz 返回 200 后标记 live 并路由流量。健康检查失败时 Render 自动回滚到上一个稳定版本。</p>
+            <p>Render 构建镜像、应用环境变量、启动容器。探测 <code>/api/v1/healthz</code> 返回 200 后标记 live 并路由流量。数据库、Redis、Qdrant 与 Worker 的严格依赖检查仍保留在 <code>/api/v1/readyz</code>，不再占用平台五秒存活超时。</p>
             <div class="flow">
-              <div class="node"><b>健康检查</b><small>/api/v1/readyz<br/>HTTP 200 = live</small></div>
+              <div class="node"><b>健康检查</b><small>/api/v1/healthz<br/>HTTP 200 = live</small></div>
               <div class="node"><b>环境变量</b><small>48 个 envVarGroup<br/>+ 3 个服务级覆盖</small></div>
               <div class="node"><b>启动命令</b><small>python -m<br/>researchmate_worker<br/>.render_combined</small></div>
             </div>
@@ -356,7 +356,7 @@ npm run check:lint
             </div>
             <div class="arch-column">
               <span>Backend deploy</span>
-              <button class="arch-node" data-title="Render Free service" data-detail="Docker 运行时，Oregon 区域，checksPass 自动部署，healthCheckPath /api/v1/readyz。dockerCommand 启动合并 API+worker 进程。"><b>Render (Free)</b><small>合并 API + worker</small></button>
+              <button class="arch-node" data-title="Render Free service" data-detail="Docker 运行时，Oregon 区域，checksPass 自动部署，healthCheckPath /api/v1/healthz。dockerCommand 启动合并 API+worker 进程；/readyz 保留为运维依赖探测。"><b>Render (Free)</b><small>合并 API + worker</small></button>
             </div>
             <div class="arch-column">
               <span>Frontend deploy</span>
@@ -435,7 +435,7 @@ else exec python -m celery -A researchmate_worker.celery_app:celery_app worker -
           <dt>dockerCommand</dt>
           <dd><p><code>python -m researchmate_worker.render_combined</code> 覆盖 Dockerfile CMD,启动由 Render 管理的合并 API-plus-worker 进程。</p></dd>
           <dt>healthCheckPath</dt>
-          <dd><p><code>/api/v1/readyz</code>。Render 探测此路径以在路由流量之前确定服务就绪状态。</p></dd>
+          <dd><p><code>/api/v1/healthz</code>。Render 在路由流量前探测此常量时间存活路径；<code>/api/v1/readyz</code> 保留为数据库、Redis、Qdrant 与 Worker 的严格运维就绪端点。</p></dd>
           <dt>autoDeployTrigger</dt>
           <dd><p><code>checksPass</code>。Render 仅在 main 分支上的 GitHub Actions 检查报告成功后部署,在 CI 绿灯与生产部署之间建立硬依赖。</p></dd>
           <dt>buildFilter</dt>

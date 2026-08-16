@@ -70,7 +70,7 @@
           <article class="fact"><b>CI/CD</b><p>Continuous Integration / Continuous Deployment is the practice of automatically testing, building, scanning, and deploying every code change through a reproducible pipeline. ResearchMate treats CI as the single source of truth for release readiness: no commit reaches production unless all five gate jobs pass and the ci-success aggregator confirms every result equals success.</p></article>
           <article class="fact"><b>GitHub Actions</b><p>Workflow automation platform triggered on push to main or develop and on every pull request. The researchmate-ci workflow uses a concurrency group with cancel-in-progress to kill stale runs, pins every action to a major version, and runs five jobs with explicit timeout-minutes ranging from 20 to 35 minutes. The ci-success job uses if: always() with needs to aggregate all four quality gates.</p></article>
           <article class="fact"><b>Docker</b><p>The repository keeps one multi-stage Dockerfile because Render runs API, worker, and dispatcher from the same image. It uses a pinned uv stage and <code>python:3.13-slim</code>, installs the locked workspace and native parser libraries, preloads Docling models, removes build tooling, and runs as uid 10001. CI lints, builds, and scans this deployment artifact.</p></article>
-          <article class="fact"><b>Render</b><p>Cloud deployment platform hosting the combined backend-plus-worker service as a single Free-tier Docker web service in the Oregon region. render.yaml declares one envVarGroups block with 48 entries (37 with values, 11 sync:false secrets), an autoDeployTrigger of checksPass, and a buildFilter that limits rebuilds to relevant path patterns. The healthCheckPath /api/v1/readyz confirms runtime readiness.</p></article>
+          <article class="fact"><b>Render</b><p>Cloud deployment platform hosting the combined backend-plus-worker service as a single Free-tier Docker web service in the Oregon region. render.yaml declares one envVarGroups block with 48 entries (37 with values, 11 sync:false secrets), an autoDeployTrigger of checksPass, and a buildFilter that limits rebuilds to relevant path patterns. Render probes the constant-time <code>/api/v1/healthz</code> liveness route; operators retain <code>/api/v1/readyz</code> for dependency readiness.</p></article>
           <article class="fact"><b>Vercel</b><p>Frontend deployment platform for the Next.js 16.3.0 web application in apps/web. Vercel builds and serves the production frontend independently from the backend. CORS_ALLOWED_ORIGINS in render.yaml is set to the Vercel origin so the API accepts browser requests from the deployed frontend.</p></article>
           <article class="fact"><b>uv</b><p>Python package manager and project manager by Astral, pinned to version 0.12.1 in CI and the deployment Dockerfile. uv resolves the monorepo workspace (apps/api + workers/ai-worker), installs locked dependencies via uv.lock with the --frozen flag, and supports --all-packages for installing every workspace member in one command. The setup-uv action enables caching in CI for faster runs.</p></article>
           <article class="fact"><b>npm workspaces</b><p>JavaScript monorepo management with npm 11.6.0 declared via packageManager in the root package.json. The workspaces array includes apps/web. CI runs npm install --no-audit --no-fund to install the full workspace tree, and the package-lock.json lockfile guarantees reproducible JavaScript dependency resolution across local and CI environments.</p></article>
@@ -91,7 +91,7 @@
           <div class="coverage-item"><b>5. container-quality</b><small>ready — hadolint + Trivy</small></div>
           <div class="coverage-item"><b>6. ci-success</b><small>verified — aggregation gate</small></div>
           <div class="coverage-item"><b>7. Render deploy</b><small>executed — checksPass elevation</small></div>
-          <div class="coverage-item"><b>8. Health check live</b><small>verified — /api/v1/readyz</small></div>
+          <div class="coverage-item"><b>8. Health check live</b><small>verified — /api/v1/healthz</small></div>
         </div>
 
         <!-- Vertical timeline -->
@@ -161,9 +161,9 @@
 
           <div class="event">
             <h3>5. Health check live <span class="status">verified</span></h3>
-            <p>Render builds the image, applies environment variables, and starts the container. After /api/v1/readyz returns 200, the service is marked live and routes traffic. If the health check fails, Render automatically rolls back to the last stable version.</p>
+            <p>Render builds the image, applies environment variables, and starts the container. After <code>/api/v1/healthz</code> returns 200, the service is marked live and routes traffic. Dependency readiness remains observable at <code>/api/v1/readyz</code> without placing database, Redis, and Qdrant probes on the five-second platform liveness deadline.</p>
             <div class="flow">
-              <div class="node"><b>Health check</b><small>/api/v1/readyz<br/>HTTP 200 = live</small></div>
+              <div class="node"><b>Health check</b><small>/api/v1/healthz<br/>HTTP 200 = live</small></div>
               <div class="node"><b>Env vars</b><small>48 envVarGroup entries<br/>+ 3 service-level overrides</small></div>
               <div class="node"><b>Start command</b><small>python -m<br/>researchmate_worker<br/>.render_combined</small></div>
             </div>
@@ -356,7 +356,7 @@ npm run check:lint
             </div>
             <div class="arch-column">
               <span>Backend deploy</span>
-              <button class="arch-node" data-title="Render Free service" data-detail="Docker runtime, Oregon region, checksPass auto-deploy, healthCheckPath /api/v1/readyz. dockerCommand starts the merged API+worker process."><b>Render (Free)</b><small>Merged API + worker</small></button>
+              <button class="arch-node" data-title="Render Free service" data-detail="Docker runtime, Oregon region, checksPass auto-deploy, healthCheckPath /api/v1/healthz. dockerCommand starts the merged API+worker process; /readyz remains the operator dependency probe."><b>Render (Free)</b><small>Merged API + worker</small></button>
             </div>
             <div class="arch-column">
               <span>Frontend deploy</span>
@@ -449,7 +449,7 @@ else exec python -m celery -A researchmate_worker.celery_app:celery_app worker -
           <dt>dockerCommand</dt>
           <dd><p><code>python -m researchmate_worker.render_combined</code> overrides the Dockerfile CMD, launching the combined API-plus-worker process managed by Render.</p></dd>
           <dt>healthCheckPath</dt>
-          <dd><p><code>/api/v1/readyz</code>. Render probes this path to determine service readiness before routing traffic.</p></dd>
+          <dd><p><code>/api/v1/healthz</code>. Render probes this constant-time liveness path before routing traffic. <code>/api/v1/readyz</code> remains the stricter operator endpoint for database, Redis, Qdrant, and worker readiness.</p></dd>
           <dt>autoDeployTrigger</dt>
           <dd><p><code>checksPass</code>. Render deploys only after GitHub Actions checks on the main branch report success, creating a hard dependency between CI green and production deploy.</p></dd>
           <dt>buildFilter</dt>
