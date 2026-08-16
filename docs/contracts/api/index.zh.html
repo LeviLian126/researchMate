@@ -202,7 +202,7 @@
       <dt>调用方 / 访问</dt><dd>项目拥有者。</dd>
       <dt>输入</dt><dd>JSON <a href="#schema-upload"><code>UploadUrlRequest</code></a>：项目、文件名、支持的文件类型和 MIME 类型，以及字节大小。</dd>
       <dt>成功</dt><dd>200 <a href="#schema-upload"><code>UploadUrlResponse</code></a>，包含文档 ID、上传 URL、对象键和过期时间。</dd>
-      <dt>故障 / 语义</dt><dd>404 项目；422 无效类型、MIME 或大小；认证失败。内存仓库返回本地占位符。Postgres 仓库返回同源、带认证的 API 代理 URL，浏览器无需直接访问私有 S3 兼容存储。认证生产环境的预留和上传流程通过合成 PDF 测试。不接受幂等键。</dd>
+      <dt>故障 / 语义</dt><dd>404 项目；422 无效类型、MIME 或大小；认证失败。内存仓库返回本地占位符。Postgres 仓库返回预签 S3 URL，浏览器直接上传到对象存储，绕过企业/ISP 代理对同源 PUT 的拦截。需为前端来源配置 Bucket CORS。不接受幂等键。</dd>
       <dt>证据</dt><dd><span class="source">routers/documents.py · schemas/document.py · persistence/postgres.py · services/object_storage.py</span></dd>
      </dl></details>
      <details id="op-upload-content" data-api-card data-api="documents" data-method="PUT" data-access="owner"><summary><code>PUT /api/v1/documents/{document_id}/content</code> — 将预留内容流式写入私有存储</summary><dl class="kv">

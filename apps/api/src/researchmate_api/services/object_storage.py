@@ -249,6 +249,7 @@ class S3CompatibleObjectStorage:
         self.bucket = bucket
         if client is None:
             import boto3
+            from botocore.config import Config
 
             client = boto3.client(
                 "s3",
@@ -256,6 +257,11 @@ class S3CompatibleObjectStorage:
                 region_name=settings.object_storage_region,
                 aws_access_key_id=access_key_id.get_secret_value(),
                 aws_secret_access_key=secret_access_key.get_secret_value(),
+                config=Config(
+                    connect_timeout=30,
+                    read_timeout=120,
+                    retries={"max_attempts": 3},
+                ),
             )
         self.client = client
 

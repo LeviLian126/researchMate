@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 from uuid import UUID
 
+from celery.exceptions import SoftTimeLimitExceeded
 from langchain_core.runnables import RunnableConfig
 from researchmate_api.services.evidence_generation import EvidenceGenerationError
 from researchmate_api.services.llm import ProviderRequestError
@@ -195,6 +196,9 @@ def ingest_document(self, event: dict[str, str]) -> str:
         raise
     try:
         return service.handle(payload, worker_id=worker_id)
+    except SoftTimeLimitExceeded:
+        _mark_job_bootstrap_failed(settings, payload.job_id, "INGESTION_TIMEOUT")
+        raise
     except IngestionFailure as exc:
         if exc.retryable:
             countdown = min(300, 2 ** min(int(self.request.retries) + 1, 8))

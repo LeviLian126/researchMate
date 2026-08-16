@@ -7,6 +7,7 @@ from hashlib import sha256
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+from celery.exceptions import SoftTimeLimitExceeded
 from researchmate_api.services.object_storage import ObjectStorageRequestError
 from researchmate_api.services.qdrant_store import VectorStoreRequestError
 from researchmate_api.services.retrieval import estimate_tokens
@@ -69,17 +70,43 @@ class DocumentIngestionService:
         try:
             with TemporaryDirectory(prefix="researchmate-ingest-") as directory:
                 source = Path(directory) / f"source.{record.file_type}"
+                LOGGER.info(
+                    "ingestion_download_started document_id=%s file_type=%s",
+                    record.document_id,
+                    record.file_type,
+                )
                 self.object_reader.download_to_file(record.r2_object_key, source)
+                LOGGER.info(
+                    "ingestion_download_completed document_id=%s size_bytes=%s",
+                    record.document_id,
+                    source.stat().st_size,
+                )
                 if source.stat().st_size > self.max_upload_bytes:
                     raise IngestionFailure("DOCUMENT_TOO_LARGE", retryable=False)
                 actual_checksum = sha256(source.read_bytes()).hexdigest()
                 if record.checksum_sha256 and actual_checksum != record.checksum_sha256:
                     raise IngestionFailure("CHECKSUM_MISMATCH", retryable=False)
+                LOGGER.info(
+                    "ingestion_parse_started document_id=%s file_type=%s",
+                    record.document_id,
+                    record.file_type,
+                )
                 blocks = self.parser.parse(source, file_type=record.file_type)
+                LOGGER.info(
+                    "ingestion_parse_completed document_id=%s block_count=%s",
+                    record.document_id,
+                    len(blocks),
+                )
             pages, chunks = build_projections(
                 record,
                 blocks,
                 pipeline_version=self.pipeline_version,
+            )
+            LOGGER.info(
+                "ingestion_projections_built document_id=%s pages=%s chunks=%s",
+                record.document_id,
+                len(pages),
+                len(chunks),
             )
             if not pages or not chunks:
                 raise IngestionFailure("NO_EXTRACTABLE_TEXT", retryable=False)
@@ -97,13 +124,26 @@ class DocumentIngestionService:
                 if self.wiki_compiler is not None:
                     chunks = self._compile_wiki(chunks, record)
             else:
+                LOGGER.info(
+                    "ingestion_embedding_started document_id=%s chunk_count=%s",
+                    record.document_id,
+                    len(chunks),
+                )
                 self.vector_projection.upsert_chunks(chunks, pipeline_version=self.pipeline_version)
+                LOGGER.info(
+                    "ingestion_embedding_completed document_id=%s",
+                    record.document_id,
+                )
                 for chunk in chunks:
                     chunk.has_vector = True
                 if self.wiki_compiler is not None:
                     overview_chunks = self._compile_overview_wiki(chunks, record)
                     chunks = chunks + overview_chunks
 
+            LOGGER.info(
+                "ingestion_persist_started document_id=%s",
+                record.document_id,
+            )
             self.store.replace_content(
                 record,
                 worker_id=worker_id,
@@ -125,6 +165,9 @@ class DocumentIngestionService:
         except IngestionFailure as exc:
             self._record_failure(record, worker_id, exc.code, exc.retryable)
             raise
+        except SoftTimeLimitExceeded as exc:
+            self._record_failure(record, worker_id, "INGESTION_TIMEOUT", True)
+            raise IngestionFailure("INGESTION_TIMEOUT", retryable=True) from exc
         except Exception as exc:
             self._record_failure(record, worker_id, "INGESTION_INTERNAL_ERROR", False)
             raise IngestionFailure("INGESTION_INTERNAL_ERROR", retryable=False) from exc

@@ -161,9 +161,9 @@
             <p>正在围绕 <code>build_llm_chat_answer</code> 路径设计服务端 prompt 注入检测器，使不可信的文件和对话内容无法覆盖系统指令。该防护将在有界模型调用前拒绝、脱敏或上报被注入的载荷。实现和红队测试集仍待完成。</p>
           </article>
           <article class="state-card">
-            <span class="status planned">文件内容校验 · 已计划</span>
+            <span class="status local">预签 S3 上传 · 已修复</span>
             <b>安全加固 · 上传安全</b>
-            <p>上传契约对 42 种有解析器支持的格式同时绑定文件扩展名与 MIME。上传边界必须具备 <code>python-magic</code>；OOXML 包还必须证明内容类型、根关系和核心 XML 身份。本地格式与解析器测试通过，发布证明仍需执行迁移 <code>202608110008</code> 并完成代表性托管存储上传。</p>
+            <p>上传契约对 42 种有解析器支持的格式同时绑定文件扩展名与 MIME。上传边界必须具备 <code>python-magic</code>；OOXML 包还必须证明内容类型、根关系和核心 XML 身份。浏览器上传现使用预签 S3 URL，绕过企业/ISP 代理对同源 PUT 的拦截（大文件返回 502）。附带 CORS 配置脚本（<code>scripts/configure_storage_cors.py</code>）。boto3 S3 客户端现具有连接/读取超时，防止摄取期间无限挂起。</p>
           </article>
         </div>
 

@@ -161,9 +161,9 @@
             <p>A server-side prompt-injection detector is being designed around the <code>build_llm_chat_answer</code> path so untrusted file and chat content cannot override system instructions. The guard will reject, redact, or escalate injected payloads before the bounded model call. Implementation and a red-team test set remain pending.</p>
           </article>
           <article class="state-card">
-            <span class="status planned">File content validation · planned</span>
+            <span class="status local">Presigned S3 upload · fixed</span>
             <b>Security Hardening · Upload safety</b>
-            <p>The upload contract binds filename extension and MIME across 42 parser-backed formats. Server-side <code>python-magic</code> is required at the upload boundary, and OOXML packages must prove their content type, root relationship, and core XML identity. Local format and parser tests pass; migration <code>202608110008</code> and representative managed-storage uploads remain the release proof.</p>
+            <p>The upload contract binds filename extension and MIME across 42 parser-backed formats. Server-side <code>python-magic</code> is required at the upload boundary, and OOXML packages must prove their content type, root relationship, and core XML identity. Browser uploads now use presigned S3 URLs to bypass corporate/ISP proxies that intercepted same-origin PUTs and returned 502 for large files. A CORS configuration script (<code>scripts/configure_storage_cors.py</code>) is included. boto3 S3 client now has connect/read timeouts to prevent indefinite hangs during ingestion.</p>
           </article>
         </div>
 

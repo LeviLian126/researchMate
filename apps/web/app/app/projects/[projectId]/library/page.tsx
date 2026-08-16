@@ -45,6 +45,7 @@ export default function LibraryPage() {
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [deleteConfirmationId, setDeleteConfirmationId] = useState<string | null>(null);
   const mounted = useRef(true);
@@ -55,8 +56,8 @@ export default function LibraryPage() {
   );
 
   /** Reloads the canonical document list and exposes recoverable failures to the user. */
-  async function loadDocuments() {
-    setLoading(true);
+  async function loadDocuments(showLoading = false) {
+    if (showLoading) setLoading(true);
     try {
       setDocuments(await apiFetch<DocumentRecord[]>(`/projects/${projectId}/documents`));
       setError(null);
@@ -64,12 +65,13 @@ export default function LibraryPage() {
       setError(err instanceof Error ? err.message : "Documents could not be loaded.");
     } finally {
       setLoading(false);
+      setIsInitialLoad(false);
     }
   }
 
   useEffect(() => {
     mounted.current = true;
-    void loadDocuments();
+    void loadDocuments(true);
     return () => { mounted.current = false; };
   }, [projectId]);
 
@@ -77,7 +79,7 @@ export default function LibraryPage() {
     if (!documents.some((document) => ["uploaded", "parsing", "parsed", "indexing"].includes(document.status))) {
       return;
     }
-    const timer = window.setInterval(() => void loadDocuments(), 2_000);
+    const timer = window.setInterval(() => void loadDocuments(false), 2_000);
     return () => window.clearInterval(timer);
   }, [documents]);
 
