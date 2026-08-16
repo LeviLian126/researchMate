@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from decimal import Decimal
 from types import SimpleNamespace
 
 import pytest
@@ -49,6 +50,13 @@ def test_worker_wiki_compilation_timeout_is_shorter_than_general_llm_timeout() -
 
     assert settings.wiki_compilation_timeout_seconds == 30.0
     assert settings.wiki_compilation_timeout_seconds < settings.llm_timeout_seconds
+
+
+def test_worker_workflow_budget_supports_the_full_six_node_graph() -> None:
+    """Allow the default budget to cover planning, fan-out, synthesis, and validation."""
+    settings = tasks.WorkerSettings(app_env="test")
+
+    assert settings.workflow_call_budget_reservation_usd == Decimal("0.100000")
 
 
 def test_worker_settings_construct_every_shared_provider_adapter() -> None:

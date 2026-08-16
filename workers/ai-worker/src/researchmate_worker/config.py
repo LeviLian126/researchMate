@@ -43,7 +43,7 @@ class WorkerSettings(BaseSettings):
     parser_pipeline_version: str = "resource-aware-v4"
     workflow_pipeline_version: str = "evidence-v1"
     workflow_lease_seconds: int = Field(default=900, ge=120, le=1800)
-    workflow_call_budget_reservation_usd: Decimal = Field(default=Decimal("0.250000"), gt=0, le=5)
+    workflow_call_budget_reservation_usd: Decimal = Field(default=Decimal("0.100000"), gt=0, le=5)
     workflow_max_prompt_tokens: int = Field(default=32768, ge=1024, le=131072)
     langgraph_strict_msgpack: bool = True
     parser_max_pages: int = Field(default=300, ge=1, le=1000)
