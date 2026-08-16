@@ -169,6 +169,11 @@ class DocumentIngestionService:
             self._record_failure(record, worker_id, "INGESTION_TIMEOUT", True)
             raise IngestionFailure("INGESTION_TIMEOUT", retryable=True) from exc
         except Exception as exc:
+            LOGGER.exception(
+                "ingestion_unexpected_error document_id=%s error=%s",
+                record.document_id,
+                type(exc).__name__,
+            )
             self._record_failure(record, worker_id, "INGESTION_INTERNAL_ERROR", False)
             raise IngestionFailure("INGESTION_INTERNAL_ERROR", retryable=False) from exc
 
