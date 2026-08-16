@@ -489,20 +489,16 @@ def build_repository(
         storage = object_storage or S3CompatibleObjectStorage(settings)
 
         def _upload_url_factory(
-            _document_id: UUID, object_key: str, payload: UploadUrlRequest
+            document_id: UUID, object_key: str, payload: UploadUrlRequest
         ) -> str:
-            """Return a presigned S3 URL for direct browser-to-storage upload.
+            """Route browser uploads through the authenticated same-origin API boundary.
 
-            Direct presigned URLs bypass corporate/ISP proxies that intercept
-            same-origin PUT requests to the frontend host and return 502 for
-            large bodies. The browser uploads to *.supabase.co directly; the
-            complete endpoint verifies the object afterward.
+            The frontend PUTs to `/api/v1/documents/{document_id}/content`, which
+            the backend proxies to the S3-compatible storage. This avoids exposing
+            presigned URLs to the browser but requires the Vercel rewrite to handle
+            large PUT bodies.
             """
-            return storage.presign_upload(
-                object_key,
-                content_type=payload.mime_type,
-                expires_in_seconds=600,
-            )
+            return f"/api/v1/documents/{document_id}/content"
 
         def _object_metadata_reader(
             object_key: str, *, declared_mime_type: str | None = None

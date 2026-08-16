@@ -205,7 +205,7 @@
       <dt>Caller / access</dt><dd>Project owner.</dd>
       <dt>Input</dt><dd>JSON <a href="#schema-upload"><code>UploadUrlRequest</code></a>: project, filename, supported file type and MIME type, and byte size.</dd>
       <dt>Success</dt><dd>200 <a href="#schema-upload"><code>UploadUrlResponse</code></a> with document ID, upload URL, object key, and expiry.</dd>
-      <dt>Failure / semantics</dt><dd>404 project; 422 invalid type, MIME, or size; auth failures. The memory repository returns a local placeholder. The Postgres repository returns a presigned S3 URL so the browser uploads directly to object storage, bypassing corporate/ISP proxies that intercept same-origin PUTs. Bucket CORS must be configured for the frontend origin. No idempotency key is accepted.</dd>
+      <dt>Failure / semantics</dt><dd>404 project; 422 invalid type, MIME, or size; auth failures. The memory repository returns a local placeholder. The Postgres repository returns an authenticated same-origin proxy URL so browser behavior does not depend on provider CORS. No idempotency key is accepted.</dd>
       <dt>Evidence</dt><dd><span class="source">routers/documents.py · schemas/document.py · persistence/postgres.py · services/object_storage.py</span></dd>
      </dl></details>
      <details id="op-upload-content" data-api-card data-api="documents" data-method="PUT" data-access="owner"><summary><code>PUT /api/v1/documents/{document_id}/content</code> — stream reserved content to private storage</summary><dl class="kv">
