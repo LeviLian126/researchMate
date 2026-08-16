@@ -33,11 +33,9 @@ create trigger set_updated_at_trigger before update on answer_feedback
 
 alter table answer_feedback enable row level security;
 
-drop policy if exists answer_feedback_owner_select on answer_feedback;
 create policy answer_feedback_owner_select on answer_feedback
   for select using (auth.uid() = user_id);
 
-drop policy if exists answer_feedback_owner_insert on answer_feedback;
 create policy answer_feedback_owner_insert on answer_feedback
   for insert with check (
     auth.uid() = user_id
@@ -50,7 +48,6 @@ create policy answer_feedback_owner_insert on answer_feedback
     )
   );
 
-drop policy if exists answer_feedback_owner_update on answer_feedback;
 create policy answer_feedback_owner_update on answer_feedback
   for update using (auth.uid() = user_id)
   with check (
@@ -64,7 +61,6 @@ create policy answer_feedback_owner_update on answer_feedback
     )
   );
 
-drop policy if exists answer_feedback_owner_delete on answer_feedback;
 create policy answer_feedback_owner_delete on answer_feedback
   for delete using (auth.uid() = user_id);
 
