@@ -3,19 +3,22 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping
 from typing import Literal
 
 from pydantic import BaseModel, Field, ValidationError
 
 from researchmate_api.schemas.common import MAX_EVIDENCE_TEXT_LENGTH
-from researchmate_api.services.llm import ChatProvider
+from researchmate_api.services.llm import ChatProvider, LLMResult
 from researchmate_api.services.store import ChunkEntry
+
+STRUCTURED_OUTPUT_MAX_ATTEMPTS = 2
 
 
 class ResearchPlan(BaseModel):
     """Represent bounded, non-overlapping research questions."""
 
-    questions: list[str] = Field(min_length=2, max_length=8)
+    questions: list[str] = Field(min_length=2, max_length=4)
 
 
 class ExtractedClaim(BaseModel):
@@ -77,21 +80,41 @@ def _json_object(content: str) -> str:
     return content[start : end + 1]
 
 
-def _complete_json(provider: ChatProvider, system: str, payload: dict, schema):
+def _complete_json[SchemaT: BaseModel](
+    provider: ChatProvider,
+    system: str,
+    payload: Mapping[str, object],
+    schema: type[SchemaT],
+) -> tuple[SchemaT, LLMResult]:
     """Request structured evidence output and validate it against a schema."""
-    result = provider.complete(
-        [
-            {"role": "system", "content": system},
-            {
-                "role": "user",
-                "content": json.dumps(payload, ensure_ascii=False, separators=(",", ":")),
-            },
-        ]
-    )
-    try:
-        return schema.model_validate_json(_json_object(result.content)), result
-    except ValidationError as exc:
-        raise EvidenceGenerationError("provider output failed the required schema") from exc
+    schema_json = json.dumps(schema.model_json_schema(), ensure_ascii=False, separators=(",", ":"))
+    last_error: EvidenceGenerationError | ValidationError | None = None
+    for attempt in range(STRUCTURED_OUTPUT_MAX_ATTEMPTS):
+        retry_instruction = (
+            " The previous response failed validation. Correct the JSON shape and values."
+            if attempt
+            else ""
+        )
+        result = provider.complete(
+            [
+                {
+                    "role": "system",
+                    "content": (
+                        f"{system} Return only one JSON object matching this JSON Schema: "
+                        f"{schema_json}.{retry_instruction}"
+                    ),
+                },
+                {
+                    "role": "user",
+                    "content": json.dumps(payload, ensure_ascii=False, separators=(",", ":")),
+                },
+            ]
+        )
+        try:
+            return schema.model_validate_json(_json_object(result.content)), result
+        except (EvidenceGenerationError, ValidationError) as exc:
+            last_error = exc
+    raise EvidenceGenerationError("provider output failed the required schema") from last_error
 
 
 def build_research_plan(provider: ChatProvider, research_goal: str) -> ResearchPlan:
@@ -99,7 +122,7 @@ def build_research_plan(provider: ChatProvider, research_goal: str) -> ResearchP
     plan, _ = _complete_json(
         provider,
         (
-            "Decompose the research goal into 2-8 non-overlapping evidence questions. "
+            "Decompose the research goal into 2-4 non-overlapping evidence questions. "
             "Return only JSON with a questions array. Do not answer the questions."
         ),
         {"research_goal": research_goal},

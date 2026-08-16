@@ -108,6 +108,29 @@ def test_claim_extraction_rejects_unknown_evidence_ids() -> None:
         extract_claims(provider, "question", [chunk()])
 
 
+def test_claim_extraction_retries_schema_invalid_provider_json() -> None:
+    """Recover one bounded provider-format drift without failing the workflow."""
+    provider = FakeProvider(
+        [
+            {"claims": [{"text": "missing required fields"}]},
+            {
+                "claims": [
+                    {
+                        "text": "A is supported.",
+                        "stance": "supports",
+                        "confidence": 0.9,
+                        "evidence_ids": [1],
+                    }
+                ]
+            },
+        ]
+    )
+
+    claims = extract_claims(provider, "question", [chunk()])
+
+    assert claims.claims[0].text == "A is supported."
+
+
 def test_reconciliation_rejects_self_edges() -> None:
     """Reject provider relations that point a claim to itself."""
     claim = SimpleNamespace(text="A", stance="neutral")
