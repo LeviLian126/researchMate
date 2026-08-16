@@ -225,6 +225,7 @@ def test_retrieve_extracts_claims_from_owned_chunks(monkeypatch) -> None:
         text="Measured result.",
         page_no=3,
     )
+    chunk.source_type = "local_doc"
     monkeypatch.setattr(domain, "_load_chunks", lambda *_args: [chunk])
     monkeypatch.setattr(domain, "_node_started", lambda *_args: None)
     monkeypatch.setattr(domain, "_node_completed", lambda *_args: None)
@@ -249,6 +250,7 @@ def test_retrieve_extracts_claims_from_owned_chunks(monkeypatch) -> None:
 
     batch = result["evidence_batches"][0]
     assert batch["chunks"][0]["page_no"] == 3
+    assert batch["chunks"][0]["source_type"] == "local_doc"
     assert batch["claims"][0]["chunk_ids"] == [str(CHUNK_ID)]
     assert vector_store.calls[0]["document_ids"] is None
 

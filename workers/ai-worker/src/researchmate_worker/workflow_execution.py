@@ -131,7 +131,11 @@ class WorkflowExecutionMixin:
             {
                 "id": str(chunk.id),
                 "document_id": str(chunk.document_id) if chunk.document_id else None,
-                "source_type": chunk.source_type.value,
+                "source_type": (
+                    chunk.source_type.value
+                    if isinstance(chunk.source_type, SourceType)
+                    else str(chunk.source_type)
+                ),
                 "source_title": chunk.source_title,
                 "text": chunk.text,
                 "page_no": chunk.page_no,
