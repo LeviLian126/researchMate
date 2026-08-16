@@ -5223,11 +5223,25 @@ components:
           type: string
           format: uuid
           title: Case Id
+        evaluation_run_id:
+          type: string
+          format: uuid
+          title: Evaluation Run Id
+        evaluation_status:
+          type: string
+          const: pending
+          title: Evaluation Status
+          default: pending
+        evaluation_status_url:
+          type: string
+          title: Evaluation Status Url
       type: object
       required:
       - dataset_id
       - dataset_version
       - case_id
+      - evaluation_run_id
+      - evaluation_status_url
       title: FeedbackPromotionResult
       description: Return the immutable evaluation dataset version created by promotion.
     HumanDecisionAccepted:

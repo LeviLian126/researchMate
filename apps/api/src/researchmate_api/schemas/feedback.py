@@ -127,3 +127,6 @@ class FeedbackPromotionResult(BaseModel):
     dataset_version: int = Field(ge=1)
     dataset_status: Literal["frozen"] = "frozen"
     case_id: UUID
+    evaluation_run_id: UUID
+    evaluation_status: Literal["pending"] = "pending"
+    evaluation_status_url: str

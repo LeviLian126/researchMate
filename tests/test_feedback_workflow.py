@@ -60,10 +60,10 @@ def test_user_can_rate_owned_answer_and_reload_feedback_state(client: TestClient
     assert assistant["feedback_rating"] == "not_helpful"
 
 
-def test_developer_promotes_reviewed_feedback_to_new_frozen_dataset_version(
+def test_developer_promotes_feedback_and_automatically_starts_regression_run(
     client: TestClient,
 ) -> None:
-    """Create an immutable regression-set version from explicit reviewed evidence."""
+    """Freeze reviewed evidence and automatically enqueue its regression evaluation."""
     project_id, answer = _grounded_answer(client)
     created = client.put(
         f"/api/v1/answer-feedback/{answer['run_id']}",
@@ -95,6 +95,19 @@ def test_developer_promotes_reviewed_feedback_to_new_frozen_dataset_version(
     result = promoted.json()
     assert result["dataset_version"] == 1
     assert result["dataset_status"] == "frozen"
+    assert result["evaluation_status"] == "pending"
+    evaluation = client.get(result["evaluation_status_url"], headers=HEADERS)
+    assert evaluation.status_code == 200
+    evaluation_result = evaluation.json()
+    assert evaluation_result["evaluation_run_id"] == result["evaluation_run_id"]
+    assert evaluation_result["dataset_id"] == result["dataset_id"]
+    assert evaluation_result["status"] == "pending"
+    assert evaluation_result["summary"]["case_count"] == 1
+    assert evaluation_result["summary"]["metrics"] == [
+        "evidence_recall",
+        "citation_precision",
+        "faithfulness",
+    ]
     assert (
         client.post(
             f"/api/v1/answer-feedback/{created['feedback_id']}/promote",

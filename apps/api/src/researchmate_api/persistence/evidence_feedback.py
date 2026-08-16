@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from decimal import Decimal
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
@@ -24,6 +25,13 @@ from researchmate_api.schemas.feedback import (
 from researchmate_api.services.evidence_faults import EvidenceStoreError
 
 FEEDBACK_DATASET_NAME = "Answer feedback regressions"
+FEEDBACK_EVALUATION_BUDGET_USD = Decimal("1.000000")
+FEEDBACK_EVALUATION_PARALLELISM = 4
+FEEDBACK_EVALUATION_METRICS = (
+    "evidence_recall",
+    "citation_precision",
+    "faithfulness",
+)
 
 
 def _normalize_feedback_evidence(value: object) -> list[FeedbackEvidence]:
@@ -80,6 +88,7 @@ class PostgresEvidenceFeedbackMixin:
         from contextlib import AbstractContextManager
 
         _transaction: Callable[..., AbstractContextManager[Connection]]
+        _append_outbox: Callable[..., None]
 
     def upsert_answer_feedback(
         self, user: CurrentUser, ask_run_id: UUID, payload: AnswerFeedbackUpsert
@@ -301,6 +310,65 @@ class PostgresEvidenceFeedbackMixin:
                 text("update evaluation_datasets set status='frozen' where id=:id"),
                 {"id": dataset_id},
             )
+            pipeline_version_id = connection.execute(
+                text(
+                    """
+                    select id from pipeline_versions where status='accepted'
+                    order by accepted_at desc nulls last,created_at desc limit 1
+                    """
+                )
+            ).scalar_one_or_none()
+            if pipeline_version_id is None:
+                raise EvidenceStoreError("PIPELINE_NOT_ACCEPTED")
+            case_count = int(
+                connection.execute(
+                    text("select count(*) from evaluation_cases where dataset_id=:id"),
+                    {"id": dataset_id},
+                ).scalar_one()
+            )
+            evaluation_run_id = uuid4()
+            evaluation_summary = {
+                "case_count": case_count,
+                "metrics": FEEDBACK_EVALUATION_METRICS,
+                "max_parallelism": FEEDBACK_EVALUATION_PARALLELISM,
+                "max_cost_usd": str(FEEDBACK_EVALUATION_BUDGET_USD),
+                "labels": ["feedback-regression", f"dataset-v{version}"],
+                "trigger": "feedback_promotion",
+            }
+            connection.execute(
+                text(
+                    """
+                    insert into evaluation_runs (
+                      id,user_id,project_id,dataset_id,pipeline_version_id,status,
+                      idempotency_key,summary,budget_limit_usd
+                    ) values (
+                      :id,:user_id,:project_id,:dataset_id,:pipeline_id,'pending',:key,
+                      cast(:summary as jsonb),:budget_limit
+                    )
+                    """
+                ),
+                {
+                    "id": evaluation_run_id,
+                    "user_id": user.id,
+                    "project_id": record.project_id,
+                    "dataset_id": dataset_id,
+                    "pipeline_id": pipeline_version_id,
+                    "key": f"feedback-promotion:{dataset_id}:evaluation:v1",
+                    "summary": _json(evaluation_summary),
+                    "budget_limit": FEEDBACK_EVALUATION_BUDGET_USD,
+                },
+            )
+            self._append_outbox(
+                connection,
+                aggregate_type="evaluation_run",
+                aggregate_id=evaluation_run_id,
+                event_type="evaluation.run.requested",
+                payload={
+                    "evaluation_run_id": str(evaluation_run_id),
+                    "user_id": str(user.id),
+                },
+                idempotency_key=f"evaluation:{evaluation_run_id}:start:v1",
+            )
             connection.execute(
                 text(
                     """
@@ -314,4 +382,6 @@ class PostgresEvidenceFeedbackMixin:
             dataset_id=dataset_id,
             dataset_version=version,
             case_id=case_id,
+            evaluation_run_id=evaluation_run_id,
+            evaluation_status_url=f"/api/v1/evaluation-runs/{evaluation_run_id}",
         )

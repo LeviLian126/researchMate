@@ -44,6 +44,10 @@ class SequentialResult:
         """Return one required scalar."""
         return self.value
 
+    def scalar_one_or_none(self) -> Any:  # boundary: opaque test double
+        """Return one optional scalar."""
+        return self.value
+
     def all(self) -> list[Any]:
         """Return a configured row collection."""
         return self.value or []
@@ -135,6 +139,72 @@ def test_get_run_returns_none_for_concealed_resource() -> None:
     assert repository.get_run(CurrentUser(id=USER_ID), RUN_ID) is None
 
 
+def test_feedback_promotion_enqueues_historical_regression_evaluation() -> None:
+    """Freeze the next dataset and enqueue its evaluation in one transaction."""
+    from researchmate_api.schemas.feedback import FeedbackPromotionCreate
+
+    feedback_id = UUID("00000000-0000-4000-8000-000000000305")
+    ask_run_id = UUID("00000000-0000-4000-8000-000000000306")
+    conversation_id = UUID("00000000-0000-4000-8000-000000000307")
+    chunk_id = UUID("00000000-0000-4000-8000-000000000308")
+    feedback_row = {
+        "id": feedback_id,
+        "ask_run_id": ask_run_id,
+        "project_id": PROJECT_ID,
+        "conversation_id": conversation_id,
+        "rating": "not_helpful",
+        "category": "missing_context",
+        "comment": None,
+        "question_snapshot": "What evidence is missing?",
+        "answer_snapshot": "The original answer.",
+        "citation_chunk_ids": [chunk_id],
+        "retrieved_chunk_ids": [chunk_id],
+        "retrieved_evidence": [{"chunk_id": str(chunk_id), "source_type": "local_doc"}],
+        "status": "new",
+        "promoted_case_id": None,
+        "created_at": NOW,
+        "updated_at": NOW,
+    }
+    engine = SequentialEngine(
+        [
+            None,
+            feedback_row,
+            None,
+            None,
+            None,
+            None,
+            None,
+            PIPELINE_ID,
+            1,
+            None,
+            None,
+            None,
+        ]
+    )
+    repository = PostgresEvidenceRepository(engine)  # type: ignore[arg-type]
+
+    result = repository.promote_answer_feedback(
+        CurrentUser(id=USER_ID, role="developer"),
+        feedback_id,
+        FeedbackPromotionCreate(expected_chunk_ids=[chunk_id]),
+    )
+
+    assert result is not None
+    assert result.evaluation_status == "pending"
+    assert result.evaluation_status_url.endswith(str(result.evaluation_run_id))
+    evaluation_call = next(
+        call for call in engine.connection.calls if "insert into evaluation_runs" in call[0]
+    )
+    assert evaluation_call[1] is not None
+    assert evaluation_call[1]["pipeline_id"] == PIPELINE_ID
+    assert '"trigger":"feedback_promotion"' in evaluation_call[1]["summary"]
+    outbox_call = next(
+        call for call in engine.connection.calls if "insert into outbox_events" in call[0]
+    )
+    assert outbox_call[1] is not None
+    assert outbox_call[1]["event_type"] == "evaluation.run.requested"
+
+
 def test_list_events_requires_ownership_and_preserves_sequence() -> None:
     """Return ordered safe events only after the run ownership check."""
     rows = [
@@ -217,17 +287,19 @@ def test_accepted_responses_use_stable_resource_urls() -> None:
     # RLS guard, advisory lock, run+project lock, idempotency check (None),
     # proposed event lookup, insert human_decisions, update workflow_runs,
     # append event, append outbox
-    decision_engine = SequentialEngine([
-        None,  # RLS guard
-        None,  # advisory lock
-        {"id": RUN_ID, "status": "waiting_human"},  # run+project lock
-        None,  # idempotency check
-        {"id": UUID(int=7), "safe_payload": {"interrupt_key": "k1"}},  # proposed event
-        None,  # insert human_decisions
-        None,  # update workflow_runs
-        None,  # append event
-        None,  # append outbox
-    ])
+    decision_engine = SequentialEngine(
+        [
+            None,  # RLS guard
+            None,  # advisory lock
+            {"id": RUN_ID, "status": "waiting_human"},  # run+project lock
+            None,  # idempotency check
+            {"id": UUID(int=7), "safe_payload": {"interrupt_key": "k1"}},  # proposed event
+            None,  # insert human_decisions
+            None,  # update workflow_runs
+            None,  # append event
+            None,  # append outbox
+        ]
+    )
     decision_repo = PostgresEvidenceRepository(decision_engine)  # type: ignore[arg-type]
     decision_result = decision_repo.create_decision(
         CurrentUser(id=USER_ID),
@@ -304,18 +376,25 @@ def test_evidence_writes_require_active_projects_without_rejecting_global_datase
         ),
         idempotency_key="key-a",
     )
-    create_run_sql = " ".join(
-        call[0].lower() for call in run_engine.connection.calls
-    )
+    create_run_sql = " ".join(call[0].lower() for call in run_engine.connection.calls)
     assert "p.status = 'active'" in create_run_sql, (
         "create_research_run must enforce the active-project predicate"
     )
 
     # --- create_decision: must enforce p.status = 'active'. ---
-    decision_engine = SequentialEngine([
-        None, None, {"id": RUN_ID, "status": "waiting_human"}, None,
-        {"id": UUID(int=7), "safe_payload": {"interrupt_key": "k1"}}, None, None, None, None,
-    ])
+    decision_engine = SequentialEngine(
+        [
+            None,
+            None,
+            {"id": RUN_ID, "status": "waiting_human"},
+            None,
+            {"id": UUID(int=7), "safe_payload": {"interrupt_key": "k1"}},
+            None,
+            None,
+            None,
+            None,
+        ]
+    )
     decision_repo = PostgresEvidenceRepository(decision_engine)  # type: ignore[arg-type]
     decision_repo.create_decision(
         CurrentUser(id=USER_ID),
@@ -326,18 +405,26 @@ def test_evidence_writes_require_active_projects_without_rejecting_global_datase
         ),
         idempotency_key="dec-a",
     )
-    decide_sql = " ".join(
-        call[0].lower() for call in decision_engine.connection.calls
-    )
+    decide_sql = " ".join(call[0].lower() for call in decision_engine.connection.calls)
     assert "p.status = 'active'" in decide_sql, (
         "create_decision must enforce the active-project predicate"
     )
 
     # --- refresh_report: must enforce p.status = 'active'. ---
-    refresh_engine = SequentialEngine([
-        None, None, {"id": UUID(int=401), "project_id": PROJECT_ID, "revision": 3},
-        None, 1, None, ["fallback"], None, None, None,
-    ])
+    refresh_engine = SequentialEngine(
+        [
+            None,
+            None,
+            {"id": UUID(int=401), "project_id": PROJECT_ID, "revision": 3},
+            None,
+            1,
+            None,
+            ["fallback"],
+            None,
+            None,
+            None,
+        ]
+    )
     refresh_repo = PostgresEvidenceRepository(refresh_engine)  # type: ignore[arg-type]
     refresh_repo.refresh_report(
         CurrentUser(id=USER_ID),
@@ -348,15 +435,22 @@ def test_evidence_writes_require_active_projects_without_rejecting_global_datase
         ),
         idempotency_key="key-b",
     )
-    refresh_sql = " ".join(
-        call[0].lower() for call in refresh_engine.connection.calls
-    )
+    refresh_sql = " ".join(call[0].lower() for call in refresh_engine.connection.calls)
     assert "p.status = 'active'" in refresh_sql, (
         "refresh_report must enforce the active-project predicate"
     )
 
     # --- create_evaluation_run: must LEFT JOIN projects with global fallback. ---
-    eval_engine = SequentialEngine([None, None, None, {"project_id": None, "dataset_user_id": USER_ID, "case_count": 1}, None, None])
+    eval_engine = SequentialEngine(
+        [
+            None,
+            None,
+            None,
+            {"project_id": None, "dataset_user_id": USER_ID, "case_count": 1},
+            None,
+            None,
+        ]
+    )
     eval_repo = PostgresEvidenceRepository(eval_engine)  # type: ignore[arg-type]
     eval_repo.create_evaluation_run(
         CurrentUser(id=USER_ID),
@@ -368,9 +462,7 @@ def test_evidence_writes_require_active_projects_without_rejecting_global_datase
         ),
         idempotency_key="eval-a",
     )
-    eval_sql = " ".join(
-        call[0].lower() for call in eval_engine.connection.calls
-    )
+    eval_sql = " ".join(call[0].lower() for call in eval_engine.connection.calls)
     assert "left join projects p" in eval_sql, (
         "create_evaluation_run must LEFT JOIN projects for global datasets"
     )

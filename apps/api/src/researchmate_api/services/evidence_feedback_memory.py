@@ -11,6 +11,7 @@ from researchmate_api.schemas.common import CurrentUser
 from researchmate_api.schemas.evidence import (
     EvaluationDatasetListResponse,
     EvaluationDatasetSummary,
+    EvaluationRunRecord,
 )
 from researchmate_api.schemas.feedback import (
     AnswerFeedbackListResponse,
@@ -25,6 +26,8 @@ from researchmate_api.services.evidence_faults import EvidenceStoreError
 if TYPE_CHECKING:
     from researchmate_api.services._store_protocol import ResearchMateRepository
 
+LOCAL_FEEDBACK_PIPELINE_VERSION_ID = UUID(int=1)
+
 
 class MemoryEvidenceFeedbackMixin:
     """Own the local adapter's feedback snapshots and immutable dataset versions."""
@@ -35,6 +38,7 @@ class MemoryEvidenceFeedbackMixin:
         answer_feedback: dict[tuple[UUID, UUID], AnswerFeedbackRecord]
         feedback_datasets: dict[UUID, tuple[UUID, EvaluationDatasetSummary]]
         feedback_cases: dict[UUID, list[UUID]]
+        evaluations: dict[UUID, tuple[UUID, EvaluationRunRecord]]
 
     def list_evaluation_datasets(
         self, user: CurrentUser, project_id: UUID | None
@@ -163,8 +167,31 @@ class MemoryEvidenceFeedbackMixin:
                     "updated_at": datetime.now(UTC),
                 }
             )
+            evaluation_run_id = uuid4()
+            self.evaluations[evaluation_run_id] = (
+                user.id,
+                EvaluationRunRecord(
+                    evaluation_run_id=evaluation_run_id,
+                    dataset_id=dataset_id,
+                    pipeline_version_id=LOCAL_FEEDBACK_PIPELINE_VERSION_ID,
+                    status="pending",
+                    progress=0,
+                    summary={
+                        "case_count": len(cases),
+                        "metrics": [
+                            "evidence_recall",
+                            "citation_precision",
+                            "faithfulness",
+                        ],
+                        "trigger": "feedback_promotion",
+                    },
+                    created_at=datetime.now(UTC),
+                ),
+            )
             return FeedbackPromotionResult(
                 dataset_id=dataset_id,
                 dataset_version=version,
                 case_id=case_id,
+                evaluation_run_id=evaluation_run_id,
+                evaluation_status_url=f"/api/v1/evaluation-runs/{evaluation_run_id}",
             )

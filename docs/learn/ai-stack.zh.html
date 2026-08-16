@@ -338,7 +338,7 @@ workers/ai-worker/src/researchmate_worker/
           <article class="fact"><b>排序指标</b><p><code>evidence_recall</code> 衡量预期块是否出现在检索集合中。倒数排名记录第一个相关位置；二元 NDCG 奖励将所有判定相关的块放在接近顶部的位置。当用例没有预期证据时，排序指标保持未评分，而不是制造零值。</p></article>
           <article class="fact"><b>基线比较</b><p>每个持久运行存储有效的流水线配置、检索通道权重、每用例结果、聚合和前一个成功的基线摘要。工程 UI 一起呈现候选和基线，包括明确的回归和执行失败。</p></article>
           <article class="fact"><b>反馈捕获</b><p>拇指反馈键控到成功的拥有 Ask 运行。API 从持久化的服务端状态重建问题、答案、引用和检索候选；浏览器不能伪造这些快照。</p></article>
-          <article class="fact"><b>Bad Case 提升</b><b></b><p>开发者审查负面反馈，仅从服务端记录的本地文档候选中选择预期块，并原子性地创建下一个冻结的 <code>Answer feedback regressions</code> 数据集版本。Web 候选在可信 trace 中仍然可见，但不能进入此数据集，因为评估器当前仅重放 Qdrant 本地文档检索。重新提升会在新快照中替换早期的用例，而不是复制它。</p></article>
+          <article class="fact"><b>Bad Case 提升</b><b></b><p>开发者审查负面反馈，仅从服务端记录的本地文档候选中选择预期块，并原子创建下一个冻结的 <code>Answer feedback regressions</code> 数据集版本。同一个 Advisory Lock 事务为最新 accepted pipeline 创建 pending evaluation 并写入 <code>evaluation.run.requested</code>，因此历史用例会自动重跑 evidence recall、citation precision 和 faithfulness。Web 候选仍可见，但不能进入本地文档回放数据集。</p></article>
         </div>
         <div class="notice"><strong>当前证据边界：</strong>指标逻辑、检索分支选择、反馈所有权、不可变提升、UI 渲染和发布门禁脚本具有本地自动化证据。填充的托管提供商比较和生产提升仍然未声明。</div>
       </section>
