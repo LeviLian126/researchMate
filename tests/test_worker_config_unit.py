@@ -43,6 +43,14 @@ def test_worker_settings_accept_the_shared_qdrant_rerank_projection_contract() -
     assert settings.qdrant_rerank_model_is_free is True
 
 
+def test_worker_wiki_compilation_timeout_is_shorter_than_general_llm_timeout() -> None:
+    """Keep optional Wiki enrichment outside the critical ingestion latency budget."""
+    settings = tasks.WorkerSettings(app_env="test")
+
+    assert settings.wiki_compilation_timeout_seconds == 30.0
+    assert settings.wiki_compilation_timeout_seconds < settings.llm_timeout_seconds
+
+
 def test_worker_settings_construct_every_shared_provider_adapter() -> None:
     """Catch API/worker config drift before a worker task reaches managed state."""
     settings = tasks.WorkerSettings(

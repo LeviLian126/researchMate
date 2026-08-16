@@ -157,7 +157,10 @@ def build_ingestion_service() -> DocumentIngestionService:
     wiki_compiler: WikiCompilerProtocol | None = None
     if settings.llm_provider == "nvidia" and settings.nvidia_api_key is not None:
         try:
-            chat_provider = NvidiaChatProvider(api_settings)
+            wiki_settings = api_settings.model_copy(
+                update={"llm_timeout_seconds": settings.wiki_compilation_timeout_seconds}
+            )
+            chat_provider = NvidiaChatProvider(wiki_settings)
             wiki_compiler = WorkerWikiCompiler(chat_provider)
         except ProviderConfigurationError:
             wiki_compiler = None

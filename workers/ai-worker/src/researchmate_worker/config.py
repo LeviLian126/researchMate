@@ -67,6 +67,12 @@ class WorkerSettings(BaseSettings):
     nvidia_embedding_model: str = "nvidia/nv-embed-v1"
     embedding_dimension: int = Field(default=4096, ge=128, le=8192)
     llm_timeout_seconds: float = Field(default=120.0, gt=0, le=300)
+    wiki_compilation_timeout_seconds: float = Field(
+        default=30.0,
+        gt=0,
+        le=60,
+        description="Bound optional Wiki enrichment so it cannot delay document readiness.",
+    )
     qdrant_url: str | None = None
     qdrant_api_key: SecretStr | None = None
     qdrant_collection: str = "researchmate_chunks_v3"
