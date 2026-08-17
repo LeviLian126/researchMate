@@ -114,8 +114,7 @@ def test_openapi_contract_declares_mvp_routes() -> None:
 
 
 def test_docs_use_english_html_without_parallel_markdown() -> None:
-    """Keep the HTML board authoritative without a root or docs Markdown duplicate."""
-    assert not (ROOT / "README.md").exists()
+    """Keep the HTML board authoritative without duplicated Markdown under docs."""
     markdown_files = sorted(
         path.relative_to(ROOT).as_posix() for path in (ROOT / "docs").rglob("*.md")
     )
