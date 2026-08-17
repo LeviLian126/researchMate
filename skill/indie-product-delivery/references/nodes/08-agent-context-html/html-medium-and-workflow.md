@@ -1,11 +1,11 @@
 # HTML as an Agent Context and Project Board
 
-Build browser-openable project documentation that a founder, developer, or incoming agent can understand without reconstructing the project from chat, Markdown, and source trees. The landing board is the authoritative, evidence-backed snapshot. Put durable detail on focused child pages and material version changes on a separate activity page.
+Build browser-openable project documentation when an HTML surface helps a founder, developer, or incoming agent understand the project without reconstructing it from chat and source trees. Treat the landing board as an evidence-backed snapshot, and use focused child pages or other document formats when they fit the reader's needs.
 
 ## Default board goal and coverage
 
-Every project has a complete HTML board under `docs/`. Its goal is to give a new human or
-agent direct evidence for quickly understanding and starting the project. Keep the board in
+When a project uses an HTML board under `docs/`, its goal is to give a new human or agent
+direct evidence for quickly understanding and starting the project. Keep the board in
 the full-ledger style: cover the core database tables and core business fields, material
 routes/actions, capabilities, relationships, architecture, status, risks, decisions, and
 release evidence. Do not fill it with low-value UI trivia such as button dimensions unless a

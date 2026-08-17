@@ -1,9 +1,9 @@
 # HTML Agent Context and Project Board
 
-Use this node for the project's default HTML project board under `docs/`, whether the task
-is implementation, maintenance, review, or documentation. The board is the durable visual
-context for current product, architecture, code, evidence, and release truth. Ordinary
-Markdown may still be edited elsewhere, but the board remains the default project record.
+Use this node when the project has or needs an HTML project board under `docs/`, whether the
+task is implementation, maintenance, review, or documentation. The board is one durable
+visual context for current product, architecture, code, evidence, and release truth. Use
+Markdown or other document formats alongside it when they better serve the reader or task.
 
 | Need | Read |
 |---|---|

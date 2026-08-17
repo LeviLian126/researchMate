@@ -135,7 +135,7 @@
           <article class="fact"><b>SQL 到 schema 合约</b><p>test_database_migration_contract.py 读取 migration SQL 文件,验证 additive migration 保留 schema、RLS 和幂等性合约。检查所有计划表已定义、RLS policy 关闭初始缺口、durable run 和 evaluation 幂等键按 owner 唯一。</p></article>
           <article class="fact"><b>Postgres 到 repository 合约</b><p>test_release_safety_contracts.py 验证 Qdrant rerank projection 索引每个过滤字段、evaluation budget 和 fault audit migration 是 fail-closed 的、workflow claim 版本被序列化和递增。</p></article>
           <article class="fact"><b>OpenAPI 到 route 合约</b><p>test_project_scaffold.py 包含 <code>test_openapi_contract_declares_mvp_routes</code>,验证生成的 OpenAPI spec 声明所有 MVP 路由。test_evidence_api.py 包含 <code>test_evidence_routes_are_exposed_in_generated_openapi</code>。</p></article>
-          <article class="fact"><b>Docs 到 source 合约</b><p>test_project_scaffold.py 包含测试验证 docs 本地链接可解析、docs 使用英文 HTML 无并行 markdown、docs 分离当前真相和归档计划、数据库和 API docs 与完整源码合约一致。</p></article>
+          <article class="fact"><b>Docs 到 source 合约</b><p>test_project_scaffold.py 包含测试验证 docs 本地链接可解析、维护中的 HTML 页面使用预期语言和结构、docs 分离当前真相和归档计划、数据库和 API docs 与完整源码合约一致。</p></article>
         </div>
       </section>
 
@@ -320,7 +320,7 @@ def create_ready_document(client, headers=HEADERS) -> tuple[str, str]:
         <div class="grid two">
           <article class="fact"><b>test_database_migration_contract.py</b><p>4 个测试:additive migration 定义所有计划表、migration 关闭初始子表 RLS 缺口、计划表有 RLS 且 outbox 无 user policy、durable run 和 evaluation 幂等性按 owner 唯一。读取 SQL migration 文件并用 regex 解析以验证 schema、RLS 和唯一性约束。</p></article>
           <article class="fact"><b>test_frontend_contracts.py</b><p>8 个测试:前端 MVP 页面存在、前端调用 MVP API 合约、常规项目页面不导航到 dev trace、前端不引用后端 secret 名称、evidence 前端覆盖异步和恢复状态、前端不直接调用 model provider、前端在本地开发外使用 Supabase session、sidebar 和 chat 匹配统一产品边界。使用 <code>read_text()</code> 读取前端源码文件。</p></article>
-          <article class="fact"><b>test_project_scaffold.py</b><p>15 个测试:必需合约文件存在、docs 本地链接可解析、OpenAPI 合约声明 MVP 路由、docs 使用英文 HTML 无并行 markdown、docs 分离当前真相和归档计划、数据库和 API docs 与完整源码合约一致、overview 深度链接到权威详情 section、docs 有唯一 ID 和一个页面标题、质量脚本不引用遗留 handoff docs、docs HTML 不含问号乱码、数据库 schema 有安全边界、shared 合约定义统一 chat 输出、后端 Pydantic 合约验证请求形状、Postgres 对话提交重新检查活跃项目、本地验证策略在部署环境上保持集成。</p></article>
+          <article class="fact"><b>test_project_scaffold.py</b><p>13 个测试:必需合约文件存在、docs 本地链接可解析、OpenAPI 合约声明 MVP 路由、维护中的 HTML 页面使用预期语言和结构、docs 分离当前真相和归档计划、数据库和 API docs 与完整源码合约一致、overview 深度链接到权威详情 section、docs 有唯一 ID 和一个页面标题、质量脚本不引用遗留 handoff docs、docs HTML 不含问号乱码、数据库 schema 有安全边界、shared 合约定义统一 chat 输出、后端 Pydantic 合约验证请求形状、Postgres 对话提交重新检查活跃项目、本地验证策略在部署环境上保持集成。</p></article>
           <article class="fact"><b>test_release_pipeline.py</b><p>7 个测试:CI 运行完整测试/构建合约和安全门、Python 依赖图被 CI 和镜像锁定、退役交付路径已惰性、容器镜像非 root 且 worker 预取 PDF 模型、migration runner 需要审批锁和 checksum、仓库源码不含 provider secret、web 发布设置基线浏览器安全 header。读取 CI 工作流 YAML、Dockerfile 和 render.yaml。</p></article>
           <article class="fact"><b>test_release_safety_contracts.py</b><p>5 个测试:Qdrant rerank projection 索引每个过滤字段、evaluation budget 和 fault audit migration 是 fail-closed 的、runtime readiness 和 workflow budget migration 是 fail-closed 的、workflow claim 版本被序列化和递增、report refresh 过滤变更文档并保留不受影响的 section。读取 migration SQL 和源码文件。</p></article>
           <article class="fact"><b>test_render_deployment.py</b><p>5 个测试:Render blueprint 使用一个共享免费服务和 secret prompt、NVIDIA 免费 endpoint 无运行时价格字段、Render runtime 启动 API/worker/dispatcher、组合运行时在重 worker 前等待 API 健康、Render 镜像使用仅 CPU PyTorch。读取 render.yaml 和 Dockerfile。</p></article>

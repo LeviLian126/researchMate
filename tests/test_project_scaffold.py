@@ -113,13 +113,8 @@ def test_openapi_contract_declares_mvp_routes() -> None:
     assert "ErrorResponse" in spec
 
 
-def test_docs_use_english_html_without_parallel_markdown() -> None:
-    """Keep the HTML board authoritative without duplicated Markdown under docs."""
-    markdown_files = sorted(
-        path.relative_to(ROOT).as_posix() for path in (ROOT / "docs").rglob("*.md")
-    )
-    assert markdown_files == []
-
+def test_docs_use_english_html_pages() -> None:
+    """Keep maintained HTML pages consistently labeled and navigable."""
     html_files = authoritative_html_files()
     assert html_files
     for html_file in html_files:
