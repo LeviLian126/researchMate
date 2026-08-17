@@ -360,9 +360,9 @@ export function AppSidebar() {
       )}
 
       <ScrollArea className="min-h-0 flex-1">
-        <div className="flex min-w-0 flex-col gap-3 px-3 pb-3">
+        <div className="flex w-full min-w-0 max-w-full flex-col gap-3 px-3 pb-3">
           {!!projects.length && (
-            <section className="flex min-w-0 flex-col gap-0.5">
+            <section className="flex w-full min-w-0 max-w-full flex-col gap-0.5">
               {!compact && (
                 <div className="px-2 py-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   Projects
@@ -370,7 +370,7 @@ export function AppSidebar() {
               )}
               {projects.map((project) => (
                 <div key={project.id} className="flex min-w-0 flex-col">
-                  <div className="group/project flex w-full min-w-0 items-center gap-1 overflow-hidden">
+                  <div className="group/project grid w-full min-w-0 max-w-full grid-cols-[minmax(0,1fr)_1.75rem] items-center gap-1 overflow-hidden">
                     <Link
                       href={`/app/projects/${project.id}/chat`}
                       onClick={() => setMobileOpen(false)}
@@ -437,7 +437,7 @@ export function AppSidebar() {
           )}
 
           {!compact && !!personalConversations.length && (
-            <section className="flex min-w-0 flex-col gap-0.5">
+            <section className="flex w-full min-w-0 max-w-full flex-col gap-0.5">
               <div className="px-2 py-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 Recents
               </div>
@@ -667,7 +667,7 @@ function ConversationLink({
   onNavigate?: () => void;
 }) {
   return (
-    <div className="group/convo flex w-full min-w-0 items-center gap-1 overflow-hidden pl-7">
+    <div className="group/convo grid w-full min-w-0 max-w-full grid-cols-[minmax(0,1fr)_1.75rem] items-center gap-1 overflow-hidden pl-7">
       <Link
         aria-current={active ? "page" : undefined}
         href={href}
