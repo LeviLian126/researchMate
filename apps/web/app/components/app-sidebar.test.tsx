@@ -55,6 +55,17 @@ const projectsFixture = [
   },
 ];
 
+const longNameProjectsFixture = [
+  {
+    id: "project-long-name",
+    name: "A deliberately long project name that must truncate before its management action",
+    kind: "workspace",
+    status: "active",
+    created_at: "2026-08-03T00:00:00Z",
+    updated_at: "2026-08-03T00:00:00Z",
+  },
+];
+
 const personalProject = {
   id: "project-personal",
   name: "Personal",
@@ -76,14 +87,16 @@ const conversationsFixture = [
 
 function setupNavigation({
   ok = true,
+  projects = projectsFixture,
   conversations = [],
 }: {
   ok?: boolean;
+  projects?: typeof projectsFixture;
   conversations?: typeof conversationsFixture;
 } = {}) {
   apiFetchMock.mockImplementation(async (path: string) => {
     if (!ok) throw new Error("navigation unavailable");
-    if (path === "/projects") return projectsFixture;
+    if (path === "/projects") return projects;
     if (path === "/conversations") return { items: conversations };
     if (path === "/chat/bootstrap") return personalProject;
     return undefined;
@@ -214,6 +227,28 @@ describe("AppSidebar navigation", () => {
     expect([...document.body.querySelectorAll("button")].some((button) => button.textContent === "Delete")).toBe(
       true,
     );
+  });
+
+  it("keeps a long project's management action visible and reserves its control space", async () => {
+    setupNavigation({ projects: longNameProjectsFixture });
+
+    await act(async () => root.render(<AppSidebar />));
+    await flushAsyncQueue();
+
+    const manageButton = [...container.querySelectorAll("button")].find(
+      (button) =>
+        button.getAttribute("aria-label") ===
+        `Manage ${longNameProjectsFixture[0].name}`,
+    );
+    expect(manageButton).toBeTruthy();
+    expect(manageButton?.className).toContain("shrink-0");
+    expect(manageButton?.parentElement?.className).toContain("w-full");
+
+    const projectLink = container.querySelector(
+      `a[href="/app/projects/${longNameProjectsFixture[0].id}/chat"]`,
+    );
+    expect(projectLink?.className).toContain("basis-0");
+    expect(projectLink?.className).toContain("overflow-hidden");
   });
 
   it("persists keyboard sidebar resizing within the supported desktop bounds", async () => {

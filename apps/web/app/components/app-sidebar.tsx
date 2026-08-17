@@ -370,12 +370,15 @@ export function AppSidebar() {
               )}
               {projects.map((project) => (
                 <div key={project.id} className="flex min-w-0 flex-col">
-                  <div className="group/project flex min-w-0 items-center">
+                  <div className="group/project flex w-full min-w-0 items-center gap-1 overflow-hidden">
                     <Link
                       href={`/app/projects/${project.id}/chat`}
                       onClick={() => setMobileOpen(false)}
                       aria-current={project.id === activeProjectId ? "page" : undefined}
-                      className={cn(navItemClass(project.id === activeProjectId, compact), !compact && "min-w-0 flex-1")}
+                      className={cn(
+                        navItemClass(project.id === activeProjectId, compact),
+                        !compact && "min-w-0 flex-1 basis-0 overflow-hidden",
+                      )}
                     >
                       <Folder strokeWidth={1.5} className="size-4 shrink-0" />
                       {!compact && <span className="truncate">{project.name}</span>}
@@ -387,7 +390,7 @@ export function AppSidebar() {
                             type="button"
                             variant="ghost"
                             size="icon"
-                            className="h-7 w-7 shrink-0 text-muted-foreground hover:text-foreground"
+                            className="relative z-10 h-7 w-7 shrink-0 text-muted-foreground hover:text-foreground"
                             aria-label={`Manage ${project.name}`}
                           >
                             <MoreHorizontal strokeWidth={1.5} />
