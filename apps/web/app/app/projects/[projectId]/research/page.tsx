@@ -3,6 +3,7 @@
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { RefreshCw } from "lucide-react";
+import Link from "next/link";
 import { useParams } from "next/navigation";
 import { ProjectNav } from "../../../../components/project-nav";
 import { StateNotice, type NoticeState } from "../../../../components/state-notice";
@@ -11,7 +12,6 @@ import {
   DocumentRecord,
   idempotencyKey,
   PipelineVersionSummary,
-  ReportDetail,
   ReportSummary,
   ResearchRunAccepted,
   RunEvent,
@@ -35,7 +35,6 @@ export default function ResearchReportPage() {
   const [run, setRun] = useState<WorkflowRun | null>(null);
   const [events, setEvents] = useState<RunEvent[]>([]);
   const [reports, setReports] = useState<ReportSummary[]>([]);
-  const [report, setReport] = useState<ReportDetail | null>(null);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<NoticeState | null>(null);
 
@@ -89,7 +88,6 @@ export default function ResearchReportPage() {
     setBusy(true);
     setNotice(null);
     setEvents([]);
-    setReport(null);
     try {
       const accepted = await apiFetch<ResearchRunAccepted>("/research-runs", {
         method: "POST",
@@ -117,14 +115,6 @@ export default function ResearchReportPage() {
     }
   }
 
-  async function loadReport(reportId: string) {
-    try {
-      setReport(await apiFetch<ReportDetail>(`/reports/${reportId}`));
-    } catch (error) {
-      setNotice({ title: "Report unavailable", detail: error instanceof Error ? error.message : "The report could not be loaded.", kind: "error" });
-    }
-  }
-
   async function submitDecision(decision: "approve" | "reject") {
     if (!run) return;
     try {
@@ -140,7 +130,7 @@ export default function ResearchReportPage() {
   }
 
   return (
-    <main className="min-h-[100dvh] bg-gradient-to-br from-accent via-background to-background">
+    <main className="min-h-0 flex-1 overflow-y-auto bg-gradient-to-br from-accent via-background to-background">
       <ProjectNav projectId={projectId} current="research" />
       <div className="mx-auto max-w-6xl space-y-6 px-6 py-8">
         {notice && <StateNotice state={notice} />}
@@ -172,11 +162,9 @@ export default function ResearchReportPage() {
             <div className="flex items-center justify-between gap-3"><div><p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Current run</p><h2 id="run-heading" className="text-lg font-semibold text-foreground">Workflow status</h2></div>{run && <span className="rounded-md border border-border/60 px-2 py-1 text-xs font-medium text-muted-foreground">{run.status}</span>}</div>
             {run ? <div className="space-y-3 text-sm text-muted-foreground"><p>{run.current_node ?? "queued"} · {run.progress}%</p>{run.review_required && <div className="flex gap-2"><Button type="button" size="sm" onClick={() => void submitDecision("approve")}>Approve</Button><Button type="button" size="sm" variant="outline" onClick={() => void submitDecision("reject")}>Reject flagged claims</Button></div>}<p className="break-all text-xs">Run ID: {run.run_id}</p></div> : <p className="text-sm text-muted-foreground">No research run yet.</p>}
             {!!events.length && <div className="max-h-40 space-y-1 overflow-y-auto rounded-lg border border-border/50 bg-secondary/20 p-3 text-xs">{events.map((event) => <p key={event.event_id}>{event.node_key} · {event.event_type} · {event.status}</p>)}</div>}
-            <div className="border-t border-border/50 pt-4"><div className="mb-2 flex items-center justify-between"><h2 className="text-lg font-semibold text-foreground">Reports</h2><Button type="button" variant="ghost" size="icon" onClick={() => void loadReports()} aria-label="Refresh reports"><RefreshCw strokeWidth={1.5} /></Button></div>{reports.length ? <div className="space-y-2">{reports.map((item) => <button key={item.report_id} type="button" className="block w-full rounded-lg border border-border/50 p-3 text-left hover:bg-secondary/30" onClick={() => void loadReport(item.report_id)}><span className="font-medium text-foreground">{item.title}</span><span className="ml-2 text-xs text-muted-foreground">{item.status} · revision {item.revision}</span></button>)}</div> : <p className="text-sm text-muted-foreground">Completed reports will appear here.</p>}</div>
+            <div className="border-t border-border/50 pt-4"><div className="mb-2 flex items-center justify-between"><h2 className="text-lg font-semibold text-foreground">Reports</h2><Button type="button" variant="ghost" size="icon" onClick={() => void loadReports()} aria-label="Refresh reports"><RefreshCw strokeWidth={1.5} /></Button></div>{reports.length ? <div className="space-y-2">{reports.map((item) => <Link key={item.report_id} href={`/app/projects/${projectId}/research/reports/${item.report_id}`} className="block w-full rounded-lg border border-border/50 p-3 text-left hover:bg-secondary/30"><span className="font-medium text-foreground">{item.title}</span><span className="ml-2 text-xs text-muted-foreground">{item.status} · revision {item.revision}</span><span className="mt-1 block text-xs text-primary">Open report reader →</span></Link>)}</div> : <p className="text-sm text-muted-foreground">Completed reports will appear here.</p>}</div>
           </section>
         </section>
-
-        {report && <article className={`${panelClass} space-y-5`}><div><p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Published report</p><h2 className="mt-1 text-xl font-semibold text-foreground">{report.title}</h2></div>{report.sections.map((section) => <section key={section.section_id} className="border-t border-border/50 pt-4"><h3 className="font-semibold text-foreground">{section.heading}</h3><div className="prose prose-sm mt-2 max-w-none text-muted-foreground"><p className="whitespace-pre-wrap">{section.body_markdown}</p></div></section>)}</article>}
       </div>
     </main>
   );
