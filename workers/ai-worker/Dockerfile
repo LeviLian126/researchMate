@@ -10,6 +10,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 COPY --from=uv /uv /uvx /bin/
 RUN apt-get update \
+    && apt-get upgrade --yes \
     && apt-get install --yes --no-install-recommends libgl1 libglib2.0-0 libmagic1 \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd --gid 10001 researchmate \
