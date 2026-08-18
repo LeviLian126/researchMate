@@ -149,8 +149,12 @@ class Settings(BaseSettings):
             > self.chat_history_token_budget
         ):
             raise ValueError(
-                "CHAT_RECENT_TOKEN_BUDGET plus CHAT_SUMMARY_TOKEN_BUDGET must not exceed "
-                "CHAT_HISTORY_TOKEN_BUDGET"
+                " ".join(
+                    (
+                        "CHAT_RECENT_TOKEN_BUDGET plus CHAT_SUMMARY_TOKEN_BUDGET must not exceed",
+                        "CHAT_HISTORY_TOKEN_BUDGET",
+                    )
+                )
             )
         if self.app_env in {"preview", "production"} and self.auth_mode != "supabase":
             raise ValueError("preview and production must use Supabase JWT authentication")
