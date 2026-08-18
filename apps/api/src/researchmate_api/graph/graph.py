@@ -23,6 +23,7 @@ from researchmate_api.services.adaptive_query_planning import (
 from researchmate_api.services.evidence_sufficiency import (
     EvidenceAssessment,
     EvidenceSufficiencyService,
+    MissingFacet,
 )
 from researchmate_api.services.query_execution import (
     WebEvidenceError,
@@ -137,6 +138,7 @@ class _GraphRuntime:
         self.web_fallback_reason: str | None = None
         self.plan: AdaptiveSearchPlan | None = None
         self.candidates: list[RetrievalCandidate] = []
+        self.seen_candidate_ids: set[UUID] = set()
 
     def initial_state(self) -> ResearchState:
         """Create serializable graph control state from validated application inputs."""
@@ -163,6 +165,9 @@ class _GraphRuntime:
             "evidence_sufficient": False,
             "judge_confidence": 0,
             "missing_facets": [],
+            "refined_queries": [],
+            "judge_degraded": False,
+            "new_evidence_found": True,
             "source_strategy": "chat",
             "degraded": False,
             "fallback_reasons": [],
@@ -187,6 +192,7 @@ class _GraphRuntime:
             "prepare_context",
             after_prepare,
             {
+                "chat": "generate",
                 "full_context": "use_full_context",
                 "select_wiki": "select_wiki",
                 "plan": "plan_evidence",
@@ -257,7 +263,11 @@ class _GraphRuntime:
 
     def judge_wiki(self, state: ResearchState) -> ResearchState:
         """Apply deterministic exactness policy before accepting an optional model judgement."""
-        assessment = self.graph.judge.assess(self.question, state.get("wiki_candidates", []))
+        evidence = state.get("wiki_candidates", [])
+        assessment = self.graph.judge.assess(
+            self.question,
+            evidence if self.graph.settings.wiki_sufficiency_enabled else [],
+        )
         return self._assessment_update(assessment)
 
     def plan_evidence(self, state: ResearchState) -> ResearchState:
@@ -278,6 +288,9 @@ class _GraphRuntime:
             retrieval_round=state.get("retrieval_round", 0) + 1,
             web_allowed=self.web_allowed,
         )
+        refined_queries = state.get("refined_queries", [])
+        if refined_queries:
+            self.plan = self.plan.model_copy(update={"queries": refined_queries})
         return {"retrieval_round": state.get("retrieval_round", 0) + 1}
 
     def search_sources(self, state: ResearchState) -> ResearchState:
@@ -304,11 +317,15 @@ class _GraphRuntime:
 
     def rerank_evidence(self, state: ResearchState) -> ResearchState:
         """Reuse the existing reranker and pack evidence under the existing token budget."""
+        self.rerank_result = None
         candidates = limit_rerank_candidates(
             [RetrievalCandidate(chunk, 0.0) for chunk in state.get("merged_candidates", [])],
             self.graph.settings.retrieval_round_candidate_limit,
         )
         self.candidates = candidates
+        candidate_ids = {candidate.chunk.id for candidate in candidates}
+        new_evidence_found = bool(candidate_ids - self.seen_candidate_ids)
+        self.seen_candidate_ids.update(candidate_ids)
         rag = [candidate for candidate in candidates if candidate.chunk.has_vector]
         lightweight = [
             candidate.chunk for candidate in candidates if not candidate.chunk.has_vector
@@ -351,6 +368,7 @@ class _GraphRuntime:
         return {
             "reranked_evidence": evidence,
             "final_evidence": evidence,
+            "new_evidence_found": new_evidence_found,
             "source_strategy": self._strategy(state),
         }
 
@@ -366,9 +384,10 @@ class _GraphRuntime:
             self.question,
             [self._facet(item) for item in state.get("missing_facets", [])],
             self.plan,
+            web_allowed=self.web_allowed,
         )
         self.plan = refined
-        return {}
+        return {"refined_queries": refined.queries}
 
     @staticmethod
     def generate(state: ResearchState) -> ResearchState:
@@ -451,13 +470,12 @@ class _GraphRuntime:
             "missing_facets": [
                 facet.model_dump(mode="json") for facet in assessment.missing_facets
             ],
+            "judge_degraded": assessment.degraded,
         }
 
     @staticmethod
-    def _facet(value: dict[str, str]):
+    def _facet(value: dict[str, str]) -> MissingFacet:
         """Re-validate state boundary data before it reaches the adaptive planner."""
-        from researchmate_api.services.evidence_sufficiency import MissingFacet
-
         return MissingFacet.model_validate(value)
 
     def _document_ids(self) -> list[UUID]:

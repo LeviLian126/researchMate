@@ -29,6 +29,9 @@ class ResearchState(TypedDict, total=False):
     evidence_sufficient: bool
     judge_confidence: float
     missing_facets: list[dict[str, str]]
+    refined_queries: list[str]
+    judge_degraded: bool
+    new_evidence_found: bool
     source_strategy: str
     degraded: bool
     fallback_reasons: list[str]

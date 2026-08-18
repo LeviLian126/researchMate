@@ -74,7 +74,12 @@ class AdaptiveQueryPlanner:
         return self._normalize(plan, fallback, web_allowed)
 
     def refine(
-        self, question: str, facets: list[MissingFacet], previous: AdaptiveSearchPlan
+        self,
+        question: str,
+        facets: list[MissingFacet],
+        previous: AdaptiveSearchPlan,
+        *,
+        web_allowed: bool,
     ) -> AdaptiveSearchPlan:
         """Turn judged gaps into a bounded next-round query set without an extra provider call."""
         queries = self._unique_queries(*(facet.search_query for facet in facets), *previous.queries)
@@ -82,7 +87,7 @@ class AdaptiveQueryPlanner:
         return previous.model_copy(
             update={
                 "queries": queries or previous.queries,
-                "use_web": previous.use_web or wants_web,
+                "use_web": previous.use_web or (web_allowed and wants_web),
             }
         )
 

@@ -59,6 +59,7 @@ class EvidenceAssessment(BaseModel):
     missing_facets: list[MissingFacet] = Field(default_factory=list, max_length=MAX_MISSING_FACETS)
     requires_raw_evidence: bool = False
     requires_web: bool = False
+    degraded: bool = False
 
     model_config = ConfigDict(extra="forbid")
 
@@ -113,8 +114,8 @@ class EvidenceSufficiencyService:
             LOGGER.warning("evidence_judge_degraded error=%s", type(exc).__name__)
             return self._fallback(question, raw_required, "judge_invalid_or_unavailable")
         if raw_required:
-            return assessment.model_copy(update={"requires_raw_evidence": True})
-        return assessment
+            return assessment.model_copy(update={"requires_raw_evidence": True, "degraded": False})
+        return assessment.model_copy(update={"degraded": False})
 
     @staticmethod
     def _messages(question: str, evidence: list[ChunkEntry]) -> list[dict[str, str]]:
@@ -162,4 +163,5 @@ class EvidenceSufficiencyService:
                 )
             ],
             requires_raw_evidence=raw_required,
+            degraded=True,
         )
