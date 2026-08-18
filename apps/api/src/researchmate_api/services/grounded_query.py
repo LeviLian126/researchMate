@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import logging
 from time import monotonic
+from typing import cast
 from uuid import UUID, uuid4
 
 from researchmate_api.config import Settings
+from researchmate_api.graph import ResearchGraph
 from researchmate_api.schemas.ask import AskRequest, AskResponse
 from researchmate_api.schemas.common import (
     Citation,
@@ -22,6 +24,8 @@ from researchmate_api.schemas.conversation import (
 from researchmate_api.schemas.document import DocumentRecord
 from researchmate_api.schemas.project import ProjectRecord
 from researchmate_api.schemas.trace import ToolCallTrace
+from researchmate_api.services.adaptive_query_planning import AdaptiveQueryPlanner
+from researchmate_api.services.evidence_sufficiency import EvidenceSufficiencyService
 from researchmate_api.services.llm import ChatProvider, LLMResult
 from researchmate_api.services.qdrant_store import QdrantHybridStore
 from researchmate_api.services.query_context import ContextOutcome, ConversationContextBuilder
@@ -70,6 +74,15 @@ class GroundedQueryService:
         self.local_retriever = LocalEvidenceRetriever(
             settings, repository, hybrid_store, chat_provider
         )
+        self.research_graph = ResearchGraph(
+            settings,
+            repository,
+            self.local_retriever,
+            reranker,
+            web_search,
+            EvidenceSufficiencyService(chat_provider),
+            AdaptiveQueryPlanner(settings, chat_provider),
+        )
         self.context_builder = ConversationContextBuilder(
             repository,
             chat_provider,
@@ -90,37 +103,59 @@ class GroundedQueryService:
         context_outcome = preparation.context
         history = context_outcome.messages
 
-        tool_calls: list[ToolCallTrace] = []
-        retrieval_outcome = RetrievalOutcome([], "hybrid_retrieval", False, 0)
-        candidates: list[RetrievalCandidate] = []
-        if chunks:
-            retrieval_outcome, candidates, tool_call = self._retrieve_local(
-                user, payload, project, documents, chunks, history
+        if self.settings.langgraph_research_enabled:
+            graph_result = self.research_graph.run(
+                user,
+                project,
+                payload.project_id,
+                payload.message,
+                chunks,
+                history,
+                web_allowed=payload.web_enabled,
             )
-            tool_calls.append(tool_call)
-            strategy: ContextStrategy = retrieval_outcome.strategy
-            full_context = retrieval_outcome.full_context
+            tool_calls = graph_result.tool_calls
+            retrieval_outcome = graph_result.retrieval_outcome
+            candidates = graph_result.candidates
+            strategy = cast(ContextStrategy, graph_result.strategy)
+            retrieved = graph_result.retrieved
+            rerank_result = graph_result.rerank_result
+            rerank_config = graph_result.rerank_config
+            web_degraded = graph_result.web_degraded
+            web_fallback_reason = graph_result.web_fallback_reason
+            graph_runtime_metadata = graph_result.runtime_metadata
         else:
-            strategy = "web" if payload.web_enabled else "chat"
-            full_context = retrieval_outcome.full_context
+            tool_calls = []
+            retrieval_outcome = RetrievalOutcome([], "hybrid_retrieval", False, 0)
+            candidates: list[RetrievalCandidate] = []
+            if chunks:
+                retrieval_outcome, candidates, tool_call = self._retrieve_local(
+                    user, payload, project, documents, chunks, history
+                )
+                tool_calls.append(tool_call)
+                strategy: ContextStrategy = retrieval_outcome.strategy
+                full_context = retrieval_outcome.full_context
+            else:
+                strategy = "web" if payload.web_enabled else "chat"
+                full_context = retrieval_outcome.full_context
 
-        web_degraded = False
-        web_fallback_reason: str | None = None
-        if payload.web_enabled:
-            (
-                candidates,
-                web_degraded,
-                web_fallback_reason,
-                strategy,
-                web_tool_call,
-            ) = self._retrieve_web_degraded(user, payload, bool(chunks), candidates, strategy)
-            tool_calls.append(web_tool_call)
+            web_degraded = False
+            web_fallback_reason: str | None = None
+            if payload.web_enabled:
+                (
+                    candidates,
+                    web_degraded,
+                    web_fallback_reason,
+                    strategy,
+                    web_tool_call,
+                ) = self._retrieve_web_degraded(user, payload, bool(chunks), candidates, strategy)
+                tool_calls.append(web_tool_call)
 
-        retrieved, rerank_result, rerank_config, rerank_tool_call = self._route_and_rerank(
-            user, payload, candidates, full_context, chunks
-        )
-        if rerank_tool_call is not None:
-            tool_calls.append(rerank_tool_call)
+            retrieved, rerank_result, rerank_config, rerank_tool_call = self._route_and_rerank(
+                user, payload, candidates, full_context, chunks
+            )
+            if rerank_tool_call is not None:
+                tool_calls.append(rerank_tool_call)
+            graph_runtime_metadata = {"research_graph_enabled": False}
 
         plan = build_execution_plan(
             strategy,
@@ -181,6 +216,7 @@ class GroundedQueryService:
             llm_result,
             request_started,
         )
+        runtime_metadata.update(graph_runtime_metadata)
         router_reason = (
             f"Retrieval route {retrieval_outcome.route.value}: {retrieval_outcome.route_reason}."
         )

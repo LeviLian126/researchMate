@@ -78,12 +78,14 @@ class LocalEvidenceRetriever:
         *,
         document_ids: list[str] | None = None,
         history: list[ConversationMessage] | None = None,
+        plan: RetrievalPlan | None = None,
+        allow_wiki_short_circuit: bool = True,
     ) -> RetrievalOutcome:
         """Route the complete authorized corpus, then retrieve or use it in full."""
         lightweight_chunks = [c for c in chunks if not c.has_vector]
         rag_chunks = [c for c in chunks if c.has_vector]
         corpus_tokens = sum(estimate_tokens(chunk.text) for chunk in chunks)
-        plan = plan_retrieval(
+        plan = plan or plan_retrieval(
             query,
             history or [],
             corpus_tokens=corpus_tokens,
@@ -99,9 +101,14 @@ class LocalEvidenceRetriever:
             for c in lightweight_chunks
             if isinstance(c.metadata, dict) and c.metadata.get("wiki_mode")
         ]
-        if wiki_chunks and plan.route in (
-            RetrievalRoute.FULL_CONTEXT,
-            RetrievalRoute.SEMANTIC,
+        if (
+            allow_wiki_short_circuit
+            and wiki_chunks
+            and plan.route
+            in (
+                RetrievalRoute.FULL_CONTEXT,
+                RetrievalRoute.SEMANTIC,
+            )
         ):
             LOGGER.info(
                 "wiki_first_routing project_id=%s route=%s wiki_count=%d",

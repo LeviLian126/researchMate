@@ -9,6 +9,7 @@ dependencies = [
   "httpx>=0.28.0,<1",
   "mcp>=1.27,<2",
   "langfuse>=4,<5",
+  "langgraph>=1.2,<2",
   "openai>=1.68.0,<3",
   "opentelemetry-api>=1.38,<2",
   "opentelemetry-exporter-otlp-proto-http>=1.38,<2",

@@ -66,6 +66,18 @@ class Settings(BaseSettings):
     chat_summary_trigger_tokens: int = Field(default=8000, ge=1000, le=50000)
     full_context_token_limit: int = Field(default=12000, ge=1000, le=50000)
     retrieval_evidence_token_budget: int = Field(default=8000, ge=1000, le=30000)
+    langgraph_research_enabled: bool = True
+    wiki_sufficiency_enabled: bool = True
+    wiki_sufficiency_threshold: float = Field(default=0.80, ge=0, le=1)
+    wiki_gate_candidate_limit: int = Field(default=5, ge=1, le=12)
+    wiki_short_circuit_requires_fresh: bool = True
+    adaptive_planner_enabled: bool = True
+    adaptive_dense_weight_min: float = Field(default=0.20, ge=0, le=0.5)
+    adaptive_dense_weight_max: float = Field(default=0.80, ge=0.5, le=1)
+    max_retrieval_rounds: int = Field(default=2, ge=1, le=4)
+    retrieval_round_candidate_limit: int = Field(default=30, ge=1, le=100)
+    evidence_judge_top_n: int = Field(default=8, ge=1, le=20)
+    agentic_web_routing_enabled: bool = True
     lightweight_document_token_threshold: int = Field(
         default=LIGHTWEIGHT_DOCUMENT_TOKEN_THRESHOLD_DEFAULT,
         ge=500,
@@ -130,13 +142,15 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def validate_security_boundary(self) -> Settings:
         """Reject unsafe or incomplete combinations before the API starts."""
+        if self.adaptive_dense_weight_min > self.adaptive_dense_weight_max:
+            raise ValueError("ADAPTIVE_DENSE_WEIGHT_MIN must not exceed ADAPTIVE_DENSE_WEIGHT_MAX")
         if (
             self.chat_recent_token_budget + self.chat_summary_token_budget
             > self.chat_history_token_budget
         ):
             raise ValueError(
-                "CHAT_RECENT_TOKEN_BUDGET plus CHAT_SUMMARY_TOKEN_BUDGET "
-                "must not exceed CHAT_HISTORY_TOKEN_BUDGET"
+                "CHAT_RECENT_TOKEN_BUDGET plus CHAT_SUMMARY_TOKEN_BUDGET must not exceed "
+                "CHAT_HISTORY_TOKEN_BUDGET"
             )
         if self.app_env in {"preview", "production"} and self.auth_mode != "supabase":
             raise ValueError("preview and production must use Supabase JWT authentication")
