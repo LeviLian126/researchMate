@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8"/>
   <meta content="width=device-width,initial-scale=1" name="viewport"/>
-  <meta content="ResearchMate contracts and tests learning guide: OpenAPI as the source of truth, three-layer contract mirroring, 48 Python test files, hermetic testing, coverage, Vitest, and Playwright." name="description"/>
+  <meta content="ResearchMate contracts and tests learning guide: OpenAPI as the source of truth, three-layer contract mirroring, 52 Python test files, hermetic testing, coverage, Vitest, and Playwright." name="description"/>
   <title>ResearchMate &middot; Contracts &amp; Tests learning</title>
   <link href="../assets/site.css" rel="stylesheet"/>
   <style>
@@ -51,12 +51,12 @@
     <div class="hero">
       <p class="eyebrow">TypeScript contracts / Pydantic / pytest / Vitest / Playwright / Hermetic testing</p>
       <h1>Contracts &amp; Tests &middot; OpenAPI + tests</h1>
-      <p class="lede">The ResearchMate test suite is a hermetic, contract-first verification system. The generated OpenAPI specification defines 71 schemas mirrored by Pydantic models and frontend types. The <code>tests/</code> directory contains 47 <code>test_*.py</code> files covering HTTP integration, units, workers, workflows, and source contracts without requiring cloud services.</p>
+      <p class="lede">The ResearchMate test suite is a hermetic, contract-first verification system. The generated OpenAPI specification defines 71 schemas mirrored by Pydantic models and frontend types. The <code>tests/</code> directory contains 52 <code>test_*.py</code> files covering HTTP integration, units, workers, workflows, and source contracts without requiring cloud services.</p>
       <div class="meta">
         <span class="status local">65 OpenAPI schemas</span>
-        <span class="status local">47 test_*.py files</span>
+        <span class="status local">52 test_*.py files</span>
         <span class="status local">3 Python infra files + 1 INI config</span>
-        <span class="status local">7 Vitest + 1 Playwright frontend tests</span>
+        <span class="status local">11 Vitest + 1 Playwright frontend tests</span>
         <span class="status local">Three-layer contract mirroring</span>
         <span class="status local">Hermetic &middot; no external dependencies</span>
       </div>
@@ -71,7 +71,7 @@
           <article class="fact"><b>TypeScript type contracts</b><p>The generated OpenAPI specification defines 71 schemas as the authoritative API shape. Frontend types live in <code>apps/web/app/lib/api.ts</code>, and backend Pydantic models enforce the request boundary.</p></article>
           <article class="fact"><b>Pydantic</b><p>Python data-validation library. The backend mirrors every TypeScript contract into Pydantic models under apps/api/src/researchmate_api/schemas/. Pydantic enforces field types, optional vs. required, enum constraints, and validator logic at request boundary. test_project_scaffold.py verifies that backend Pydantic contracts validate the request shape defined by the OpenAPI specification.</p></article>
           <article class="fact"><b>pytest</b><p>Python test framework (pinned to 9.0+). pytest.ini configures <code>-p no:cacheprovider --basetemp=.pytest-temp</code> for deterministic, cache-free runs. conftest.py inserts API and worker source paths into sys.path. Test functions use plain <code>def test_*</code> naming, <code>pytest.raises</code> for expected failures, and <code>pytest.importorskip</code> for optional dependencies like SQLAlchemy.</p></article>
-          <article class="fact"><b>Vitest</b><p>Frontend unit-test framework configured in apps/web/vitest.config.ts with jsdom environment and v8 coverage provider. Seven test files cover API client logic, auth gate, presentation components, demo mode, email rate limiting, idempotent intents, and Supabase session handling. Coverage thresholds enforce 40% lines and statements across app/lib and app/components.</p></article>
+          <article class="fact"><b>Vitest</b><p>Frontend unit-test framework configured in apps/web/vitest.config.ts with jsdom environment and v8 coverage provider. Eleven test files cover API client logic, auth gate, presentation components, demo mode, email rate limiting, idempotent intents, Supabase session handling, workspace sidebar, evaluation report, feedback workflow, and the chat workspace hook. Coverage thresholds enforce 40% lines and statements across app/lib and app/components.</p></article>
           <article class="fact"><b>Playwright</b><p>Browser acceptance-test framework. apps/web/playwright.config.ts runs against a local Next.js dev server in demo mode (NEXT_PUBLIC_DEMO_MODE=true) on port 3100. One E2E test file (demo-workspace.e2e.ts) exercises the deterministic client-only demo runtime. CI runs with retries=2 and a single worker; local runs are fully parallel.</p></article>
           <article class="fact"><b>Hermetic testing</b><p>The entire Python test suite is hermetic: no real PostgreSQL, Qdrant, Redis, LLM, or external HTTP calls. The FastAPI TestClient creates an in-process application with <code>Settings(app_env="test", llm_provider="fake")</code>. An autouse <code>reset_local_store</code> fixture wipes the in-memory store before and after each test. Source-inspection tests read files from disk without executing application code.</p></article>
           <article class="fact"><b>Dependency injection testing</b><p>The backend constructs all managed providers (store, chat provider, hybrid store, reranker) through factory functions read from <code>app.state</code>. Tests override these factories by constructing <code>create_app(settings=Settings(...))</code> with the fake provider, or by using <code>monkeypatch</code> to swap module-level functions. No global singletons are mutated outside the reset-protected store.</p></article>
@@ -141,8 +141,8 @@
 
       <section id="test-tree">
         <p class="eyebrow">tests/ directory structure</p>
-        <h2>48 test files + shared test infrastructure</h2>
-        <p class="sub">The <code>tests/</code> directory contains 48 <code>test_*.py</code> files plus shared fixtures and workflow helpers.</p>
+        <h2>52 test files + shared test infrastructure</h2>
+        <p class="sub">The <code>tests/</code> directory contains 52 <code>test_*.py</code> files plus shared fixtures and workflow helpers.</p>
         <pre class="command-block"><code>tests/
 ├── pytest.ini                              # addopts: -p no:cacheprovider --basetemp=.pytest-temp
 ├── conftest.py                             # sys.path setup: API_SRC + WORKER_SRC
@@ -161,7 +161,7 @@
 │   ├── test_mcp_boundary.py                # MCP auth, runtime fallback, REST-equivalent policies
 │   └── test_runtime_foundation.py          # Auth, config, request ID, readiness foundations
 │
-├── Unit tests (17 files)
+├── Unit tests (16 files)
 │   ├── test_chat_answer_injection_boundary.py # Chat path wraps query as untrusted JSON
 │   ├── test_document_deletion.py           # Deletion order across external projections
 │   ├── test_document_ingestion.py          # Ingestion state transitions, content projections
@@ -267,7 +267,7 @@ def create_ready_document(client, headers=HEADERS) -> tuple[str, str]:
 
       <section id="unit-tests">
         <p class="eyebrow">Unit tests</p>
-        <h2>17 files &middot; isolated doubles and in-memory stores</h2>
+        <h2>16 files &middot; isolated doubles and in-memory stores</h2>
         <p class="sub">These tests verify individual modules, services, and provider adapters using lightweight doubles (SimpleNamespace, RecordingConnection, EmptyResult) and the in-memory store. No HTTP client is used.</p>
         <div class="grid two">
           <article class="fact"><b>test_chat_answer_injection_boundary.py</b><p>7 tests covering the prompt-injection boundary on the chat answer path: the user query is wrapped in a JSON payload with a <code>question</code> field, the system prompt tells the model the user message is untrusted data, prior turns are passed as a <code>conversation_history</code> JSON field, no raw user role with the untampered query is emitted to the model, the local-doc fallback still returns the Chinese standalone local answer, and only <code>user</code> and <code>assistant</code> history roles reach the model. Mirrors the grounded-answer path's prompt-injection boundary for the chat path in <code>services/answering.py::build_llm_chat_answer</code>.</p></article>
@@ -374,9 +374,9 @@ def create_ready_document(client, headers=HEADERS) -> tuple[str, str]:
 
       <section id="frontend-tests">
         <p class="eyebrow">Frontend tests</p>
-        <h2>7 Vitest unit tests + 1 Playwright E2E test</h2>
+        <h2>11 Vitest unit tests + 1 Playwright E2E test</h2>
         <p class="sub">The frontend test suite lives in apps/web/ and is split into Vitest unit tests (jsdom environment) and Playwright browser acceptance tests (demo mode).</p>
-        <h3>Vitest unit tests (7 files)</h3>
+        <h3>Vitest unit tests (11 files)</h3>
         <div class="grid two">
           <article class="fact"><b>api.test.ts</b><p>Verifies client API authorization, error mapping, streaming, and file metadata helpers. Tests apiFetch, ApiError, describeApiError, fileTypeFromName. Mocks fetch with <code>vi.fn()</code> to exercise success, error, and streaming paths.</p></article>
           <article class="fact"><b>auth-gate.test.tsx</b><p>Verifies that the signed-out workspace exposes GitHub as its only login path. Uses <code>vi.hoisted()</code> to mock Supabase session before module import, <code>createRoot</code> and <code>act</code> for DOM rendering. Tests signed-out and signed-in states.</p></article>
@@ -385,6 +385,11 @@ def create_ready_document(client, headers=HEADERS) -> tuple[str, str]:
           <article class="fact"><b>demo.test.ts</b><p>Verifies the public demo deterministic state transitions and supported API surface. Tests <code>demoFetch</code>, <code>demoRunEvents</code>, and <code>isPublicDemo</code>. Stubs <code>NODE_ENV</code> and <code>NEXT_PUBLIC_DEMO_MODE</code> environment variables.</p></article>
           <article class="fact"><b>idempotent-intent.test.ts</b><p>Verifies stable retry keys, intent rotation, and success-only cleanup semantics. Tests <code>clearCompletedIntent</code> and <code>resolveIntentKey</code> with mock key generators to verify idempotent user intent behavior.</p></article>
           <article class="fact"><b>supabase.test.ts</b><p>Verifies browser session restoration, Supabase request boundaries, and sign-out cleanup. Mocks the Supabase client to test session persistence, token refresh, and sign-out state cleanup in production environment.</p></article>
+          <article class="fact"><b>app-sidebar.test.tsx</b><p>Exercises the workspace sidebar rendering and create/rename orchestration. Uses <code>vi.hoisted()</code> to mock <code>next/navigation</code> router and pathname, and renders with <code>createRoot</code> + <code>act</code>. Asserts navigation labels and active state without real routing.</p></article>
+          <article class="fact"><b>evaluation-report.test.tsx</b><p>Verifies the evaluation report surfaces real metrics and baseline decisions. Uses <code>renderToStaticMarkup</code> to assert retrieval metrics (recall, MRR, NDCG), pipeline modes, and the non-regression signal rendered by the EvaluationReport component.</p></article>
+          <article class="fact"><b>feedback-workflow.test.tsx</b><p>Exercises answer rating and developer Bad Case promotion through visible controls. Uses <code>createRoot</code> + <code>act</code> with an <code>apiFetch</code> mock to verify AnswerFeedback submission and FeedbackReviewQueue promotion paths end-to-end through the React DOM.</p></article>
+          <article class="fact"><b>project-nav.test.tsx</b><p>Verifies project-local navigation surfaces labels, links, and active state. Uses <code>renderToStaticMarkup</code> with a mocked <code>apiFetch</code> that resolves a workspace project; asserts the synchronous render path mirrors presentation.test.</p></article>
+          <article class="fact"><b>use-chat-workspace.test.ts</b><p>Verifies the chat workspace hook orchestrates API calls, state, and recovery. Uses a minimal <code>renderHook</code> helper driven by <code>createRoot</code> + <code>act</code> with an <code>apiFetch</code> mock and <code>routerMocks</code>; asserts state transitions and routing side effects without real fetch.</p></article>
         </div>
         <h3>Playwright E2E tests (1 file)</h3>
         <div class="grid two">

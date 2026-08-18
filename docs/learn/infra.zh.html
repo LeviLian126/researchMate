@@ -46,16 +46,16 @@
   </div></nav>
   <main class="shell">
     <div class="hero">
-      <p class="eyebrow">Supabase / PostgreSQL RLS / Qdrant / 11 个迁移 / 49 个操作</p>
+      <p class="eyebrow">Supabase / PostgreSQL RLS / Qdrant / 21 个迁移 / 49 个操作</p>
       <h1>基础设施 . infra &amp; scripts</h1>
       <p class="lede">ResearchMate 基础设施层定义持久化与协调设施：Supabase/PostgreSQL 是真相源，Qdrant 执行路由式 Hybrid 检索，生成的 OpenAPI 锁定 43 条路径上的 49 个操作。</p>
       <div class="meta">
         <span class="status local">34 张表(31 业务 + 3 协调)</span>
-        <span class="status local">11 个 SQL 迁移</span>
+        <span class="status local">21 个 SQL 迁移</span>
         <span class="status local">3 个 Qdrant 集合角色</span>
         <span class="status local">49 个操作 / 12 个 tag</span>
         <span class="status local">71 个 schema</span>
-        <span class="status local">9 个脚本</span>
+        <span class="status local">11 个脚本</span>
       </div>
     </div>
     <div class="layout"><div class="content">
@@ -66,7 +66,7 @@
         <div class="grid">
           <article class="fact"><b>Supabase</b><p>PostgreSQL 托管平台,提供数据库、认证(auth.uid())、存储和 Edge Functions。ResearchMate 使用其 PostgreSQL 实例作为唯一真相源,所有业务表和协调表均在此创建。RLS 策略直接在数据库层强制多租户隔离。</p></article>
           <article class="fact"><b>PostgreSQL RLS</b><p>Row Level Security 在数据库层强制每行数据的访问控制。全部 31 张业务表均启用 RLS,通过 auth.uid() 实现按用户隔离。pipeline_versions 支持 developer/admin 角色策略,outbox_events 不设认证用户策略(仅 service-role)。</p></article>
-          <article class="fact"><b>Database migrations</b><p>11 个 additive SQL 迁移按版本排序。最新迁移保存 section path、chunk 序号与稳定字符偏移,供检索溯源使用。</p></article>
+          <article class="fact"><b>Database migrations</b><p>21 个 additive SQL 迁移按版本排序。最新迁移同步 document bucket MIME 类型;近期迁移还包括结构化 chunk 溯源、对话索引、human-decisions 去重、答题反馈评估实验室、扩展文件类型、chunk_has_vector、轻量无向量 chunk。</p></article>
           <article class="fact"><b>Qdrant collections</b><p>三种角色:保留 legacy retrieval 用于即时回滚,v2 执行 multivector late-interaction rerank,v3 影子集合存储命名 dense 与启用 IDF 的 BM25 向量。每个查询分支都重复 owner filter。</p></article>
           <article class="fact"><b>OpenAPI spec</b><p>49 个操作分布在 43 条路径和 12 个 tag 下，共有 71 个 component schema。<code>openapi.yaml</code> 由 FastAPI 确定性渲染，<code>--check</code> 会拒绝漂移。</p></article>
         </div>
@@ -74,7 +74,7 @@
       <section id="tree">
         <p class="eyebrow">完整目录树</p>
         <h2>infra/ 与 scripts/ 文件结构</h2>
-        <p class="sub">infra/ 包含 3 个子目录(openapi、qdrant、supabase),scripts/ 包含 9 个脚本文件。</p>
+        <p class="sub">infra/ 包含 3 个子目录(openapi、qdrant、supabase),scripts/ 包含 11 个脚本文件。</p>
         <pre class="command-block"><code>infra/
   openapi/
     openapi.yaml              183 KB  49 operations / 12 tags / 71 schemas
@@ -98,8 +98,10 @@ scripts/
   apply_migrations.py            3.6 KB  Validate &amp; apply ordered migrations
   bootstrap_demo_catalog.py      5.8 KB  Bootstrap demo pipeline + eval dataset
   check_contracts.ps1              524 B  Run pytest contract tests
+  check_evaluation_gate.py       5.9 KB  评估未完成/回归即失败发布门禁
   dev_api.ps1                      491 B  Start uvicorn dev server
   export_openapi.py              1.2 KB  Render/verify OpenAPI artifact
+  measure_langgraph_recovery.py  9.0 KB  衡量跨进程重启的 interrupt 恢复
   provision_qdrant_rerank.py     6.3 KB  Provision Qdrant v2 backfill
   provision_qdrant_hybrid.py             回放并验证原生 Hybrid v3
   repair_docs_html_encoding.py   3.3 KB  Repair corrupted HTML docs
@@ -107,7 +109,7 @@ scripts/
       </section>
       <section id="migrations">
         <p class="eyebrow">SQL 迁移逐文件详解</p>
-        <h2>11 个迁移按顺序解析</h2>
+        <h2>21 个迁移按顺序解析</h2>
         <p class="sub">每个迁移均为 additive(仅添加,不破坏已有数据),按版本号前缀 YYYYMMDDNNN 排序执行。</p>
         <details id="migration-01"><summary>1. 202605260001_initial_schema.sql</summary>
           <dl class="kv">
@@ -205,6 +207,96 @@ scripts/
             <dt>表</dt><dd>增量修改 chunks 与 citations,不重写历史行。</dd>
             <dt>字段与索引</dt><dd>section_title、section_path、chunk_index、char_start、char_end;校验偏移成对出现并索引文档内 chunk 顺序。</dd>
             <dt>增量说明</dt><dd>让结构感知摄取的溯源贯穿 SQL、Qdrant payload 与用户可见 citation。</dd>
+          </dl>
+        </details>
+        <details id="migration-12"><summary>12. 202608080001_add_profiles_fk.sql</summary>
+          <dl class="kv">
+            <dt>Version</dt><dd><code>202608080001</code></dd>
+            <dt>表</dt><dd>无新表(修改 profiles)。</dd>
+            <dt>字段与索引</dt><dd>新增 <code>profiles_id_fk</code> 外键,引用 <code>auth.users(id)</code>,<code>ON DELETE CASCADE</code>。</dd>
+            <dt>RLS</dt><dd>无 RLS 变更。</dd>
+            <dt>增量说明</dt><dd>删除 Supabase auth 用户时,会经由 profiles 级联到所有 owner 范围数据,不再产生孤儿记录。</dd>
+          </dl>
+        </details>
+        <details id="migration-13"><summary>13. 202608080002_add_updated_at_triggers.sql</summary>
+          <dl class="kv">
+            <dt>Version</dt><dd><code>202608080002</code></dd>
+            <dt>表</dt><dd>无新表(修改 profiles、projects、documents 等含 <code>updated_at</code> 的表)。</dd>
+            <dt>字段与索引</dt><dd>创建 <code>set_updated_at()</code> plpgsql 函数,并为每张表创建 <code>BEFORE UPDATE</code> 触发器。</dd>
+            <dt>RLS</dt><dd>无 RLS 变更。</dd>
+            <dt>增量说明</dt><dd>每次部分 UPDATE 都会刷新 <code>updated_at</code>,不再残留过期时间戳。</dd>
+          </dl>
+        </details>
+        <details id="migration-14"><summary>14. 202608080003_add_handle_new_user_trigger.sql</summary>
+          <dl class="kv">
+            <dt>Version</dt><dd><code>202608080003</code></dd>
+            <dt>表</dt><dd>无新表(修改 auth.users 触发器)。</dd>
+            <dt>字段与索引</dt><dd>创建 <code>handle_new_user()</code> SECURITY DEFINER 函数与 <code>on_auth_user_created</code> 触发器,挂在 <code>auth.users</code> 上;使用 <code>ON CONFLICT (id) DO NOTHING</code>。</dd>
+            <dt>RLS</dt><dd>触发器以 SECURITY DEFINER 执行,使 auth 触发的 INSERT 能在 RLS 下写入 <code>profiles</code>。</dd>
+            <dt>增量说明</dt><dd>Supabase Auth 创建用户时自动插入 profiles 行,免除应用层的防御式插入。</dd>
+          </dl>
+        </details>
+        <details id="migration-15"><summary>15. 202608080004_add_conversations_index.sql</summary>
+          <dl class="kv">
+            <dt>Version</dt><dd><code>202608080004</code></dd>
+            <dt>表</dt><dd>无新表(修改 conversations)。</dd>
+            <dt>字段与索引</dt><dd>新增偏 b-tree 索引 <code>idx_conversations_user_created</code>,建立在 <code>(user_id, created_at desc)</code>,过滤 <code>deleted_at IS NULL</code>。</dd>
+            <dt>RLS</dt><dd>无 RLS 变更。</dd>
+            <dt>增量说明</dt><dd>支持聊天历史列表查询,无需扫描已删除行。</dd>
+          </dl>
+        </details>
+        <details id="migration-16"><summary>16. 202608080005_align_human_decisions_dedup.sql</summary>
+          <dl class="kv">
+            <dt>Version</dt><dd><code>202608080005</code></dd>
+            <dt>表</dt><dd>无新表(修改 human_decisions)。</dd>
+            <dt>字段与索引</dt><dd>新增 <code>idempotency_key text NOT NULL</code>,从 <code>interrupt_key</code> 回填;删除原 <code>(run_id, interrupt_key)</code> 唯一约束,改为 <code>(run_id, idempotency_key)</code>。</dd>
+            <dt>RLS</dt><dd>无 RLS 变更。</dd>
+            <dt>增量说明</dt><dd>使数据库去重与公开的 <code>Idempotency-Key</code> 头契约对齐:相同的 header 但不同的 <code>interrupt_key</code> 的重试会被正确去重。</dd>
+          </dl>
+        </details>
+        <details id="migration-17"><summary>17. 202608110007_answer_feedback_eval_lab.sql</summary>
+          <dl class="kv">
+            <dt>Version</dt><dd><code>202608110007</code></dd>
+            <dt>表</dt><dd>新增 <code>answer_feedback</code>(1 张新表),外键引用 profiles、projects、conversations、ask_runs、evaluation_cases。</dd>
+            <dt>字段与索引</dt><dd>rating(<code>helpful</code>/<code>not_helpful</code>)、category(incorrect_answer &hellip; other)、comment(上限 1000)、question/answer 快照、citation/retrieved chunk ID 数组、retrieved_evidence jsonb、status(<code>new</code>/<code>promoted</code>)、promoted_case_id;<code>unique (user_id, ask_run_id)</code>。</dd>
+            <dt>RLS</dt><dd>answer_feedback 启用 owner 范围 RLS。</dd>
+            <dt>增量说明</dt><dd>持久化 owner 范围的答案反馈及其不可变的 evaluation-case 提升状态。</dd>
+          </dl>
+        </details>
+        <details id="migration-18"><summary>18. 202608110008_expand_document_file_types.sql</summary>
+          <dl class="kv">
+            <dt>Version</dt><dd><code>202608110008</code></dd>
+            <dt>表</dt><dd>无新表(修改 documents 的 check 约束)。</dd>
+            <dt>字段与索引</dt><dd>替换 <code>documents_file_type_check</code>,接受结构化 Office 类型(<code>pdf, docx, pptx, xlsx</code>)以及有限的纯文本/代码格式(<code>md, csv, json, py, ts, tsx, sql, java, go, rs, kt</code> 等),先 <code>NOT VALID</code> 再 <code>VALIDATE CONSTRAINT</code>。</dd>
+            <dt>RLS</dt><dd>无 RLS 变更。</dd>
+            <dt>增量说明</dt><dd>扩展文档摄取,支持结构化 Office 文件与有限的纯文本/源码格式。</dd>
+          </dl>
+        </details>
+        <details id="migration-19"><summary>19. 202608130009_add_chunk_has_vector.sql</summary>
+          <dl class="kv">
+            <dt>Version</dt><dd><code>202608130009</code></dd>
+            <dt>表</dt><dd>无新表(修改 chunks)。</dd>
+            <dt>字段与索引</dt><dd>新增 <code>has_vector boolean NOT NULL DEFAULT true</code>;新增偏索引 <code>idx_chunks_document_has_vector</code>,建立在 <code>(document_id, has_vector)</code>,过滤 <code>has_vector = false</code>。</dd>
+            <dt>RLS</dt><dd>无 RLS 变更。</dd>
+            <dt>增量说明</dt><dd>允许轻量文档跳过 embedding 和 Qdrant upsert,仍可通过查询时的直接上下文注入参与检索。</dd>
+          </dl>
+        </details>
+        <details id="migration-20"><summary>20. 202608160010_allow_lightweight_chunks_without_vectors.sql</summary>
+          <dl class="kv">
+            <dt>Version</dt><dd><code>202608160010</code></dd>
+            <dt>表</dt><dd>无新表(修改 chunks)。</dd>
+            <dt>字段与索引</dt><dd>移除 <code>chunks.qdrant_point_id</code> 的 <code>NOT NULL</code>。</dd>
+            <dt>RLS</dt><dd>无 RLS 变更。</dd>
+            <dt>增量说明</dt><dd>轻量 chunk 可在没有 Qdrant 点的情况下持久化;PostgreSQL 唯一约束已允许多个 NULL,因此对向量 chunk 的现有唯一性契约不变。</dd>
+          </dl>
+        </details>
+        <details id="migration-21"><summary>21. 202608170001_sync_document_bucket_mime_types.sql</summary>
+          <dl class="kv">
+            <dt>Version</dt><dd><code>202608170001</code></dd>
+            <dt>表</dt><dd>无新表(修改 storage.buckets)。</dd>
+            <dt>字段与索引</dt><dd>更新私有文档 bucket 的 <code>allowed_mime_types</code>,与迁移 008 中的文件类型 check 约束对齐。</dd>
+            <dt>RLS</dt><dd>无 RLS 变更。</dd>
+            <dt>增量说明</dt><dd>私有文档 bucket 与上传 API 接受的 MIME 类型保持一致:在存储边界被拒绝的上传与在 schema 边界被拒绝的上传现在一致。</dd>
           </dl>
         </details>
       </section>
@@ -673,8 +765,8 @@ scripts/
       </section>
       <section id="scripts">
         <p class="eyebrow">scripts/ 逐文件详解</p>
-        <h2>8 个运维脚本</h2>
-        <p class="sub">5 个 Python 脚本 + 2 个 PowerShell 脚本 + 1 个编码修复脚本。所有脚本均使用环境变量门控或审批标志。</p>
+        <h2>11 个运维脚本</h2>
+        <p class="sub">8 个 Python 脚本 + 2 个 PowerShell 脚本 + 1 个编码修复脚本。所有脚本均使用环境变量门控或审批标志。</p>
         <details id="script-01"><summary>1. apply_migrations.py</summary>
           <dl class="kv">
             <dt>Language</dt><dd><code>Python</code></dd>
@@ -744,6 +836,22 @@ scripts/
             <dt>语言</dt><dd><code>Python</code></dd>
             <dt>职责</dt><dd>创建 v3 影子集合,分批回放 ready 本地 chunks,删除陈旧点,并验证 tenant-filtered 原生 BM25 检索。</dd>
             <dt>安全</dt><dd>必须显式设置 <code>ALLOW_QDRANT_HYBRID_BACKFILL=1</code>;配置切流前记录精确数量与语料 checksum。</dd>
+          </dl>
+        </details>
+        <details id="script-10"><summary>10. check_evaluation_gate.py</summary>
+          <dl class="kv">
+            <dt>语言</dt><dd><code>Python</code></dd>
+            <dt>行数</dt><dd>139</dd>
+            <dt>职责</dt><dd>受控发布门禁:当持久化的 evaluation run 未完成、失败或回归时失败。从 API 读取持久化的状态、执行摘要、指标聚合和基线对比;默认强制 Recall@K &ge; 0.80、MRR &ge; 0.50、NDCG &ge; 0.80;拒绝 pipeline <code>code_sha</code> 与工作流 commit 不一致的 run。</dd>
+            <dt>安全</dt><dd>localhost 之外必须 HTTPS;阈值为显式 CLI 输入,发布策略变更属于代码变更而非密钥。</dd>
+          </dl>
+        </details>
+        <details id="script-11"><summary>11. measure_langgraph_recovery.py</summary>
+          <dl class="kv">
+            <dt>语言</dt><dd><code>Python</code></dd>
+            <dt>行数</dt><dd>232</dd>
+            <dt>职责</dt><dd>衡量跨进程重启的 LangGraph interrupt 持久化恢复。spawn 子进程依次启动、interrupt、恢复一个固定工作流;输出 attempted/successful 计数、失败列表,以及基于可配置最低恢复率(默认 0.995)的 Wilson 置信区间。</dd>
+            <dt>安全</dt><dd>读取 <code>RECOVERY_BENCHMARK_DATABASE_URL</code>;默认 <code>--trials 1000</code>、<code>--batch-size 50</code>、<code>--minimum-rate 0.995</code>、<code>--confidence 0.95</code>;当下界置信度低于最低恢复率时以非零状态退出。</dd>
           </dl>
         </details>
       </section>

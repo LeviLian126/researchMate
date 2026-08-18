@@ -355,6 +355,57 @@
       <dt>ToolCallTrace</dt><dd>ID, tool name, input summary, optional output summary, status, optional latency and error.</dd>
       <dt>DeveloperTrace</dt><dd>Trace/user/project/run UUIDs; plan; routing reason; at most 80 retrieved chunks and 40 tool calls; validation; optional latency/tokens; at most 20 errors; creation timestamp.</dd>
      </dl></details>
+     <details id="schema-conversation"><summary><code>Conversation</code>, <code>ConversationMessage</code>, and <code>RuntimeRerankConfig</code></summary><dl class="kv">
+      <dt>ConversationSummary</dt><dd><code>id: UUID</code>; <code>project_id: UUID</code>; <code>title: string 1..120</code>; created/updated timestamps.</dd>
+      <dt>ConversationListResponse</dt><dd><code>items: ConversationSummary[] &le;100</code>.</dd>
+      <dt>ConversationCreate</dt><dd><code>title: string 1..120 = "New chat"</code>; trimmed and rejects whitespace-only values; extra fields forbidden.</dd>
+      <dt>ConversationUpdate</dt><dd><code>title: string 1..120</code>, normalized; extra fields forbidden.</dd>
+      <dt>ConversationMessage</dt><dd><code>id</code>, <code>conversation_id</code>, <code>role: user|assistant</code>; <code>content: string 1..16000</code>; at most 80 citations; optional <code>ask_run_id</code>; optional <code>feedback_rating: helpful|not_helpful</code>; <code>created_at</code>.</dd>
+      <dt>ConversationMessagesResponse</dt><dd><code>conversation_id: UUID</code>; <code>messages: ConversationMessage[] &le;200</code>.</dd>
+      <dt>RuntimeRerankConfig</dt><dd><code>provider: auto|qdrant|nvidia|deterministic</code>; <code>version: int &ge;1</code>; <code>updated_at</code>; optional <code>updated_by: UUID</code>.</dd>
+      <dt>RuntimeRerankConfigUpdate</dt><dd><code>provider: auto|qdrant|nvidia|deterministic</code>; <code>expected_version: int &ge;1</code>; extra fields forbidden.</dd>
+     </dl></details>
+     <details id="schema-feedback"><summary><code>AnswerFeedback</code>, <code>FeedbackEvidence</code>, and <code>FeedbackPromotion</code></summary><dl class="kv">
+      <dt>AnswerFeedbackUpsert</dt><dd><code>rating: helpful|not_helpful</code>; optional <code>category</code> (<code>incorrect_answer|incorrect_citation|missing_context|irrelevant|unsafe|other</code>); optional <code>comment: string &le;1000</code> trimmed; extra fields forbidden.</dd>
+      <dt>FeedbackEvidence</dt><dd><code>chunk_id: UUID</code>; <code>source_type: local_doc|web_page</code>; optional <code>source_title: string &le;300</code>; optional <code>page_no: int &ge;1</code>; optional <code>excerpt: string &le;240</code>.</dd>
+      <dt>AnswerFeedbackRecord</dt><dd><code>feedback_id</code>, <code>ask_run_id</code>, <code>project_id</code>, <code>conversation_id</code>; <code>rating</code>; optional <code>category</code> and <code>comment</code>; trusted <code>question</code> and <code>answer</code>; at most 80 citation and retrieved chunk UUIDs and at most 80 retrieved evidence rows; <code>status: new|promoted</code>; optional <code>promoted_case_id</code>; created/updated timestamps.</dd>
+      <dt>AnswerFeedbackListResponse</dt><dd><code>items: AnswerFeedbackRecord[] &le;100</code>.</dd>
+      <dt>FeedbackPromotionCreate</dt><dd><code>expected_chunk_ids: UUID[] 1..80</code>, must be unique; extra fields forbidden.</dd>
+      <dt>FeedbackPromotionResult</dt><dd><code>dataset_id</code>; <code>dataset_version: int &ge;1</code>; <code>dataset_status: "frozen"</code>; <code>case_id</code>; <code>evaluation_run_id</code>; <code>evaluation_status: "pending"</code>; <code>evaluation_status_url</code>.</dd>
+     </dl></details>
+     <details id="schema-evidence-workflow"><summary><code>ResearchRun</code>, <code>WorkflowRun</code>, <code>HumanDecision</code>, and <code>Claim</code> shapes</summary><dl class="kv">
+      <dt>SourceScope</dt><dd><code>document_ids: UUID[] &le;200</code> (must be unique); <code>allow_web: boolean = false</code>.</dd>
+      <dt>ResearchRunCreate</dt><dd><code>project_id: UUID</code>; <code>research_goal: string 20..12000</code>; <code>source_scope: SourceScope</code>; <code>pipeline_version_id: UUID</code>; <code>review_policy: strict|balanced = "strict"</code>; optional <code>max_cost_usd: decimal &gt;0 &le;25</code>.</dd>
+      <dt>ResearchRunAccepted</dt><dd><code>run_id: UUID</code>; <code>status: "pending"</code>; <code>status_url</code>; <code>events_url</code>; <code>created_at</code>.</dd>
+      <dt>WorkflowRunRecord</dt><dd><code>run_id</code>, <code>project_id</code>, <code>pipeline_version_id</code>; <code>kind: ask|evidence_review|report_refresh</code>; <code>status: pending|running|waiting_human|succeeded|failed|cancelled</code>; <code>progress: 0..100</code>; optional <code>current_node</code>; <code>review_required: boolean</code>; optional opaque <code>output</code> and <code>error_code</code>; created/started/completed timestamps.</dd>
+      <dt>HumanDecisionCreate</dt><dd><code>interrupt_key: string 1..160</code>; <code>decision: approve|edit|reject</code>; optional opaque <code>edited_payload</code> (required for edit, forbidden otherwise); optional <code>reason: string &le;2000</code>.</dd>
+      <dt>HumanDecisionAccepted</dt><dd><code>decision_id</code>; <code>run_id</code>; <code>status: "accepted"</code>; <code>resume_status_url</code>.</dd>
+      <dt>ClaimSummary</dt><dd><code>claim_id</code>, <code>text</code>; <code>stance: supports|opposes|neutral</code>; <code>confidence: 0..1</code>; <code>review_status: pending|accepted|edited|rejected|invalidated</code>; <code>evidence_count</code>, <code>support_count</code>, <code>contradiction_count</code>, <code>duplicate_count</code> (integers &ge;0); <code>source_version: int &ge;1</code>.</dd>
+      <dt>ClaimListResponse</dt><dd><code>items: ClaimSummary[]</code>; optional <code>next_cursor</code>.</dd>
+      <dt>ClaimRelationSummary</dt><dd><code>source_claim_id</code>, <code>target_claim_id</code>; <code>relation: supports|contradicts|duplicates</code>; <code>confidence: 0..1</code>; optional <code>rationale_summary</code>; <code>source_text</code>, <code>target_text</code>.</dd>
+      <dt>ClaimRelationListResponse</dt><dd><code>items: ClaimRelationSummary[]</code>; optional <code>next_cursor</code>.</dd>
+     </dl></details>
+     <details id="schema-report"><summary><code>Report</code>, <code>ReportRefresh</code>, and <code>PipelineVersion</code> shapes</summary><dl class="kv">
+      <dt>ReportSummary</dt><dd><code>report_id</code>; <code>source_run_id</code>; <code>title</code>; <code>status: draft|review|published|invalidated</code>; <code>revision: int &ge;1</code>; <code>validation_status: pending|passed|failed|retrying</code>; <code>affected_section_count: int &ge;0</code>; optional <code>generated_at</code>.</dd>
+      <dt>ReportListResponse</dt><dd><code>items: ReportSummary[]</code>; optional <code>next_cursor</code>.</dd>
+      <dt>ReportSectionRecord</dt><dd><code>section_id</code>; <code>section_key</code>; <code>position: int &ge;0</code>; <code>heading</code>; <code>body_markdown</code>; opaque <code>evidence_snapshot</code>; <code>validation_status: pending|passed|failed|retrying</code>.</dd>
+      <dt>ReportDetail</dt><dd>Extends <code>ReportSummary</code> with <code>sections: ReportSectionRecord[]</code>.</dd>
+      <dt>ReportRefreshCreate</dt><dd><code>changed_document_ids: UUID[] &le;200</code>; <code>force_sections: string[] &le;100</code>; <code>pipeline_version_id: UUID</code>; at least one changed document or forced section is required.</dd>
+      <dt>ReportRefreshAccepted</dt><dd><code>run_id</code>; <code>base_revision</code>; <code>planned_revision</code>; <code>impacted_section_keys: string[]</code>; <code>events_url</code>.</dd>
+      <dt>PipelineVersionSummary</dt><dd><code>pipeline_version_id</code>; <code>name</code>; <code>version: int &ge;1</code>; opaque <code>configuration</code>; <code>code_sha</code>; optional <code>accepted_at</code>.</dd>
+      <dt>PipelineVersionListResponse</dt><dd><code>items: PipelineVersionSummary[]</code>.</dd>
+     </dl></details>
+     <details id="schema-evaluation"><summary><code>EvaluationDataset</code>, <code>EvaluationRun</code>, <code>ReliabilityResponse</code>, and <code>FaultScenario</code> shapes</summary><dl class="kv">
+      <dt>EvaluationDatasetSummary</dt><dd><code>dataset_id</code>; optional <code>project_id</code>; <code>name</code>; <code>version: int &ge;1</code>; optional <code>description</code>; <code>case_count: int &ge;0</code>.</dd>
+      <dt>EvaluationDatasetListResponse</dt><dd><code>items: EvaluationDatasetSummary[]</code>.</dd>
+      <dt>EvaluationRunCreate</dt><dd><code>dataset_id</code>; <code>pipeline_version_id</code>; <code>metrics</code> from <code>schema_valid|citation_precision|evidence_recall|retrieval_mrr|retrieval_ndcg|faithfulness</code> (1..6 selected); <code>max_parallelism: 1..20 = 4</code>; optional <code>max_cost_usd: decimal &gt;0 &le;25</code>; <code>labels: string[] &le;20</code>.</dd>
+      <dt>EvaluationRunAccepted</dt><dd><code>evaluation_run_id</code>; <code>case_count: int &ge;0</code>; <code>status_url</code>; optional <code>estimated_budget_boundary</code>.</dd>
+      <dt>EvaluationRunRecord</dt><dd><code>evaluation_run_id</code>; <code>dataset_id</code>; <code>pipeline_version_id</code>; <code>status: pending|running|succeeded|failed|cancelled</code>; <code>progress: 0..100</code>; optional opaque <code>summary</code>; opaque <code>scores</code>; created/started/completed timestamps.</dd>
+      <dt>ReliabilityResponse</dt><dd><code>window_hours</code>; <code>run_count</code>; <code>success_rate: 0..1</code>; <code>error_rate: 0..1</code>; <code>retry_count: int &ge;0</code>; optional <code>p50_latency_ms</code>, <code>p95_latency_ms</code>; <code>input_tokens</code>, <code>output_tokens</code> (integers &ge;0); <code>cost_usd: decimal</code>; <code>sample_trace_ids: UUID[]</code>.</dd>
+      <dt>FaultScenarioCreate</dt><dd><code>scenario: llm_timeout|qdrant_unavailable|worker_interrupt|r2_failure</code>; optional <code>target_run_id</code>; <code>duration_seconds: 1..60</code>.</dd>
+      <dt>FaultScenarioAccepted</dt><dd><code>exercise_id</code>; optional <code>target_run_id</code>; <code>expected_recovery_state</code>; <code>status_url</code>; <code>expires_at</code>.</dd>
+      <dt>FaultScenarioRecord</dt><dd><code>exercise_id</code>; <code>scenario</code>; optional <code>target_run_id</code>; <code>status: pending|running|succeeded|failed</code>; <code>attempts: int &ge;0</code>; <code>expires_at</code>; opaque <code>safe_result</code>; optional <code>error_code</code>; created/started/completed timestamps.</dd>
+     </dl></details>
     </section>
 
     <section id="planned-operations">

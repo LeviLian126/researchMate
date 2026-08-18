@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8"/>
   <meta content="width=device-width, initial-scale=1" name="viewport"/>
-  <meta content="ResearchMate AI 智能体技术栈深度解析：Wiki 引导的三层混合 RAG、五路由混合 RAG 与双重重排、六工具三资源 MCP 服务器、六节点 LangGraph 证据工作流含检查点与人工审核。" name="description"/>
+  <meta content="ResearchMate AI 智能体技术栈深度解析：Wiki 引导的三层混合 RAG、五路由混合 RAG 与双重重排、六工具三资源 MCP 服务器、十一节点 Research Graph 证据工作流含自适应查询规划。" name="description"/>
   <title>ResearchMate . AI 智能体技术栈</title>
   <link href="../assets/site.css" rel="stylesheet"/>
   <style>
@@ -50,15 +50,14 @@
     <div class="hero">
       <p class="eyebrow">Wiki 引导的混合 RAG / MCP / LangGraph</p>
       <h1>AI 智能体技术栈 . 检索、协议、编排</h1>
-      <p class="lede">ResearchMate 的 AI 智能体技术栈是一个横跨 FastAPI 后端和 Celery worker 的内聚子系统。四大基石构成它：一个 Wiki 引导的混合 RAG 检索器，将 LLM 编译的结构化 Wiki 页面作为第一层检索；一个路由式混合 RAG 检索器，在融合检索和双重重排之前从五条可观测路由中选择；一个 MCP 服务器，在 Streamable HTTP 上以与 REST 相同的 Bearer 认证暴露六个工具和三个资源；以及一个 LangGraph 证据工作流，编排一个六节点有状态图，支持并行扇出、PostgreSQL 检查点和人工审核。本页逐文件讲解每个组件、决策树和集成接缝。</p>
+      <p class="lede">ResearchMate 的 AI 智能体技术栈是一个横跨 FastAPI 后端和 Celery worker 的内聚子系统。四大基石构成它：一个 Wiki 引导的混合 RAG 检索器，将 LLM 编译的结构化 Wiki 页面作为第一层检索；一个路由式混合 RAG 检索器，在融合检索和双重重排之前从五条可观测路由中选择；一个 MCP 服务器，在 Streamable HTTP 上以与 REST 相同的 Bearer 认证暴露六个工具和三个资源；以及一个 Research Graph 证据工作流，编排一个十一节点 LangGraph，含自适应查询规划、证据充分性判定和有界检索循环 &mdash; 无持久化检查点。本页逐文件讲解每个组件、决策树和集成接缝。</p>
       <div class="meta">
         <span class="status local">Wiki 引导的混合 RAG</span>
         <span class="status local">5 条检索路由</span>
         <span class="status local">3 个重排提供者</span>
         <span class="status local">6 个 MCP 工具 . 3 个资源</span>
-        <span class="status local">6 节点 LangGraph</span>
-        <span class="status local">PostgresSaver 检查点</span>
-        <span class="status local">人工审核</span>
+        <span class="status local">11 节点 Research Graph</span>
+        <span class="status local">自适应查询规划</span>
         <span class="status local">3 个检索评估模式</span>
       </div>
     </div>
@@ -71,7 +70,7 @@
         <div class="grid two">
           <article class="fact"><b>路由式混合 RAG</b><p>带可观测五路由规划器的检索增强生成。<code>query_planning.py</code> 在任何向量搜索之前将每个问题分类为 <code>FULL_CONTEXT</code>、<code>EXACT</code>、<code>SEMANTIC</code>、<code>HYBRID</code> 或 <code>EXPANDED_HYBRID</code>。<code>qdrant_hybrid_query.py</code> 中 Qdrant 原生 BM25 + 稠密分支以加权 RRF 融合。<code>rerank.py</code> 中的三提供者重排协调器（<code>QdrantNativeReranker</code> &rarr; <code>NvidiaReranker</code> &rarr; <code>DeterministicReranker</code>）应用后期交互重排，带确定性兜底。</p></article>
           <article class="fact"><b>MCP</b><p>基于 FastMCP 的模型上下文协议服务器。<code>mcp_server.py</code> 在无状态 Streamable HTTP 上暴露六个工具（<code>list_projects</code>、<code>search_project</code>、<code>search_conversation</code>、<code>ask_grounded</code>、<code>get_run_trace</code>、<code>run_evaluation</code>）和三个资源（<code>project://{project_id}/documents</code>、<code>conversation://{conversation_id}/documents</code>、<code>run://{run_id}</code>），由与 REST 相同的 Bearer 中间件认证。SDK 是可选依赖 &mdash; 缺失时 <code>/mcp</code> 返回 <code>503 MCP_RUNTIME_NOT_INSTALLED</code>。</p></article>
-          <article class="fact"><b>LangGraph</b><p>有状态图编排库。<code>evidence_graph.py</code> 构建六节点 <code>StateGraph</code>（plan、retrieve_and_extract、reconcile、human_review、synthesize、validate_and_commit），通过 <code>Send</code> 实现条件扇出。检查点通过 <code>PostgresSaver</code> 和 <code>JsonPlusSerializer(pickle_fallback=False)</code> 持久化到 PostgreSQL。<code>interrupt()</code> 原语暂停等待人工审核，无需 try/except 包装，Celery <code>run_workflow</code> 任务通过 <code>Command(resume=...)</code> 恢复。</p></article>
+          <article class="fact"><b>LangGraph</b><p>有状态图编排库。<code>apps/api/src/researchmate_api/graph/graph.py</code> 编译十一节点 <code>StateGraph(ResearchState)</code>（prepare_context、use_full_context、select_wiki、judge_wiki、plan_evidence、search_sources、merge_evidence、rerank_evidence、judge_evidence、refine_query、generate），通过 <code>after_prepare</code>、<code>after_wiki</code>、<code>after_evidence</code> 实现条件边路由。<code>AdaptiveQueryPlanner</code> 提供带确定性兜底的有界 LLM 查询；<code>EvidenceSufficiencyService</code> 在每轮判断并失败关闭。图用 <code>workflow.compile()</code> 编译 &mdash; 不传 checkpointer 参数 &mdash; 因此请求级状态仅存于进程内存，无持久化检查点。</p></article>
         </div>
       </section>
 
@@ -155,7 +154,7 @@
         <p><code>query_planning.py</code> 中的路由器在确定路由后检查 Wiki 候选。决策逻辑：</p>
         <div class="proof-chain">
           <div class="proof-step"><b>FULL_CONTEXT 或 SEMANTIC + Wiki 存在</b><small>完全跳过 Qdrant；返回 Wiki 分块，score=1.0，reason="wiki_first_routing"。无向量搜索成本。</small></div>
-          <div class="proof-step"><b>EXACT 查询</b><small>无论 Wiki 是否存在都走完整 RAG 管道 &mdash; 精确标识符匹配优先。Wiki 分块被追加但得分 0.0。</small></div>
+          <div class="proof-step"><b>EXACT 查询</b><small>无论 Wiki 是否存在都走完整 RAG 管道 &mdash; 精确标识符匹配优先。Wiki 分块仍可用，但不短路生成。</small></div>
           <div class="proof-step"><b>HYBRID 或 EXPANDED_HYBRID</b><small>双路并行：50% token 预算给 Wiki 分块，50% 给 Qdrant RAG。结果通过加权 RRF 合并。</small></div>
           <div class="proof-step"><b>无 Wiki 或编译失败</b><small>优雅降级 &mdash; 回退到标准 RAG 管道，如同 Wiki 层从未存在过。</small></div>
         </div>
@@ -251,7 +250,7 @@ tests/
 
         <h3>Wiki 优先路由策略</h3>
         <div class="grid two">
-          <article class="fact"><b>Wiki 优先路由</b><p>当 Wiki 候选存在且查询路由为 FULL_CONTEXT 或 SEMANTIC 时，完全跳过 Qdrant 并返回 Wiki 分块（score=1.0, reason="wiki_first_routing"）。EXACT 查询仍走完整 RAG 管道。</p></article>
+          <article class="fact"><b>Wiki 优先路由</b><p>当 Wiki 候选存在且查询路由为 FULL_CONTEXT 或 SEMANTIC 时，完全跳过 Qdrant 并返回 Wiki 分块（score=1.0, reason="wiki_first_routing"）。EXACT 查询仍走完整 RAG 管道；Wiki 分块仍可用但不短路生成。</p></article>
           <article class="fact"><b>优雅降级</b><p>Wiki 编译失败是非阻塞的 &mdash; 系统回退到原始 RAG 模块，不传播错误。</p></article>
         </div>
 
@@ -274,55 +273,70 @@ workers/ai-worker/src/researchmate_worker/
 
       <section id="langgraph">
         <p class="eyebrow">LangGraph 证据工作流</p>
-        <h2>LangGraph . 六节点有状态图含人工审核</h2>
-        <p class="sub">证据审核工作流是一个有界状态图：规划子问题、并行检索并提取证据、调和声明、暂停等待人工审核、合成报告、校验后提交。</p>
+        <h2>Research Graph . 十一节点有界检索图</h2>
+        <p class="sub">Ask 检索工作流是一个请求级 <code>StateGraph(ResearchState)</code>：准备语料上下文，可选地在 Wiki 或全文上短路，规划自适应查询，检索并重排证据，判断充分性，在有界循环中精炼查询 &mdash; 无持久化检查点。</p>
 
-        <h3>状态模式 . EvidenceWorkflowState</h3>
-        <p><code>workers/ai-worker/src/researchmate_worker/evidence_graph.py</code> 中的 <code>EvidenceWorkflowState</code> TypedDict 定义节点间交换的检查点安全状态：</p>
-        <div class="scroll"><table><thead><tr><th>字段</th><th>类型</th><th>用途</th></tr></thead><tbody>
-          <tr><td><code>run_id</code></td><td><code>str</code></td><td>工作流 run 标识（也是 LangGraph 线程 ID）</td></tr>
-          <tr><td><code>user_id</code>、<code>project_id</code></td><td><code>str</code></td><td>所有者和工作区范围</td></tr>
-          <tr><td><code>research_goal</code>、<code>review_policy</code></td><td><code>str</code></td><td>有界研究意图和审核严格度</td></tr>
-          <tr><td><code>run_kind</code></td><td><code>str</code></td><td><code>evidence_review</code> 或 <code>report_refresh</code></td></tr>
-          <tr><td><code>base_report_id</code>、<code>impacted_section_keys</code>、<code>changed_document_ids</code></td><td><code>str</code> / <code>list[str]</code></td><td>报告刷新范围</td></tr>
-          <tr><td><code>questions</code>、<code>question_index</code>、<code>question</code></td><td><code>list[str]</code> / <code>int</code> / <code>str</code></td><td>规划子问题和当前扇出索引</td></tr>
-          <tr><td><code>evidence_batches</code></td><td><code>Annotated[list[dict], operator.add]</code></td><td>累加器 &mdash; 并行批次通过 <code>operator.add</code> 合并</td></tr>
-          <tr><td><code>claims</code>、<code>relations</code></td><td><code>list[dict]</code></td><td>提取的声明和派生的关系</td></tr>
-          <tr><td><code>review_payload</code>、<code>decision</code></td><td><code>dict</code></td><td>人工审核提案和决策</td></tr>
-          <tr><td><code>report</code>、<code>validation</code></td><td><code>dict</code></td><td>合成报告和校验结果</td></tr>
+        <h3>状态模式 . ResearchState</h3>
+        <p><code>apps/api/src/researchmate_api/graph/state.py</code> 中的 <code>ResearchState</code> TypedDict 声明为 <code>total=False</code>，且"在无持久检查点的情况下贯穿有界 Research Graph" &mdash; 每次调用构造新的状态字典：</p>
+        <div class="stack-ledger"><table><thead><tr><th>字段</th><th>类型</th><th>用途</th></tr></thead><tbody>
+          <tr><td><code>question</code>、<code>corpus_tokens</code></td><td><code>str</code> / <code>int</code></td><td>用户查询和已授权语料的 token 估算</td></tr>
+          <tr><td><code>full_context_limit</code>、<code>wiki_threshold</code></td><td><code>int</code> / <code>float</code></td><td>配置的全文和 Wiki 充分性边界</td></tr>
+          <tr><td><code>has_wiki</code>、<code>web_allowed</code>、<code>wiki_fresh</code></td><td><code>bool</code></td><td>Wiki 存在、Web 许可和世代匹配的新鲜度标志</td></tr>
+          <tr><td><code>wiki_candidates</code>、<code>local_candidates</code>、<code>web_candidates</code>、<code>merged_candidates</code></td><td><code>list[ChunkEntry]</code></td><td>在节点间传递的带源标签的证据桶</td></tr>
+          <tr><td><code>reranked_evidence</code>、<code>final_evidence</code></td><td><code>list[ChunkEntry]</code></td><td>打包的重排输出和最终证据集</td></tr>
+          <tr><td><code>retrieval_round</code>、<code>max_retrieval_rounds</code></td><td><code>int</code></td><td>当前轮次索引和有界循环上限</td></tr>
+          <tr><td><code>evidence_sufficient</code>、<code>judge_confidence</code>、<code>judge_degraded</code></td><td><code>bool</code> / <code>float</code> / <code>bool</code></td><td>充分性裁决和结构化判定器元数据</td></tr>
+          <tr><td><code>missing_facets</code>、<code>refined_queries</code></td><td><code>list[dict[str,str]]</code> / <code>list[str]</code></td><td><code>refine_query</code> 用于构造下一轮查询的判定期望缺口</td></tr>
+          <tr><td><code>needs_raw_evidence</code>、<code>new_evidence_found</code></td><td><code>bool</code></td><td>原始证据需求和用于循环终止的无进展检测器</td></tr>
+          <tr><td><code>source_strategy</code>、<code>degraded</code>、<code>fallback_reasons</code></td><td><code>str</code> / <code>bool</code> / <code>list[str]</code></td><td>可观测策略标签和降级轨迹</td></tr>
         </tbody></table></div>
 
         <h3>图拓扑</h3>
-        <p><code>build_evidence_graph(domain, checkpointer)</code> 组装 <code>StateGraph</code> 并用检查点器编译：</p>
+        <p><code>ResearchGraph.run()</code> 构建每个请求一个 <code>_GraphRuntime</code>，调用 <code>build()</code> 组装 <code>StateGraph(ResearchState)</code>，并用 <code>runtime.initial_state()</code> 调用。图通过 <code>workflow.compile()</code> 编译 &mdash; 不传 checkpointer 参数，因此不涉及 <code>PostgresSaver</code> 或其他持久化存储：</p>
         <div class="proof-chain">
-          <div class="proof-step"><b>START &rarr; plan</b><small>从研究目标创建提供者支持的子问题，或为报告刷新保留 section keys</small></div>
-          <div class="proof-step"><b>plan &rarr; fan-out &rarr; retrieve_and_extract</b><small><code>fan_out()</code> 对每个问题返回一个 <code>Send("retrieve_and_extract", {...})</code> &mdash; 带完整上下文加每问题 <code>question_index</code> 和 <code>question</code> 的并行执行</small></div>
-          <div class="proof-step"><b>retrieve_and_extract &rarr; reconcile</b><small>从 Qdrant 检索证据（+ 可选 Tavily 网络搜索），加载分块，通过 LLM 提取声明。批次通过 <code>operator.add</code> 合并到 <code>evidence_batches</code>。调和派生声明关系（一致/矛盾）而不修改证据。</small></div>
-          <div class="proof-step"><b>reconcile &rarr; human_review</b><small><code>review()</code> 包装器调用 <code>domain.review_payload(state)</code>。如果返回 <code>None</code> 则自动通过。否则调用 <code>interrupt(proposed)</code> &mdash; 检查点持久化，图暂停。</small></div>
-          <div class="proof-step"><b>human_review &rarr; synthesize</b><small>恢复时 <code>domain.apply_decision()</code> 处理人工决策（approve/edit/reject）。合成通过 <code>synthesize_report()</code> LLM 调用从已审核声明构建 <code>ReportProposal</code>。</small></div>
-          <div class="proof-step"><b>synthesize &rarr; validate_and_commit &rarr; END</b><small>校验所有声明都有证据（<code>chunk_ids</code>），然后在一个事务内将报告原子提交到数据库。</small></div>
+          <div class="proof-step"><b>START &rarr; prepare_context</b><small>测算 <code>corpus_tokens = sum(estimate_tokens(chunk.text) for chunk in chunks)</code>；项目和会话范围已由 Ask 边界上游校验。</small></div>
+          <div class="proof-step"><b>prepare_context &rarr;（通过 <code>after_prepare</code> 条件）</b><small>返回 <code>chat</code>（&rarr;generate，当 <code>web_allowed=False</code> 且无语料）、<code>full_context</code>（&rarr;use_full_context，当语料符合预算）、<code>select_wiki</code>（&rarr;select_wiki，当 Wiki 分块存在）或 <code>plan</code>（&rarr;plan_evidence，默认和 <code>web_allowed=True</code>）。</small></div>
+          <div class="proof-step"><b>use_full_context &rarr; generate</b><small>对小型语料运行现有的 <code>LocalEvidenceRetriever.retrieve()</code>，将候选打包为 <code>final_evidence</code>；无重排、无 Qdrant 向量搜索。</small></div>
+          <div class="proof-step"><b>select_wiki &rarr; judge_wiki &rarr;（通过 <code>after_wiki</code> 条件）</b><small><code>select_wiki</code> 仅对 Wiki 分块运行 BM25（limit <code>wiki_gate_candidate_limit</code>）；<code>judge_wiki</code> 调用 <code>EvidenceSufficiencyService.assess()</code>。<code>after_wiki</code> 仅在 <code>evidence_sufficient AND judge_confidence &ge; wiki_threshold AND wiki_fresh AND NOT needs_raw_evidence</code> 时生成；否则路由到 <code>plan_evidence</code>。</small></div>
+          <div class="proof-step"><b>plan_evidence &rarr; search_sources &rarr; merge_evidence &rarr; rerank_evidence &rarr; judge_evidence</b><small><code>plan_evidence</code> 调用 <code>AdaptiveQueryPlanner.plan()</code>，将传统 regex 计划作为先验；<code>search_sources</code> 运行有界本地 + 许可的 Web 检索；<code>merge_evidence</code> 按 <code>chunk.id</code> 去重；<code>rerank_evidence</code> 按 <code>has_vector</code> 切分，重排 RAG 候选，追加轻量级候选，并在 <code>retrieval_evidence_token_budget</code> 下打包；<code>judge_evidence</code> 评估重排后的集合。</small></div>
+          <div class="proof-step"><b>judge_evidence &rarr;（通过 <code>after_evidence</code> 条件）</b><small>在 <code>evidence_sufficient</code>、<code>judge_degraded</code> 或 <code>new_evidence_found=False</code>（无进展）、<code>missing_facets=[]</code> 或 <code>retrieval_round &ge; max_retrieval_rounds</code> 时生成；否则路由到 <code>refine_query</code>。</small></div>
+          <div class="proof-step"><b>refine_query &rarr; plan_evidence（循环）&rarr; generate &rarr; END</b><small><code>refine_query</code> 调用 <code>AdaptiveQueryPlanner.refine()</code> 从缺失 facets 派生有界下一轮查询集，并回馈给 <code>plan_evidence</code>。<code>generate</code> 标记检索完成（实际生成仍在 Ask 应用边界）。</small></div>
         </div>
 
-        <h3>人工审核 . interrupt 与恢复</h3>
-        <p><code>review()</code> 节点是关键的 HITL 边界。它调用 <code>domain.review_payload(state)</code>，后者标记低置信度声明（score &lt; 0.75）或可疑来源。如果需要审核，则调用 <code>langgraph.types</code> 中的 <code>interrupt(proposed)</code> &mdash; 这会持久化检查点并暂停图。源码注释明确：<em>"Never wrap interrupt in try/except; LangGraph must persist and surface it."</em></p>
-        <p>当人工提交决策（approve、edit、reject）时，<code>tasks.py</code> 中的 Celery <code>run_workflow</code> 任务通过 <code>Command(resume=resume_value)</code> 恢复图。<code>domain.apply_decision()</code> 方法处理决策，图继续到 <code>synthesize</code>。</p>
+        <h3>无持久化检查点</h3>
+        <p>与 <code>workers/ai-worker/</code> 中的异步证据审核工作流不同，Research Graph 是请求级的。图通过 <code>workflow.compile()</code> 编译 &mdash; 不传 <code>checkpointer</code> 参数 &mdash; <code>state.py</code> 明确指出状态"在无持久检查点的情况下贯穿有界 Research Graph"。不使用 <code>PostgresSaver</code>、<code>JsonPlusSerializer</code>、<code>interrupt()</code>/<code>Command(resume=...)</code> 暂停-恢复机制或线程 ID 检查点持久化。每次 Ask 调用构造新的 <code>ResearchState</code> 字典，并在 <code>generate</code> 返回后丢弃。</p>
 
-        <h3>检查点 . PostgresSaver</h3>
-        <p>检查点通过 <code>PostgresSaver</code> 和 <code>JsonPlusSerializer(pickle_fallback=False)</code> 持久化到 PostgreSQL。线程 ID 即工作流 <code>run_id</code>。这意味着暂停的工作流在 worker 重启后仍然存活 &mdash; 检查点在数据库中，而非进程内存中。<code>pickle_fallback=False</code> 设置确保无任意反序列化，保持边界安全。</p>
-
-        <h3>领域协议与组合</h3>
-        <p><code>EvidenceWorkflowDomain</code> Protocol 定义图调用的七个方法：<code>plan</code>、<code>retrieve_and_extract</code>、<code>reconcile</code>、<code>review_payload</code>、<code>apply_decision</code>、<code>synthesize</code>、<code>validate_and_commit</code>。实现分布在：</p>
+        <h3>自适应查询规划器</h3>
+        <p><code>apps/api/src/researchmate_api/services/adaptive_query_planning.py</code> 中的 <code>AdaptiveQueryPlanner</code> 将 LLM 用作可选的检索推荐器，带确定性兜底：</p>
         <div class="grid two">
-          <article class="fact"><b>WorkflowExecutionMixin</b><p><code>workflow_execution.py</code> &mdash; 以 mixin 形式实现全部七个节点方法。<code>plan()</code> 创建提供者支持的问题。<code>retrieve_and_extract()</code> 以所有者范围过滤器查询 Qdrant。<code>reconcile()</code> 派生关系。<code>validate_and_commit()</code> 原子提交。</p></article>
-          <article class="fact"><b>SqlEvidenceWorkflowDomain</b><p><code>workflow_runtime.py</code> &mdash; 将核心领域与 <code>WorkflowExecutionMixin</code> 组合，并重写 <code>synthesize()</code> 以通过 <code>synthesize_report()</code> LLM 调用构建 <code>ReportProposal</code>。</p></article>
+          <article class="fact"><b>AdaptiveSearchPlan</b><p><code>extra="forbid"</code> 的 Pydantic 模型：<code>queries</code>（1&ndash;3，<code>MAX_ADAPTIVE_QUERIES=3</code>）、<code>dense_weight</code> 和 <code>lexical_weight</code>（各 0&ndash;1）、<code>use_local</code>、<code>use_web</code>、<code>document_scope</code>（列表，最多 200）、<code>reason</code>（1&ndash;300 字符）。每个查询限制在 <code>MAX_QUERY_CHARS=600</code>。</p></article>
+          <article class="fact"><b>plan() 和 refine()</b><p><code>plan()</code> 返回安全计划，在提供者/JSON/ValidationError 失败时保留现有确定性计划。<code>refine()</code> 将判定的 <code>MissingFacet</code> 缺口转化为有界下一轮查询集，无需额外提供者调用 &mdash; 它将 facet 的 <code>search_query</code> 字符串与先验查询合并，并在任一 facet 偏好非本地来源时启用 Web。</p></article>
         </div>
+        <p><code>_fallback()</code> 方法将现有的 regex <code>RetrievalPlan</code>（查询、权重、原因）映射到新契约；<code>_normalize()</code> 将不受信任的推荐钳制到 <code>adaptive_dense_weight_min/max</code> 并重新派生 <code>lexical_weight = 1 - dense</code>。提供者 prompt 将所有问题、历史和 facet 内容视为不受信任的数据。</p>
+
+        <h3>证据充分性服务</h3>
+        <p><code>apps/api/src/researchmate_api/services/evidence_sufficiency.py</code> 中的 <code>EvidenceSufficiencyService</code> 调用可选的结构化判定器并失败关闭以进一步检索：</p>
+        <div class="grid two">
+          <article class="fact"><b>枚举与模型</b><p><code>SourcePreference</code>：<code>LOCAL</code> / <code>WEB</code> / <code>LOCAL_AND_WEB</code>。<code>EvidenceReasonCode</code>：<code>COVERED</code>、<code>MISSING_FACT</code>、<code>MISSING_DETAIL</code>、<code>MISSING_EXACT_VALUE</code>、<code>MISSING_SOURCE_VERIFICATION</code>、<code>CONFLICTING_EVIDENCE</code>、<code>NEEDS_CURRENT_EXTERNAL_INFO</code>、<code>AMBIGUOUS_QUESTION</code>、<code>NO_RELEVANT_EVIDENCE</code>。<code>MissingFacet</code>：<code>description</code>、<code>search_query</code>、<code>source_preference</code>。<code>EvidenceAssessment</code>：<code>sufficient</code>、<code>confidence</code>（0&ndash;1）、<code>reason_code</code>、<code>missing_facets</code>（最多 3）、<code>requires_raw_evidence</code>、<code>requires_web</code>、<code>degraded</code>。</p></article>
+          <article class="fact"><b>assess() 和 requires_raw_evidence()</b><p><code>assess()</code> 在证据为空时返回 <code>NO_RELEVANT_EVIDENCE</code>，在提供者未配置或返回无效 JSON 时返回确定性 <code>_fallback()</code>，否则返回已校验的模型（成功时重新断言 <code>degraded=False</code>）。<code>requires_raw_evidence()</code> 使用正则匹配 <em>version/config/function/enum/page/cite/source/quote/exact/identifier</em>（英文和中文：版本/函数/枚举/配置/页码/原文/引用/出处/精确/具体数字）以拒绝针对可验证精确性问题的 Wiki-only 答案。</p></article>
+        </div>
+
+        <h3>按 has_vector 切分重排</h3>
+        <p>在 <code>rerank_evidence</code> 中，候选通过 <code>limit_rerank_candidates(candidates, retrieval_round_candidate_limit)</code> 后再重排。RAG 候选（<code>chunk.has_vector=True</code>）走 <code>RerankCoordinator.execute()</code>；轻量级候选（<code>has_vector=False</code> &mdash; Wiki 页面、Web 片段）绕过重排并在其后追加。合并集通过 <code>pack_chunks(..., retrieval_evidence_token_budget)</code> 打包。<code>new_evidence_found</code> 标志跟踪当前轮是否引入了任何未见候选 id，使 <code>after_evidence</code> 能终止无进展循环。</p>
+
+        <h3>与 GroundedQueryService 的组合</h3>
+        <p><code>apps/api/src/researchmate_api/services/grounded_query.py</code> 中的 <code>GroundedQueryService</code> 为每个服务实例构造一个 <code>ResearchGraph</code>，绑定本地检索器、重排器、可选 Web 搜索、新的 <code>EvidenceSufficiencyService(chat_provider)</code> 和新的 <code>AdaptiveQueryPlanner(settings, chat_provider)</code>。当 <code>settings.langgraph_research_enabled</code> 为 true 时，<code>execute()</code> 调用 <code>research_graph.run(...)</code> 并将返回的 <code>ResearchGraphResult</code> 投影到 Ask 响应；否则运行传统的内联检索路径。生成本身在图完成后发生 &mdash; <code>generate()</code> 仅标记检索完成。</p>
 
         <h3>关键源文件</h3>
-        <pre><code>workers/ai-worker/src/researchmate_worker/
-  evidence_graph.py        (EvidenceWorkflowState, build_evidence_graph, fan_out, review)
-  workflow_execution.py    (WorkflowExecutionMixin, 7 个节点实现)
-  workflow_runtime.py      (SqlEvidenceWorkflowDomain, 组合 + synthesize 重写)
-  tasks.py                 (run_workflow Celery 任务, Command(resume=...))</code></pre>
+        <pre><code>apps/api/src/researchmate_api/
+  graph/graph.py             (ResearchGraph, _GraphRuntime, 11 个节点方法, build())
+  graph/routing.py           (after_prepare, after_wiki, after_evidence 条件边)
+  graph/state.py             (ResearchState TypedDict, total=False)
+  services/adaptive_query_planning.py  (AdaptiveQueryPlanner, AdaptiveSearchPlan)
+  services/evidence_sufficiency.py     (EvidenceSufficiencyService, EvidenceAssessment, MissingFacet)
+  services/grounded_query.py           (GroundedQueryService 编排)
+  services/rerank.py                   (RerankCoordinator)
+  services/query_retrieval.py          (LocalEvidenceRetriever)</code></pre>
       </section>
 
       <section id="evaluation-lab">

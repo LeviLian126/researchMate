@@ -55,7 +55,8 @@
         <span class="status local">5 个核心文件</span>
         <span class="status local">11 个 routers</span>
         <span class="status local">10 个 schemas</span>
-        <span class="status local">37 个 services</span>
+        <span class="status local">44 个 services</span>
+        <span class="status local">4 个 graph 文件(11 节点)</span>
         <span class="status local">19 个 persistence</span>
         <span class="status local">6 MCP tools . 3 MCP resources</span>
       </div>
@@ -85,7 +86,7 @@
       <section id="tree">
         <p class="eyebrow">完整目录树</p>
         <h2>apps/api/src/researchmate_api/</h2>
-        <p class="sub">82 个源码文件,分布在 5 个顶层模块:5 核心、11 routers、10 schemas、37 services、19 persistence。</p>
+        <p class="sub">96 个源码文件,分布在 6 个顶层模块:5 核心、11 routers、10 schemas、44 services、4 graph、19 persistence(不含 __init__.py 标记)。</p>
         <pre class="command-block"><code>researchmate_api/
 ├── __init__.py
 ├── main.py                              # FastAPI app factory, middleware, error handlers
@@ -116,14 +117,17 @@
 │   ├── quiz.py                          # QuizRequest, QuizResponse, QuizSet, QuizCoverage
 │   ├── sources.py                       # RunSourcesResponse
 │   └── trace.py                         # DeveloperTrace, ToolCallTrace
-├── services/                            # 37 service files
+├── services/                            # 44 service files
 │   ├── grounded_query.py                # Ask orchestrator (unified pipeline)
 │   ├── answering.py                     # Answer builder (grounded / chat / deterministic)
+│   ├── adaptive_query_planning.py       # AdaptiveQueryPlanner: bounded LLM retrieval recommender
+│   ├── evidence_sufficiency.py          # EvidenceSufficiencyService: fail-closed structured judge
 │   ├── query_context.py                 # Conversation context builder + summary compression
 │   ├── query_conversation.py            # Conversation scope coordinator
 │   ├── query_errors.py                  # GroundedQueryError definition
 │   ├── query_execution.py               # Web retrieval, execution plan, candidate diversity
 │   ├── query_generation.py              # Answer generation dispatcher
+│   ├── query_planning.py                # RetrievalPlan (regex planner: route + weights)
 │   ├── query_retrieval.py               # Local evidence retriever (BM25 + Qdrant + RRF)
 │   ├── idempotency.py                   # IdempotencyCoordinator (4-state machine)
 │   ├── access_policy.py                 # TraceQueryService (admin-only policy)
@@ -154,7 +158,7 @@
 │   ├── _store_projects.py               # ProjectStoreMixin
 │   ├── _store_runs.py                   # RunStoreMixin (traces + quiz aggregates)
 │   └── _store_wiki.py                   # WikiStoreMixin
-└── persistence/                         # 19 persistence files (excluding __init__.py)
+├── persistence/                         # 19 persistence files (excluding __init__.py)
     ├── postgres.py                      # PostgresResearchMateRepository assembler (10 mixins + core)
     ├── evidence_postgres.py             # PostgresEvidenceRepository assembler (5 mixins + base)
     ├── evidence_base.py                 # Transaction, RLS, advisory lock, outbox primitives
@@ -173,7 +177,12 @@
     ├── _postgres_projects.py            # ProjectPersistenceMixin
     ├── _postgres_quizzes.py             # QuizPersistenceMixin
     ├── _postgres_runs.py                # RunPersistenceMixin
-    └── _postgres_uploads.py             # UploadPersistenceMixin</code></pre>
+    └── _postgres_uploads.py             # UploadPersistenceMixin
+└── graph/                                # 4 files (graph module: bounded LangGraph)
+    ├── graph.py                          # ResearchGraph: request-scoped 11-node LangGraph
+    ├── routing.py                       # Conditional edges: after_prepare, after_wiki, after_evidence
+    ├── state.py                         # ResearchState TypedDict (25 fields, no durable checkpoint)
+    └── __init__.py                       # Package marker</code></pre>
       </section>
 
       <section id="core-files">
@@ -322,6 +331,20 @@
         </dl>
       </section>
 
+      <section id="research-graph">
+        <p class="eyebrow">graph/ . 4 个文件(请求级有界 LangGraph)</p>
+        <h2>Research graph:有界 evidence 检索工作流</h2>
+        <p class="sub">新增的顶层包,为每个 Ask 运行编排一个请求级 LangGraph,限制检索轮数、判定 evidence 充分性,并在 chat / full-context / 仅 Wiki / 规划 evidence 四种策略间路由。图为每次请求即时编译,不进行持久化 checkpoint,因此并发有界且无 PII 跨请求留存。</p>
+        <dl class="kv">
+          <dt>graph.py . ResearchGraph</dt><dd>构建一个请求级 LangGraph,含 <b>11 个节点</b>:prepare_context、use_full_context、select_wiki、judge_wiki、plan_evidence、search_sources、merge_evidence、rerank_evidence、judge_evidence、refine_query、generate。<b>run()</b> 是唯一入口:它构造 <b>_GraphRuntime</b> 内部 dataclass,后者持有请求本地节点闭包(确保并发 ask 不共享图状态),调用 <code>build().invoke(initial_state())</code>,返回只读 <b>ResearchGraphResult</b> &mdash; 仅暴露 retrieved chunk、候选、retrieval_outcome、rerank_result、strategy、web_degraded 标志和 tool_calls。生成仍在现有 Ask 应用边界完成 &mdash; <code>generate</code> 节点是标记检索完成的桩。适配器(repository、local_retriever、reranker、web_search、judge、planner)在 <code>__init__</code> 中绑定,从不被包装为 LangChain tool。</dd>
+          <dt>routing.py . 条件边</dt><dd>三个返回 <code>Literal</code> 路由决策的纯函数。<b>after_prepare</b> 在 <code>chat</code>(空语料、未启用 web)、<code>full_context</code>(小语料在 token 预算内)、<code>select_wiki</code>(有 Wiki 语料)或 <code>plan</code>(默认有界检索路径)间选择。<b>after_wiki</b> 仅当所有安全门通过时允许 Wiki-only 回答:evidence 充分、confidence &ge; wiki_threshold、wiki_fresh、且不需要 raw evidence。<b>after_evidence</b> 仅在 evidence 充分、降级/无进展循环、无 missing facet 或达到轮数上限时结束;否则路由到 <code>refine</code>。</dd>
+          <dt>state.py . ResearchState</dt><dd>TypedDict(<code>total=False</code>),贯穿有界图携带 <b>25 个字段</b>:输入 question、token 计数(corpus_tokens、full_context_limit、wiki_threshold、has_wiki、web_allowed)、Wiki 候选集 + freshness 标志、raw-evidence 需求、四组候选列表(local_candidates、web_candidates、merged_candidates、reranked_evidence)加 final_evidence、retrieval_round / max_retrieval_rounds、evidence_sufficient + judge_confidence + missing_facets + refined_queries + judge_degraded + new_evidence_found 用于细化循环、source_strategy、degraded、fallback_reasons。设计为请求级使用,无持久化 checkpoint:此 state 任何内容都不跨请求持久化。</dd>
+          <dt>services/adaptive_query_planning.py</dt><dd><b>AdaptiveSearchPlan</b>(Pydantic,<code>extra="forbid"</code>)在模型建议控制检索边界前加以约束:<code>queries</code>(1&ndash;<code>MAX_ADAPTIVE_QUERIES=3</code>)、<code>dense_weight</code> 与 <code>lexical_weight</code> ∈ [0, 1]、<code>use_local</code> / <code>use_web</code> 布尔、<code>document_scope</code> 列表(max 200)、<code>reason</code>(1&ndash;300),每条 query 截断为 <code>MAX_QUERY_CHARS=600</code>。<b>AdaptiveQueryPlanner</b> 将 LLM 作为可选检索建议器,提供确定性回退:<b>plan()</b> 返回 AdaptiveSearchPlan,任何 provider/校验失败时保留现有确定性计划(捕获 ProviderRequestError、ValidationError、ValueError、TypeError、json.JSONDecodeError,记录 <code>adaptive_query_planner_degraded</code>,返回 fallback)。<b>_fallback()</b> 将现有 regex planner(<code>RetrievalPlan</code>)映射为新公共契约,reason 前缀 <code>deterministic_prior:</code>。<b>refine()</b> 无需额外 provider 调用,从判定的 missing facet 派生有界次轮 query 集。<b>_normalize()</b> 将 <code>dense_weight</code> clamp 到 settings 的 [<code>adaptive_dense_weight_min</code>, <code>adaptive_dense_weight_max</code>],并设 <code>lexical_weight = round(1 - dense, 4)</code>。历史和 facet payload 以不可信 JSON 数据形式发送给模型,从不作为指令。</dd>
+          <dt>services/evidence_sufficiency.py</dt><dd><b>SourcePreference</b> StrEnum(LOCAL、WEB、LOCAL_AND_WEB)命名 evidence 源偏好,不授予 tool 权限。<b>EvidenceReasonCode</b> StrEnum 枚举 9 个有界原因码:COVERED、MISSING_FACT、MISSING_DETAIL、MISSING_EXACT_VALUE、MISSING_SOURCE_VERIFICATION、CONFLICTING_EVIDENCE、NEEDS_CURRENT_EXTERNAL_INFO、AMBIGUOUS_QUESTION、NO_RELEVANT_EVIDENCE。<b>MissingFacet</b>(Pydantic,<code>extra="forbid"</code>)携带 description(1&ndash;300)、search_query(1&ndash;600)、source_preference。<b>EvidenceAssessment</b>(Pydantic,<code>extra="forbid"</code>)携带 sufficient、confidence(0&ndash;1)、reason_code、missing_facets(max 3,<code>MAX_MISSING_FACETS</code>)、requires_raw_evidence、requires_web、degraded。<b>EvidenceSufficiencyService</b> 调用可选的结构化 judge 并失败关闭到进一步检索:<b>assess()</b> 返回 EvidenceAssessment;不可用或无效的 judge 绝不短路检索(provider 错误落到 <b>_fallback()</b>,后者返回显式不充分的 <code>degraded=True</code> 结果,使图走安全本地路径)。<b>requires_raw_evidence(question)</b> 是模块级函数,用 regex 模式检测可验证精确度关键词 &mdash; 英文(version、config(uration)?、function、enum、page、cite、source、quote、exact、identifier)加中文(版本、函数、枚举、配置、页码、原文、引用、出处、精确、具体数字 及裸数字) &mdash; 命中时拒绝 Wiki-only 回答。</dd>
+        </dl>
+        <div class="notice"><strong>设计上有界:</strong> 三层让模型建议无法不受约束地控制检索:(1) <code>AdaptiveSearchPlan</code> 用 <code>extra="forbid"</code> + clamp 后的权重 + 3 query 上限;(2) <code>EvidenceSufficiencyService</code> 任何 judge 失败都失败关闭,使图路由到安全本地检索;(3) routing.py 的 <code>after_evidence</code> 在 judge 降级、无进展或达到轮数上限时结束循环,模型无法延长检索超出配置预算。</div>
+      </section>
+
       <section id="ask-slice">
         <p class="eyebrow">请求切片</p>
         <h2>POST /api/v1/ask . 10 步 proof chain</h2>
@@ -427,6 +450,18 @@
         <pre class="command-block"><code>routers/ask.py
   → services/idempotency.py
   → services/grounded_query.py
+      → graph/graph.py (ResearchGraph: 11-node 请求级 LangGraph)
+          → graph/state.py (ResearchState TypedDict)
+          → graph/routing.py (after_prepare / after_wiki / after_evidence)
+          → services/adaptive_query_planning.py (AdaptiveQueryPlanner)
+          → services/evidence_sufficiency.py (EvidenceSufficiencyService)
+          → services/query_planning.py (RetrievalPlan regex planner, 作为 prior)
+          → services/query_execution.py (limit_rerank_candidates、retrieve_web)
+          → services/query_retrieval.py (LocalEvidenceRetriever)
+          → services/rerank.py (RerankCoordinator)
+          → services/retrieval.py (bm25_candidates、estimate_tokens、pack_chunks)
+          → services/web_search.py (TavilyWebSearchProvider)
+          → services/store.py (ResearchMateRepository)
       → services/query_conversation.py
           → services/query_context.py → services/llm.py (ChatProvider Protocol)
           → services/query_errors.py
@@ -477,7 +512,9 @@ main.py (app factory)
   → routers/ (11 router modules)
   → services/store.py, evidence_store.py, llm.py,
     qdrant_store.py, rerank.py, web_search.py,
-    object_storage.py, embedding.py</code></pre>
+    object_storage.py, embedding.py,
+    adaptive_query_planning.py, evidence_sufficiency.py,
+    graph/graph.py (请求级有界 LangGraph)</code></pre>
         <div class="notice"><strong>关键洞察:</strong> Routers 仅依赖 service Protocols 和 IdempotencyCoordinator。Services 依赖 ResearchMateRepository Protocol 和 provider Protocols。具体适配器(NvidiaChatProvider、QdrantHybridStore、PostgresResearchMateRepository)在 main.py 中构造一次并通过 app.state 注入。这意味着任何适配器都可以通过修改 Settings 来替换,无需触碰 service 代码。</div>
       </section>
 
@@ -492,6 +529,7 @@ main.py (app factory)
       <a href="#services-providers">Services: Provider</a>
       <a href="#services-store">Services: Store</a>
       <a href="#persistence">Persistence</a>
+      <a href="#research-graph">Research graph</a>
       <a href="#ask-slice">Ask proof chain</a>
       <a href="#auth">认证机制</a>
       <a href="#security-hardening">运行时安全加固</a>

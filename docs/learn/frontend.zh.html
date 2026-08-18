@@ -48,9 +48,9 @@
   </div></nav>
   <main class="shell">
     <div class="hero">
-      <p class="eyebrow">apps/web · Next.js 16.3.0 · 50 个源码文件</p>
+      <p class="eyebrow">apps/web · Next.js 16.3.0 · 54 个源码文件</p>
       <h1>前端模块详解</h1>
-      <p class="lede">apps/web 是 ResearchMate 的 Next.js 前端应用,部署在 Vercel。包含 50 个源码文件(不含配置和资源文件),覆盖页面路由、React 组件、API 客户端、认证逻辑和 E2E 测试。本页面逐文件解析每个模块的作用、关键逻辑和依赖关系,并以切片视角追踪一个 Ask 请求从前端到后端的完整旅程。</p>
+      <p class="lede">apps/web 是 ResearchMate 的 Next.js 前端应用,部署在 Vercel。包含 54 个源码文件(不含配置和资源文件),覆盖页面路由、React 组件、API 客户端、认证逻辑和 E2E 测试。本页面逐文件解析每个模块的作用、关键逻辑和依赖关系,并以切片视角追踪一个 Ask 请求从前端到后端的完整旅程。</p>
       <div class="meta">
         <span class="status local">Next.js 16.3.0 · App Router</span>
         <span class="status local">React · Client Components</span>
@@ -71,7 +71,7 @@
           <article class="fact"><b>React</b><p>UI 库,大量使用 Client Components(<code>"use client"</code>)。通过 hooks(<code>useState</code>, <code>useEffect</code>, <code>useRef</code>, <code>useMemo</code>, <code>useCallback</code>)管理状态,不使用 Redux 或 Zustand 等外部状态库。组件分为容器组件(ChatWorkspace)、展示组件(ConversationThread, ChatComposer)和 UI 原语(ui/*)三层。</p></article>
           <article class="fact"><b>Tailwind CSS v4.3.3</b><p>原子化 CSS 框架,通过 <code>@tailwindcss/postcss</code> 插件集成。<code>globals.css</code> 使用 <code>@import "tailwindcss"</code> 和 <code>@theme inline</code> 定义设计令牌(CSS 变量),支持 light/dark 双主题和 <code>prefers-reduced-motion</code>。组件使用 <code>cn()</code> 工具函数合并 Tailwind 类名。</p></article>
           <article class="fact"><b>shadcn/ui</b><p>基于 Radix UI 原语的可定制组件系统。apps/web 包含 15 个 <code>ui/</code> 组件,依赖 9 个 <code>@radix-ui</code> 包。组件使用 <code>class-variance-authority</code>(cva)定义变体,通过 <code>tailwind-merge</code> 去重冲突的类名。不是 npm 包,而是复制到项目中的源码文件。</p></article>
-          <article class="fact"><b>Vitest 4.1.10</b><p>单元测试框架,使用 <code>jsdom</code> 环境模拟浏览器。通过 <code>@vitest/coverage-v8</code> 收集覆盖率,覆盖 <code>app/lib/**/*.ts</code> 和 <code>app/components/**/*.{ts,tsx}</code>,覆盖率基线 40%(lines/statements)。测试文件与源码同目录(<code>.test.ts</code> 后缀),共 7 个测试文件。</p></article>
+          <article class="fact"><b>Vitest 4.1.10</b><p>单元测试框架,使用 <code>jsdom</code> 环境模拟浏览器。通过 <code>@vitest/coverage-v8</code> 收集覆盖率,覆盖 <code>app/lib/**/*.ts</code> 和 <code>app/components/**/*.{ts,tsx}</code>,覆盖率基线 40%(lines/statements)。测试文件与源码同目录(<code>.test.ts</code> 后缀),共 11 个测试文件:7 个组件测试(<code>app-sidebar</code>、<code>auth-gate</code>、<code>evaluation-report</code>、<code>feedback-workflow</code>、<code>presentation</code>、<code>project-nav</code>、<code>use-chat-workspace</code>)与 4 个 lib 测试(<code>api</code>、<code>demo</code>、<code>idempotent-intent</code>、<code>supabase</code>)。</p></article>
           <article class="fact"><b>Playwright 1.62.1</b><p>E2E 测试框架,仅使用 Chromium。通过 <code>webServer</code> 配置在 <code>127.0.0.1:3100</code> 启动 demo 模式 Next.js,测试文件在 <code>e2e/</code> 目录。验证完整用户旅程:发消息、看引用、建项目、生成 quiz,同时检查无浏览器错误和外部请求。</p></article>
           <article class="fact"><b>Supabase Auth</b><p>认证服务,支持 GitHub OAuth 和邮箱密码。<code>supabase.ts</code> 自实现浏览器端 session 管理(不依赖 <code>@supabase/supabase-js</code>),包括 JWT 解码、refresh token 轮转、HttpOnly cookie 持久化(通过 <code>POST /api/auth/session</code> 写入 + <code>GET /api/auth/session/get</code> 读取 —— session token 不再进入 <code>localStorage</code>)和 OAuth 重定向恢复。AuthGate 组件守卫所有受保护路由。</p></article>
         </div>
@@ -80,7 +80,7 @@
       <section id="tree">
         <p class="eyebrow">完整目录树</p>
         <h2>apps/web/ 文件结构</h2>
-        <p class="sub">下方是 apps/web/ 的完整文件树,排除 <code>.next/</code> 构建产物和 <code>node_modules/</code>。共 50 个源码文件(不含配置和资源文件):11 个页面路由、10 个业务组件、15 个 shadcn/ui 组件、6 个 lib 模块、7 个测试文件、1 个 E2E 测试。</p>
+        <p class="sub">下方是 apps/web/ 的完整文件树,排除 <code>.next/</code> 构建产物和 <code>node_modules/</code>。共 54 个源码文件(不含配置和资源文件):11 个页面路由、10 个业务组件、15 个 shadcn/ui 组件、6 个 lib 模块、11 个测试文件、1 个 E2E 测试。</p>
         <pre class="command-block"><code>apps/web/
 ├── AGENTS.md
 ├── CLAUDE.md

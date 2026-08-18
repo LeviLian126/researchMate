@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8"/>
   <meta content="width=device-width,initial-scale=1" name="viewport"/>
-  <meta content="ResearchMate 合约与测试学习指南：OpenAPI 真相来源、三层契约镜像、47 个 Python 测试文件、Hermetic 测试、覆盖率、Vitest 与 Playwright。" name="description"/>
+  <meta content="ResearchMate 合约与测试学习指南：OpenAPI 真相来源、三层契约镜像、52 个 Python 测试文件、Hermetic 测试、覆盖率、Vitest 与 Playwright。" name="description"/>
   <title>ResearchMate &middot; 合约与测试学习</title>
   <link href="../assets/site.css" rel="stylesheet"/>
   <style>
@@ -51,12 +51,12 @@
     <div class="hero">
       <p class="eyebrow">TypeScript contracts / Pydantic / pytest / Vitest / Playwright / Hermetic testing</p>
       <h1>合约与测试 &middot; OpenAPI + tests</h1>
-      <p class="lede">ResearchMate 测试套件采用 Hermetic、合约优先的验证方式。生成的 OpenAPI 规范定义 71 个 schema，由 Pydantic 模型和前端类型共同镜像。<code>tests/</code> 下有 47 个 <code>test_*.py</code> 文件，覆盖 HTTP 集成、单元、worker、工作流和源码契约，不依赖云服务。</p>
+      <p class="lede">ResearchMate 测试套件采用 Hermetic、合约优先的验证方式。生成的 OpenAPI 规范定义 71 个 schema，由 Pydantic 模型和前端类型共同镜像。<code>tests/</code> 下有 52 个 <code>test_*.py</code> 文件，覆盖 HTTP 集成、单元、worker、工作流和源码契约，不依赖云服务。</p>
       <div class="meta">
         <span class="status local">71 个 OpenAPI schema</span>
-        <span class="status local">47 个 test_*.py 文件</span>
+        <span class="status local">52 个 test_*.py 文件</span>
         <span class="status local">3 个 Python 基础设施文件 + 1 个 INI 配置</span>
-        <span class="status local">7 个 Vitest + 1 个 Playwright 前端测试</span>
+        <span class="status local">11 个 Vitest + 1 个 Playwright 前端测试</span>
         <span class="status local">三层契约镜像架构</span>
         <span class="status local">Hermetic &middot; 无外部依赖</span>
       </div>
@@ -71,7 +71,7 @@
           <article class="fact"><b>TypeScript type contracts</b><p>生成的 OpenAPI 规范以 71 个 schema 定义权威 API 形状。前端类型位于 <code>apps/web/app/lib/api.ts</code>，后端 Pydantic 模型负责请求边界校验。</p></article>
           <article class="fact"><b>Pydantic</b><p>Python 数据验证库。后端将每个 TypeScript 合约镜像为 apps/api/src/researchmate_api/schemas/ 下的 Pydantic 模型。Pydantic 在请求边界强制执行字段类型、可选 vs 必填、枚举约束和验证器逻辑。test_project_scaffold.py 验证后端 Pydantic 合约与 OpenAPI 规范定义的请求形状一致。</p></article>
           <article class="fact"><b>pytest</b><p>Python 测试框架(锁定 9.0+)。pytest.ini 配置 <code>-p no:cacheprovider --basetemp=.pytest-temp</code> 以确保确定性、无缓存的运行。conftest.py 将 API 和 worker 源码路径插入 sys.path。测试函数使用 <code>def test_*</code> 命名,<code>pytest.raises</code> 验证预期失败,<code>pytest.importorskip</code> 处理 SQLAlchemy 等可选依赖。</p></article>
-          <article class="fact"><b>Vitest</b><p>前端单元测试框架,在 apps/web/vitest.config.ts 中配置 jsdom 环境和 v8 coverage provider。7 个测试文件覆盖 API 客户端逻辑、auth gate、展示组件、demo 模式、邮件限流、幂等 intent 和 Supabase session 处理。覆盖率阈值要求 app/lib 和 app/components 达到 40% 行和语句覆盖。</p></article>
+          <article class="fact"><b>Vitest</b><p>前端单元测试框架,在 apps/web/vitest.config.ts 中配置 jsdom 环境和 v8 coverage provider。11 个测试文件覆盖 API 客户端逻辑、auth gate、展示组件、demo 模式、邮件限流、幂等 intent、Supabase session 处理、工作区 sidebar、evaluation report、feedback workflow 和 chat workspace hook。覆盖率阈值要求 app/lib 和 app/components 达到 40% 行和语句覆盖。</p></article>
           <article class="fact"><b>Playwright</b><p>浏览器验收测试框架。apps/web/playwright.config.ts 在 demo 模式(NEXT_PUBLIC_DEMO_MODE=true)下对端口 3100 的本地 Next.js dev server 运行测试。1 个 E2E 测试文件(demo-workspace.e2e.ts)验证确定性 client-only demo 运行时。CI 中 retries=2、单 worker;本地运行完全并行。</p></article>
           <article class="fact"><b>Hermetic testing</b><p>整个 Python 测试套件是 hermetic 的:无真实 PostgreSQL、Qdrant、Redis、LLM 或外部 HTTP 调用。FastAPI TestClient 创建进程内应用,<code>Settings(app_env="test", llm_provider="fake")</code>。autouse <code>reset_local_store</code> fixture 在每个测试前后清除内存 store。源码检视测试从磁盘读取文件,不执行应用代码。</p></article>
           <article class="fact"><b>Dependency injection testing</b><p>后端通过工厂函数构造所有 managed provider(store、chat provider、hybrid store、reranker),从 <code>app.state</code> 读取。测试通过构造 <code>create_app(settings=Settings(...))</code> 使用 fake provider 覆盖这些工厂,或使用 <code>monkeypatch</code> 替换模块级函数。reset 保护的 store 之外不修改全局单例。</p></article>
@@ -141,8 +141,8 @@
 
       <section id="test-tree">
         <p class="eyebrow">tests/ 目录结构</p>
-        <h2>47 个测试文件与共享测试基础设施</h2>
-        <p class="sub"><code>tests/</code> 目录包含 47 个 <code>test_*.py</code> 文件，以及共享 fixtures 和工作流 helper。</p>
+        <h2>52 个测试文件与共享测试基础设施</h2>
+        <p class="sub"><code>tests/</code> 目录包含 52 个 <code>test_*.py</code> 文件，以及共享 fixtures 和工作流 helper。</p>
         <pre class="command-block"><code>tests/
 ├── pytest.ini                              # addopts: -p no:cacheprovider --basetemp=.pytest-temp
 ├── conftest.py                             # sys.path setup: API_SRC + WORKER_SRC
@@ -372,9 +372,9 @@ def create_ready_document(client, headers=HEADERS) -> tuple[str, str]:
 
       <section id="frontend-tests">
         <p class="eyebrow">前端测试</p>
-        <h2>7 个 Vitest 单元测试 + 1 个 Playwright E2E 测试</h2>
+        <h2>11 个 Vitest 单元测试 + 1 个 Playwright E2E 测试</h2>
         <p class="sub">前端测试套件位于 apps/web/,分为 Vitest 单元测试(jsdom 环境)和 Playwright 浏览器验收测试(demo 模式)。</p>
-        <h3>Vitest 单元测试(7 个文件)</h3>
+        <h3>Vitest 单元测试(11 个文件)</h3>
         <div class="grid two">
           <article class="fact"><b>api.test.ts</b><p>验证 client API 授权、错误映射、流式传输和文件元数据 helper。测试 apiFetch、ApiError、describeApiError、fileTypeFromName。使用 <code>vi.fn()</code> mock fetch 以执行成功、错误和流式路径。</p></article>
           <article class="fact"><b>auth-gate.test.tsx</b><p>验证未登录工作区将 GitHub 作为唯一登录路径。使用 <code>vi.hoisted()</code> 在模块导入前 mock Supabase session,<code>createRoot</code> 和 <code>act</code> 进行 DOM 渲染。测试未登录和已登录状态。</p></article>
@@ -383,6 +383,11 @@ def create_ready_document(client, headers=HEADERS) -> tuple[str, str]:
           <article class="fact"><b>demo.test.ts</b><p>验证公开 demo 的确定性状态转换和受支持的 API 表面。测试 <code>demoFetch</code>、<code>demoRunEvents</code> 和 <code>isPublicDemo</code>。Stub <code>NODE_ENV</code> 和 <code>NEXT_PUBLIC_DEMO_MODE</code> 环境变量。</p></article>
           <article class="fact"><b>idempotent-intent.test.ts</b><p>验证稳定的重试键、intent 轮换和仅在成功时清理的语义。测试 <code>clearCompletedIntent</code> 和 <code>resolveIntentKey</code>,使用 mock key generator 验证幂等用户 intent 行为。</p></article>
           <article class="fact"><b>supabase.test.ts</b><p>验证浏览器 session 恢复、Supabase 请求边界和登出清理。Mock Supabase client 以测试 session 持久化、token 刷新和登出状态清理(在 production 环境中)。</p></article>
+          <article class="fact"><b>app-sidebar.test.tsx</b><p>测试工作区 sidebar 渲染和 create/rename 编排。使用 <code>vi.hoisted()</code> mock <code>next/navigation</code> router 和 pathname,通过 <code>createRoot</code> + <code>act</code> 渲染。断言导航标签和活跃状态,不依赖真实路由。</p></article>
+          <article class="fact"><b>evaluation-report.test.tsx</b><p>验证 evaluation report 暴露真实指标和基线决策。使用 <code>renderToStaticMarkup</code> 断言 EvaluationReport 组件渲染的检索指标(recall、MRR、NDCG)、pipeline 模式和非回归信号。</p></article>
+          <article class="fact"><b>feedback-workflow.test.tsx</b><p>通过可见控件测试回答评分和开发者 Bad Case 推广。使用 <code>createRoot</code> + <code>act</code> 配合 <code>apiFetch</code> mock,端到端验证 AnswerFeedback 提交和 FeedbackReviewQueue 推广路径通过 React DOM。</p></article>
+          <article class="fact"><b>project-nav.test.tsx</b><p>验证项目本地导航的标签、链接和活跃状态。使用 <code>renderToStaticMarkup</code> 配合 mock 的 <code>apiFetch</code>(解析为 workspace 项目),断言同步渲染路径与 presentation.test 一致。</p></article>
+          <article class="fact"><b>use-chat-workspace.test.ts</b><p>验证 chat workspace hook 编排 API 调用、状态和恢复。使用由 <code>createRoot</code> + <code>act</code> 驱动的最小 <code>renderHook</code> helper,配合 <code>apiFetch</code> mock 和 <code>routerMocks</code>;断言状态转换和路由副作用,无真实 fetch。</p></article>
         </div>
         <h3>Playwright E2E 测试(1 个文件)</h3>
         <div class="grid two">
