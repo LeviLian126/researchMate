@@ -35,6 +35,21 @@ def test_web_permission_forces_planning_even_when_context_fits() -> None:
     )
 
 
+def test_empty_corpus_without_web_uses_plain_chat() -> None:
+    """A chat-only Ask must not consume retrieval or judge calls."""
+    assert (
+        after_prepare(
+            {
+                "corpus_tokens": 0,
+                "full_context_limit": 100,
+                "web_allowed": False,
+                "has_wiki": False,
+            }
+        )
+        == "chat"
+    )
+
+
 def test_large_wiki_corpus_reaches_wiki_judge() -> None:
     """Large corpora select a bounded Wiki set before evidence planning."""
     assert (
@@ -123,6 +138,32 @@ def test_insufficient_evidence_stops_at_maximum_rounds() -> None:
     assert (
         after_evidence(
             {"evidence_sufficient": False, "retrieval_round": 2, "max_retrieval_rounds": 2}
+        )
+        == "generate"
+    )
+
+
+def test_degraded_judge_and_repeated_evidence_end_the_loop_early() -> None:
+    """An unavailable judge or unchanged evidence cannot spend a redundant second round."""
+    assert (
+        after_evidence(
+            {
+                "evidence_sufficient": False,
+                "judge_degraded": True,
+                "retrieval_round": 1,
+                "max_retrieval_rounds": 2,
+            }
+        )
+        == "generate"
+    )
+    assert (
+        after_evidence(
+            {
+                "evidence_sufficient": False,
+                "new_evidence_found": False,
+                "retrieval_round": 1,
+                "max_retrieval_rounds": 2,
+            }
         )
         == "generate"
     )

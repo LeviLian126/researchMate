@@ -10,6 +10,8 @@ from researchmate_api.services.adaptive_query_planning import AdaptiveQueryPlann
 from researchmate_api.services.evidence_sufficiency import (
     EvidenceReasonCode,
     EvidenceSufficiencyService,
+    MissingFacet,
+    SourcePreference,
     requires_raw_evidence,
 )
 from researchmate_api.services.query_planning import RetrievalPlan, RetrievalRoute
@@ -57,6 +59,7 @@ def test_unconfigured_judge_fails_closed_to_retrieval() -> None:
     )
     assert assessment.sufficient is False
     assert assessment.reason_code == EvidenceReasonCode.MISSING_DETAIL
+    assert assessment.degraded is True
 
 
 def test_adaptive_fallback_preserves_prior_and_honors_web_permission() -> None:
@@ -73,3 +76,21 @@ def test_adaptive_fallback_preserves_prior_and_honors_web_permission() -> None:
     assert plan.use_local is True
     assert plan.use_web is True
     assert plan.dense_weight + plan.lexical_weight == 1
+
+
+def test_refinement_cannot_enable_web_without_request_permission() -> None:
+    """A model-selected Web facet cannot bypass the caller's explicit authorization."""
+    planner = AdaptiveQueryPlanner(_settings(), None)
+    plan = planner.refine(
+        "retrieval weights",
+        [
+            MissingFacet(
+                description="current source",
+                search_query="current retrieval weights",
+                source_preference=SourcePreference.WEB,
+            )
+        ],
+        planner.plan("retrieval weights", [], _prior(), [], retrieval_round=1, web_allowed=False),
+        web_allowed=False,
+    )
+    assert plan.use_web is False
