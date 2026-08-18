@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from researchmate_api.config import Settings
 from researchmate_api.graph.routing import after_evidence, after_prepare, after_wiki
 
 
@@ -18,6 +19,13 @@ def test_small_corpus_without_web_uses_full_context() -> None:
         )
         == "full_context"
     )
+
+
+def test_wiki_short_circuit_is_enabled_by_default() -> None:
+    """Freshness metadata is optional by default so eligible Wiki evidence can short-circuit."""
+    settings = Settings(app_env="test", llm_provider="fake", embedding_provider="fake")
+    assert settings.wiki_sufficiency_enabled is True
+    assert settings.wiki_short_circuit_requires_fresh is False
 
 
 def test_web_permission_forces_planning_even_when_context_fits() -> None:

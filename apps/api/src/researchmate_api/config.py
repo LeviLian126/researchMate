@@ -70,7 +70,7 @@ class Settings(BaseSettings):
     wiki_sufficiency_enabled: bool = True
     wiki_sufficiency_threshold: float = Field(default=0.80, ge=0, le=1)
     wiki_gate_candidate_limit: int = Field(default=5, ge=1, le=12)
-    wiki_short_circuit_requires_fresh: bool = True
+    wiki_short_circuit_requires_fresh: bool = False
     adaptive_planner_enabled: bool = True
     adaptive_dense_weight_min: float = Field(default=0.20, ge=0, le=0.5)
     adaptive_dense_weight_max: float = Field(default=0.80, ge=0.5, le=1)
