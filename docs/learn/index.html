@@ -38,11 +38,11 @@
         <p class="sub">Each sub-page goes to file-level granularity, explaining every file's purpose, key logic, and dependencies, with technology stack fundamentals.</p>
         <div class="doc-index capability-index">
           <a class="doc-link" href="frontend.html"><b>Frontend · apps/web</b><span>50 source files (excluding config and assets): Next.js / React / Tailwind / shadcn-ui component walkthrough, API request slice, state management, file upload flow.</span></a>
-          <a class="doc-link" href="backend.html"><b>Backend · apps/api</b><span>80 files: FastAPI routers/schemas/services/persistence file-by-file, authentication, provider adapters, idempotency coordinator.</span></a>
+          <a class="doc-link" href="backend.html"><b>Backend · apps/api</b><span>96 files: FastAPI routers/schemas/services/persistence file-by-file, authentication, provider adapters, idempotency coordinator.</span></a>
           <a class="doc-link" href="worker.html"><b>Worker · workers/ai-worker</b><span>37 files: Celery tasks, document ingestion, LangGraph workflow, Outbox pattern, RAGAS evaluation, process supervision.</span></a>
           <a class="doc-link" href="infra.html"><b>Infrastructure · infra + scripts</b><span>20 files: 31-table SQL migrations file-by-file, Qdrant collection config, OpenAPI spec, operational scripts.</span></a>
           <a class="doc-link" href="cicd.html"><b>CI/CD · GitHub Actions + Docker + Render</b><span>ci.yml job-by-job, the Render deployment Dockerfile, render.yaml config, and the dual-lock dependency strategy.</span></a>
-          <a class="doc-link" href="contracts-tests.html"><b>Contracts &amp; Tests</b><span>OpenAPI and Pydantic mirroring, 47 test files, and hermetic verification strategy.</span></a>
+          <a class="doc-link" href="contracts-tests.html"><b>Contracts &amp; Tests</b><span>OpenAPI and Pydantic mirroring, 52 test files, and hermetic verification strategy.</span></a>
           <a class="doc-link" href="flows.html"><b>Flow analysis · Core business flows</b><span>4 interview-grade flows: Grounded Ask with a five-route Hybrid RAG matrix, document ingestion Outbox, LangGraph evidence review, and idempotency + transactional consistency, traced file by file.</span></a>
           <a class="doc-link" href="ai-stack.html"><b>AI agent stack · Hybrid RAG + MCP + LangGraph</b><span>Three foundations deep dive: Wiki-guided Hybrid RAG with five-route retrieval, RRF fusion, dual rerank, and Wiki-first routing; MCP server with six tools and three resources; LangGraph six-node evidence workflow with checkpointing and human-in-the-loop review.</span></a>
         </div>
@@ -60,13 +60,13 @@
           <dt><code>packages/shared/</code></dt><dd>Removed on 2026-08-08; shared TypeScript contracts moved into app-local modules.</dd>
           <dt><code>infra/</code></dt><dd>Infrastructure configuration: Supabase SQL migration files, Qdrant collection config, OpenAPI spec.</dd>
           <dt><code>scripts/</code></dt><dd>Operational scripts: database migration runner, Qdrant rerank backfill, OpenAPI export, and more.</dd>
-          <dt><code>tests/</code></dt><dd>Python test suite (44 files) covering unit tests, HTTP integration tests, contract inspection, and release safety.</dd>
+          <dt><code>tests/</code></dt><dd>Python test suite (52 files) covering unit tests, HTTP integration tests, contract inspection, and release safety.</dd>
           <dt><code>docs/</code></dt><dd>Browser-openable project documentation (HTML), the page you are viewing now.</dd>
           <dt><code>.github/workflows/</code></dt><dd>GitHub Actions CI pipeline definition (<code>ci.yml</code>).</dd>
           <dt><code>skill/</code></dt><dd>gstack development skill library, including land-and-deploy, qa, review, and other workflow skills.</dd>
         </dl>
         <div class="grid two">
-          <article class="fact"><b>npm workspaces (Node.js package management)</b><p>The root <code>package.json</code> declares <code>"workspaces": ["apps/web", "packages/shared"]</code>. All JS/TS dependencies are locked by the root-level <code>package-lock.json</code>, and the frontend and shared package reference each other via the workspace protocol.</p></article>
+          <article class="fact"><b>npm workspaces (Node.js package management)</b><p>The root <code>package.json</code> declares <code>"workspaces": ["apps/web"]</code>. All JS/TS dependencies are locked by the root-level <code>package-lock.json</code>, and the frontend and any workspace members reference each other via the workspace protocol.</p></article>
           <article class="fact"><b>uv workspace (Python package management)</b><p>The root <code>pyproject.toml</code> declares <code>[tool.uv.workspace] members = ["apps/api", "workers/ai-worker"]</code>. All Python dependencies are locked by <code>uv.lock</code>, and CI and Docker install with <code>uv sync --frozen</code> to strictly follow the lockfile.</p></article>
         </div>
       </section>

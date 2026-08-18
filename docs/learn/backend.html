@@ -55,7 +55,8 @@
         <span class="status local">5 core files</span>
         <span class="status local">11 routers</span>
         <span class="status local">10 schemas</span>
-        <span class="status local">35 services</span>
+        <span class="status local">44 services</span>
+        <span class="status local">4 graph nodes (11 nodes)</span>
         <span class="status local">19 persistence</span>
         <span class="status local">6 MCP tools . 3 MCP resources</span>
       </div>
@@ -85,7 +86,7 @@
       <section id="tree">
         <p class="eyebrow">Complete directory tree</p>
         <h2>apps/api/src/researchmate_api/</h2>
-        <p class="sub">80 source files across 5 top-level modules: 5 core, 11 routers, 10 schemas, 35 services, 19 persistence.</p>
+        <p class="sub">96 source files across 6 top-level modules: 5 core, 11 routers, 10 schemas, 44 services, 19 persistence, 4 graph (excluding __init__.py markers).</p>
         <pre class="command-block"><code>researchmate_api/
 ├── __init__.py
 ├── main.py                              # FastAPI app factory, middleware, error handlers
@@ -116,14 +117,17 @@
 │   ├── quiz.py                          # QuizRequest, QuizResponse, QuizSet, QuizCoverage
 │   ├── sources.py                       # RunSourcesResponse
 │   └── trace.py                         # DeveloperTrace, ToolCallTrace
-├── services/                            # 37 service files
+├── services/                            # 44 service files
 │   ├── grounded_query.py                # Ask orchestrator (unified pipeline)
 │   ├── answering.py                     # Answer builder (grounded / chat / deterministic)
+│   ├── adaptive_query_planning.py       # AdaptiveQueryPlanner: bounded LLM retrieval recommender
+│   ├── evidence_sufficiency.py          # EvidenceSufficiencyService: fail-closed structured judge
 │   ├── query_context.py                 # Conversation context builder + summary compression
 │   ├── query_conversation.py            # Conversation scope coordinator
 │   ├── query_errors.py                  # GroundedQueryError definition
 │   ├── query_execution.py               # Web retrieval, execution plan, candidate diversity
 │   ├── query_generation.py              # Answer generation dispatcher
+│   ├── query_planning.py                # RetrievalPlan (regex planner: route + weights)
 │   ├── query_retrieval.py               # Local evidence retriever (BM25 + Qdrant + RRF)
 │   ├── idempotency.py                   # IdempotencyCoordinator (4-state machine)
 │   ├── access_policy.py                 # TraceQueryService (admin-only policy)
@@ -154,7 +158,7 @@
 │   ├── _store_projects.py               # ProjectStoreMixin
 │   ├── _store_runs.py                   # RunStoreMixin (traces + quiz aggregates)
 │   └── _store_wiki.py                   # WikiStoreMixin
-└── persistence/                         # 19 persistence files (excluding __init__.py)
+├── persistence/                         # 19 persistence files (excluding __init__.py)
     ├── postgres.py                      # PostgresResearchMateRepository assembler (10 mixins + core)
     ├── evidence_postgres.py             # PostgresEvidenceRepository assembler (5 mixins + base)
     ├── evidence_base.py                 # Transaction, RLS, advisory lock, outbox primitives
@@ -173,7 +177,12 @@
     ├── _postgres_projects.py            # ProjectPersistenceMixin
     ├── _postgres_quizzes.py             # QuizPersistenceMixin
     ├── _postgres_runs.py                # RunPersistenceMixin
-    └── _postgres_uploads.py             # UploadPersistenceMixin</code></pre>
+    └── _postgres_uploads.py             # UploadPersistenceMixin
+└── graph/                                # 4 files (graph module: bounded LangGraph)
+    ├── graph.py                          # ResearchGraph: request-scoped 11-node LangGraph
+    ├── routing.py                       # Conditional edges: after_prepare, after_wiki, after_evidence
+    ├── state.py                         # ResearchState TypedDict (25 fields, no durable checkpoint)
+    └── __init__.py                       # Package marker</code></pre>
       </section>
 
       <section id="core-files">
@@ -322,6 +331,20 @@
         </dl>
       </section>
 
+      <section id="research-graph">
+        <p class="eyebrow">graph/ . 4 files (request-scoped bounded LangGraph)</p>
+        <h2>Research graph: bounded evidence retrieval workflow</h2>
+        <p class="sub">A new top-level package that orchestrates one request-scoped LangGraph per Ask run, capping retrieval rounds, judging evidence sufficiency, and routing between chat / full-context / Wiki-only / planned evidence strategies. The graph is compiled fresh per request with no durable checkpointing, so concurrency is bounded and no PII persists beyond the request.</p>
+        <dl class="kv">
+          <dt>graph.py . ResearchGraph</dt><dd>Builds one request-scoped LangGraph with <b>11 nodes</b>: prepare_context, use_full_context, select_wiki, judge_wiki, plan_evidence, search_sources, merge_evidence, rerank_evidence, judge_evidence, refine_query, generate. <b>run()</b> is the single entry point: it constructs a <b>_GraphRuntime</b> inner dataclass that owns request-local node closures (so concurrent asks never share graph state), calls <code>build().invoke(initial_state())</code>, and returns a redacted <b>ResearchGraphResult</b> exposing only the retrieved chunks, candidates, retrieval_outcome, rerank_result, strategy, web_degraded flag, and tool_calls. Generation remains at the existing Ask application boundary &mdash; the <code>generate</code> node is a stub that signals retrieval completion. Adapters (repository, local_retriever, reranker, web_search, judge, planner) are bound in <code>__init__</code> and never wrapped as LangChain tools.</dd>
+          <dt>routing.py . Conditional edges</dt><dd>Three pure functions returning <code>Literal</code> routing decisions: <b>after_prepare</b> chooses <code>chat</code> (empty corpus, no web), <code>full_context</code> (small corpus within the token budget), <code>select_wiki</code> (Wiki corpus available), or <code>plan</code> (default bounded retrieval path). <b>after_wiki</b> permits a Wiki-only answer only when all safety gates pass: evidence sufficient, confidence &ge; wiki_threshold, wiki_fresh, and no raw evidence needed. <b>after_evidence</b> ends only for sufficient evidence, a degraded/non-progressing loop, no missing facets, or the round cap; otherwise routes to <code>refine</code>.</dd>
+          <dt>state.py . ResearchState</dt><dd>A TypedDict (<code>total=False</code>) carrying <b>25 fields</b> through the bounded graph: the input question, corpus token accounting (corpus_tokens, full_context_limit, wiki_threshold, has_wiki, web_allowed), Wiki candidate set + freshness flag, raw-evidence requirement, the four candidate lists (local_candidates, web_candidates, merged_candidates, reranked_evidence) plus final_evidence, retrieval_round / max_retrieval_rounds, evidence_sufficient + judge_confidence + missing_facets + refined_queries + judge_degraded + new_evidence_found for the refinement loop, source_strategy, degraded, and fallback_reasons. Designed for request-scoped use without durable checkpointing: nothing in this state is persisted beyond the request.</dd>
+          <dt>services/adaptive_query_planning.py</dt><dd><b>AdaptiveSearchPlan</b> (Pydantic, <code>extra="forbid"</code>) constrains a model recommendation before it controls a retrieval boundary: <code>queries</code> (1&ndash;<code>MAX_ADAPTIVE_QUERIES=3</code>), <code>dense_weight</code> and <code>lexical_weight</code> floats in [0, 1], <code>use_local</code> / <code>use_web</code> booleans, <code>document_scope</code> list (max 200), <code>reason</code> (1&ndash;300), with each query truncated to <code>MAX_QUERY_CHARS=600</code>. <b>AdaptiveQueryPlanner</b> uses the LLM as an optional retrieval recommender with a deterministic fallback: <b>plan()</b> returns an AdaptiveSearchPlan and preserves the existing deterministic plan on any provider/validation failure (catches ProviderRequestError, ValidationError, ValueError, TypeError, json.JSONDecodeError, logs <code>adaptive_query_planner_degraded</code>, returns fallback). The <b>_fallback()</b> maps the existing regex planner (<code>RetrievalPlan</code>) into the new public contract with a <code>deterministic_prior:</code> reason prefix. <b>refine()</b> derives a bounded next-round query set from judged missing facets without an extra provider call. <b>_normalize()</b> clamps <code>dense_weight</code> to [<code>adaptive_dense_weight_min</code>, <code>adaptive_dense_weight_max</code>] from settings and sets <code>lexical_weight = round(1 - dense, 4)</code>. History and facet payloads are sent to the model as untrusted JSON data, never as instructions.</dd>
+          <dt>services/evidence_sufficiency.py</dt><dd><b>SourcePreference</b> StrEnum (LOCAL, WEB, LOCAL_AND_WEB) names an evidence source preference without granting tool authority. <b>EvidenceReasonCode</b> StrEnum enumerates 9 bounded reason codes: COVERED, MISSING_FACT, MISSING_DETAIL, MISSING_EXACT_VALUE, MISSING_SOURCE_VERIFICATION, CONFLICTING_EVIDENCE, NEEDS_CURRENT_EXTERNAL_INFO, AMBIGUOUS_QUESTION, NO_RELEVANT_EVIDENCE. <b>MissingFacet</b> (Pydantic, <code>extra="forbid"</code>) carries a description (1&ndash;300), search_query (1&ndash;600), and a source_preference. <b>EvidenceAssessment</b> (Pydantic, <code>extra="forbid"</code>) carries sufficient, confidence (0&ndash;1), reason_code, missing_facets (max 3 via <code>MAX_MISSING_FACETS</code>), requires_raw_evidence, requires_web, degraded. <b>EvidenceSufficiencyService</b> calls an optional structured judge and fails closed to further retrieval: <b>assess()</b> returns EvidenceAssessment; unavailable or invalid judges never short-circuit retrieval (provider errors fall through to <b>_fallback()</b>, which returns an explicitly insufficient result with <code>degraded=True</code> so the graph takes its safe local route). <b>requires_raw_evidence(question)</b> is a module-level function with a regex pattern detecting verifiable-exactness keywords &mdash; English (version, config(uration)?, function, enum, page, cite, source, quote, exact, identifier) plus Chinese (版本, 函数, 枚举, 配置, 页码, 原文, 引用, 出处, 精确, 具体数字, and a bare digit) &mdash; rejecting Wiki-only answers when such terms appear.</dd>
+        </dl>
+        <div class="notice"><strong>Bounded by design:</strong> Three layers keep model recommendations from controlling retrieval unchecked: (1) <code>AdaptiveSearchPlan</code> uses <code>extra="forbid"</code> plus clamped weights and a 3-query cap; (2) <code>EvidenceSufficiencyService</code> fails closed with <code>degraded=True</code> on any judge failure so the graph routes to safe local retrieval; (3) <code>after_evidence</code> in routing.py ends the loop on degraded judges, non-progress, or the round cap, so the model cannot extend retrieval beyond the configured budget.</div>
+      </section>
+
       <section id="ask-slice">
         <p class="eyebrow">Request slice</p>
         <h2>POST /api/v1/ask . 10-step proof chain</h2>
@@ -427,6 +450,18 @@
         <pre class="command-block"><code>routers/ask.py
   → services/idempotency.py
   → services/grounded_query.py
+      → graph/graph.py (ResearchGraph: 11-node request-scoped LangGraph)
+          → graph/state.py (ResearchState TypedDict)
+          → graph/routing.py (after_prepare / after_wiki / after_evidence)
+          → services/adaptive_query_planning.py (AdaptiveQueryPlanner)
+          → services/evidence_sufficiency.py (EvidenceSufficiencyService)
+          → services/query_planning.py (RetrievalPlan regex planner, used as prior)
+          → services/query_execution.py (limit_rerank_candidates, retrieve_web)
+          → services/query_retrieval.py (LocalEvidenceRetriever)
+          → services/rerank.py (RerankCoordinator)
+          → services/retrieval.py (bm25_candidates, estimate_tokens, pack_chunks)
+          → services/web_search.py (TavilyWebSearchProvider)
+          → services/store.py (ResearchMateRepository)
       → services/query_conversation.py
           → services/query_context.py → services/llm.py (ChatProvider Protocol)
           → services/query_errors.py
@@ -477,7 +512,9 @@ main.py (app factory)
   → routers/ (11 router modules)
   → services/store.py, evidence_store.py, llm.py,
     qdrant_store.py, rerank.py, web_search.py,
-    object_storage.py, embedding.py</code></pre>
+    object_storage.py, embedding.py,
+    adaptive_query_planning.py, evidence_sufficiency.py,
+    graph/graph.py (request-scoped bounded LangGraph)</code></pre>
         <div class="notice"><strong>Key insight:</strong> Routers depend only on service Protocols and the IdempotencyCoordinator. Services depend on the ResearchMateRepository Protocol and provider Protocols. Concrete adapters (NvidiaChatProvider, QdrantHybridStore, PostgresResearchMateRepository) are constructed once in main.py and injected via app.state. This means any adapter can be swapped by changing Settings without touching service code.</div>
       </section>
 
@@ -492,6 +529,7 @@ main.py (app factory)
       <a href="#services-providers">Services: providers</a>
       <a href="#services-store">Services: store</a>
       <a href="#persistence">Persistence</a>
+      <a href="#research-graph">Research graph</a>
       <a href="#ask-slice">Ask proof chain</a>
       <a href="#auth">Authentication</a>
       <a href="#security-hardening">Security hardening</a>

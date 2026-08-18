@@ -39,7 +39,7 @@
         <div class="meta">
           <span class="status local">当前引用封闭检查 · 通过</span>
           <span class="status local">已实现合约 · 49 个 REST 操作</span>
-          <span class="status partial">托管运行时就绪 · 流程待验证</span>
+          <span class="status local">托管运行时就绪 · 已认证生产流程通过</span>
           <span class="status local">Vercel Production · Supabase 登录已上线</span>
           <span class="status local">Render Live · 就绪已验证</span>
         </div>
@@ -54,7 +54,7 @@
         <h2>已验证行为与剩余限制</h2>
         <div class="snapshot-grid">
           <article class="state-card"><span class="status local">8 月 1 日生产验收通过</span><b>仓库边界</b><p>后端修正 <code>c5c89f5</code> 修复了 Postgres 活跃项目锁辅助绑定并通过 GitHub Actions 运行 <code>30694324845</code>。前端修正 <code>ce54452</code> 恢复刷新后最近持久化的项目 Quiz，通过运行 <code>30694892524</code>，并部署在 Vercel Production。已认证的 Chrome 流程重新运行了普通聊天、刷新恢复、项目创建、PDF 上传/索引、接地引用、Quiz 生成与恢复、Web 搜索、对话删除和项目删除。修复后 Render 日志中未出现 HTTP 500 或应用 ERROR。</p></article>
-          <article class="state-card"><span class="status local">8 月 4 日本地交付门通过</span><b>发布自动化</b><p>CI 合约拆分为并行的 Python、web、Playwright 和 container 作业，有一个稳定的 <code>ci-success</code> 发布结果。Python 安装由一个 <code>uv.lock</code> 在本地、CI 和 Docker 构建中冻结；Render 忽略仅文档变更；Vercel 生产提升等待聚合检查。本地证据为 434 个 Python 测试覆盖率 69%，42 个扩展范围前端测试行覆盖率 43.7%，通过的 Chromium 工作区流程、生产构建、零生产依赖漏洞、Ruff、OpenAPI、迁移、Actionlint 和 Hadolint。</p></article>
+          <article class="state-card"><span class="status local">8 月 4 日本地交付门通过</span><b>发布自动化</b><p>CI 合约拆分为并行的 Python、web、Playwright 和 container 作业，有一个稳定的 <code>ci-success</code> 发布结果。Python 安装由一个 <code>uv.lock</code> 在本地、CI 和 Docker 构建中冻结；Render 忽略仅文档变更；Vercel 生产提升等待聚合检查。本地证据为 434 个 Python 测试覆盖率 69%，11 个 Vitest 测试文件行覆盖率 43.7%，通过的 Chromium 工作区流程、生产构建、零生产依赖漏洞、Ruff、OpenAPI、迁移、Actionlint 和 Hadolint。</p></article>
           <article class="state-card"><span class="status partial">8 月 4 日邮件认证事件已隔离</span><b>注册确认和账户安全</b><p>Supabase 仪表盘证据显示项目仍使用受限的内置邮件发送器：每小时仅两封项目级邮件且无自定义 SMTP。因此项目团队外的公开地址不是生产支持的投递路径。浏览器客户端现已镜像 Supabase 的每地址 60 秒确认窗口，暴露支持的 <code>/resend</code> 流程，单独处理 HTTP 429，规范化邮箱地址，将回调和托管 Auth 限制为 HTTPS，并保持重复注册反馈不枚举。客户端和 Supabase 服务器现在都要求至少八个密码字符。已安装账户是一个已确认的 Supabase 用户，GitHub 为其当前身份。在配置自定义 SMTP 提供商及其发送域名之前，公开确认投递仍然受阻。</p></article>
           <article class="state-card"><span class="status local">统一 ChatGPT 风格工作区 · 生产流程通过</span><b>面向用户的工作区</b><p>公开入口是 Supabase 登录/注册界面，仓库链接保留在左下角。已认证的生产检查通过了普通聊天、项目创建、项目聊天、对话刷新、文件上传、接地和 Web 回答、Quiz 生成与刷新恢复、对话删除和项目删除。普通聊天支持对话范围文件；项目聊天共享来源和有界的跨对话记忆。Quiz 保持为紧凑的项目专属抽屉，而非独立导航界面。</p></article>
           <article class="state-card"><span class="status partial">托管文档流程通过 · 提供商质量观察中</span><b>分布式系统接缝</b><p>一个合成文本层 PDF 完成了预留、上传、排队解析、索引、接地回答、页面引用、Quiz 生成、来源清理和项目清理，经过 Vercel、Render、Supabase Storage/PostgreSQL、Upstash 和 Qdrant。Render 就绪报告 PostgreSQL、Redis、worker、dispatcher、outbox、checkpoints 和 Qdrant 就绪。直接数据库 RLS、已认证的 rerank 热切换、Langfuse 导出和扫描 PDF OCR 仍待验证。</p></article>
@@ -62,7 +62,7 @@
           <article class="state-card"><span class="status local">统一聊天发布 · 合并后端 Live</span><b>两个应用部署，零必需 Qdrant 模型费用</b><p>Vercel 仍是唯一的 Next.js 主机。一个当前 Render Free Web Service 名为 <code>researchmate-backend-dev</code>，同时监管 FastAPI、一个 Celery <code>solo</code> worker 和 Outbox Dispatcher。已部署的 <code>main</code> 传承包括运行时基线 <code>66c31a8</code> 和记录的文档/材料发布 <code>c20aff6</code>；存活和合并就绪返回 HTTP 200。独立的 Qdrant 多向量投影使用集群的免费 <code>answerdotai/answerai-colbert-small-v1</code> 模型；未自动选择付费 Qdrant 模型。</p></article>
           <article class="state-card"><span class="status partial">热聊天 6.7 秒 · 接地 16.3 秒 · Web 14.6 秒</span><b>实测生产延迟</b><p>8 月 1 日已认证 Chrome 验收测量到热普通回复约 6.7 秒，对话刷新恢复 4.3 秒，接地 PDF 带页面引用回答 16.3 秒，引用 Web 回合 14.6 秒。项目 Quiz 生成在 53.3 秒内产生七个已验证问题，仍是最慢的观察到的交互路径。这些是单用户有界观测，非 P50/P95 负载测试声明；Render Free 冷启动可能增加 50 秒或更多。</p></article>
         </div>
-        <p class="source">证据：后端修正 <code>c5c89f5</code> 和 GitHub Actions 运行 <code>30694324845</code> 成功 · 前端 Quiz 恢复修正 <code>ce54452</code> 和运行 <code>30694892524</code> 成功 · Vercel Production 部署 · <code>c5c89f5</code> 的 Render 部署 Live · 2026 年 8 月 1 日已认证 Chrome 验收 · 公开 <code>/healthz</code>/<code>/readyz</code> HTTP 200 · 普通和项目对话持久化 · 文本层 PDF 上传/索引 · 接地回答带第一页引用 · 七题项目 Quiz 生成和刷新恢复 · 带引用的 Web 搜索 · 对话/项目清理 · 8 月 4 日本地门：Python 套件 434 通过覆盖率 69%；48 个 Vitest 测试行覆盖率 51.6%；Chromium E2E、TypeScript/Next 生产构建、Ruff、OpenAPI、迁移、Actionlint、Hadolint 和零漏洞 npm 生产审计通过 · Supabase Auth 仪表盘检查确认内置邮件发送器、每小时两封邮件配额、一个已确认 Outlook 用户和该用户的 GitHub 专属身份。自定义 SMTP、直接 RLS、遥测导出、扫描 PDF OCR 和延迟分布仍待解决。</p>
+        <p class="source">证据：后端修正 <code>c5c89f5</code> 和 GitHub Actions 运行 <code>30694324845</code> 成功 · 前端 Quiz 恢复修正 <code>ce54452</code> 和运行 <code>30694892524</code> 成功 · Vercel Production 部署 · <code>c5c89f5</code> 的 Render 部署 Live · 2026 年 8 月 1 日已认证 Chrome 验收 · 公开 <code>/healthz</code>/<code>/readyz</code> HTTP 200 · 普通和项目对话持久化 · 文本层 PDF 上传/索引 · 接地回答带第一页引用 · 七题项目 Quiz 生成和刷新恢复 · 带引用的 Web 搜索 · 对话/项目清理 · 8 月 4 日本地门：Python 套件 434 通过覆盖率 69%；11 个 Vitest 测试行覆盖率 51.6%；Chromium E2E、TypeScript/Next 生产构建、Ruff、OpenAPI、迁移、Actionlint、Hadolint 和零漏洞 npm 生产审计通过 · Supabase Auth 仪表盘检查确认内置邮件发送器、每小时两封邮件配额、一个已确认 Outlook 用户和该用户的 GitHub 专属身份。自定义 SMTP、直接 RLS、遥测导出、扫描 PDF OCR 和延迟分布仍待解决。</p>
       </div>
     </section>
 
@@ -123,7 +123,7 @@
         <h2>已实现合约、封闭证明和已部署集成</h2>
         <div class="access-rails">
           <article class="access-rail"><h3>合约面</h3><p>49 个 FastAPI/OpenAPI 操作提供统一聊天和运行时 rerank 控制，以及研究、决策、报告、目录、评估、可靠性、就绪和故障合约。</p><a href="contracts/api/index.zh.html#operations">阅读完整的 REST 台账 →</a></article>
-          <article class="access-rail derived"><h3>运行时接缝</h3><p>Postgres/RLS、S3 兼容存储、Qdrant、Celery/outbox、provider 适配器、LangGraph、评估、遥测和 MCP 是已实现的接缝。已认证的项目往返通过；多服务文档流程未通过。</p><a href="architecture/index.zh.html#current-architecture">查看运行时边界 →</a></article>
+          <article class="access-rail derived"><h3>运行时接缝</h3><p>Postgres/RLS、S3 兼容存储、Qdrant、Celery/outbox、provider 适配器、LangGraph、评估、遥测和 MCP 是已实现的接缝。已认证的项目往返和合成多服务文档流程均已通过；直接数据库 RLS、已认证的 rerank 热切换、Langfuse 导出和扫描 PDF OCR 仍待验证。</p><a href="architecture/index.zh.html#current-architecture">查看运行时边界 →</a></article>
           <article class="access-rail unknown"><h3>验证环境规则</h3><p>本机限于最小的封闭单元、领域、合约、schema、导入、静态和构建检查。不得启动应用或基础设施服务。每个模块化和跨服务集成测试仅在授权的已部署/服务器环境中使用合成数据和受保护配置运行。早期的本地浏览器/导入证据仍为历史背景，不是持续的集成方法。</p><a href="architecture/index.zh.html#local-development">阅读绑定执行策略 →</a></article>
           <article class="access-rail unknown"><h3>发布边界</h3><p>公开 MVP 由 Vercel 托管，文档仍仅在仓库中。合并的 Render Free 服务已 Live；健康/就绪和已认证的文档到回答流程通过。当前免费拓扑仍有冷启动、共享进程内存、低并发、Web 延迟、rerank 可用性、遥测、直接 RLS、扫描 PDF OCR 和正常运行时间限制。</p><a href="architecture/index.zh.html#deployment">审阅部署计划 →</a></article>
         </div>
@@ -229,7 +229,7 @@
         <p class="sub">实现计数与仓库和 OpenAPI 证据绑定。应用数据库、后台运行时、MCP 运行时和部署声明保持独立。</p>
         <div class="signal-grid">
           <a class="signal signal-link" href="contracts/data/index.zh.html#tables"><span class="number">15</span><b>初始迁移表</b><small>完整的字段、关系、完整性和 RLS 台账。</small></a>
-          <a class="signal signal-link" href="contracts/api/index.zh.html#operations"><span class="number">35</span><b>已实现 REST 操作</b><small>原始 18 个、一个不收费的就绪探测和 16 个高级合约。</small></a>
+          <a class="signal signal-link" href="contracts/api/index.zh.html#operations"><span class="number">49</span><b>已实现 REST 操作</b><small>原始 18 个、一个不收费的就绪探测和 30 个跨 12 个路由器的高级合约。</small></a>
           <a class="signal signal-link" href="contracts/data/index.zh.html#planned-schema"><span class="number">16</span><b>附加领域表</b><small>已在隔离的 Supabase 开发 schema 中应用；已认证的应用使用仍待验证。</small></a>
           <a class="signal signal-link" href="contracts/api/index.zh.html#planned-mcp"><span class="number">1</span><b>MCP 网关边界</b><small>已认证的本地协议初始化通过；Inspector 和消费者一致性仍待验证。</small></a>
         </div>
@@ -244,7 +244,7 @@
           <a class="doc-link" href="product/index.zh.html#capabilities"><b>功能和路线图审查</b><span>场景、当前能力、已承诺工作、验收、依赖和非目标。</span></a>
           <a class="doc-link" href="architecture/index.zh.html#stack"><b>架构参考</b><span>运行时边界、技术栈论证、故障恢复、本地环境、部署和 CI/CD。</span></a>
           <a class="doc-link" href="contracts/data/index.zh.html#planned-schema"><b>数据设计审查</b><span>工作流、证据、报告、outbox 和评估的初始及附加迁移合约。</span></a>
-          <a class="doc-link" href="contracts/api/index.zh.html#planned-operations"><b>API 设计审查</b><span>三十五个已实现 REST 合约、其集成缺口和单独报告的 MCP 运行时边界。</span></a>
+          <a class="doc-link" href="contracts/api/index.zh.html#planned-operations"><b>API 设计审查</b><span>四十九个已实现 REST 合约、其集成缺口和单独报告的 MCP 运行时边界。</span></a>
         </div>
       </div>
     </section>

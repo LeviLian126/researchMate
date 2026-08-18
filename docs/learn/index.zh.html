@@ -38,11 +38,11 @@
         <p class="sub">每个子页面深入到文件级颗粒度,逐文件讲解作用、关键逻辑和依赖关系,并附技术栈基础知识。</p>
         <div class="doc-index capability-index">
           <a class="doc-link" href="frontend.zh.html"><b>前端 · apps/web</b><span>50 个源码文件(不含配置和资源文件):Next.js / React / Tailwind / shadcn-ui 组件详解、API 请求切片、状态管理、文件上传流程。</span></a>
-          <a class="doc-link" href="backend.zh.html"><b>后端 · apps/api</b><span>80 个文件:FastAPI 路由/Schema/Service/Persistence 逐文件详解、认证机制、Provider 适配器、幂等协调器。</span></a>
+          <a class="doc-link" href="backend.zh.html"><b>后端 · apps/api</b><span>96 个文件:FastAPI 路由/Schema/Service/Persistence 逐文件详解、认证机制、Provider 适配器、幂等协调器。</span></a>
           <a class="doc-link" href="worker.zh.html"><b>Worker · workers/ai-worker</b><span>37 个文件:Celery 任务、文档摄取、LangGraph 工作流、Outbox 模式、RAGAS 评估、进程监管。</span></a>
           <a class="doc-link" href="infra.zh.html"><b>基础设施 · infra + scripts</b><span>20 个文件:31 张表的 SQL 迁移逐文件详解、Qdrant 集合配置、OpenAPI 规范、运维脚本。</span></a>
           <a class="doc-link" href="cicd.zh.html"><b>CI/CD · GitHub Actions + Docker + Render</b><span>逐 Job 解析 ci.yml、解释唯一的 Render 部署 Dockerfile、render.yaml 配置和双锁依赖策略。</span></a>
-          <a class="doc-link" href="contracts-tests.zh.html"><b>合约与测试</b><span>OpenAPI 与 Pydantic 镜像、47 个测试文件和 Hermetic 验证策略。</span></a>
+          <a class="doc-link" href="contracts-tests.zh.html"><b>合约与测试</b><span>OpenAPI 与 Pydantic 镜像、52 个测试文件和 Hermetic 验证策略。</span></a>
           <a class="doc-link" href="flows.zh.html"><b>切面分析 · 核心业务流程</b><span>4 个大厂面试级流程:Grounded Ask 全链路、文档摄取 Outbox、LangGraph 证据审查、幂等+事务一致性,逐文件追踪请求传递路径。</span></a>
           <a class="doc-link" href="ai-stack.zh.html"><b>AI 智能体技术栈 · 混合 RAG + MCP + LangGraph</b><span>三大基石深度解析：Wiki 引导的混合 RAG，含五路由检索、RRF 融合、双重重排和 Wiki 优先路由；六工具三资源 MCP 服务器；六节点 LangGraph 证据工作流含检查点和人工审核。</span></a>
         </div>
@@ -60,13 +60,13 @@
           <dt><code>packages/shared/</code></dt><dd>于 2026-08-08 移除；共享 TypeScript 契约已移入应用本地模块。</dd>
           <dt><code>infra/</code></dt><dd>基础设施配置:Supabase SQL 迁移文件、Qdrant 集合配置、OpenAPI 规范。</dd>
           <dt><code>scripts/</code></dt><dd>运维脚本:数据库迁移执行器、Qdrant rerank 回填、OpenAPI 导出等。</dd>
-          <dt><code>tests/</code></dt><dd>Python 测试套件(44 个文件),覆盖单元测试、HTTP 集成测试、契约检视和发布安全。</dd>
+          <dt><code>tests/</code></dt><dd>Python 测试套件(52 个文件),覆盖单元测试、HTTP 集成测试、契约检视和发布安全。</dd>
           <dt><code>docs/</code></dt><dd>浏览器可打开的项目文档(HTML),即你正在查看的页面。</dd>
           <dt><code>.github/workflows/</code></dt><dd>GitHub Actions CI 流水线定义(<code>ci.yml</code>)。</dd>
           <dt><code>skill/</code></dt><dd>gstack 开发技能库,包含 land-and-deploy、qa、review 等工作流技能。</dd>
         </dl>
         <div class="grid two">
-          <article class="fact"><b>npm workspaces(Node.js 包管理)</b><p>根 <code>package.json</code> 声明 <code>"workspaces": ["apps/web", "packages/shared"]</code>。所有 JS/TS 依赖由根级 <code>package-lock.json</code> 统一锁定,前端和共享包通过 workspace 协议互相引用。</p></article>
+          <article class="fact"><b>npm workspaces(Node.js 包管理)</b><p>根 <code>package.json</code> 声明 <code>"workspaces": ["apps/web"]</code>。所有 JS/TS 依赖由根级 <code>package-lock.json</code> 统一锁定,前端与各 workspace 成员通过 workspace 协议互相引用。</p></article>
           <article class="fact"><b>uv workspace(Python 包管理)</b><p>根 <code>pyproject.toml</code> 声明 <code>[tool.uv.workspace] members = ["apps/api", "workers/ai-worker"]</code>。所有 Python 依赖由 <code>uv.lock</code> 统一锁定,CI 和 Docker 中用 <code>uv sync --frozen</code> 严格按锁文件安装。</p></article>
         </div>
       </section>

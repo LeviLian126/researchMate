@@ -50,9 +50,9 @@
     <div class="hero">
       <p class="eyebrow">GitHub Actions / Docker / Render / Vercel / uv / npm workspaces</p>
       <h1>CI/CD . Pipeline &amp; deployment</h1>
-      <p class="lede">ResearchMate ships through a five-job GitHub Actions pipeline and one multi-stage Dockerfile. CI checks the same combined backend image that Render builds, and the single Render Free service deploys after the required checks pass.</p>
+      <p class="lede">ResearchMate ships through three GitHub Actions workflows: the main five-job researchmate-ci pipeline (4 parallel quality gates + 1 ci-success aggregator), the on-demand evaluation-release-gate, and the on-demand recovery-benchmark. CI checks the same combined backend image that Render builds, and the single Render Free service deploys after the required checks pass.</p>
       <div class="meta">
-        <span class="status local">5 CI jobs</span>
+        <span class="status local">3 workflows (5 jobs in ci.yml)</span>
         <span class="status local">1 deployment Dockerfile</span>
         <span class="status local">48 env vars in render.yaml</span>
         <span class="status local">11 sync:false secrets</span>
@@ -68,7 +68,7 @@
         <p class="sub">Each card explains what the tool does in general and how ResearchMate uses it specifically.</p>
         <div class="grid two">
           <article class="fact"><b>CI/CD</b><p>Continuous Integration / Continuous Deployment is the practice of automatically testing, building, scanning, and deploying every code change through a reproducible pipeline. ResearchMate treats CI as the single source of truth for release readiness: no commit reaches production unless all five gate jobs pass and the ci-success aggregator confirms every result equals success.</p></article>
-          <article class="fact"><b>GitHub Actions</b><p>Workflow automation platform triggered on push to main or develop and on every pull request. The researchmate-ci workflow uses a concurrency group with cancel-in-progress to kill stale runs, pins every action to a major version, and runs five jobs with explicit timeout-minutes ranging from 20 to 35 minutes. The ci-success job uses if: always() with needs to aggregate all four quality gates.</p></article>
+          <article class="fact"><b>GitHub Actions</b><p>Workflow automation platform triggered on push to main or develop and on every pull request. The repository has three workflows: <code>ci.yml</code> (researchmate-ci, 5 jobs: 4 parallel quality gates plus the ci-success aggregator), <code>evaluation-release-gate.yml</code> (on-demand, accepts an <code>evaluation_run_id</code> input), and <code>recovery-benchmark.yml</code> (on-demand, accepts a <code>trials</code> input default 1000). The main workflow uses a concurrency group with cancel-in-progress to kill stale runs, pins every action to a major version, and runs with explicit timeout-minutes ranging from 20 to 35 minutes. The ci-success job uses <code>if: always()</code> with <code>needs</code> to aggregate all four quality gates.</p></article>
           <article class="fact"><b>Docker</b><p>The repository keeps one multi-stage Dockerfile because Render runs API, worker, and dispatcher from the same image. It uses a pinned uv stage and <code>python:3.13-slim</code>, installs the locked workspace and native parser libraries, preloads Docling models, removes build tooling, and runs as uid 10001. CI lints, builds, and scans this deployment artifact.</p></article>
           <article class="fact"><b>Render</b><p>Cloud deployment platform hosting the combined backend-plus-worker service as a single Free-tier Docker web service in the Oregon region. render.yaml declares one envVarGroups block with 48 entries (37 with values, 11 sync:false secrets), an autoDeployTrigger of checksPass, and a buildFilter that limits rebuilds to relevant path patterns. Render probes the constant-time <code>/api/v1/healthz</code> liveness route; operators retain <code>/api/v1/readyz</code> for dependency readiness.</p></article>
           <article class="fact"><b>Vercel</b><p>Frontend deployment platform for the Next.js 16.3.0 web application in apps/web. Vercel builds and serves the production frontend independently from the backend. CORS_ALLOWED_ORIGINS in render.yaml is set to the Vercel origin so the API accepts browser requests from the deployed frontend.</p></article>
@@ -395,6 +395,20 @@ npm run check:lint
         <div class="notice warning"><strong>Current boundary:</strong> the script and workflow have local automated evidence, but no managed evaluation run has been supplied to this workflow yet. It is a controlled promotion gate, not a claim that every ordinary commit spends provider quota.</div>
       </section>
 
+      <section id="recovery-benchmark">
+        <p class="eyebrow">Reliability benchmark . on-demand</p>
+        <h2>Recovery benchmark . interrupt-restart durability evidence</h2>
+        <p class="sub">A separate on-demand workflow measures durable LangGraph interrupt recovery across process restarts. It is not part of the hermetic CI gate; it is run when a checkpoint-recovery change needs quantitative evidence.</p>
+        <div class="proof-chain">
+          <div class="proof-step"><b>1 &middot; Dispatch the workflow</b><small>Operator provides <code>trials</code> (default 1000) to <code>recovery-benchmark.yml</code>. The run is independent of the main CI concurrency group so it never cancels pull-request runs.</small></div>
+          <div class="proof-step"><b>2 &middot; Provision postgres:16</b><small>The job spins up a <code>postgres:16</code> service container, exports <code>RECOVERY_BENCHMARK_DATABASE_URL</code>, and runs <code>scripts/setup_langgraph_checkpoint.py</code> with <code>ALLOW_SCHEMA_APPLY=1</code> so the LangGraph checkpoint tables exist before the benchmark.</small></div>
+          <div class="proof-step"><b>3 &middot; Run <code>measure_langgraph_recovery.py</code></b><small>Spawns child processes that start, interrupt, and resume a fixed workflow for each trial in batches of 50. Records attempted, successful, and failure list per phase with a Wilson confidence interval at <code>--confidence 0.95</code>.</small></div>
+          <div class="proof-step"><b>4 &middot; Fail closed</b><small>Exits non-zero when the lower bound of the Wilson interval falls below <code>--minimum-rate 0.995</code>, making a regression in recovery durability a hard failure rather than a soft metric.</small></div>
+          <div class="proof-step"><b>5 &middot; Preserve the report</b><small>The JSON benchmark report is uploaded as a workflow artifact retained for 30 days even when the gate fails, so reviewers can inspect the failure list and confidence bounds.</small></div>
+        </div>
+        <div class="notice"><strong>Boundary:</strong> the recovery benchmark is a measurement workflow, not a deployment gate. A failed run blocks the operator's promotion decision but does not turn the main CI workflow red or trigger Render rollback on its own.</div>
+      </section>
+
       <section id="worker-dockerfile">
         <p class="eyebrow">Dockerfile . Render deployment</p>
         <h2>workers/ai-worker/Dockerfile . the only runtime image</h2>
@@ -568,6 +582,7 @@ uv sync --frozen --no-dev --all-packages</code></div>
       <a href="#stack">Tech stack</a>
       <a href="#ci-pipeline">CI/CD workflow</a>
       <a href="#evaluation-release-gate">Evaluation gate</a>
+      <a href="#recovery-benchmark">Recovery benchmark</a>
       <a href="#worker-dockerfile">Render Dockerfile</a>
       <a href="#render-yaml">render.yaml</a>
       <a href="#dependency-mgmt">Dependency mgmt</a>

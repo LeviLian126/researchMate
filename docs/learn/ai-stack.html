@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8"/>
   <meta content="width=device-width,initial-scale=1" name="viewport"/>
-  <meta content="ResearchMate AI agent stack deep dive: Wiki-guided Hybrid RAG with three-layer retrieval, routed five-route Hybrid RAG with dual rerank, MCP server with six tools and three resources, LangGraph evidence workflow with six nodes, checkpointing, and human-in-the-loop review." name="description"/>
+  <meta content="ResearchMate AI agent stack deep dive: Wiki-guided Hybrid RAG with three-layer retrieval, routed five-route Hybrid RAG with dual rerank, MCP server with six tools and three resources, Research Graph evidence workflow with eleven nodes and adaptive query planning." name="description"/>
   <title>ResearchMate . AI agent stack</title>
   <link href="../assets/site.css" rel="stylesheet"/>
   <style>
@@ -50,15 +50,14 @@
     <div class="hero">
       <p class="eyebrow">Wiki-guided Hybrid RAG / MCP / LangGraph</p>
       <h1>AI agent stack . Retrieval, Protocol, Orchestration</h1>
-      <p class="lede">ResearchMate's AI agent stack is a cohesive subsystem spanning the FastAPI backend and the Celery worker. Four foundations compose it: a Wiki-guided Hybrid RAG retriever that compiles LLM-structured Wiki pages as a first retrieval layer; a routed Hybrid RAG retriever that chooses among five observable routes before fused retrieval and dual rerank; an MCP server that exposes six tools and three resources over Streamable HTTP under the same bearer auth as REST; and a LangGraph evidence workflow that orchestrates a six-node stateful graph with parallel fan-out, PostgreSQL checkpointing, and human-in-the-loop review. This page goes file-by-file through every component, decision tree, and integration seam.</p>
+      <p class="lede">ResearchMate's AI agent stack is a cohesive subsystem spanning the FastAPI backend and the Celery worker. Four foundations compose it: a Wiki-guided Hybrid RAG retriever that compiles LLM-structured Wiki pages as a first retrieval layer; a routed Hybrid RAG retriever that chooses among five observable routes before fused retrieval and dual rerank; an MCP server that exposes six tools and three resources over Streamable HTTP under the same bearer auth as REST; and a Research Graph evidence workflow that orchestrates an eleven-node LangGraph with adaptive query planning, evidence sufficiency judging, and bounded retrieval loops &mdash; without durable checkpointing. This page goes file-by-file through every component, decision tree, and integration seam.</p>
       <div class="meta">
         <span class="status local">Wiki-guided Hybrid RAG</span>
         <span class="status local">5 retrieval routes</span>
         <span class="status local">3 rerank providers</span>
         <span class="status local">6 MCP tools . 3 resources</span>
-        <span class="status local">6-node LangGraph</span>
-        <span class="status local">PostgresSaver checkpoint</span>
-        <span class="status local">Human-in-the-Loop</span>
+        <span class="status local">11-node Research Graph</span>
+        <span class="status local">Adaptive query planner</span>
         <span class="status local">3 retrieval evaluation modes</span>
       </div>
     </div>
@@ -71,7 +70,7 @@
         <div class="grid two">
           <article class="fact"><b>Routed Hybrid RAG</b><p>Retrieval-augmented generation with an observable five-route planner. <code>query_planning.py</code> classifies each question into <code>FULL_CONTEXT</code>, <code>EXACT</code>, <code>SEMANTIC</code>, <code>HYBRID</code>, or <code>EXPANDED_HYBRID</code> before any vector search runs. Qdrant native BM25 + dense branches feed weighted RRF fusion in <code>qdrant_hybrid_query.py</code>. A three-provider rerank coordinator (<code>QdrantNativeReranker</code> &rarr; <code>NvidiaReranker</code> &rarr; <code>DeterministicReranker</code>) in <code>rerank.py</code> applies late-interaction reranking with deterministic fallback.</p></article>
           <article class="fact"><b>MCP</b><p>Model Context Protocol server built on FastMCP. <code>mcp_server.py</code> exposes six tools (<code>list_projects</code>, <code>search_project</code>, <code>search_conversation</code>, <code>ask_grounded</code>, <code>get_run_trace</code>, <code>run_evaluation</code>) and three resources (<code>project://{project_id}/documents</code>, <code>conversation://{conversation_id}/documents</code>, <code>run://{run_id}</code>) over stateless Streamable HTTP, authenticated by the same bearer middleware as REST. The SDK is optional &mdash; when absent, <code>/mcp</code> returns <code>503 MCP_RUNTIME_NOT_INSTALLED</code>.</p></article>
-          <article class="fact"><b>LangGraph</b><p>Stateful graph orchestration library. <code>evidence_graph.py</code> builds a six-node <code>StateGraph</code> (plan, retrieve_and_extract, reconcile, human_review, synthesize, validate_and_commit) with conditional fan-out via <code>Send</code>. Checkpoints persist to PostgreSQL via <code>PostgresSaver</code> with <code>JsonPlusSerializer(pickle_fallback=False)</code>. The <code>interrupt()</code> primitive pauses for human review without try/except wrapping, and the Celery <code>run_workflow</code> task resumes via <code>Command(resume=...)</code>.</p></article>
+          <article class="fact"><b>LangGraph</b><p>Stateful graph orchestration library. <code>apps/api/src/researchmate_api/graph/graph.py</code> compiles an eleven-node <code>StateGraph(ResearchState)</code> (prepare_context, use_full_context, select_wiki, judge_wiki, plan_evidence, search_sources, merge_evidence, rerank_evidence, judge_evidence, refine_query, generate). Conditional edges route through <code>after_prepare</code>, <code>after_wiki</code>, and <code>after_evidence</code>. <code>AdaptiveQueryPlanner</code> supplies bounded LLM-shaped queries with deterministic fallback; <code>EvidenceSufficiencyService</code> judges each round and fails closed. The graph is compiled with <code>workflow.compile()</code> &mdash; no checkpointer parameter &mdash; so request-scoped state lives in process memory only, without durable checkpointing.</p></article>
         </div>
       </section>
 
@@ -155,7 +154,7 @@
         <p>The router in <code>query_planning.py</code> checks for Wiki candidates after determining the route. The decision logic:</p>
         <div class="proof-chain">
           <div class="proof-step"><b>FULL_CONTEXT or SEMANTIC + Wiki exists</b><small>Skip Qdrant entirely; return Wiki chunks with score=1.0 and reason="wiki_first_routing". No vector search cost.</small></div>
-          <div class="proof-step"><b>EXACT query</b><small>Full RAG pipeline regardless of Wiki presence &mdash; exact identifier matching takes priority. Wiki chunks are appended but scored 0.0.</small></div>
+          <div class="proof-step"><b>EXACT query</b><small>Full RAG pipeline regardless of Wiki presence &mdash; exact identifier matching takes priority. Wiki chunks remain available but do not short-circuit generation.</small></div>
           <div class="proof-step"><b>HYBRID or EXPANDED_HYBRID</b><small>Dual-path parallel: 50% token budget to Wiki chunks, 50% to Qdrant RAG. Results merged via weighted RRF.</small></div>
           <div class="proof-step"><b>No Wiki or compilation failed</b><small>Graceful degradation &mdash; fall through to standard RAG pipeline as if Wiki layer never existed.</small></div>
         </div>
@@ -194,7 +193,7 @@
 
         <h3>Wiki-first routing strategy</h3>
         <div class="grid two">
-          <article class="fact"><b>Wiki-first routing</b><p>When Wiki candidates exist AND query route is FULL_CONTEXT or SEMANTIC, skip Qdrant entirely and return Wiki chunks (score=1.0, reason="wiki_first_routing"). EXACT queries still go through full RAG pipeline.</p></article>
+          <article class="fact"><b>Wiki-first routing</b><p>When Wiki candidates exist AND query route is FULL_CONTEXT or SEMANTIC, skip Qdrant entirely and return Wiki chunks (score=1.0, reason="wiki_first_routing"). EXACT queries still go through full RAG pipeline; Wiki chunks remain available but do not short-circuit generation.</p></article>
           <article class="fact"><b>Graceful degradation</b><p>Wiki compilation failure is non-blocking &mdash; system falls back to original RAG blocks without error propagation.</p></article>
         </div>
 
@@ -274,55 +273,70 @@ tests/
 
       <section id="langgraph">
         <p class="eyebrow">LangGraph evidence workflow</p>
-        <h2>LangGraph . six-node stateful graph with HITL</h2>
-        <p class="sub">The evidence review workflow is a bounded state graph that plans sub-questions, retrieves and extracts evidence in parallel, reconciles claims, pauses for human review, synthesizes a report, and validates before committing.</p>
+        <h2>Research Graph . eleven-node bounded retrieval graph</h2>
+        <p class="sub">The Ask retrieval workflow is a request-scoped <code>StateGraph(ResearchState)</code> that prepares corpus context, optionally short-circuits on Wiki or full-context, plans adaptive queries, retrieves and reranks evidence, judges sufficiency, and refines queries in a bounded loop &mdash; without durable checkpointing.</p>
 
-        <h3>State schema . EvidenceWorkflowState</h3>
-        <p>The <code>EvidenceWorkflowState</code> TypedDict in <code>workers/ai-worker/src/researchmate_worker/evidence_graph.py</code> defines checkpoint-safe state exchanged by nodes:</p>
+        <h3>State schema . ResearchState</h3>
+        <p>The <code>ResearchState</code> TypedDict in <code>apps/api/src/researchmate_api/graph/state.py</code> is declared <code>total=False</code> and is "carried through the bounded Research Graph without durable checkpointing" &mdash; each invocation builds a fresh state dictionary:</p>
         <div class="stack-ledger"><table><thead><tr><th>Field</th><th>Type</th><th>Purpose</th></tr></thead><tbody>
-          <tr><td><code>run_id</code></td><td><code>str</code></td><td>Workflow run identity (also the LangGraph thread ID)</td></tr>
-          <tr><td><code>user_id</code>, <code>project_id</code></td><td><code>str</code></td><td>Owner and workspace scope</td></tr>
-          <tr><td><code>research_goal</code>, <code>review_policy</code></td><td><code>str</code></td><td>Bounded research intent and review strictness</td></tr>
-          <tr><td><code>run_kind</code></td><td><code>str</code></td><td><code>evidence_review</code> or <code>report_refresh</code></td></tr>
-          <tr><td><code>base_report_id</code>, <code>impacted_section_keys</code>, <code>changed_document_ids</code></td><td><code>str</code> / <code>list[str]</code></td><td>Report refresh scope</td></tr>
-          <tr><td><code>questions</code>, <code>question_index</code>, <code>question</code></td><td><code>list[str]</code> / <code>int</code> / <code>str</code></td><td>Planned sub-questions and current fan-out index</td></tr>
-          <tr><td><code>evidence_batches</code></td><td><code>Annotated[list[dict], operator.add]</code></td><td>Accumulator &mdash; parallel batches merged via <code>operator.add</code></td></tr>
-          <tr><td><code>claims</code>, <code>relations</code></td><td><code>list[dict]</code></td><td>Extracted claims and derived relationships</td></tr>
-          <tr><td><code>review_payload</code>, <code>decision</code></td><td><code>dict</code></td><td>Human-review proposal and decision</td></tr>
-          <tr><td><code>report</code>, <code>validation</code></td><td><code>dict</code></td><td>Synthesized report and validation result</td></tr>
+          <tr><td><code>question</code>, <code>corpus_tokens</code></td><td><code>str</code> / <code>int</code></td><td>User query and estimated authorized-corpus token count</td></tr>
+          <tr><td><code>full_context_limit</code>, <code>wiki_threshold</code></td><td><code>int</code> / <code>float</code></td><td>Configured full-context and Wiki sufficiency bounds</td></tr>
+          <tr><td><code>has_wiki</code>, <code>web_allowed</code>, <code>wiki_fresh</code></td><td><code>bool</code></td><td>Wiki presence, web permission, and generation-matched freshness flag</td></tr>
+          <tr><td><code>wiki_candidates</code>, <code>local_candidates</code>, <code>web_candidates</code>, <code>merged_candidates</code></td><td><code>list[ChunkEntry]</code></td><td>Source-tagged evidence buckets carried between nodes</td></tr>
+          <tr><td><code>reranked_evidence</code>, <code>final_evidence</code></td><td><code>list[ChunkEntry]</code></td><td>Packed rerank output and the terminal evidence set</td></tr>
+          <tr><td><code>retrieval_round</code>, <code>max_retrieval_rounds</code></td><td><code>int</code></td><td>Current round index and bounded-loop ceiling</td></tr>
+          <tr><td><code>evidence_sufficient</code>, <code>judge_confidence</code>, <code>judge_degraded</code></td><td><code>bool</code> / <code>float</code> / <code>bool</code></td><td>Sufficiency verdict and structured-judge metadata</td></tr>
+          <tr><td><code>missing_facets</code>, <code>refined_queries</code></td><td><code>list[dict[str,str]]</code> / <code>list[str]</code></td><td>Judged gaps used by <code>refine_query</code> to construct next-round queries</td></tr>
+          <tr><td><code>needs_raw_evidence</code>, <code>new_evidence_found</code></td><td><code>bool</code></td><td>Raw-evidence requirement and non-progress detector for loop termination</td></tr>
+          <tr><td><code>source_strategy</code>, <code>degraded</code>, <code>fallback_reasons</code></td><td><code>str</code> / <code>bool</code> / <code>list[str]</code></td><td>Observable strategy label and degradation trail</td></tr>
         </tbody></table></div>
 
         <h3>Graph topology</h3>
-        <p><code>build_evidence_graph(domain, checkpointer)</code> assembles the <code>StateGraph</code> and compiles it with a checkpointer:</p>
+        <p><code>ResearchGraph.run()</code> builds a per-request <code>_GraphRuntime</code>, calls <code>build()</code> to assemble the <code>StateGraph(ResearchState)</code>, and invokes it with <code>runtime.initial_state()</code>. The graph is compiled with <code>workflow.compile()</code> &mdash; no checkpointer parameter is passed, so no <code>PostgresSaver</code> or other durable storage is involved:</p>
         <div class="proof-chain">
-          <div class="proof-step"><b>START &rarr; plan</b><small>Creates provider-backed research questions from the research goal, or preserves section keys for report refresh</small></div>
-          <div class="proof-step"><b>plan &rarr; fan-out &rarr; retrieve_and_extract</b><small><code>fan_out()</code> returns one <code>Send("retrieve_and_extract", {...})</code> per question &mdash; parallel execution with full context plus per-question <code>question_index</code> and <code>question</code></small></div>
-          <div class="proof-step"><b>retrieve_and_extract &rarr; reconcile</b><small>Retrieves evidence from Qdrant (+ optional Tavily web search), loads chunks, extracts claims via LLM. Batches merge into <code>evidence_batches</code> via <code>operator.add</code>. Reconcile derives claim relationships (agreement/contradiction) without changing evidence.</small></div>
-          <div class="proof-step"><b>reconcile &rarr; human_review</b><small>The <code>review()</code> wrapper calls <code>domain.review_payload(state)</code>. If <code>None</code>, auto-approves. Otherwise calls <code>interrupt(proposed)</code> &mdash; the checkpoint persists and the graph pauses.</small></div>
-          <div class="proof-step"><b>human_review &rarr; synthesize</b><small>On resume, <code>domain.apply_decision()</code> processes the human decision (approve/edit/reject). Synthesize builds a <code>ReportProposal</code> from reviewed claims via <code>synthesize_report()</code> LLM call.</small></div>
-          <div class="proof-step"><b>synthesize &rarr; validate_and_commit &rarr; END</b><small>Validates all claims have evidence (<code>chunk_ids</code>), then atomically commits the report to the database within one transaction.</small></div>
+          <div class="proof-step"><b>START &rarr; prepare_context</b><small>Measures <code>corpus_tokens = sum(estimate_tokens(chunk.text) for chunk in chunks)</code>; project and conversation scope were validated upstream by the Ask boundary.</small></div>
+          <div class="proof-step"><b>prepare_context &rarr; (conditional via <code>after_prepare</code>)</b><small>Returns one of <code>chat</code> (&rarr;generate, when <code>web_allowed=False</code> and no corpus), <code>full_context</code> (&rarr;use_full_context, when corpus fits the budget), <code>select_wiki</code> (&rarr;select_wiki, when Wiki chunks exist), or <code>plan</code> (&rarr;plan_evidence, default and when <code>web_allowed=True</code>).</small></div>
+          <div class="proof-step"><b>use_full_context &rarr; generate</b><small>Runs the existing <code>LocalEvidenceRetriever.retrieve()</code> over the small corpus and packs candidates as <code>final_evidence</code>; no rerank, no Qdrant vector search.</small></div>
+          <div class="proof-step"><b>select_wiki &rarr; judge_wiki &rarr; (conditional via <code>after_wiki</code>)</b><small><code>select_wiki</code> runs BM25 over Wiki chunks only (limit <code>wiki_gate_candidate_limit</code>); <code>judge_wiki</code> calls <code>EvidenceSufficiencyService.assess()</code>. <code>after_wiki</code> generates only when <code>evidence_sufficient AND judge_confidence &ge; wiki_threshold AND wiki_fresh AND NOT needs_raw_evidence</code>; otherwise routes to <code>plan_evidence</code>.</small></div>
+          <div class="proof-step"><b>plan_evidence &rarr; search_sources &rarr; merge_evidence &rarr; rerank_evidence &rarr; judge_evidence</b><small><code>plan_evidence</code> calls <code>AdaptiveQueryPlanner.plan()</code> with the legacy regex plan as prior; <code>search_sources</code> runs bounded local + permitted web retrieval; <code>merge_evidence</code> deduplicates by <code>chunk.id</code>; <code>rerank_evidence</code> splits by <code>has_vector</code>, reranks RAG candidates, appends lightweight candidates, and packs under <code>retrieval_evidence_token_budget</code>; <code>judge_evidence</code> assesses the reranked set.</small></div>
+          <div class="proof-step"><b>judge_evidence &rarr; (conditional via <code>after_evidence</code>)</b><small>Generates when <code>evidence_sufficient</code>, when <code>judge_degraded</code> or <code>new_evidence_found=False</code> (no progress), when <code>missing_facets=[]</code>, or when <code>retrieval_round &ge; max_retrieval_rounds</code>; otherwise routes to <code>refine_query</code>.</small></div>
+          <div class="proof-step"><b>refine_query &rarr; plan_evidence (loop) &rarr; generate &rarr; END</b><small><code>refine_query</code> calls <code>AdaptiveQueryPlanner.refine()</code> to derive a bounded next-round query set from missing facets and feeds it back through <code>plan_evidence</code>. <code>generate</code> marks retrieval completion (actual generation remains at the Ask application boundary).</small></div>
         </div>
 
-        <h3>Human-in-the-Loop . interrupt and resume</h3>
-        <p>The <code>review()</code> node is the critical HITL boundary. It calls <code>domain.review_payload(state)</code> which flags low-confidence claims (score &lt; 0.75) or suspicious sources. If review is needed, it calls <code>interrupt(proposed)</code> from <code>langgraph.types</code> &mdash; this persists the checkpoint and pauses the graph. The comment in source is explicit: <em>"Never wrap interrupt in try/except; LangGraph must persist and surface it."</em></p>
-        <p>When the human submits a decision (approve, edit, reject), the Celery <code>run_workflow</code> task in <code>tasks.py</code> resumes the graph via <code>Command(resume=resume_value)</code>. The <code>domain.apply_decision()</code> method processes the decision and the graph continues to <code>synthesize</code>.</p>
+        <h3>No durable checkpointing</h3>
+        <p>Unlike the asynchronous evidence-review workflow in <code>workers/ai-worker/</code>, the Research Graph is request-scoped. The graph is compiled with <code>workflow.compile()</code> &mdash; no <code>checkpointer</code> parameter &mdash; and <code>state.py</code> explicitly states that state is "carried through the bounded Research Graph without durable checkpointing". There is no <code>PostgresSaver</code>, <code>JsonPlusSerializer</code>, <code>interrupt()</code>/<code>Command(resume=...)</code> pause-resume mechanism, or thread-id checkpoint persistence. Each Ask invocation constructs a fresh <code>ResearchState</code> dict and discards it after <code>generate</code> returns.</p>
 
-        <h3>Checkpointing . PostgresSaver</h3>
-        <p>Checkpoints persist to PostgreSQL via <code>PostgresSaver</code> with <code>JsonPlusSerializer(pickle_fallback=False)</code>. Thread IDs are the workflow <code>run_id</code>. This means a paused workflow survives worker restarts &mdash; the checkpoint is in the database, not in process memory. The <code>pickle_fallback=False</code> setting ensures no arbitrary deserialization, keeping the boundary safe.</p>
-
-        <h3>Domain protocol and composition</h3>
-        <p>The <code>EvidenceWorkflowDomain</code> Protocol defines the seven methods the graph calls: <code>plan</code>, <code>retrieve_and_extract</code>, <code>reconcile</code>, <code>review_payload</code>, <code>apply_decision</code>, <code>synthesize</code>, <code>validate_and_commit</code>. The implementation is split across:</p>
+        <h3>Adaptive query planner</h3>
+        <p><code>AdaptiveQueryPlanner</code> in <code>apps/api/src/researchmate_api/services/adaptive_query_planning.py</code> uses an LLM as an optional retrieval recommender with deterministic fallback:</p>
         <div class="grid two">
-          <article class="fact"><b>WorkflowExecutionMixin</b><p><code>workflow_execution.py</code> &mdash; implements all seven node methods as a mixin. <code>plan()</code> creates provider-backed questions. <code>retrieve_and_extract()</code> queries Qdrant with owner-scoped filters. <code>reconcile()</code> derives relationships. <code>validate_and_commit()</code> commits atomically.</p></article>
-          <article class="fact"><b>SqlEvidenceWorkflowDomain</b><p><code>workflow_runtime.py</code> &mdash; composes the core domain with <code>WorkflowExecutionMixin</code> and overrides <code>synthesize()</code> to build the <code>ReportProposal</code> via <code>synthesize_report()</code> LLM call.</p></article>
+          <article class="fact"><b>AdaptiveSearchPlan</b><p>Pydantic model with <code>extra="forbid"</code>: <code>queries</code> (1&ndash;3, <code>MAX_ADAPTIVE_QUERIES=3</code>), <code>dense_weight</code> and <code>lexical_weight</code> (0&ndash;1 each), <code>use_local</code>, <code>use_web</code>, <code>document_scope</code> (list, max 200), <code>reason</code> (1&ndash;300 chars). Each query clamped to <code>MAX_QUERY_CHARS=600</code>.</p></article>
+          <article class="fact"><b>plan() and refine()</b><p><code>plan()</code> returns a safe plan, preserving the existing deterministic plan on provider/JSON/ValidationError failure. <code>refine()</code> turns judged <code>MissingFacet</code> gaps into a bounded next-round query set without an extra provider call &mdash; it merges facet <code>search_query</code> strings with prior queries and may enable web when any facet prefers a non-local source.</p></article>
         </div>
+        <p>The <code>_fallback()</code> method maps the existing regex <code>RetrievalPlan</code> (queries, weights, reason) into the new contract; <code>_normalize()</code> clamps untrusted recommendations to <code>adaptive_dense_weight_min/max</code> and re-derives <code>lexical_weight = 1 - dense</code>. The provider prompt treats all question, history, and facet content as untrusted data.</p>
+
+        <h3>Evidence sufficiency service</h3>
+        <p><code>EvidenceSufficiencyService</code> in <code>apps/api/src/researchmate_api/services/evidence_sufficiency.py</code> calls an optional structured judge and fails closed to further retrieval:</p>
+        <div class="grid two">
+          <article class="fact"><b>Enums and models</b><p><code>SourcePreference</code>: <code>LOCAL</code> / <code>WEB</code> / <code>LOCAL_AND_WEB</code>. <code>EvidenceReasonCode</code>: <code>COVERED</code>, <code>MISSING_FACT</code>, <code>MISSING_DETAIL</code>, <code>MISSING_EXACT_VALUE</code>, <code>MISSING_SOURCE_VERIFICATION</code>, <code>CONFLICTING_EVIDENCE</code>, <code>NEEDS_CURRENT_EXTERNAL_INFO</code>, <code>AMBIGUOUS_QUESTION</code>, <code>NO_RELEVANT_EVIDENCE</code>. <code>MissingFacet</code>: <code>description</code>, <code>search_query</code>, <code>source_preference</code>. <code>EvidenceAssessment</code>: <code>sufficient</code>, <code>confidence</code> (0&ndash;1), <code>reason_code</code>, <code>missing_facets</code> (max 3), <code>requires_raw_evidence</code>, <code>requires_web</code>, <code>degraded</code>.</p></article>
+          <article class="fact"><b>assess() and requires_raw_evidence()</b><p><code>assess()</code> returns <code>NO_RELEVANT_EVIDENCE</code> on empty evidence, the deterministic <code>_fallback()</code> when the provider is unconfigured or returns invalid JSON, and the validated model otherwise (with <code>degraded=False</code> reasserted on success). <code>requires_raw_evidence()</code> uses a regex matching <em>version/config/function/enum/page/cite/source/quote/exact/identifier</em> (English and Chinese: 版本/函数/枚举/配置/页码/原文/引用/出处/精确/具体数字) to reject Wiki-only answers for verifiable-exactness questions.</p></article>
+        </div>
+
+        <h3>Rerank split by has_vector</h3>
+        <p>In <code>rerank_evidence</code>, candidates pass through <code>limit_rerank_candidates(candidates, retrieval_round_candidate_limit)</code> before rerank. RAG candidates (<code>chunk.has_vector=True</code>) go through <code>RerankCoordinator.execute()</code>; lightweight candidates (<code>has_vector=False</code> &mdash; Wiki pages, web snippets) bypass rerank and are appended after. The combined set is packed via <code>pack_chunks(..., retrieval_evidence_token_budget)</code>. A <code>new_evidence_found</code> flag tracks whether the current round introduced any unseen candidate id, so <code>after_evidence</code> can terminate a non-progressing loop.</p>
+
+        <h3>Composition with GroundedQueryService</h3>
+        <p><code>GroundedQueryService</code> in <code>apps/api/src/researchmate_api/services/grounded_query.py</code> constructs one <code>ResearchGraph</code> per service instance, binding the local retriever, reranker, optional web search, a fresh <code>EvidenceSufficiencyService(chat_provider)</code>, and a fresh <code>AdaptiveQueryPlanner(settings, chat_provider)</code>. When <code>settings.langgraph_research_enabled</code> is true, <code>execute()</code> calls <code>research_graph.run(...)</code> and projects the returned <code>ResearchGraphResult</code> into the Ask response; otherwise the legacy inline retrieval paths run. Generation itself happens after the graph completes &mdash; <code>generate()</code> only marks retrieval completion.</p>
 
         <h3>Key source files</h3>
-        <pre><code>workers/ai-worker/src/researchmate_worker/
-  evidence_graph.py        (EvidenceWorkflowState, build_evidence_graph, fan_out, review)
-  workflow_execution.py    (WorkflowExecutionMixin, 7 node implementations)
-  workflow_runtime.py      (SqlEvidenceWorkflowDomain, composition + synthesize override)
-  tasks.py                 (run_workflow Celery task, Command(resume=...))</code></pre>
+        <pre><code>apps/api/src/researchmate_api/
+  graph/graph.py             (ResearchGraph, _GraphRuntime, 11 node methods, build())
+  graph/routing.py           (after_prepare, after_wiki, after_evidence conditional edges)
+  graph/state.py             (ResearchState TypedDict, total=False)
+  services/adaptive_query_planning.py  (AdaptiveQueryPlanner, AdaptiveSearchPlan)
+  services/evidence_sufficiency.py     (EvidenceSufficiencyService, EvidenceAssessment, MissingFacet)
+  services/grounded_query.py           (GroundedQueryService orchestration)
+  services/rerank.py                   (RerankCoordinator)
+  services/query_retrieval.py          (LocalEvidenceRetriever)</code></pre>
       </section>
 
       <section id="evaluation-lab">

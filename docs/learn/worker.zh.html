@@ -55,7 +55,7 @@
         <span class="status local">6 个 Celery tasks</span>
         <span class="status local">5 个队列</span>
         <span class="status local">3 个进程角色</span>
-        <span class="status local">38 个源码文件</span>
+        <span class="status local">44 个源码文件</span>
         <span class="status local">_commit 写入 8 张表</span>
         <span class="status local">Outbox 模式 . Lease 并发控制</span>
       </div>
@@ -81,7 +81,7 @@
       <section id="tree">
         <p class="eyebrow">完整目录树</p>
         <h2>workers/ai-worker/src/researchmate_worker/</h2>
-        <p class="sub">共 38 个文件,按功能域分组。</p>
+        <p class="sub">共 44 个源码文件(含 __init__.py 标记为 46 个),按功能域分组。</p>
         <pre class="command-block"><code>researchmate_worker/
 ├── __init__.py                          # Package marker
 │
@@ -128,7 +128,8 @@
 ├── fault_simulation.py                  # FaultSimulationService: non-mutating reliability exercises
 │
 ├── render_combined.py                   # Combined process supervisor: API + Celery + dispatcher
-└── runtime_health.py                    # record_heartbeat: non-secret liveness upsert</code></pre>
+├── runtime_health.py                    # record_heartbeat: non-secret liveness upsert
+└── worker_heartbeat.py                 # Companion heartbeat loop (CLI entry, MINIMUM_HEARTBEAT_SECONDS=10)</code></pre>
       </section>
       <section id="config-entry">
         <p class="eyebrow">配置与入口</p>
@@ -226,15 +227,18 @@
       </section>
 
       <section id="supervision">
-        <p class="eyebrow">进程监管 . 2 个文件</p>
+        <p class="eyebrow">进程监管 . 3 个文件</p>
         <h2>组合部署与运行时健康</h2>
-        <p class="sub">render_combined.py 监管 3 个子进程;runtime_health.py 持久化公共 readiness probe 消费的非密 liveness 信号。</p>
+        <p class="sub">render_combined.py 监管 3 个子进程;runtime_health.py 与 worker_heartbeat.py 持久化公共 readiness probe 消费的非密 liveness 信号。</p>
 
         <h3>render_combined.py</h3>
         <p>单容器组合部署的进程监管器。<b>child_commands()</b> 声明 3 个监管命令:(1) uvicorn 服务 researchmate_api.main:app,配置端口和 proxy headers;(2) celery worker,-A researchmate_worker.celery_app:celery_app,--queues=ingestion,deletion,workflow,evaluation,reliability,--pool=solo,--concurrency=1;(3) python -m researchmate_worker.dispatch_outbox。<b>apply_schema_migrations()</b> 可选地在任何进程启动前运行迁移(RUN_SCHEMA_MIGRATIONS=1)。<b>backfill_qdrant_rerank()</b> 可选地 provision rerank collection(RUN_QDRANT_RERANK_BACKFILL=1)。<b>wait_for_api()</b> 轮询 /api/v1/healthz 直到 200 才启动 worker(超时 240 秒)。信号处理器将 SIGTERM 和 SIGINT 转发给所有子进程。监管器每 0.5 秒轮询子进程退出码并传播失败。</p>
 
         <h3>runtime_health.py</h3>
         <p><b>record_heartbeat()</b> 将非密 liveness 信号 upsert 到 runtime_heartbeats 表。INSERT ... ON CONFLICT (component) DO UPDATE 写入 component、instance_id(默认 socket.gethostname())、status、safe_metadata(JSON)和 updated_at。由 celery_app.py 的信号处理器(worker ready/heartbeat/shutdown)和 dispatch_outbox.py 的每次轮询周期调用。metadata payload 有界且非密(如 {"queues": "ingestion,deletion,workflow,evaluation,reliability"} 或 {"poll_seconds": 2.0})。</p>
+
+        <h3>worker_heartbeat.py</h3>
+        <p>当 Celery 自带的 worker_sent 信号被长任务节流或延迟时,该伴随进程负责保持 worker liveness 新鲜。<b>build_engine()</b> 创建单连接池(pool_size=1、max_overflow=0、pool_pre_ping=True、pool_recycle=300),仅用于心跳写入,绝不与任务工作争抢连接。<b>main()</b> 解析 <code>--once</code>(写入一次心跳后退出,供 readiness probe 使用)与 <code>--interval-seconds</code> 覆盖;否则按 <code>max(MINIMUM_HEARTBEAT_SECONDS=10, settings.runtime_heartbeat_seconds)</code> 秒为间隔休眠。每次循环调用 <code>record_heartbeat(engine, "worker", metadata={"queues": QUEUES})</code>,复用 render_combined.py 的 <code>QUEUES</code> 常量,确保心跳始终反映 supervisor 绑定的真实队列集合。必须配置 DATABASE_URL,否则抛出 RuntimeError。</p>
       </section>
 
       <section id="ingestion-slice">
@@ -434,7 +438,12 @@ dispatch_outbox.py
 
 celery_app.py
   → config.py         (WorkerSettings, psycopg_database_url)
-  → runtime_health.py (record_heartbeat)</code></pre>
+  → runtime_health.py (record_heartbeat)
+
+worker_heartbeat.py (CLI companion process)
+  → config.py             (WorkerSettings, psycopg_database_url)
+  → render_combined.py    (QUEUES constant)
+  → runtime_health.py     (record_heartbeat)</code></pre>
         <div class="notice"><strong>Facade 模式:</strong> ingestion.py、deletion.py 和 evaluation.py 是纯重导出 facade。它们提供稳定的导入入口,使 task_builders.py 和 tasks.py 每个域只依赖单一模块。域内文件的内部重构不会破坏下游导入。</div>
       </section>
 

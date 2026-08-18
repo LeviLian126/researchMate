@@ -55,7 +55,7 @@
         <span class="status local">6 Celery tasks</span>
         <span class="status local">5 queues</span>
         <span class="status local">3 process roles</span>
-        <span class="status local">38 source files</span>
+        <span class="status local">44 source files</span>
         <span class="status local">8 database tables in _commit</span>
         <span class="status local">Outbox pattern . Lease concurrency control</span>
       </div>
@@ -81,7 +81,7 @@
       <section id="tree">
         <p class="eyebrow">Complete directory tree</p>
         <h2>workers/ai-worker/src/researchmate_worker/</h2>
-        <p class="sub">Totaling 38 files grouped by functional domain.</p>
+        <p class="sub">Totaling 44 source files (46 with __init__.py markers) grouped by functional domain.</p>
         <pre class="command-block"><code>researchmate_worker/
 ├── __init__.py                          # Package marker
 │
@@ -128,7 +128,8 @@
 ├── fault_simulation.py                  # FaultSimulationService: non-mutating reliability exercises
 │
 ├── render_combined.py                   # Combined process supervisor: API + Celery + dispatcher
-└── runtime_health.py                    # record_heartbeat: non-secret liveness upsert</code></pre>
+├── runtime_health.py                    # record_heartbeat: non-secret liveness upsert
+└── worker_heartbeat.py                 # Companion heartbeat loop (CLI entry, MINIMUM_HEARTBEAT_SECONDS=10)</code></pre>
       </section>
       <section id="config-entry">
         <p class="eyebrow">Configuration &amp; entry points</p>
@@ -226,15 +227,18 @@
       </section>
 
       <section id="supervision">
-        <p class="eyebrow">Process supervision . 2 files</p>
+        <p class="eyebrow">Process supervision . 3 files</p>
         <h2>Combined deployment and runtime health</h2>
-        <p class="sub">render_combined.py supervises 3 child processes; runtime_health.py persists non-secret liveness signals consumed by the public readiness probe.</p>
+        <p class="sub">render_combined.py supervises 3 child processes; runtime_health.py and worker_heartbeat.py persist non-secret liveness signals consumed by the public readiness probe.</p>
 
         <h3>render_combined.py</h3>
         <p>The combined process supervisor for single-container deployment. <b>child_commands()</b> declares 3 supervised commands: (1) uvicorn serving researchmate_api.main:app on the configured port with proxy headers, (2) celery worker with -A researchmate_worker.celery_app:celery_app, --queues=ingestion,deletion,workflow,evaluation,reliability, --pool=solo, --concurrency=1, (3) python -m researchmate_worker.dispatch_outbox. <b>apply_schema_migrations()</b> optionally runs migrations before any process starts (RUN_SCHEMA_MIGRATIONS=1). <b>backfill_qdrant_rerank()</b> optionally provisions the rerank collection (RUN_QDRANT_RERANK_BACKFILL=1). <b>wait_for_api()</b> polls /api/v1/healthz until 200 before starting workers (timeout 240s). Signal handlers forward SIGTERM and SIGINT to all children. The supervisor polls child exit codes every 0.5s and propagates failures.</p>
 
         <h3>runtime_health.py</h3>
         <p><b>record_heartbeat()</b> upserts a non-secret liveness signal into the runtime_heartbeats table. The INSERT ... ON CONFLICT (component) DO UPDATE writes component, instance_id (defaults to socket.gethostname()), status, safe_metadata (JSON), and updated_at. Called by celery_app.py signal handlers for worker ready/heartbeat/shutdown, and by dispatch_outbox.py on each poll cycle. The metadata payload is bounded and non-secret (e.g., {"queues": "ingestion,deletion,workflow,evaluation,reliability"} or {"poll_seconds": 2.0}).</p>
+
+        <h3>worker_heartbeat.py</h3>
+        <p>Companion process that keeps worker liveness fresh even when Celery's built-in worker_sent signal is throttled or delayed by a long-running solo-pool task. <b>build_engine()</b> creates a single-connection pool (pool_size=1, max_overflow=0, pool_pre_ping=True, pool_recycle=300) reserved solely for heartbeat writes so it never competes with task work. <b>main()</b> parses <code>--once</code> (publish one heartbeat and exit, used by readiness probes) and <code>--interval-seconds</code> overrides; otherwise it sleeps for <code>max(MINIMUM_HEARTBEAT_SECONDS=10, settings.runtime_heartbeat_seconds)</code> seconds between writes. Each loop calls <code>record_heartbeat(engine, "worker", metadata={"queues": QUEUES})</code>, reusing the <code>QUEUES</code> constant from render_combined.py so the published heartbeat always reflects the actual queue set the supervisor binds to. Requires DATABASE_URL; raises RuntimeError otherwise.</p>
       </section>
 
       <section id="ingestion-slice">
@@ -434,7 +438,12 @@ dispatch_outbox.py
 
 celery_app.py
   → config.py         (WorkerSettings, psycopg_database_url)
-  → runtime_health.py (record_heartbeat)</code></pre>
+  → runtime_health.py (record_heartbeat)
+
+worker_heartbeat.py (CLI companion process)
+  → config.py             (WorkerSettings, psycopg_database_url)
+  → render_combined.py    (QUEUES constant)
+  → runtime_health.py     (record_heartbeat)</code></pre>
         <div class="notice"><strong>Facade pattern:</strong> ingestion.py, deletion.py, and evaluation.py are pure re-export facades. They provide a stable import surface so task_builders.py and tasks.py depend on a single module per domain. Internal restructuring of files within a domain does not break downstream imports.</div>
       </section>
 

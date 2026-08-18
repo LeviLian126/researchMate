@@ -46,16 +46,16 @@
   </div></nav>
   <main class="shell">
     <div class="hero">
-      <p class="eyebrow">Supabase / PostgreSQL RLS / Qdrant / 11 migrations / 49 operations</p>
+      <p class="eyebrow">Supabase / PostgreSQL RLS / Qdrant / 21 migrations / 49 operations</p>
       <h1>Infrastructure . infra &amp; scripts</h1>
       <p class="lede">The ResearchMate infrastructure layer defines persistence and coordination: Supabase/PostgreSQL as the source of truth, Qdrant for routed hybrid retrieval, and generated OpenAPI locking down 49 operations across 43 paths.</p>
       <div class="meta">
         <span class="status local">34 tables (31 business + 3 coordination)</span>
-        <span class="status local">11 SQL migrations</span>
+        <span class="status local">21 SQL migrations</span>
         <span class="status local">3 Qdrant collection roles</span>
         <span class="status local">49 operations / 12 tags</span>
         <span class="status local">71 schemas</span>
-        <span class="status local">9 scripts</span>
+        <span class="status local">11 scripts</span>
       </div>
     </div>
     <div class="layout"><div class="content">
@@ -66,7 +66,7 @@
         <div class="grid">
           <article class="fact"><b>Supabase</b><p>Managed PostgreSQL platform providing database, auth (auth.uid()), storage, and Edge Functions. ResearchMate uses its PostgreSQL instance as the single source of truth; all business and coordination tables live here. RLS policies enforce multi-tenant isolation at the database layer.</p></article>
           <article class="fact"><b>PostgreSQL RLS</b><p>Row Level Security enforces per-row access control in the database. All 31 business tables have RLS enabled, using auth.uid() for user-scoped isolation. pipeline_versions supports developer/admin role policies; outbox_events has no authenticated-user policy (service-role only).</p></article>
-          <article class="fact"><b>Database migrations</b><p>11 additive SQL migrations ordered by version prefix. The latest preserves section path, chunk ordinal, and stable character offsets for retrieval provenance.</p></article>
+          <article class="fact"><b>Database migrations</b><p>21 additive SQL migrations ordered by version prefix. The latest syncs document bucket MIME types; recent migrations also add structured chunk provenance, conversation indexes, human-decisions dedup, answer feedback eval lab, expanded document file types, chunk_has_vector, and lightweight chunks without vectors.</p></article>
           <article class="fact"><b>Qdrant collections</b><p>Three roles: legacy retrieval for instant rollback, v2 multivector late-interaction rerank, and the v3 shadow collection with named dense and IDF-enabled BM25 vectors. Every query branch repeats owner filters.</p></article>
           <article class="fact"><b>OpenAPI spec</b><p>49 operations across 43 paths and 12 tags, with 71 component schemas. <code>openapi.yaml</code> is deterministically rendered from FastAPI, and <code>--check</code> rejects drift.</p></article>
         </div>
@@ -74,7 +74,7 @@
       <section id="tree">
         <p class="eyebrow">Complete directory tree</p>
         <h2>infra/ and scripts/ file structure</h2>
-        <p class="sub">infra/ contains 3 subdirectories (openapi, qdrant, supabase); scripts/ contains 9 script files.</p>
+        <p class="sub">infra/ contains 3 subdirectories (openapi, qdrant, supabase); scripts/ contains 11 script files.</p>
         <pre class="command-block"><code>infra/
   openapi/
     openapi.yaml              183 KB  49 operations / 12 tags / 71 schemas
@@ -98,8 +98,10 @@ scripts/
   apply_migrations.py            3.6 KB  Validate &amp; apply ordered migrations
   bootstrap_demo_catalog.py      5.8 KB  Bootstrap demo pipeline + eval dataset
   check_contracts.ps1              524 B  Run pytest contract tests
+  check_evaluation_gate.py       5.9 KB  Fail release gate on incomplete/regressed eval
   dev_api.ps1                      491 B  Start uvicorn dev server
   export_openapi.py              1.2 KB  Render/verify OpenAPI artifact
+  measure_langgraph_recovery.py  9.0 KB  Benchmark interrupt recovery across restarts
   provision_qdrant_rerank.py     6.3 KB  Provision Qdrant v2 backfill
   provision_qdrant_hybrid.py             Replay and verify native hybrid v3
   repair_docs_html_encoding.py   3.3 KB  Repair corrupted HTML docs
@@ -107,7 +109,7 @@ scripts/
       </section>
       <section id="migrations">
         <p class="eyebrow">SQL migration file-by-file analysis</p>
-        <h2>11 migrations in execution order</h2>
+        <h2>21 migrations in execution order</h2>
         <p class="sub">Each migration is additive (never destructive to existing data), ordered by the YYYYMMDDNNN version prefix.</p>
         <details id="migration-01"><summary>1. 202605260001_initial_schema.sql</summary>
           <dl class="kv">
@@ -205,6 +207,96 @@ scripts/
             <dt>Tables</dt><dd>Alters chunks and citations without rewriting historical rows.</dd>
             <dt>Fields &amp; indexes</dt><dd>section_title, section_path, chunk_index, char_start, char_end; validates offset pairs and indexes document chunk order.</dd>
             <dt>Incremental change</dt><dd>Preserves structure-aware ingestion provenance through SQL, Qdrant payloads, and user-visible citations.</dd>
+          </dl>
+        </details>
+        <details id="migration-12"><summary>12. 202608080001_add_profiles_fk.sql</summary>
+          <dl class="kv">
+            <dt>Version</dt><dd><code>202608080001</code></dd>
+            <dt>Tables</dt><dd>No new tables (alters profiles).</dd>
+            <dt>Fields &amp; indexes</dt><dd>Adds <code>profiles_id_fk</code> foreign key referencing <code>auth.users(id)</code> with <code>ON DELETE CASCADE</code>.</dd>
+            <dt>RLS</dt><dd>No RLS changes.</dd>
+            <dt>Incremental change</dt><dd>Deleting a Supabase auth user now cascades through profiles to all owner-scoped data instead of leaving orphans.</dd>
+          </dl>
+        </details>
+        <details id="migration-13"><summary>13. 202608080002_add_updated_at_triggers.sql</summary>
+          <dl class="kv">
+            <dt>Version</dt><dd><code>202608080002</code></dd>
+            <dt>Tables</dt><dd>No new tables (alters profiles, projects, documents, and other <code>updated_at</code>-bearing tables).</dd>
+            <dt>Fields &amp; indexes</dt><dd>Creates <code>set_updated_at()</code> plpgsql function plus per-table <code>BEFORE UPDATE</code> triggers.</dd>
+            <dt>RLS</dt><dd>No RLS changes.</dd>
+            <dt>Incremental change</dt><dd>Keeps <code>updated_at</code> truthful on every partial UPDATE; stale timestamps no longer survive edits.</dd>
+          </dl>
+        </details>
+        <details id="migration-14"><summary>14. 202608080003_add_handle_new_user_trigger.sql</summary>
+          <dl class="kv">
+            <dt>Version</dt><dd><code>202608080003</code></dd>
+            <dt>Tables</dt><dd>No new tables (alters auth.users trigger).</dd>
+            <dt>Fields &amp; indexes</dt><dd>Creates <code>handle_new_user()</code> SECURITY DEFINER function and <code>on_auth_user_created</code> trigger on <code>auth.users</code>; uses <code>ON CONFLICT (id) DO NOTHING</code>.</dd>
+            <dt>RLS</dt><dd>Trigger runs as SECURITY DEFINER so auth-issued inserts can write to <code>profiles</code> under RLS.</dd>
+            <dt>Incremental change</dt><dd>Auto-provisions a profile row when Supabase Auth creates a user, removing defensive insertions from application code.</dd>
+          </dl>
+        </details>
+        <details id="migration-15"><summary>15. 202608080004_add_conversations_index.sql</summary>
+          <dl class="kv">
+            <dt>Version</dt><dd><code>202608080004</code></dd>
+            <dt>Tables</dt><dd>No new tables (alters conversations).</dd>
+            <dt>Fields &amp; indexes</dt><dd>Adds partial b-tree index <code>idx_conversations_user_created</code> on <code>(user_id, created_at desc)</code> scoped to <code>deleted_at IS NULL</code>.</dd>
+            <dt>RLS</dt><dd>No RLS changes.</dd>
+            <dt>Incremental change</dt><dd>Supports chat-history list pages without scanning tombstones.</dd>
+          </dl>
+        </details>
+        <details id="migration-16"><summary>16. 202608080005_align_human_decisions_dedup.sql</summary>
+          <dl class="kv">
+            <dt>Version</dt><dd><code>202608080005</code></dd>
+            <dt>Tables</dt><dd>No new tables (alters human_decisions).</dd>
+            <dt>Fields &amp; indexes</dt><dd>Adds <code>idempotency_key text NOT NULL</code>; backfills from <code>interrupt_key</code>; drops the old <code>(run_id, interrupt_key)</code> unique constraint and replaces it with <code>(run_id, idempotency_key)</code>.</dd>
+            <dt>RLS</dt><dd>No RLS changes.</dd>
+            <dt>Incremental change</dt><dd>Aligns DB dedup with the public <code>Idempotency-Key</code> header contract; retries with a different <code>interrupt_key</code> but the same header are now correctly deduped.</dd>
+          </dl>
+        </details>
+        <details id="migration-17"><summary>17. 202608110007_answer_feedback_eval_lab.sql</summary>
+          <dl class="kv">
+            <dt>Version</dt><dd><code>202608110007</code></dd>
+            <dt>Tables</dt><dd>Adds <code>answer_feedback</code> (1 new table) referencing profiles, projects, conversations, ask_runs, and evaluation_cases.</dd>
+            <dt>Fields &amp; indexes</dt><dd>rating (<code>helpful</code>/<code>not_helpful</code>), category (incorrect_answer &hellip; other), comment (max 1000), question/answer snapshots, citation/retrieved chunk ID arrays, retrieved_evidence jsonb, status (<code>new</code>/<code>promoted</code>), promoted_case_id; <code>unique (user_id, ask_run_id)</code>.</dd>
+            <dt>RLS</dt><dd>Owner-scoped RLS on answer_feedback.</dd>
+            <dt>Incremental change</dt><dd>Persists owner-scoped answer feedback and its immutable evaluation-case promotion state.</dd>
+          </dl>
+        </details>
+        <details id="migration-18"><summary>18. 202608110008_expand_document_file_types.sql</summary>
+          <dl class="kv">
+            <dt>Version</dt><dd><code>202608110008</code></dd>
+            <dt>Tables</dt><dd>No new tables (alters documents check constraint).</dd>
+            <dt>Fields &amp; indexes</dt><dd>Replaces <code>documents_file_type_check</code> to accept structured Office types (<code>pdf, docx, pptx, xlsx</code>) plus bounded plain-text/code formats (<code>md, csv, json, py, ts, tsx, sql, java, go, rs, kt</code>, etc.) with <code>NOT VALID</code> then <code>VALIDATE CONSTRAINT</code>.</dd>
+            <dt>RLS</dt><dd>No RLS changes.</dd>
+            <dt>Incremental change</dt><dd>Expands document ingestion to structured Office files and bounded plain-text/source formats.</dd>
+          </dl>
+        </details>
+        <details id="migration-19"><summary>19. 202608130009_add_chunk_has_vector.sql</summary>
+          <dl class="kv">
+            <dt>Version</dt><dd><code>202608130009</code></dd>
+            <dt>Tables</dt><dd>No new tables (alters chunks).</dd>
+            <dt>Fields &amp; indexes</dt><dd>Adds <code>has_vector boolean NOT NULL DEFAULT true</code>; partial index <code>idx_chunks_document_has_vector</code> on <code>(document_id, has_vector)</code> scoped to <code>has_vector = false</code>.</dd>
+            <dt>RLS</dt><dd>No RLS changes.</dd>
+            <dt>Incremental change</dt><dd>Allows lightweight documents to skip embedding and Qdrant upsert while remaining queryable via direct context injection.</dd>
+          </dl>
+        </details>
+        <details id="migration-20"><summary>20. 202608160010_allow_lightweight_chunks_without_vectors.sql</summary>
+          <dl class="kv">
+            <dt>Version</dt><dd><code>202608160010</code></dd>
+            <dt>Tables</dt><dd>No new tables (alters chunks).</dd>
+            <dt>Fields &amp; indexes</dt><dd>Drops <code>NOT NULL</code> from <code>chunks.qdrant_point_id</code>.</dd>
+            <dt>RLS</dt><dd>No RLS changes.</dd>
+            <dt>Incremental change</dt><dd>Lightweight chunks can persist without a Qdrant point; PostgreSQL unique constraints already permit multiple NULLs, so the existing uniqueness contract still holds for vector chunks.</dd>
+          </dl>
+        </details>
+        <details id="migration-21"><summary>21. 202608170001_sync_document_bucket_mime_types.sql</summary>
+          <dl class="kv">
+            <dt>Version</dt><dd><code>202608170001</code></dd>
+            <dt>Tables</dt><dd>No new tables (alters storage.buckets).</dd>
+            <dt>Fields &amp; indexes</dt><dd>Updates the private document bucket's <code>allowed_mime_types</code> to mirror the file-type check constraint added in 008.</dd>
+            <dt>RLS</dt><dd>No RLS changes.</dd>
+            <dt>Incremental change</dt><dd>Keeps the private document bucket aligned with MIME types accepted by the upload API; uploads rejected at the storage boundary now match uploads rejected at the schema boundary.</dd>
           </dl>
         </details>
       </section>
@@ -673,8 +765,8 @@ scripts/
       </section>
       <section id="scripts">
         <p class="eyebrow">scripts/ file-by-file analysis</p>
-        <h2>8 operational scripts</h2>
-        <p class="sub">5 Python scripts + 2 PowerShell scripts + 1 encoding repair script. All scripts use environment-variable gates or approval flags.</p>
+        <h2>11 operational scripts</h2>
+        <p class="sub">8 Python scripts + 2 PowerShell scripts + 1 encoding repair script. All scripts use environment-variable gates or approval flags.</p>
         <details id="script-01"><summary>1. apply_migrations.py</summary>
           <dl class="kv">
             <dt>Language</dt><dd><code>Python</code></dd>
@@ -744,6 +836,22 @@ scripts/
             <dt>Language</dt><dd><code>Python</code></dd>
             <dt>Purpose</dt><dd>Creates the v3 shadow collection, replays ready local chunks in bounded batches, removes stale points, and verifies tenant-filtered native BM25 retrieval.</dd>
             <dt>Safety</dt><dd>Requires <code>ALLOW_QDRANT_HYBRID_BACKFILL=1</code>; records exact count and corpus checksum before configuration cutover.</dd>
+          </dl>
+        </details>
+        <details id="script-10"><summary>10. check_evaluation_gate.py</summary>
+          <dl class="kv">
+            <dt>Language</dt><dd><code>Python</code></dd>
+            <dt>Lines</dt><dd>139</dd>
+            <dt>Purpose</dt><dd>Controlled release gate that fails when a durable evaluation run is incomplete, failed, or regressed. Reads the persisted status, execution summary, metric aggregates, and baseline comparison from the API; enforces Recall@K &ge; 0.80, MRR &ge; 0.50, NDCG &ge; 0.80 by default; rejects runs whose pipeline <code>code_sha</code> differs from the workflow commit.</dd>
+            <dt>Safety</dt><dd>Requires HTTPS outside localhost; thresholds are explicit CLI inputs so a release policy change is a code change, not a secret.</dd>
+          </dl>
+        </details>
+        <details id="script-11"><summary>11. measure_langgraph_recovery.py</summary>
+          <dl class="kv">
+            <dt>Language</dt><dd><code>Python</code></dd>
+            <dt>Lines</dt><dd>232</dd>
+            <dt>Purpose</dt><dd>Benchmark for durable LangGraph interrupt recovery across process restarts. Spawns child processes that start, interrupt, and resume a fixed workflow; reports attempted/successful counts, failures, and a Wilson confidence interval against a configurable minimum recovery rate (default 0.995).</dd>
+            <dt>Safety</dt><dd>Reads <code>RECOVERY_BENCHMARK_DATABASE_URL</code>; default <code>--trials 1000</code>, <code>--batch-size 50</code>, <code>--minimum-rate 0.995</code>, <code>--confidence 0.95</code>; exits non-zero when the lower confidence bound falls below the minimum rate.</dd>
           </dl>
         </details>
       </section>

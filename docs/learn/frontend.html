@@ -48,9 +48,9 @@
   </div></nav>
   <main class="shell">
     <div class="hero">
-      <p class="eyebrow">apps/web · Next.js 16.3.0 · 50 source files</p>
+      <p class="eyebrow">apps/web · Next.js 16.3.0 · 54 source files</p>
       <h1>Frontend module deep dive</h1>
-      <p class="lede">apps/web is the ResearchMate Next.js frontend application, deployed on Vercel. It contains 50 source files (excluding config and assets), covering page routes, React components, API client, authentication logic, and E2E tests. This page analyzes every file's purpose, key logic, and dependencies, and traces the complete journey of an Ask request from the browser to the backend through a slice perspective.</p>
+      <p class="lede">apps/web is the ResearchMate Next.js frontend application, deployed on Vercel. It contains 54 source files (excluding config and assets), covering page routes, React components, API client, authentication logic, and E2E tests. This page analyzes every file's purpose, key logic, and dependencies, and traces the complete journey of an Ask request from the browser to the backend through a slice perspective.</p>
       <div class="meta">
         <span class="status local">Next.js 16.3.0 · App Router</span>
         <span class="status local">React · Client Components</span>
@@ -71,7 +71,7 @@
           <article class="fact"><b>React</b><p>UI library, heavily using Client Components (<code>"use client"</code>). State managed through hooks (<code>useState</code>, <code>useEffect</code>, <code>useRef</code>, <code>useMemo</code>, <code>useCallback</code>) without Redux or Zustand. Components are layered into container (ChatWorkspace), presentation (ConversationThread, ChatComposer), and UI primitives (ui/*).</p></article>
           <article class="fact"><b>Tailwind CSS v4.3.3</b><p>Utility-first CSS framework, integrated via the <code>@tailwindcss/postcss</code> plugin. <code>globals.css</code> uses <code>@import "tailwindcss"</code> and <code>@theme inline</code> to define design tokens (CSS variables), supporting light/dark themes and <code>prefers-reduced-motion</code>. Components use the <code>cn()</code> utility to merge Tailwind class names.</p></article>
           <article class="fact"><b>shadcn/ui</b><p>Customizable component system built on Radix UI primitives. apps/web includes 15 <code>ui/</code> components, depending on 9 <code>@radix-ui</code> packages. Components use <code>class-variance-authority</code> (cva) for variants and <code>tailwind-merge</code> for class deduplication. Not an npm package but source files copied into the project.</p></article>
-          <article class="fact"><b>Vitest 4.1.10</b><p>Unit testing framework using <code>jsdom</code> environment to simulate the browser. Coverage collected via <code>@vitest/coverage-v8</code>, covering <code>app/lib/**/*.ts</code> and <code>app/components/**/*.{ts,tsx}</code>, with a 40% baseline (lines/statements). Test files live alongside source (<code>.test.ts</code> suffix), totaling 7 test files.</p></article>
+          <article class="fact"><b>Vitest 4.1.10</b><p>Unit testing framework using <code>jsdom</code> environment to simulate the browser. Coverage collected via <code>@vitest/coverage-v8</code>, covering <code>app/lib/**/*.ts</code> and <code>app/components/**/*.{ts,tsx}</code>, with a 40% baseline (lines/statements). Test files live alongside source (<code>.test.ts</code> suffix), totaling 11 test files: 7 component tests (<code>app-sidebar</code>, <code>auth-gate</code>, <code>evaluation-report</code>, <code>feedback-workflow</code>, <code>presentation</code>, <code>project-nav</code>, <code>use-chat-workspace</code>) and 4 lib tests (<code>api</code>, <code>demo</code>, <code>idempotent-intent</code>, <code>supabase</code>).</p></article>
           <article class="fact"><b>Playwright 1.62.1</b><p>E2E testing framework using only Chromium. The <code>webServer</code> config starts a demo-mode Next.js on <code>127.0.0.1:3100</code>, with test files in <code>e2e/</code>. Validates the complete user journey: send a message, view citations, create a project, generate a quiz, while checking for zero browser errors and zero external requests.</p></article>
           <article class="fact"><b>Supabase Auth</b><p>Authentication service supporting GitHub OAuth and email/password. <code>supabase.ts</code> implements browser-side session management from scratch (no <code>@supabase/supabase-js</code> dependency), including JWT decoding, refresh token rotation, HttpOnly cookie persistence (via <code>/api/auth/session</code> POST + <code>/api/auth/session/get</code> GET routes — session tokens never reach <code>localStorage</code>), and OAuth redirect recovery. The AuthGate component guards all protected routes.</p></article>
         </div>
@@ -80,7 +80,7 @@
       <section id="tree">
         <p class="eyebrow">Complete directory tree</p>
         <h2>apps/web/ file structure</h2>
-        <p class="sub">Below is the complete file tree of apps/web/, excluding <code>.next/</code> build artifacts and <code>node_modules/</code>. There are 50 source files (excluding config and assets): 11 page routes, 10 business components, 15 shadcn/ui components, 6 lib modules, 7 test files, and 1 E2E test.</p>
+        <p class="sub">Below is the complete file tree of apps/web/, excluding <code>.next/</code> build artifacts and <code>node_modules/</code>. There are 54 source files (excluding config and assets): 11 page routes, 10 business components, 15 shadcn/ui components, 6 lib modules, 11 test files, and 1 E2E test.</p>
         <pre class="command-block"><code>apps/web/
 ├── AGENTS.md
 ├── CLAUDE.md

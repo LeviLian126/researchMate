@@ -50,9 +50,9 @@
     <div class="hero">
       <p class="eyebrow">GitHub Actions / Docker / Render / Vercel / uv / npm workspaces</p>
       <h1>CI/CD . 流水线与部署</h1>
-      <p class="lede">ResearchMate 通过五个 GitHub Actions Job 门控变更，只保留一个多阶段 Dockerfile。CI 检查的正是 Render 为合并后端构建的镜像，所需检查通过后由单个 Render Free 服务自动部署。</p>
+      <p class="lede">ResearchMate 通过三个 GitHub Actions 工作流发布:主工作流 researchmate-ci 包含 5 个 Job(4 个并行质量门控 + 1 个 ci-success 聚合器)、按需触发的 evaluation-release-gate、按需触发的 recovery-benchmark。CI 检查的正是 Render 为合并后端构建的镜像,所需检查通过后由单个 Render Free 服务自动部署。</p>
       <div class="meta">
-        <span class="status local">5 个 CI Job</span>
+        <span class="status local">3 个工作流(ci.yml 含 5 个 Job)</span>
         <span class="status local">1 个部署 Dockerfile</span>
         <span class="status local">render.yaml 中 48 个环境变量</span>
         <span class="status local">11 个 sync:false 密钥</span>
@@ -68,7 +68,7 @@
         <p class="sub">每张卡片说明该工具的通用职责,以及 ResearchMate 中的具体用法。</p>
         <div class="grid two">
           <article class="fact"><b>CI/CD</b><p>持续集成 / 持续部署 (Continuous Integration / Continuous Deployment) 是通过可复现的流水线自动测试、构建、扫描并部署每次代码变更的实践。ResearchMate 将 CI 视为发布就绪的唯一事实来源:除非全部五个门控 Job 通过且 ci-success 聚合器确认每个结果均为 success,否则任何 commit 都不会进入生产环境。</p></article>
-          <article class="fact"><b>GitHub Actions</b><p>工作流自动化平台,在 push 到 main 或 develop 以及每个 pull request 时触发。researchmate-ci 工作流使用 concurrency group 配合 cancel-in-progress 取消过时运行,将每个 action 固定到主版本号,并运行五个具有显式 timeout-minutes(20 至 35 分钟)的 Job。ci-success Job 使用 if: always() 配合 needs 聚合全部四个质量门控。</p></article>
+          <article class="fact"><b>GitHub Actions</b><p>工作流自动化平台,在 push 到 main 或 develop 以及每个 pull request 时触发。仓库共有三个工作流:<code>ci.yml</code>(researchmate-ci,含 5 个 Job:4 个并行质量门控 + 1 个 ci-success 聚合器)、<code>evaluation-release-gate.yml</code>(按需触发,接受 <code>evaluation_run_id</code> 输入)、<code>recovery-benchmark.yml</code>(按需触发,接受 <code>trials</code> 输入,默认 1000)。主工作流使用 concurrency group 配合 cancel-in-progress 取消过时运行,将每个 action 固定到主版本号,并运行显式 timeout-minutes(20 至 35 分钟)。ci-success Job 使用 <code>if: always()</code> 配合 <code>needs</code> 聚合全部四个质量门控。</p></article>
           <article class="fact"><b>Docker</b><p>仓库只保留一个多阶段 Dockerfile，因为 Render 在同一镜像中运行 API、worker 和 dispatcher。镜像固定 uv 和 <code>python:3.13-slim</code>，安装锁定的 workspace、原生解析库和 Docling 模型，随后移除构建工具，并以 uid 10001 运行。CI 对这一个部署制品执行 lint、构建和扫描。</p></article>
           <article class="fact"><b>Render</b><p>云部署平台,将合并的 backend-plus-worker 服务作为单个 Free 层 Docker web 服务托管在 Oregon 区域。render.yaml 声明一个包含 48 条目的 envVarGroups 块(37 条带值,11 条 sync:false 密钥),autoDeployTrigger 设为 checksPass,并使用 buildFilter 将重建限制在相关路径变更时触发。Render 探测常量时间的 <code>/api/v1/healthz</code> 存活端点；运维仍通过 <code>/api/v1/readyz</code> 检查依赖就绪。</p></article>
           <article class="fact"><b>Vercel</b><p>apps/web 中 Next.js 16.3.0 前端应用的部署平台。Vercel 独立于后端构建并服务生产前端。render.yaml 中的 CORS_ALLOWED_ORIGINS 设为 Vercel 源地址,使 API 接受来自已部署前端的浏览器请求。</p></article>
@@ -381,6 +381,34 @@ npm run check:lint
         <div class="notice"><strong>恢复与回滚:</strong> 若部署后健康检查失败，Render 自动回滚到上一个稳定版本。若 CI 门控失败，开发者需修复后重新 push，工作流从步骤 1 重新开始。所有状态转换（planned / ready / executed / verified）均通过 GitHub Actions 日志和 Render 部署记录留痕，可追溯每次变更的执行结果。</div>
       </section>
 
+      <section id="evaluation-release-gate">
+        <p class="eyebrow">受控质量提升</p>
+        <h2>评估发布门禁 . 持久证据,显式触发</h2>
+        <p class="sub">常规密封 CI 保持快速且不消耗 provider quota。当候选 pipeline 已完成一次托管评估时,运维人员使用该持久化的 run ID 触发单独的受控工作流。</p>
+        <div class="proof-chain">
+          <div class="proof-step"><b>1 &middot; 完成一次版本化评估</b><small>对 accepted 的 dense-only、sparse-only 或 hybrid pipeline 版本运行冻结的数据集。</small></div>
+          <div class="proof-step"><b>2 &middot; 分发门禁</b><small>将评估 run UUID 提供给 <code>evaluation-release-gate.yml</code>。该工作流将受保护 token 绑定到仓库控制的 Render origin,而非接受调用方指定的 host。</small></div>
+          <div class="proof-step"><b>3 &middot; 拉取持久结果</b><small><code>check_evaluation_gate.py</code> 在 localhost 之外要求 HTTPS,读取持久化的状态、执行摘要、指标聚合与基线对比。</small></div>
+          <div class="proof-step"><b>4 &middot; 失败即关闭</b><small>该门禁拒绝未完成或失败的 run、pipeline <code>code_sha</code> 与工作流 commit 不一致、缺失指标、Recall@K 低于 0.80、MRR 低于 0.50、NDCG 低于 0.80 或任何已记录回归。阈值为显式 CLI 输入,发布策略变更属于代码变更。</small></div>
+          <div class="proof-step"><b>5 &middot; 保留决定</b><small>即使门禁失败,安全的 JSON 决定 artifact 也会保留 30 天;最终工作流步骤强制执行结果。</small></div>
+        </div>
+        <div class="notice warning"><strong>当前边界:</strong> 脚本与工作流已有本地自动化证据,但尚未向该工作流提交任何托管评估 run。它是一个受控提升门禁,而非声称每次普通 commit 都会消耗 provider quota。</div>
+      </section>
+
+      <section id="recovery-benchmark">
+        <p class="eyebrow">可靠性基准 . 按需</p>
+        <h2>恢复基准 . interrupt-restart 持久化证据</h2>
+        <p class="sub">一个独立的按需工作流,衡量跨进程重启的 LangGraph interrupt 持久化恢复。它不属于密封 CI 门控;仅在 checkpoint-recovery 变更需要定量证据时运行。</p>
+        <div class="proof-chain">
+          <div class="proof-step"><b>1 &middot; 分发工作流</b><small>运维人员向 <code>recovery-benchmark.yml</code> 提供 <code>trials</code>(默认 1000)。该运行与主 CI concurrency group 无关,不会取消 pull-request 运行。</small></div>
+          <div class="proof-step"><b>2 &middot; 准备 postgres:16</b><small>Job 启动 <code>postgres:16</code> 服务容器,导出 <code>RECOVERY_BENCHMARK_DATABASE_URL</code>,并使用 <code>ALLOW_SCHEMA_APPLY=1</code> 运行 <code>scripts/setup_langgraph_checkpoint.py</code> 确保 LangGraph checkpoint 表在基准开始前已存在。</small></div>
+          <div class="proof-step"><b>3 &middot; 运行 <code>measure_langgraph_recovery.py</code></b><small>每批 50 次生成子进程,依次启动、interrupt、恢复一个固定工作流。记录每阶段的 attempted、successful、失败列表,以及 <code>--confidence 0.95</code> 下的 Wilson 置信区间。</small></div>
+          <div class="proof-step"><b>4 &middot; 失败即关闭</b><small>当 Wilson 区间下界低于 <code>--minimum-rate 0.995</code> 时以非零状态退出,使恢复持久性的回归成为硬失败而非软指标。</small></div>
+          <div class="proof-step"><b>5 &middot; 保留报告</b><small>JSON 基准报告作为工作流 artifact 上传,即使门禁失败也保留 30 天,便于审查者检查失败列表与置信区间。</small></div>
+        </div>
+        <div class="notice"><strong>边界:</strong> 恢复基准是一个度量工作流,而非部署门禁。失败的运行会阻止运维人员的提升决定,但不会使主 CI 工作流转红,也不会单独触发 Render 回滚。</div>
+      </section>
+
       <section id="worker-dockerfile">
         <p class="eyebrow">Dockerfile · Render 部署</p>
         <h2>workers/ai-worker/Dockerfile · 唯一运行时镜像</h2>
@@ -554,6 +582,8 @@ uv sync --frozen --no-dev --all-packages</code></div>
     <aside class="toc"><b>本页目录</b>
       <a href="#stack">技术栈基础</a>
       <a href="#ci-pipeline">CI/CD 工作流</a>
+      <a href="#evaluation-release-gate">评估门禁</a>
+      <a href="#recovery-benchmark">恢复基准</a>
       <a href="#worker-dockerfile">Render Dockerfile</a>
       <a href="#render-yaml">render.yaml</a>
       <a href="#dependency-mgmt">依赖管理</a>
