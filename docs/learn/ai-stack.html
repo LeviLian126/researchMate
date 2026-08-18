@@ -150,6 +150,13 @@
           <article class="fact"><b>Long-document overview (>4000 tokens)</b><p>Larger documents trigger <code>compile_overview()</code>: the LLM generates a high-level overview page sampled to <code>WIKI_OVERVIEW_MAX_INPUT_TOKENS = 6000</code> token budget. The overview Wikipedia page is appended alongside Qdrant RAG blocks (<code>has_vector=false</code> for overview, <code>has_vector=true</code> for RAG blocks). This keeps the overview compact while preserving deep evidence from the full RAG pipeline.</p></article>
         </div>
 
+        <h3>Ingestion flow with Wiki compilation</h3>
+        <div class="proof-chain">
+          <div class="proof-step"><b>Document upload</b><small>Parse &rarr; Chunk into bounded text blocks</small></div>
+          <div class="proof-step"><b>Short doc (&le;4000 tokens)</b><small>Full Wiki compilation replaces original chunks (has_vector=False)</small></div>
+          <div class="proof-step"><b>Long doc (>4000 tokens)</b><small>Qdrant upsert (has_vector=True) + Overview Wiki appended (has_vector=False)</small></div>
+        </div>
+
         <h3>Wiki-first routing decision tree</h3>
         <p>The router in <code>query_planning.py</code> checks for Wiki candidates after determining the route. The decision logic:</p>
         <div class="proof-chain">
@@ -165,40 +172,6 @@
         <h3>Graceful degradation contract</h3>
         <div class="notice"><strong>Wiki compilation failure fallback:</strong> If the LLM provider is misconfigured, returns invalid JSON, or times out, <code>WikiCompiler.compile()</code> catches the exception and returns <code>[]</code> (no Wiki candidates). The downstream router sees an empty wiki list and falls through to standard Qdrant RAG without any behavioral change. The Wiki layer is an optimization, not a correctness requirement.</div>
 
-        <h3>Key source files</h3>
-        <pre><code>apps/api/src/researchmate_api/services/
-  wiki_compiler.py         (WikiCompiler, compile, compile_overview, WikiPage, wiki_pages_to_chunks)
-  query_planning.py        (RetrievalRoute, wiki_first_routing check)
-  query_retrieval.py       (LocalEvidenceRetriever, Wiki candidate integration)
-  qdrant_hybrid_query.py   (execute_hybrid_query, RRF fusion with Wiki support)</code></pre>
-
-      <section id="wiki-rag">
-        <p class="eyebrow">Wiki-guided retrieval</p>
-        <h2>Wiki-guided Hybrid RAG . Three-layer retrieval architecture</h2>
-        <p class="sub">The Wiki layer sits between raw storage and RAG retrieval &mdash; LLM-compiled structured pages provide navigation shortcuts for short documents or overview context for long ones.</p>
-
-        <h3>Three layers of knowledge</h3>
-        <div class="stack-ledger"><table><thead><tr><th>Layer</th><th>Purpose</th><th>Implementation</th></tr></thead><tbody>
-          <tr><td><b>Raw Source</b></td><td>Source of truth</td><td>S3-compatible object storage</td></tr>
-          <tr><td><b>Wiki</b></td><td>Knowledge navigation</td><td>LLM-compiled structured pages</td></tr>
-          <tr><td><b>RAG</b></td><td>Evidence retrieval</td><td>Qdrant hybrid + rerank</td></tr>
-        </tbody></table></div>
-
-        <h3>Ingestion flow with Wiki compilation</h3>
-        <div class="proof-chain">
-          <div class="proof-step"><b>Document upload</b><small>Parse &rarr; Chunk into bounded text blocks</small></div>
-          <div class="proof-step"><b>Short doc (&le;4000 tokens)</b><small>Full Wiki compilation replaces original chunks (has_vector=False)</small></div>
-          <div class="proof-step"><b>Long doc (>4000 tokens)</b><small>Qdrant upsert (has_vector=True) + Overview Wiki appended (has_vector=False)</small></div>
-        </div>
-
-        <h3>Wiki-first routing strategy</h3>
-        <div class="grid two">
-          <article class="fact"><b>Wiki-first routing</b><p>When Wiki candidates exist AND query route is FULL_CONTEXT or SEMANTIC, skip Qdrant entirely and return Wiki chunks (score=1.0, reason="wiki_first_routing"). EXACT queries still go through full RAG pipeline; Wiki chunks remain available but do not short-circuit generation.</p></article>
-          <article class="fact"><b>Graceful degradation</b><p>Wiki compilation failure is non-blocking &mdash; system falls back to original RAG blocks without error propagation.</p></article>
-        </div>
-
-        <div class="notice"><strong>Structured references:</strong> Each WikiPage carries a <code>references: list[dict[str, object]]</code> field mapping back to source evidence with <code>{document_id, section_title, page_no, chunk_id}</code>. This enables traceability from synthesized Wiki knowledge back to raw source fragments while maintaining a clean separation between navigation aids and proof-bearing evidence.</div>
-
         <h3>Key constants and methods</h3>
         <div class="grid two">
           <article class="fact"><b>Constants</b><p><code>WIKI_OVERVIEW_MAX_INPUT_TOKENS = 6000</code> (in schemas/common.py) guards against overlong overview compilation. Token thresholds for short/long detection use the same 4000-token boundary.</p></article>
@@ -207,8 +180,10 @@
 
         <h3>Key source files</h3>
         <pre><code>apps/api/src/researchmate_api/services/
-  wiki_compiler.py         (WikiCompiler, compile_overview, WikiPage, wiki_pages_to_chunks)
-  query_retrieval.py       (wiki-first routing check)
+  wiki_compiler.py         (WikiCompiler, compile, compile_overview, WikiPage, wiki_pages_to_chunks)
+  query_planning.py        (RetrievalRoute, wiki_first_routing check)
+  query_retrieval.py       (LocalEvidenceRetriever, Wiki candidate integration)
+  qdrant_hybrid_query.py   (execute_hybrid_query, RRF fusion with Wiki support)
   ingestion.py             (IngestionService._compile_overview_wiki)
 workers/ai-worker/src/researchmate_worker/
   tasks.py                 (trigger overview compilation after Qdrant upsert)</code></pre>
@@ -402,7 +377,6 @@ tests/
     <aside class="toc"><b>On this page</b>
       <a href="#stack">Tech stack</a>
       <a href="#hybrid-rag">Hybrid RAG</a>
-      <a href="#wiki-rag">Wiki-guided RAG</a>
       <a href="#wiki-rag">Wiki-guided RAG</a>
       <a href="#mcp">MCP server</a>
       <a href="#langgraph">LangGraph</a>

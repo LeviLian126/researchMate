@@ -150,6 +150,13 @@
           <article class="fact"><b>长文档概览（>4000 tokens）</b><p>较大文档触发 <code>compile_overview()</code>：LLM 生成高级概览页面，采样到 <code>WIKI_OVERVIEW_MAX_INPUT_TOKENS = 6000</code> token 预算。概览 Wiki 页面与 Qdrant RAG 分块一起追加（概览 <code>has_vector=false</code>，RAG 分块 <code>has_vector=true</code>）。这使概览紧凑，同时从完整 RAG 管道保留深度证据。</p></article>
         </div>
 
+        <h3>带 Wiki 编译的摄取流程</h3>
+        <div class="proof-chain">
+          <div class="proof-step"><b>文档上传</b><small>解析 &rarr; 分块为有界文本块</small></div>
+          <div class="proof-step"><b>短文档（&le;4000 tokens）</b><small>完整 Wiki 编译替换原始块（has_vector=False）</small></div>
+          <div class="proof-step"><b>长文档（>4000 tokens）</b><small>Qdrant upsert（has_vector=True）+ 追加概览 Wiki（has_vector=False）</small></div>
+        </div>
+
         <h3>Wiki 优先路由决策树</h3>
         <p><code>query_planning.py</code> 中的路由器在确定路由后检查 Wiki 候选。决策逻辑：</p>
         <div class="proof-chain">
@@ -165,12 +172,21 @@
         <h3>优雅降级契约</h3>
         <div class="notice"><strong>Wiki 编译失败回退：</strong>如果 LLM 提供者配置错误、返回无效 JSON 或超时，<code>WikiCompiler.compile()</code> 捕获异常并返回 <code>[]</code>（无 Wiki 候选）。下游路由器看到空的 wiki 列表并回退到标准 Qdrant RAG，没有任何行为变化。Wiki 层是优化，不是正确性要求。</div>
 
+        <h3>关键常量和方法</h3>
+        <div class="grid two">
+          <article class="fact"><b>常量</b><p><code>WIKI_OVERVIEW_MAX_INPUT_TOKENS = 6000</code>（在 schemas/common.py 中）防止过长的概览编译。短/长检测的 token 阈值使用相同的 4000-token 边界。</p></article>
+          <article class="fact"><b>方法</b><p><code>WikiCompiler.compile_overview()</code>、<code>WikiCompiler._sample_for_overview()</code>、<code>wiki_pages_to_chunks()</code>（向元数据添加 <code>wiki_references</code>）、<code>IngestionService._compile_overview_wiki()</code>（在 Qdrant upsert 后对长文档调用）。</p></article>
+        </div>
+
         <h3>关键源文件</h3>
         <pre><code>apps/api/src/researchmate_api/services/
   wiki_compiler.py         (WikiCompiler, compile, compile_overview, WikiPage, wiki_pages_to_chunks)
   query_planning.py        (RetrievalRoute, plan_retrieval, _expanded_plan, wiki_first_routing 检查)
   query_retrieval.py       (LocalEvidenceRetriever, Wiki 候选集成)
-  qdrant_hybrid_query.py   (execute_hybrid_query, 带 Wiki 支持的 RRF 融合)</code></pre>
+  qdrant_hybrid_query.py   (execute_hybrid_query, 带 Wiki 支持的 RRF 融合)
+  ingestion.py             (IngestionService._compile_overview_wiki)
+workers/ai-worker/src/researchmate_worker/
+  tasks.py                 (在 Qdrant upsert 后触发概览编译)</code></pre>
       </section>
 
       <section id="mcp">
@@ -227,48 +243,6 @@ class MCPRequestIdentity:
   services/idempotency.py  (IdempotencyCoordinator)
 tests/
   test_mcp_boundary.py     (认证、SDK 缺失、工具调用测试)</code></pre>
-      </section>
-
-      <section id="wiki-rag">
-        <p class="eyebrow">Wiki 引导的检索</p>
-        <h2>Wiki 引导的混合 RAG . 三层检索架构</h2>
-        <p class="sub">Wiki 层位于原始存储和 RAG 检索之间 &mdash; LLM 编译的结构化页面为短文档提供导航快捷方式，或为长文档提供概览上下文。</p>
-
-        <h3>知识的三层</h3>
-        <div class="stack-ledger"><table><thead><tr><th>层</th><th>目的</th><th>实现</th></tr></thead><tbody>
-          <tr><td><b>原始源</b></td><td>真相来源</td><td>S3 兼容对象存储</td></tr>
-          <tr><td><b>Wiki</b></td><td>知识导航</td><td>LLM 编译的结构化页面</td></tr>
-          <tr><td><b>RAG</b></td><td>证据检索</td><td>Qdrant 混合 + 重排</td></tr>
-        </tbody></table></div>
-
-        <h3>带 Wiki 编译的摄取流程</h3>
-        <div class="proof-chain">
-          <div class="proof-step"><b>文档上传</b><small>解析 &rarr; 分块为有界文本块</small></div>
-          <div class="proof-step"><b>短文档（&le;4000 tokens）</b><small>完整 Wiki 编译替换原始块（has_vector=False）</small></div>
-          <div class="proof-step"><b>长文档（>4000 tokens）</b><small>Qdrant upsert（has_vector=True）+ 追加概览 Wiki（has_vector=False）</small></div>
-        </div>
-
-        <h3>Wiki 优先路由策略</h3>
-        <div class="grid two">
-          <article class="fact"><b>Wiki 优先路由</b><p>当 Wiki 候选存在且查询路由为 FULL_CONTEXT 或 SEMANTIC 时，完全跳过 Qdrant 并返回 Wiki 分块（score=1.0, reason="wiki_first_routing"）。EXACT 查询仍走完整 RAG 管道；Wiki 分块仍可用但不短路生成。</p></article>
-          <article class="fact"><b>优雅降级</b><p>Wiki 编译失败是非阻塞的 &mdash; 系统回退到原始 RAG 模块，不传播错误。</p></article>
-        </div>
-
-        <div class="notice"><strong>结构化引用：</strong>每个 WikiPage 携带一个 <code>references: list[dict[str, object]]</code> 字段，映射回包含 <code>{document_id, section_title, page_no, chunk_id}</code> 的来源证据。这使得从合成的 Wiki 知识追溯到原始源片段成为可能，同时在导航辅助和承载证据之间保持清晰的分隔。</div>
-
-        <h3>关键常量和方法</h3>
-        <div class="grid two">
-          <article class="fact"><b>常量</b><p><code>WIKI_OVERVIEW_MAX_INPUT_TOKENS = 6000</code>（在 schemas/common.py 中）防止过长的概览编译。短/长检测的 token 阈值使用相同的 4000-token 边界。</p></article>
-          <article class="fact"><b>方法</b><p><code>WikiCompiler.compile_overview()</code>、<code>WikiCompiler._sample_for_overview()</code>、<code>wiki_pages_to_chunks()</code>（向元数据添加 <code>wiki_references</code>）、<code>IngestionService._compile_overview_wiki()</code>（在 Qdrant upsert 后对长文档调用）。</p></article>
-        </div>
-
-        <h3>关键源文件</h3>
-        <pre><code>apps/api/src/researchmate_api/services/
-  wiki_compiler.py         (WikiCompiler, compile_overview, WikiPage, wiki_pages_to_chunks)
-  query_retrieval.py       (wiki-first 路由检查)
-  ingestion.py             (IngestionService._compile_overview_wiki)
-workers/ai-worker/src/researchmate_worker/
-  tasks.py                 (在 Qdrant upsert 后触发概览编译)</code></pre>
       </section>
 
       <section id="langgraph">
@@ -403,10 +377,9 @@ workers/ai-worker/src/researchmate_worker/
       <a href="#stack">技术栈</a>
       <a href="#hybrid-rag">混合 RAG</a>
       <a href="#wiki-rag">Wiki 引导的 RAG</a>
-      <a href="#wiki-rag">Wiki 引导的 RAG</a>
-      <a href="#evaluation-lab">评估实验室</a>
       <a href="#mcp">MCP 服务器</a>
       <a href="#langgraph">LangGraph</a>
+      <a href="#evaluation-lab">评估实验室</a>
       <a href="#integration">集成</a>
       <a href="#further-reading">延伸阅读</a>
     </aside></div>
