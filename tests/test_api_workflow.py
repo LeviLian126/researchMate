@@ -44,7 +44,7 @@ def test_local_ask_sources_and_trace_workflow(client: TestClient) -> None:
     trace_response = client.get(f"/api/v1/dev/traces/{body['trace_id']}", headers=HEADERS)
     assert trace_response.status_code == 200
     trace = trace_response.json()
-    assert trace["execution_plan"]["context_strategy"] == "full_context"
+    assert trace["execution_plan"]["context_strategy"] == "hybrid_retrieval"
     assert trace["latency_ms"] == trace["token_usage"]["total_latency_ms"]
     assert trace["latency_ms"] >= 0
     assert all(call["latency_ms"] >= 0 for call in trace["tool_calls"])

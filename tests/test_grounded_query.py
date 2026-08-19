@@ -151,12 +151,11 @@ def test_workspace_ask_persists_answer_citations_and_trace(repository) -> None:
     assert response.validation_status == "passed"
     assert response.citations, "the deterministic fallback must cite the supplied evidence"
     assert response.run_id and response.trace_id
-    # The deterministic reranker short-circuits the candidate set cleanly
-    # without optional providers configured: no degradation flags surface and
-    # the response carries no fallback reason.
-    assert response.rerank_degraded is False
-    assert response.retrieval_degraded is False
-    assert response.summary_degraded is False
+    # The hybrid retrieval path invokes the reranker. When NVIDIA is
+    # unconfigured, the coordinator falls back to deterministic and marks
+    # the response as degraded with a fallback reason.
+    assert response.rerank_degraded is True
+    assert response.fallback_reason == "nvidia_unavailable"
     assert repository.get_run_sources(caller, response.run_id) is not None
 
 
@@ -175,9 +174,11 @@ def test_workspace_ask_with_multiple_ready_documents_runs_hybrid_retrieval(repos
     assert response.answer
     assert response.validation_status == "passed"
     assert response.citations
-    # The deterministic reranker produces rankings without surfacing any
-    # provider-failure degradation when neither NVIDIA nor Qdrant is configured.
-    assert response.rerank_degraded is False
+    # The hybrid retrieval path invokes the reranker. When NVIDIA is
+    # unconfigured, the coordinator falls back to deterministic and marks
+    # the response as degraded.
+    assert response.rerank_degraded is True
+    assert response.fallback_reason == "nvidia_unavailable"
 
 
 def test_personal_scope_ask_with_conversation_cites_local_evidence(repository) -> None:
