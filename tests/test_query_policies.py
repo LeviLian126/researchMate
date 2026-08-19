@@ -75,8 +75,8 @@ def test_project_memory_preserves_untrusted_user_provenance() -> None:
     assert "untrusted_project_memory" in memory[0].content
 
 
-def test_small_document_still_requires_relevant_evidence() -> None:
-    """Keep full-context packing from bypassing the answerability gate."""
+def test_small_document_uses_relevant_lexical_evidence() -> None:
+    """Keep lightweight retrieval lexical and relevant before graph-owned fallback."""
     store = InMemoryResearchMateStore()
     retriever = LocalEvidenceRetriever(Settings(app_env="test"), store, None)
     chunks = [_chunk("RAG retrieves source passages before generation.")]
@@ -85,7 +85,7 @@ def test_small_document_still_requires_relevant_evidence() -> None:
     assert unrelated.candidates == []
     assert unrelated.full_context is False
     assert related.candidates
-    assert related.full_context is True
+    assert related.full_context is False
 
 
 def test_personal_project_rejects_project_wide_scope() -> None:

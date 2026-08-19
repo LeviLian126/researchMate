@@ -1,176 +1,65 @@
-"""Lock deterministic conditional routes for the bounded Research Graph."""
+"""Lock deterministic conditional routes for the index-first Research Graph."""
 
 from __future__ import annotations
 
-from researchmate_api.config import Settings
-from researchmate_api.graph.routing import after_evidence, after_prepare, after_wiki
+from researchmate_api.graph.routing import after_evidence, after_prepare
 
 
-def test_small_corpus_without_web_uses_full_context() -> None:
-    """A bounded local corpus avoids unnecessary retrieval and reranking."""
+def test_small_corpus_without_wiki_plans_raw_evidence() -> None:
+    """A small corpus still retrieves raw evidence instead of using an answer shortcut."""
+    assert after_prepare({"corpus_tokens": 20, "web_allowed": False, "has_wiki": False}) == "plan"
+
+
+def test_wiki_corpus_selects_index_before_raw_evidence_planning() -> None:
+    """Wiki presence selects navigation context but cannot generate an answer directly."""
     assert (
-        after_prepare(
-            {
-                "corpus_tokens": 20,
-                "full_context_limit": 100,
-                "web_allowed": False,
-                "has_wiki": False,
-            }
-        )
-        == "full_context"
-    )
-
-
-def test_wiki_short_circuit_is_enabled_by_default() -> None:
-    """Freshness metadata is optional by default so eligible Wiki evidence can short-circuit."""
-    settings = Settings(app_env="test", llm_provider="fake", embedding_provider="fake")
-    assert settings.wiki_sufficiency_enabled is True
-    assert settings.wiki_short_circuit_requires_fresh is False
-
-
-def test_web_permission_forces_planning_even_when_context_fits() -> None:
-    """The explicit Web toggle authorizes and requests a Web evidence attempt."""
-    assert (
-        after_prepare(
-            {
-                "corpus_tokens": 20,
-                "full_context_limit": 100,
-                "web_allowed": True,
-                "has_wiki": False,
-            }
-        )
-        == "plan"
-    )
-
-
-def test_empty_corpus_without_web_uses_plain_chat() -> None:
-    """A chat-only Ask must not consume retrieval or judge calls."""
-    assert (
-        after_prepare(
-            {
-                "corpus_tokens": 0,
-                "full_context_limit": 100,
-                "web_allowed": False,
-                "has_wiki": False,
-            }
-        )
-        == "chat"
-    )
-
-
-def test_large_wiki_corpus_reaches_wiki_judge() -> None:
-    """Large corpora select a bounded Wiki set before evidence planning."""
-    assert (
-        after_prepare(
-            {
-                "corpus_tokens": 200,
-                "full_context_limit": 100,
-                "web_allowed": False,
-                "has_wiki": True,
-            }
-        )
+        after_prepare({"corpus_tokens": 20, "web_allowed": False, "has_wiki": True})
         == "select_wiki"
     )
 
 
-def test_fresh_confident_wiki_answer_short_circuits() -> None:
-    """Only sufficient, fresh non-raw Wiki evidence can bypass raw retrieval."""
-    assert (
-        after_wiki(
-            {
-                "evidence_sufficient": True,
-                "judge_confidence": 0.9,
-                "wiki_threshold": 0.8,
-                "wiki_fresh": True,
-                "needs_raw_evidence": False,
-            }
-        )
-        == "generate"
-    )
+def test_web_permission_and_empty_corpus_keep_existing_routes() -> None:
+    """Web requests plan and a no-source Ask remains chat-only."""
+    assert after_prepare({"corpus_tokens": 20, "web_allowed": True, "has_wiki": False}) == "plan"
+    assert after_prepare({"corpus_tokens": 0, "web_allowed": False, "has_wiki": False}) == "chat"
 
 
-def test_stale_wiki_cannot_short_circuit() -> None:
-    """Stale Wiki material remains auxiliary context and must lead to retrieval."""
-    assert (
-        after_wiki(
-            {
-                "evidence_sufficient": True,
-                "judge_confidence": 0.9,
-                "wiki_threshold": 0.8,
-                "wiki_fresh": False,
-                "needs_raw_evidence": False,
-            }
-        )
-        == "plan"
-    )
-
-
-def test_exact_request_cannot_short_circuit_on_wiki() -> None:
-    """Raw-evidence policy has precedence over model confidence."""
-    assert (
-        after_wiki(
-            {
-                "evidence_sufficient": True,
-                "judge_confidence": 1.0,
-                "wiki_threshold": 0.8,
-                "wiki_fresh": True,
-                "needs_raw_evidence": True,
-            }
-        )
-        == "plan"
-    )
-
-
-def test_sufficient_reranked_evidence_ends_loop() -> None:
-    """The evidence judge can end retrieval before consuming the final round."""
-    assert (
-        after_evidence(
-            {"evidence_sufficient": True, "retrieval_round": 1, "max_retrieval_rounds": 2}
-        )
-        == "generate"
-    )
-
-
-def test_insufficient_evidence_refines_when_budget_remains() -> None:
-    """An insufficient first round receives exactly one bounded refinement chance."""
-    assert (
-        after_evidence(
-            {"evidence_sufficient": False, "retrieval_round": 1, "max_retrieval_rounds": 2}
-        )
-        == "refine"
-    )
-
-
-def test_insufficient_evidence_stops_at_maximum_rounds() -> None:
-    """The graph never executes an unbounded retrieval loop."""
-    assert (
-        after_evidence(
-            {"evidence_sufficient": False, "retrieval_round": 2, "max_retrieval_rounds": 2}
-        )
-        == "generate"
-    )
-
-
-def test_degraded_judge_and_repeated_evidence_end_the_loop_early() -> None:
-    """An unavailable judge or unchanged evidence cannot spend a redundant second round."""
+def test_insufficient_scoped_lightweight_evidence_uses_one_fallback() -> None:
+    """Only a scoped lightweight corpus may trigger the one-shot raw-context fallback."""
     assert (
         after_evidence(
             {
                 "evidence_sufficient": False,
-                "judge_degraded": True,
-                "retrieval_round": 1,
-                "max_retrieval_rounds": 2,
+                "has_lightweight_evidence": True,
+                "lightweight_fallback_used": False,
             }
         )
-        == "generate"
+        == "lightweight_fallback"
     )
     assert (
         after_evidence(
             {
                 "evidence_sufficient": False,
-                "new_evidence_found": False,
-                "retrieval_round": 1,
+                "has_lightweight_evidence": False,
+                "lightweight_fallback_used": False,
+                "missing_facets": [],
+            }
+        )
+        == "generate"
+    )
+
+
+def test_fallback_does_not_repeat_and_retrieval_stays_bounded() -> None:
+    """A completed fallback cannot create an unbounded loop."""
+    assert (
+        after_evidence(
+            {
+                "evidence_sufficient": False,
+                "has_lightweight_evidence": True,
+                "lightweight_fallback_used": True,
+                "retrieval_round": 2,
                 "max_retrieval_rounds": 2,
+                "missing_facets": ["gap"],
             }
         )
         == "generate"

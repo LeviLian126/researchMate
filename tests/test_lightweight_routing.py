@@ -261,6 +261,7 @@ def test_lightweight_chunks_always_in_candidates() -> None:
         project_id,
         "What is RAG?",
         chunks,
+        allow_wiki_short_circuit=True,
     )
 
     lightweight_ids = {c.id for c in chunks if not c.has_vector}
@@ -290,6 +291,7 @@ def test_all_lightweight_corpus_skips_qdrant() -> None:
         project_id,
         "What is routing?",
         chunks,
+        allow_wiki_short_circuit=True,
     )
 
     assert outcome.candidates, "lightweight chunks must produce candidates"
@@ -328,6 +330,7 @@ def test_full_context_includes_lightweight_chunks() -> None:
         project_id,
         "summarize the documents",
         chunks,
+        allow_wiki_short_circuit=True,
     )
 
     assert outcome.full_context, "corpus under the limit must use FULL_CONTEXT"
@@ -444,6 +447,7 @@ def test_full_context_returns_all_chunks_regardless_of_has_vector() -> None:
         project_id,
         "summarize the documents",
         chunks,
+        allow_wiki_short_circuit=True,
     )
 
     assert outcome.full_context, "corpus under limit must use FULL_CONTEXT"
@@ -519,6 +523,7 @@ def test_mixed_has_vector_values_at_boundary() -> None:
         project_id,
         "What is RAG?",
         chunks,
+        allow_wiki_short_circuit=True,
     )
 
     # Lightweight chunks should always be in candidates.
@@ -597,6 +602,7 @@ def test_no_pruning_when_only_lightweight_exists() -> None:
         project_id,
         "What is routing?",
         chunks,
+        allow_wiki_short_circuit=True,
     )
 
     # All lightweight chunks should be in candidates (no pruning).
@@ -782,7 +788,13 @@ def _retrieve(
     caller = _user()
     store.ensure_user(caller)
     retriever = LocalEvidenceRetriever(settings, store, hybrid_store=None)
-    outcome = retriever.retrieve(caller, WIKI_PROJECT_ID, query, chunks)
+    outcome = retriever.retrieve(
+        caller,
+        WIKI_PROJECT_ID,
+        query,
+        chunks,
+        allow_wiki_short_circuit=True,
+    )
     store.reset()
     return outcome
 

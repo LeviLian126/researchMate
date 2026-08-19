@@ -79,7 +79,7 @@ class LocalEvidenceRetriever:
         document_ids: list[str] | None = None,
         history: list[ConversationMessage] | None = None,
         plan: RetrievalPlan | None = None,
-        allow_wiki_short_circuit: bool = True,
+        allow_wiki_short_circuit: bool = False,
     ) -> RetrievalOutcome:
         """Route the complete authorized corpus, then retrieve or use it in full."""
         raw_chunks = [chunk for chunk in chunks if not _is_wiki_chunk(chunk)]

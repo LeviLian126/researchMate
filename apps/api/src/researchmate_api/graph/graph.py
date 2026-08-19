@@ -169,9 +169,7 @@ class _GraphRuntime:
             "degraded": False,
             "fallback_reasons": [],
             "lightweight_fallback_used": False,
-            "has_lightweight_evidence": any(
-                not chunk.has_vector and not _is_wiki_chunk(chunk) for chunk in self.chunks
-            ),
+            "has_lightweight_evidence": False,
         }
 
     def build(self):
@@ -257,7 +255,12 @@ class _GraphRuntime:
         refined_queries = state.get("refined_queries", [])
         if refined_queries:
             self.plan = self.plan.model_copy(update={"queries": refined_queries})
-        return {"retrieval_round": state.get("retrieval_round", 0) + 1}
+        return {
+            "retrieval_round": state.get("retrieval_round", 0) + 1,
+            "has_lightweight_evidence": any(
+                not chunk.has_vector for chunk in self._scoped_raw_chunks()
+            ),
+        }
 
     def search_sources(self, state: ResearchState) -> ResearchState:
         """Run bounded local then permitted Web retrieval; provider failures remain observable degradation."""
@@ -283,7 +286,11 @@ class _GraphRuntime:
     def expand_lightweight_context(self, state: ResearchState) -> ResearchState:
         """Use bounded raw short-document context after BM25 evidence is insufficient."""
         scoped = [chunk for chunk in self._scoped_raw_chunks() if not chunk.has_vector]
-        evidence = pack_chunks(scoped, self.graph.settings.full_context_token_limit)
+        prior = state.get("reranked_evidence", [])
+        evidence = pack_chunks(
+            _deduplicate_chunks([*prior, *scoped]),
+            self.graph.settings.full_context_token_limit,
+        )
         return {
             "reranked_evidence": evidence,
             "final_evidence": evidence,
@@ -558,3 +565,14 @@ class _GraphRuntime:
 def _is_wiki_chunk(chunk: ChunkEntry) -> bool:
     """Identify synthetic Wiki index entries that cannot become answer evidence."""
     return isinstance(chunk.metadata, dict) and chunk.metadata.get("wiki_mode") is True
+
+
+def _deduplicate_chunks(chunks: list[ChunkEntry]) -> list[ChunkEntry]:
+    """Preserve prior raw or Web evidence while appending newly expanded short-document chunks."""
+    unique: list[ChunkEntry] = []
+    seen: set[UUID] = set()
+    for chunk in chunks:
+        if chunk.id not in seen:
+            unique.append(chunk)
+            seen.add(chunk.id)
+    return unique

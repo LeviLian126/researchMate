@@ -268,6 +268,7 @@ class GroundedQueryService:
                 [str(document.id) for document in documents] if project.kind == "personal" else None
             ),
             history=history,
+            allow_wiki_short_circuit=False,
         )
         candidates = retrieval_outcome.candidates
         tool_call = ToolCallTrace(
