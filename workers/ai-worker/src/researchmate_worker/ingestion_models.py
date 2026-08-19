@@ -97,17 +97,7 @@ class VectorProjection(Protocol):
 class WikiCompiler(Protocol):
     """Define LLM-powered wiki compilation independent of a chat provider SDK."""
 
-    def compile(
-        self,
-        chunks: list[ChunkEntry],
-        *,
-        filename: str,
-        user_id: UUID,
-        project_id: UUID,
-        document_id: UUID,
-    ) -> list[ChunkEntry]: ...
-
-    def compile_overview(
+    def compile_index(
         self,
         chunks: list[ChunkEntry],
         *,

@@ -1148,7 +1148,7 @@ def test_worker_wiki_compiler_adapter_returns_chunks_with_wiki_metadata() -> Non
     )
     adapter = WorkerWikiCompiler(provider)  # type: ignore[arg-type]
 
-    result = adapter.compile(
+    result = adapter.compile_index(
         chunks,
         filename="doc.pdf",
         user_id=USER_ID,
@@ -1561,7 +1561,7 @@ class FakeWorkerWikiCompiler:
         self._chunks = chunks
         self.invoked = False
 
-    def compile(
+    def compile_index(
         self,
         chunks: list[ChunkEntry],
         *,
@@ -1580,7 +1580,7 @@ class FailingWikiCompiler:
     def __init__(self, error: Exception) -> None:
         self.error = error
 
-    def compile(
+    def compile_index(
         self,
         chunks: list[ChunkEntry],
         *,
@@ -1628,14 +1628,8 @@ def make_compiled_chunk() -> ChunkEntry:
     )
 
 
-def test_lightweight_ingestion_with_wiki_compiler_replaces_chunks() -> None:
-    """A lightweight document's chunks are replaced by compiled wiki chunks.
-
-    The contract guarantees that when a wiki_compiler is supplied and
-    compilation succeeds with a non-empty result, the compiled chunks replace
-    the raw chunks (ingestion_service._compile_wiki returns them). The stored
-    chunks must carry the compiled wiki metadata, not the raw chunk provenance.
-    """
+def test_lightweight_ingestion_with_wiki_compiler_persists_raw_and_index() -> None:
+    """A lightweight document retains raw chunks and adds non-vector Wiki index entries."""
     store = FakeIngestionStore()
     compiled = make_compiled_chunk()
     wiki = FakeWorkerWikiCompiler([compiled])
@@ -1644,10 +1638,10 @@ def test_lightweight_ingestion_with_wiki_compiler_replaces_chunks() -> None:
 
     assert result == "succeeded"
     assert wiki.invoked is True
-    assert store.captured_chunks == [compiled]
-    assert store.captured_chunks[0].has_vector is False
-    assert store.captured_chunks[0].metadata["wiki_mode"] is True
-    assert store.captured_chunks[0].source_title == "Wiki Page Title"
+    assert store.captured_chunks[-1] == compiled
+    assert all(chunk.has_vector is False for chunk in store.captured_chunks)
+    assert store.captured_chunks[-1].metadata["wiki_mode"] is True
+    assert store.captured_chunks[0].metadata["knowledge_role"] == "raw_evidence"
 
 
 def test_lightweight_ingestion_sets_has_vector_false_without_compiler() -> None:

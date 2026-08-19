@@ -7,35 +7,21 @@ from typing import Literal
 from researchmate_api.graph.state import ResearchState
 
 
-def after_prepare(state: ResearchState) -> Literal["chat", "full_context", "select_wiki", "plan"]:
-    """Route small corpora directly while keeping empty corpora on the planning path."""
+def after_prepare(state: ResearchState) -> Literal["chat", "select_wiki", "plan"]:
+    """Route every non-empty raw corpus through index selection or evidence planning."""
     if state.get("web_allowed"):
         return "plan"
     if not state.get("corpus_tokens", 0):
         return "chat"
-    if state.get("has_wiki"):
-        return "select_wiki"
-    if state.get("corpus_tokens", 0) and state["corpus_tokens"] <= state["full_context_limit"]:  # type: ignore[typeddict-item]
-        return "full_context"
-    return "select_wiki" if state.get("has_wiki") else "plan"  # type: ignore[return-value]
+    return "select_wiki" if state.get("has_wiki") else "plan"
 
 
-def after_wiki(state: ResearchState) -> Literal["generate", "plan"]:
-    """Permit a Wiki-only answer only after all deterministic safety gates pass."""
-    if (
-        state.get("evidence_sufficient")
-        and state.get("judge_confidence", 0) >= state["wiki_threshold"]  # type: ignore[typeddict-item]
-        and state.get("wiki_fresh")
-        and not state.get("needs_raw_evidence")
-    ):
-        return "generate"
-    return "plan"
-
-
-def after_evidence(state: ResearchState) -> Literal["generate", "refine"]:
+def after_evidence(state: ResearchState) -> Literal["generate", "lightweight_fallback", "refine"]:
     """End only for sufficient evidence or a bounded, non-progressing loop."""
     if state.get("evidence_sufficient"):
         return "generate"
+    if state.get("has_lightweight_evidence") and not state.get("lightweight_fallback_used"):
+        return "lightweight_fallback"
     if state.get("judge_degraded") or state.get("new_evidence_found") is False:
         return "generate"
     if state.get("missing_facets") == []:

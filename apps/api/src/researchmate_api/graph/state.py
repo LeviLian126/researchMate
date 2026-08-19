@@ -35,3 +35,5 @@ class ResearchState(TypedDict, total=False):
     source_strategy: str
     degraded: bool
     fallback_reasons: list[str]
+    lightweight_fallback_used: bool
+    has_lightweight_evidence: bool

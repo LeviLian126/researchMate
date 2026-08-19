@@ -128,6 +128,61 @@ class WikiCompiler:
             document_id=document_id,
         )
 
+    def compile_index(
+        self,
+        chunks: list[ChunkEntry],
+        *,
+        filename: str,
+        user_id: UUID,
+        project_id: UUID,
+        document_id: UUID,
+    ) -> list[WikiPage]:
+        """Compile a structured per-document Wiki index with bounded source provenance."""
+        if sum(estimate_tokens(chunk.text) for chunk in chunks) <= WIKI_OVERVIEW_MAX_INPUT_TOKENS:
+            return self.compile(
+                chunks,
+                filename=filename,
+                user_id=user_id,
+                project_id=project_id,
+                document_id=document_id,
+            )
+        pages: list[WikiPage] = []
+        for group_number, group in enumerate(self._bounded_groups(chunks), start=1):
+            remaining = self.max_pages - len(pages)
+            if remaining <= 0:
+                break
+            compiler = WikiCompiler(self.provider, max_pages=remaining)
+            pages.extend(
+                compiler.compile(
+                    group,
+                    filename=f"{filename} (section {group_number})",
+                    user_id=user_id,
+                    project_id=project_id,
+                    document_id=document_id,
+                )
+            )
+        if not pages:
+            raise WikiCompilationError("EMPTY_OUTPUT", "LLM returned no wiki pages")
+        return pages
+
+    @staticmethod
+    def _bounded_groups(chunks: list[ChunkEntry]) -> list[list[ChunkEntry]]:
+        """Partition a long source into deterministic token-bounded index map inputs."""
+        groups: list[list[ChunkEntry]] = []
+        group: list[ChunkEntry] = []
+        group_tokens = 0
+        for chunk in chunks:
+            chunk_tokens = estimate_tokens(chunk.text)
+            if group and group_tokens + chunk_tokens > WIKI_OVERVIEW_MAX_INPUT_TOKENS:
+                groups.append(group)
+                group = []
+                group_tokens = 0
+            group.append(chunk)
+            group_tokens += chunk_tokens
+        if group:
+            groups.append(group)
+        return groups
+
     def _complete(self, messages: list[dict[str, str]]) -> LLMResult:
         """Call the provider with a bounded output budget."""
         bounded = getattr(self.provider, "complete_bounded", None)
@@ -333,6 +388,8 @@ def wiki_pages_to_chunks(pages: list[WikiPage]) -> list[ChunkEntry]:
             has_vector=False,
             metadata={
                 "wiki_mode": True,
+                "knowledge_role": "wiki_index",
+                "wiki_index_version": "v2",
                 "wiki_type": page.page_type,
                 "wiki_links": page.links,
                 "wiki_aliases": page.aliases,

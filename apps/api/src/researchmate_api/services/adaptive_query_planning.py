@@ -50,6 +50,7 @@ class AdaptiveQueryPlanner:
         *,
         retrieval_round: int,
         web_allowed: bool,
+        wiki_context: list[dict[str, object]] | None = None,
     ) -> AdaptiveSearchPlan:
         """Return a safe retrieval plan, preserving the existing deterministic plan on failure."""
         fallback = self._fallback(prior, web_allowed)
@@ -58,7 +59,13 @@ class AdaptiveQueryPlanner:
         try:
             result = self.provider.complete(
                 self._messages(
-                    question, history, prior, missing_facets, retrieval_round, web_allowed
+                    question,
+                    history,
+                    prior,
+                    missing_facets,
+                    retrieval_round,
+                    web_allowed,
+                    wiki_context or [],
                 )
             )
             plan = AdaptiveSearchPlan.model_validate_json(self._strip_fence(result.content))
@@ -129,6 +136,7 @@ class AdaptiveQueryPlanner:
         facets: list[MissingFacet],
         retrieval_round: int,
         web_allowed: bool,
+        wiki_context: list[dict[str, object]],
     ) -> list[dict[str, str]]:
         """Describe the planning contract without allowing history or evidence to grant authority."""
         return [
@@ -150,6 +158,7 @@ class AdaptiveQueryPlanner:
                         "missing_facets": [facet.model_dump() for facet in facets],
                         "round": retrieval_round,
                         "web_allowed": web_allowed,
+                        "wiki_index": wiki_context,
                     }
                 ),
             },

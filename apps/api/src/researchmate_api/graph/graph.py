@@ -10,9 +10,9 @@ from uuid import UUID, uuid4
 from langgraph.graph import END, START, StateGraph
 
 from researchmate_api.config import Settings
-from researchmate_api.graph.routing import after_evidence, after_prepare, after_wiki
+from researchmate_api.graph.routing import after_evidence, after_prepare
 from researchmate_api.graph.state import ResearchState
-from researchmate_api.schemas.common import CurrentUser
+from researchmate_api.schemas.common import WIKI_PLANNER_CONTENT_LENGTH, CurrentUser
 from researchmate_api.schemas.conversation import ConversationMessage, RuntimeRerankConfig
 from researchmate_api.schemas.project import ProjectRecord
 from researchmate_api.schemas.trace import ToolCallTrace
@@ -142,10 +142,7 @@ class _GraphRuntime:
 
     def initial_state(self) -> ResearchState:
         """Create serializable graph control state from validated application inputs."""
-        has_wiki = any(
-            isinstance(chunk.metadata, dict) and chunk.metadata.get("wiki_mode")
-            for chunk in self.chunks
-        )
+        has_wiki = any(_is_wiki_chunk(chunk) for chunk in self.chunks)
         return {
             "question": self.question,
             "corpus_tokens": 0,
@@ -171,20 +168,23 @@ class _GraphRuntime:
             "source_strategy": "chat",
             "degraded": False,
             "fallback_reasons": [],
+            "lightweight_fallback_used": False,
+            "has_lightweight_evidence": any(
+                not chunk.has_vector and not _is_wiki_chunk(chunk) for chunk in self.chunks
+            ),
         }
 
     def build(self):
         """Compile the fixed node set and conditional edges for this request only."""
         workflow = StateGraph(ResearchState)
         workflow.add_node("prepare_context", self.prepare_context)
-        workflow.add_node("use_full_context", self.use_full_context)
         workflow.add_node("select_wiki", self.select_wiki)
-        workflow.add_node("judge_wiki", self.judge_wiki)
         workflow.add_node("plan_evidence", self.plan_evidence)
         workflow.add_node("search_sources", self.search_sources)
         workflow.add_node("merge_evidence", self.merge_evidence)
         workflow.add_node("rerank_evidence", self.rerank_evidence)
         workflow.add_node("judge_evidence", self.judge_evidence)
+        workflow.add_node("expand_lightweight_context", self.expand_lightweight_context)
         workflow.add_node("refine_query", self.refine_query)
         workflow.add_node("generate", self.generate)
         workflow.add_edge(START, "prepare_context")
@@ -193,82 +193,47 @@ class _GraphRuntime:
             after_prepare,
             {
                 "chat": "generate",
-                "full_context": "use_full_context",
                 "select_wiki": "select_wiki",
                 "plan": "plan_evidence",
             },
         )
-        workflow.add_edge("use_full_context", "generate")
-        workflow.add_edge("select_wiki", "judge_wiki")
-        workflow.add_conditional_edges(
-            "judge_wiki", after_wiki, {"generate": "generate", "plan": "plan_evidence"}
-        )
+        workflow.add_edge("select_wiki", "plan_evidence")
         workflow.add_edge("plan_evidence", "search_sources")
         workflow.add_edge("search_sources", "merge_evidence")
         workflow.add_edge("merge_evidence", "rerank_evidence")
         workflow.add_edge("rerank_evidence", "judge_evidence")
         workflow.add_conditional_edges(
-            "judge_evidence", after_evidence, {"generate": "generate", "refine": "refine_query"}
+            "judge_evidence",
+            after_evidence,
+            {
+                "generate": "generate",
+                "lightweight_fallback": "expand_lightweight_context",
+                "refine": "refine_query",
+            },
         )
+        workflow.add_edge("expand_lightweight_context", "judge_evidence")
         workflow.add_edge("refine_query", "plan_evidence")
         workflow.add_edge("generate", END)
         return workflow.compile()
 
     def prepare_context(self, state: ResearchState) -> ResearchState:
-        """Measure the authorized corpus; project and conversation scope were validated upstream."""
-        return {"corpus_tokens": sum(estimate_tokens(chunk.text) for chunk in self.chunks)}
-
-    def use_full_context(self, state: ResearchState) -> ResearchState:
-        """Preserve the cheap full-context route for corpora that fit the configured budget."""
-        started = monotonic()
-        self.local_outcome = self.graph.local_retriever.retrieve(
-            self.user,
-            self.project_id,
-            self.question,
-            self.chunks,
-            document_ids=[str(document_id) for document_id in self._document_ids()] or None,
-            history=self.history,
-        )
-        self.candidates = self.local_outcome.candidates
-        evidence = [candidate.chunk for candidate in self.candidates]
-        self.tool_calls.append(
-            ToolCallTrace(
-                id=uuid4(),
-                tool_name="query_local_docs",
-                input_summary={"query_length": len(self.question)},
-                output_summary={
-                    "candidates": len(self.candidates),
-                    **self.local_outcome.metadata(),
-                },
-                status="succeeded",
-                latency_ms=round((monotonic() - started) * 1000),
+        """Measure raw evidence only so synthetic index text cannot change routing."""
+        return {
+            "corpus_tokens": sum(
+                estimate_tokens(chunk.text) for chunk in self.chunks if not _is_wiki_chunk(chunk)
             )
-        )
-        return {"final_evidence": evidence, "source_strategy": "full_context"}
+        }
 
     def select_wiki(self, state: ResearchState) -> ResearchState:
         """Select a small lexical Wiki candidate set instead of passing every Wiki page to a judge."""
-        wiki = [
-            chunk
-            for chunk in self.chunks
-            if isinstance(chunk.metadata, dict) and chunk.metadata.get("wiki_mode")
-        ]
+        wiki = [chunk for chunk in self.chunks if _is_wiki_chunk(chunk)]
         selected = [
             item.chunk
             for item in bm25_candidates(
                 wiki, self.question, limit=self.graph.settings.wiki_gate_candidate_limit
             )
         ]
-        return {"wiki_candidates": selected, "source_strategy": "wiki"}
-
-    def judge_wiki(self, state: ResearchState) -> ResearchState:
-        """Apply deterministic exactness policy before accepting an optional model judgement."""
-        evidence = state.get("wiki_candidates", [])
-        assessment = self.graph.judge.assess(
-            self.question,
-            evidence if self.graph.settings.wiki_sufficiency_enabled else [],
-        )
-        return self._assessment_update(assessment)
+        return {"wiki_candidates": selected, "source_strategy": "wiki_index"}
 
     def plan_evidence(self, state: ResearchState) -> ResearchState:
         """Use the legacy planner as prior, then constrain an optional adaptive recommendation."""
@@ -287,6 +252,7 @@ class _GraphRuntime:
             [self._facet(item) for item in facets],
             retrieval_round=state.get("retrieval_round", 0) + 1,
             web_allowed=self.web_allowed,
+            wiki_context=self._wiki_context(state.get("wiki_candidates", [])),
         )
         refined_queries = state.get("refined_queries", [])
         if refined_queries:
@@ -305,7 +271,6 @@ class _GraphRuntime:
         ordered = [
             *state.get("local_candidates", []),
             *state.get("web_candidates", []),
-            *state.get("wiki_candidates", []),
         ]
         unique: list[ChunkEntry] = []
         seen: set[UUID] = set()
@@ -314,6 +279,18 @@ class _GraphRuntime:
                 unique.append(chunk)
                 seen.add(chunk.id)
         return {"merged_candidates": unique}
+
+    def expand_lightweight_context(self, state: ResearchState) -> ResearchState:
+        """Use bounded raw short-document context after BM25 evidence is insufficient."""
+        scoped = [chunk for chunk in self._scoped_raw_chunks() if not chunk.has_vector]
+        evidence = pack_chunks(scoped, self.graph.settings.full_context_token_limit)
+        return {
+            "reranked_evidence": evidence,
+            "final_evidence": evidence,
+            "lightweight_fallback_used": True,
+            "fallback_reasons": [*state.get("fallback_reasons", []), "lightweight_full_context"],
+            "source_strategy": "full_context",
+        }
 
     def rerank_evidence(self, state: ResearchState) -> ResearchState:
         """Reuse the existing reranker and pack evidence under the existing token budget."""
@@ -416,8 +393,8 @@ class _GraphRuntime:
             self.user,
             self.project_id,
             self.question,
-            self.chunks,
-            document_ids=[str(document_id) for document_id in self._document_ids()] or None,
+            self._scoped_raw_chunks(),
+            document_ids=[str(document_id) for document_id in self._scoped_document_ids()] or None,
             history=self.history,
             plan=retrieval_plan,
             allow_wiki_short_circuit=False,
@@ -480,7 +457,45 @@ class _GraphRuntime:
 
     def _document_ids(self) -> list[UUID]:
         """Restrict personal-project vector retrieval to documents visible in this request."""
-        return [chunk.document_id for chunk in self.chunks if chunk.document_id is not None]
+        return [
+            chunk.document_id
+            for chunk in self._scoped_raw_chunks()
+            if chunk.document_id is not None
+        ]
+
+    def _scoped_raw_chunks(self) -> list[ChunkEntry]:
+        """Apply model scope only after intersecting it with the authorized raw corpus."""
+        raw = [chunk for chunk in self.chunks if not _is_wiki_chunk(chunk)]
+        authorized = {str(chunk.document_id) for chunk in raw if chunk.document_id is not None}
+        requested = set(self.plan.document_scope) if self.plan is not None else set()
+        selected = authorized & requested
+        if not selected:
+            return raw
+        return [
+            chunk
+            for chunk in raw
+            if chunk.document_id is not None and str(chunk.document_id) in selected
+        ]
+
+    def _scoped_document_ids(self) -> list[UUID]:
+        """Expose only authorized document IDs selected by the current safe scope."""
+        return list(dict.fromkeys(self._document_ids()))
+
+    @staticmethod
+    def _wiki_context(chunks: list[ChunkEntry]) -> list[dict[str, object]]:
+        """Project bounded untrusted index data into the planner prompt."""
+        return [
+            {
+                "title": chunk.source_title,
+                "content": chunk.text[:WIKI_PLANNER_CONTENT_LENGTH],
+                "document_id": str(chunk.document_id) if chunk.document_id else None,
+                "aliases": chunk.metadata.get("wiki_aliases", []),
+                "links": chunk.metadata.get("wiki_links", []),
+                "source_chunk_ids": chunk.metadata.get("wiki_source_chunk_ids", []),
+            }
+            for chunk in chunks
+            if isinstance(chunk.metadata, dict)
+        ]
 
     def _wiki_is_fresh(self) -> bool:
         """Require matching explicit generations before a Wiki-only response can short-circuit."""
@@ -538,3 +553,8 @@ class _GraphRuntime:
                 "fallback_reasons": state.get("fallback_reasons", []),
             },
         )
+
+
+def _is_wiki_chunk(chunk: ChunkEntry) -> bool:
+    """Identify synthetic Wiki index entries that cannot become answer evidence."""
+    return isinstance(chunk.metadata, dict) and chunk.metadata.get("wiki_mode") is True

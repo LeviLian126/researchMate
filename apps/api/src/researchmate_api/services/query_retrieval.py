@@ -82,9 +82,10 @@ class LocalEvidenceRetriever:
         allow_wiki_short_circuit: bool = True,
     ) -> RetrievalOutcome:
         """Route the complete authorized corpus, then retrieve or use it in full."""
-        lightweight_chunks = [c for c in chunks if not c.has_vector]
-        rag_chunks = [c for c in chunks if c.has_vector]
-        corpus_tokens = sum(estimate_tokens(chunk.text) for chunk in chunks)
+        raw_chunks = [chunk for chunk in chunks if not _is_wiki_chunk(chunk)]
+        lightweight_chunks = [chunk for chunk in raw_chunks if not chunk.has_vector]
+        rag_chunks = [chunk for chunk in raw_chunks if chunk.has_vector]
+        corpus_tokens = sum(estimate_tokens(chunk.text) for chunk in raw_chunks)
         plan = plan or plan_retrieval(
             query,
             history or [],
@@ -92,44 +93,79 @@ class LocalEvidenceRetriever:
             full_context_limit=self.settings.full_context_token_limit,
             provider=self.planner_provider,
         )
-        # Wiki-first routing: when Wiki-mode chunks exist and the query is general
-        # (FULL_CONTEXT or SEMANTIC route), skip Qdrant entirely and return only
-        # the Wiki chunks at score 1.0. Exact/Hybrid/Expanded-hybrid routes still
-        # run the existing flow so targeted retrieval stays grounded.
-        wiki_chunks = [
-            c
-            for c in lightweight_chunks
-            if isinstance(c.metadata, dict) and c.metadata.get("wiki_mode")
-        ]
-        if (
-            allow_wiki_short_circuit
-            and wiki_chunks
-            and plan.route
-            in (
-                RetrievalRoute.FULL_CONTEXT,
-                RetrievalRoute.SEMANTIC,
-            )
-        ):
-            LOGGER.info(
-                "wiki_first_routing project_id=%s route=%s wiki_count=%d",
+        if allow_wiki_short_circuit:
+            return self._legacy_retrieve(
+                user,
                 project_id,
-                plan.route,
-                len(wiki_chunks),
+                query,
+                chunks,
+                document_ids=document_ids,
+                plan=plan,
             )
-            wiki_candidates = [RetrievalCandidate(chunk=c, score=1.0) for c in wiki_chunks]
-            wiki_tokens = sum(estimate_tokens(chunk.text) for chunk in wiki_chunks)
+        if rag_chunks:
+            candidates, degraded, reason = self._hybrid_candidates(
+                user,
+                project_id,
+                plan,
+                rag_chunks,
+                document_ids=document_ids,
+            )
+        else:
+            candidates, degraded, reason = [], False, "all_lightweight_corpus"
+        candidates.extend(self._lightweight_candidates(lightweight_chunks, plan.queries))
+        selected_tokens = sum(estimate_tokens(item.chunk.text) for item in candidates)
+        return RetrievalOutcome(
+            candidates=candidates,
+            strategy="hybrid_retrieval",
+            full_context=False,
+            estimated_tokens=selected_tokens,
+            route=plan.route,
+            route_reason=plan.reason,
+            query_count=len(plan.queries),
+            dense_weight=plan.dense_weight,
+            lexical_weight=plan.lexical_weight,
+            planner_degraded=plan.degraded,
+            degraded=degraded or plan.degraded,
+            reason=reason
+            or ("all_lightweight_corpus" if lightweight_chunks and not rag_chunks else None),
+        )
+
+    def _legacy_retrieve(
+        self,
+        user: CurrentUser,
+        project_id: UUID,
+        query: str,
+        chunks: list[ChunkEntry],
+        *,
+        document_ids: list[str] | None,
+        plan: RetrievalPlan,
+    ) -> RetrievalOutcome:
+        """Preserve the deprecated direct-call contract while graph callers opt into index-first."""
+        lightweight_chunks = [chunk for chunk in chunks if not chunk.has_vector]
+        rag_chunks = [chunk for chunk in chunks if chunk.has_vector]
+        corpus_tokens = sum(estimate_tokens(chunk.text) for chunk in chunks)
+        if not [chunk for chunk in chunks if not _is_wiki_chunk(chunk)]:
+            plan = plan_retrieval(
+                query,
+                [],
+                corpus_tokens=corpus_tokens,
+                full_context_limit=self.settings.full_context_token_limit,
+                provider=None,
+            )
+        wiki_chunks = [chunk for chunk in lightweight_chunks if _is_wiki_chunk(chunk)]
+        if wiki_chunks and plan.route in {RetrievalRoute.FULL_CONTEXT, RetrievalRoute.SEMANTIC}:
+            candidates = [RetrievalCandidate(chunk=chunk, score=1.0) for chunk in wiki_chunks]
             return RetrievalOutcome(
-                candidates=wiki_candidates,
+                candidates=candidates,
                 strategy="full_context",
                 full_context=True,
-                estimated_tokens=wiki_tokens,
+                estimated_tokens=sum(estimate_tokens(chunk.text) for chunk in wiki_chunks),
                 route=plan.route,
                 route_reason="wiki_first_routing",
                 query_count=1,
                 dense_weight=0.0,
                 lexical_weight=0.0,
                 planner_degraded=plan.degraded,
-                degraded=False,
                 reason="wiki_first_routing",
             )
         if plan.route == RetrievalRoute.FULL_CONTEXT:
@@ -144,26 +180,20 @@ class LocalEvidenceRetriever:
                 else []
             )
             return self._outcome(candidates, plan, corpus_tokens=corpus_tokens)
-
         if rag_chunks:
             candidates, degraded, reason = self._hybrid_candidates(
-                user,
-                project_id,
-                plan,
-                rag_chunks,
-                document_ids=document_ids,
+                user, project_id, plan, rag_chunks, document_ids=document_ids
             )
         else:
             candidates, degraded, reason = [], False, "all_lightweight_corpus"
         candidates.extend(
             RetrievalCandidate(chunk=chunk, score=0.0) for chunk in lightweight_chunks
         )
-        selected_tokens = sum(estimate_tokens(item.chunk.text) for item in candidates)
         return RetrievalOutcome(
             candidates=candidates,
             strategy="hybrid_retrieval",
             full_context=False,
-            estimated_tokens=selected_tokens,
+            estimated_tokens=sum(estimate_tokens(item.chunk.text) for item in candidates),
             route=plan.route,
             route_reason=plan.reason,
             query_count=len(plan.queries),
@@ -173,6 +203,22 @@ class LocalEvidenceRetriever:
             degraded=degraded or plan.degraded,
             reason=reason,
         )
+
+    def _lightweight_candidates(
+        self, chunks: list[ChunkEntry], queries: tuple[str, ...]
+    ) -> list[RetrievalCandidate]:
+        """Run lexical-only retrieval for raw lightweight chunks across query variants."""
+        by_id: dict[UUID, RetrievalCandidate] = {}
+        for query in queries:
+            for candidate in bm25_candidates(
+                chunks, query, limit=self.settings.rerank_candidate_limit
+            ):
+                current = by_id.get(candidate.chunk.id)
+                if current is None or candidate.score > current.score:
+                    by_id[candidate.chunk.id] = candidate
+        return sorted(by_id.values(), key=lambda candidate: candidate.score, reverse=True)[
+            : self.settings.rerank_candidate_limit
+        ]
 
     @staticmethod
     def _outcome(
@@ -318,3 +364,8 @@ class LocalEvidenceRetriever:
             if chunk_id in by_id
         ]
         return ranked
+
+
+def _is_wiki_chunk(chunk: ChunkEntry) -> bool:
+    """Keep synthetic Wiki index entries out of raw evidence retrieval."""
+    return isinstance(chunk.metadata, dict) and chunk.metadata.get("wiki_mode") is True

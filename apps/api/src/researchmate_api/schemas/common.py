@@ -68,6 +68,7 @@ WIKI_PAGE_TYPE_LENGTH = 50
 # overview Wiki compilation selects a representative subset of their chunks to
 # summarize into an overview page without exceeding the LLM context window.
 WIKI_OVERVIEW_MAX_INPUT_TOKENS = 6000
+WIKI_PLANNER_CONTENT_LENGTH = 1200
 
 # Developer-trace bounds. Each limit constrains an admin-visible diagnostic
 # field so trace payloads stay privacy-bounded and storage-stable.
