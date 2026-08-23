@@ -19,6 +19,7 @@ each supported file type to a format-specific mixin. Mixins live alongside this
 
 from __future__ import annotations
 
+# pyright: reportPrivateImportUsage=false
 import json
 import logging
 from pathlib import Path
@@ -164,9 +165,7 @@ class DoclingDocumentParser(
             )
             raise ParserAdapterError("PARSER_EXECUTION_FAILED") from exc
         try:
-            from docling_core.types.doc.common.content_layer import ContentLayer
-            from docling_core.types.doc.items.table.table import TableItem
-            from docling_core.types.doc.items.text import TextItem
+            from docling_core.types.doc.document import ContentLayer, TableItem, TextItem
 
             result = convert_with_docling(
                 converter=self._pdf_converter(),
