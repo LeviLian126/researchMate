@@ -43,9 +43,7 @@ class RecordingConnection:
         self.calls: list[tuple[str, dict | None]] = []
         self._result = result or ExecResult()
 
-    def execute(
-        self, statement: Any, parameters: dict[str, Any] | None = None
-    ) -> ExecResult:
+    def execute(self, statement: Any, parameters: dict[str, Any] | None = None) -> ExecResult:
         """Record one SQL statement and its safe parameters."""
         # boundary: opaque test double for SQLAlchemy statements/parameters.
         self.calls.append((str(statement), parameters))
@@ -255,9 +253,7 @@ def test_job_bootstrap_failure_does_not_overwrite_an_active_worker_lease(monkeyp
     )
 
     sql, _ = engine.connection.calls[0]
-    assert "status='pending'" in sql, (
-        "bootstrap failure must target pending jobs"
-    )
+    assert "status='pending'" in sql, "bootstrap failure must target pending jobs"
     assert "lease_expires_at < now()" in sql, (
         "bootstrap failure must only clobber running jobs with expired leases"
     )

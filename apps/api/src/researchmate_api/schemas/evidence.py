@@ -47,7 +47,9 @@ class ResearchRunCreate(BaseModel):
     """Validate a request to start a bounded research workflow."""
 
     project_id: UUID
-    research_goal: str = Field(min_length=MIN_RESEARCH_GOAL_LENGTH, max_length=MAX_RESEARCH_GOAL_LENGTH)
+    research_goal: str = Field(
+        min_length=MIN_RESEARCH_GOAL_LENGTH, max_length=MAX_RESEARCH_GOAL_LENGTH
+    )
     source_scope: SourceScope = Field(default_factory=SourceScope)
     pipeline_version_id: UUID
     review_policy: Literal["strict", "balanced"] = "strict"
@@ -242,7 +244,9 @@ class EvaluationDatasetListResponse(BaseModel):
 class ReportRefreshCreate(BaseModel):
     """Validate the evidence changes that require report regeneration."""
 
-    changed_document_ids: list[UUID] = Field(default_factory=list, max_length=MAX_DOCUMENT_IDS_LENGTH)
+    changed_document_ids: list[UUID] = Field(
+        default_factory=list, max_length=MAX_DOCUMENT_IDS_LENGTH
+    )
     force_sections: list[str] = Field(default_factory=list, max_length=MAX_FORCE_SECTIONS_LENGTH)
     pipeline_version_id: UUID
 

@@ -344,9 +344,7 @@ def test_complete_document_requires_active_project_join_in_reservation_lookup() 
     repository.complete_document(user(), DOCUMENT_ID, "irrelevant")
 
     reservation_sql = engine.connection.calls[1][0]
-    assert "join projects p" in reservation_sql, (
-        "reservation lookup must join the projects table"
-    )
+    assert "join projects p" in reservation_sql, "reservation lookup must join the projects table"
     assert "p.user_id = d.user_id" in reservation_sql, (
         "reservation lookup must enforce the owner join"
     )
@@ -387,9 +385,7 @@ class CompleteDocumentConnection(RecordingConnection):
         if "for update" in statement and "status = 'active'" in statement:
             return OneMappingResult({"?column?": 1})
         if "update documents" in statement and "returning" in statement:
-            return OneMappingResult(
-                {"project_id": PROJECT_ID, "r2_object_key": self.R2_OBJECT_KEY}
-            )
+            return OneMappingResult({"project_id": PROJECT_ID, "r2_object_key": self.R2_OBJECT_KEY})
         if "insert into jobs" in statement:
             return OneMappingResult(
                 {
@@ -644,14 +640,11 @@ def test_delete_project_cancels_inflight_parse_and_index_jobs() -> None:
 
     calls = engine.connection.calls
     cancel_calls = [
-        call for call in calls
-        if "update jobs" in call[0] and "parse_and_index_document" in call[0]
+        call for call in calls if "update jobs" in call[0] and "parse_and_index_document" in call[0]
     ]
     assert cancel_calls, "delete_project must cancel in-flight parse_and_index_document jobs"
     cancel_sql = cancel_calls[0][0].lower()
-    assert "status = 'pending'" in cancel_sql, (
-        "cancellation must target pending parse jobs"
-    )
+    assert "status = 'pending'" in cancel_sql, "cancellation must target pending parse jobs"
     assert "lease_expires_at is null" in cancel_sql or "lease_expires_at <= now()" in cancel_sql, (
         "cancellation must also target expired-lease running jobs"
     )
@@ -669,9 +662,7 @@ def test_delete_project_persists_deletion_jobs_row_with_owner_predicate() -> Non
     repository.delete_project(user(), PROJECT_ID)
 
     calls = engine.connection.calls
-    deletion_job_calls = [
-        call for call in calls if "insert into deletion_jobs" in call[0]
-    ]
+    deletion_job_calls = [call for call in calls if "insert into deletion_jobs" in call[0]]
     assert deletion_job_calls, (
         "delete_project must insert a deletion_jobs row after the lock succeeds"
     )
@@ -834,9 +825,7 @@ def test_enqueue_project_deletion_writes_deterministic_idempotency_key() -> None
     assert job is not None, "delete_project must return a job to observe the outbox"
 
     calls = engine.connection.calls
-    outbox_calls = [
-        call for call in calls if "insert into outbox_events" in call[0]
-    ]
+    outbox_calls = [call for call in calls if "insert into outbox_events" in call[0]]
     assert len(outbox_calls) == 1, (
         "delete_project must enqueue exactly one project-deletion outbox event"
     )
@@ -846,9 +835,9 @@ def test_enqueue_project_deletion_writes_deterministic_idempotency_key() -> None
         "outbox enqueue must guard deduplication"
     )
     # delivery_id == job.id, so the idempotency key is project:{project}:{action}:{job}:{job}.
-    assert params["idempotency_key"] == (
-        f"project:{PROJECT_ID}:delete:{job.id}:{job.id}"
-    ), "the project-deletion idempotency key must be deterministic"
+    assert params["idempotency_key"] == (f"project:{PROJECT_ID}:delete:{job.id}:{job.id}"), (
+        "the project-deletion idempotency key must be deterministic"
+    )
     assert params["payload"] == _json(
         {"job_id": str(job.id), "user_id": str(USER_ID), "project_id": str(PROJECT_ID)}
     ), "the outbox payload must carry the typed identifiers as compact JSON"

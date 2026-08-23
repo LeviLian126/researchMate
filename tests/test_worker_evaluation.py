@@ -546,9 +546,7 @@ def test_executor_pipeline_model_and_prompt_versions_are_validated() -> None:
         def query(self, **_kwargs):
             return []
 
-    base_provider = SimpleNamespace(
-        settings=SimpleNamespace(nvidia_model="z-ai/glm-5.2")
-    )
+    base_provider = SimpleNamespace(settings=SimpleNamespace(nvidia_model="z-ai/glm-5.2"))
     executor = QdrantCaseExecutor(
         engine=object(),  # type: ignore[arg-type]
         vector_store=FakeVectorStore(),  # type: ignore[arg-type]
@@ -560,7 +558,10 @@ def test_executor_pipeline_model_and_prompt_versions_are_validated() -> None:
         executor.execute(
             claimed(),
             EvaluationCase(
-                id=CASE_ID, case_key="bad", input={}, expected_output=None,
+                id=CASE_ID,
+                case_key="bad",
+                input={},
+                expected_output=None,
                 expected_evidence=[],
             ),
         )
@@ -594,11 +595,14 @@ def _run_with_model(model: str) -> ClaimedEvaluation:
     """Build a claimed run with an overridden pipeline model."""
     run = claimed()
     return ClaimedEvaluation(
-        **{**run.__dict__, "pipeline": PipelineRuntimeConfig(
-            retrieval_limit=12,
-            model=model,
-            evaluation_prompt_version="grounded-answer-v1",
-        )}
+        **{
+            **run.__dict__,
+            "pipeline": PipelineRuntimeConfig(
+                retrieval_limit=12,
+                model=model,
+                evaluation_prompt_version="grounded-answer-v1",
+            ),
+        }
     )
 
 
@@ -606,11 +610,14 @@ def _run_with_prompt(prompt: str) -> ClaimedEvaluation:
     """Build a claimed run with an overridden prompt version."""
     run = claimed()
     return ClaimedEvaluation(
-        **{**run.__dict__, "pipeline": PipelineRuntimeConfig(
-            retrieval_limit=12,
-            model="z-ai/glm-5.2",
-            evaluation_prompt_version=prompt,
-        )}
+        **{
+            **run.__dict__,
+            "pipeline": PipelineRuntimeConfig(
+                retrieval_limit=12,
+                model="z-ai/glm-5.2",
+                evaluation_prompt_version=prompt,
+            ),
+        }
     )
 
 
@@ -662,9 +669,7 @@ def test_executor_loads_owned_chunks_with_any_array_parameter() -> None:
     executor = QdrantCaseExecutor(
         engine=engine,  # type: ignore[arg-type]
         vector_store=OneIdVectorStore(),  # type: ignore[arg-type]
-        provider=SimpleNamespace(
-            settings=SimpleNamespace(nvidia_model="z-ai/glm-5.2")
-        ),
+        provider=SimpleNamespace(settings=SimpleNamespace(nvidia_model="z-ai/glm-5.2")),
     )
 
     # _chunks is called internally after the vector store returns one ID.

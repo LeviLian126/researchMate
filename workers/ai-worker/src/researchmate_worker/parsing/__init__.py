@@ -164,7 +164,9 @@ class DoclingDocumentParser(
             )
             raise ParserAdapterError("PARSER_EXECUTION_FAILED") from exc
         try:
-            from docling_core.types.doc.document import ContentLayer, TableItem, TextItem
+            from docling_core.types.doc.common.content_layer import ContentLayer
+            from docling_core.types.doc.items.table.table import TableItem
+            from docling_core.types.doc.items.text import TextItem
 
             result = convert_with_docling(
                 converter=self._pdf_converter(),

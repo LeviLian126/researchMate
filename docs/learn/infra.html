@@ -2,8 +2,9 @@
 <html lang="en">
 <head>
   <meta charset="utf-8"/>
-  <title>Infrastructure . infra &amp; scripts</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta content="width=device-width,initial-scale=1" name="viewport"/>
+  <meta content="ResearchMate infra interview deep dive: Render topology, Vercel rewrite, Supabase Postgres, Qdrant hybrid retrieval. Plain-language for 0-experience readers, keeps interview depth." name="description"/>
+  <title>ResearchMate . Infrastructure interview guide</title>
   <link href="../assets/site.css" rel="stylesheet"/>
   <style>
     .layout section > h2 { cursor: pointer; user-select: none; }
@@ -23,9 +24,10 @@
       });
     });
   </script>
+  <style>.module-nav{border-top:1px solid var(--g200)}.module-nav .shell{padding:6px 0 12px}.module-nav a{font-size:11.5px;padding:5px 11px}</style>
 </head>
 <body>
-  <header class="mast"><div class="shell mast-row"><a class="brand" href="../index.html">ResearchMate documentation</a><div class="mast-right"><span class="stamp">Infrastructure . 6 August 2026</span><a class="lang-toggle" href="infra.zh.html" hreflang="zh" lang="zh">Chinese</a></div></div></header>
+  <header class="mast"><div class="shell mast-row"><a class="brand" href="../index.html">ResearchMate documentation</a><div class="mast-right"><span class="stamp">Infrastructure . 21 August 2026</span><a class="lang-toggle" href="infra.zh.html" hreflang="zh" lang="zh">中文</a></div></div></header>
   <nav aria-label="Documentation" class="global"><div class="shell">
     <a href="../index.html">Overview</a>
     <a href="../product/index.html">Product &amp; roadmap</a>
@@ -43,893 +45,223 @@
     <a href="contracts-tests.html">Contracts &amp; Tests</a>
     <a href="flows.html">Flow analysis</a>
     <a href="ai-stack.html">AI stack</a>
+      <a href="project-structure.html">Structure</a>
   </div></nav>
   <main class="shell">
     <div class="hero">
-      <p class="eyebrow">Supabase / PostgreSQL RLS / Qdrant / 21 migrations / 49 operations</p>
-      <h1>Infrastructure . infra &amp; scripts</h1>
-      <p class="lede">The ResearchMate infrastructure layer defines persistence and coordination: Supabase/PostgreSQL as the source of truth, Qdrant for routed hybrid retrieval, and generated OpenAPI locking down 49 operations across 43 paths.</p>
+      <p class="eyebrow">Render / Vercel / Supabase / Qdrant . 4 topics, interview-focused</p>
+      <h1>Infrastructure . interview deep dive</h1>
+      <p class="lede">ResearchMate runs four infra pieces that each answer one concrete question. Where do API and worker live after you push code? One Render Free-tier web service, because the Free tier gives exactly one always-on slot. How does the browser reach the API when a corporate proxy mangles <code>*.onrender.com</code>? Vercel rewrites <code>/api/v1/*</code> same-origin, so the browser never sees the onrender host. Where is the source of truth? Supabase Postgres, locked behind RLS and an additive, SHA-256-stamped migration runner. Where do embeddings live? A Qdrant v3 collection with native BM25 + 4096-d dense vectors, filtered by owner on every query.</p>
       <div class="meta">
-        <span class="status local">34 tables (31 business + 3 coordination)</span>
-        <span class="status local">21 SQL migrations</span>
-        <span class="status local">3 Qdrant collection roles</span>
-        <span class="status local">49 operations / 12 tags</span>
-        <span class="status local">71 schemas</span>
-        <span class="status local">11 scripts</span>
+        <span class="status local">1 Render Free web service</span>
+        <span class="status local">Vercel rewrite bypass</span>
+        <span class="status local">21 SQL migrations + advisory lock</span>
+        <span class="status local">Qdrant v3 native hybrid</span>
       </div>
     </div>
     <div class="layout"><div class="content">
-      <section id="stack">
-        <p class="eyebrow">Technology stack fundamentals</p>
-        <h2>5 infrastructure components</h2>
-        <p class="sub">Each card explains what the component does in general and how ResearchMate uses it specifically.</p>
-        <div class="grid">
-          <article class="fact"><b>Supabase</b><p>Managed PostgreSQL platform providing database, auth (auth.uid()), storage, and Edge Functions. ResearchMate uses its PostgreSQL instance as the single source of truth; all business and coordination tables live here. RLS policies enforce multi-tenant isolation at the database layer.</p></article>
-          <article class="fact"><b>PostgreSQL RLS</b><p>Row Level Security enforces per-row access control in the database. All 31 business tables have RLS enabled, using auth.uid() for user-scoped isolation. pipeline_versions supports developer/admin role policies; outbox_events has no authenticated-user policy (service-role only).</p></article>
-          <article class="fact"><b>Database migrations</b><p>21 additive SQL migrations ordered by version prefix. The latest syncs document bucket MIME types; recent migrations also add structured chunk provenance, conversation indexes, human-decisions dedup, answer feedback eval lab, expanded document file types, chunk_has_vector, and lightweight chunks without vectors.</p></article>
-          <article class="fact"><b>Qdrant collections</b><p>Three roles: legacy retrieval for instant rollback, v2 multivector late-interaction rerank, and the v3 shadow collection with named dense and IDF-enabled BM25 vectors. Every query branch repeats owner filters.</p></article>
-          <article class="fact"><b>OpenAPI spec</b><p>49 operations across 43 paths and 12 tags, with 71 component schemas. <code>openapi.yaml</code> is deterministically rendered from FastAPI, and <code>--check</code> rejects drift.</p></article>
-        </div>
-      </section>
-      <section id="tree">
-        <p class="eyebrow">Complete directory tree</p>
-        <h2>infra/ and scripts/ file structure</h2>
-        <p class="sub">infra/ contains 3 subdirectories (openapi, qdrant, supabase); scripts/ contains 11 script files.</p>
-        <pre class="command-block"><code>infra/
-  openapi/
-    openapi.yaml              183 KB  49 operations / 12 tags / 71 schemas
-  qdrant/
-    researchmate_chunks.json  676 B   v1 collection config (dense + sparse + RRF)
-  supabase/
-    migrations/
-      202605260001_initial_schema.sql                   11.9 KB
-      202607150002_evidence_review_schema.sql           22.2 KB
-      202607150003_job_delivery_lease.sql                499 B
-      202607150004_evaluation_delivery_lease.sql          422 B
-      202607150005_evaluation_budget_and_fault_exercises.sql  2.7 KB
-      202607160006_runtime_readiness_and_workflow_budget.sql  2.4 KB
-      202607280007_unified_chat_and_runtime_rerank.sql   3.3 KB
-      202607280008_remove_source_modes.sql                253 B
-      202607290009_personal_chat_project_memory_and_quiz.sql  1.1 KB
-      202608010010_api_idempotency.sql                   1.1 KB
-      202608090006_add_structured_chunk_provenance.sql   Structured retrieval provenance
 
-scripts/
-  apply_migrations.py            3.6 KB  Validate &amp; apply ordered migrations
-  bootstrap_demo_catalog.py      5.8 KB  Bootstrap demo pipeline + eval dataset
-  check_contracts.ps1              524 B  Run pytest contract tests
-  check_evaluation_gate.py       5.9 KB  Fail release gate on incomplete/regressed eval
-  dev_api.ps1                      491 B  Start uvicorn dev server
-  export_openapi.py              1.2 KB  Render/verify OpenAPI artifact
-  measure_langgraph_recovery.py  9.0 KB  Benchmark interrupt recovery across restarts
-  provision_qdrant_rerank.py     6.3 KB  Provision Qdrant v2 backfill
-  provision_qdrant_hybrid.py             Replay and verify native hybrid v3
-  repair_docs_html_encoding.py   3.3 KB  Repair corrupted HTML docs
-  setup_langgraph_checkpoint.py    979 B  Create LangGraph checkpoint tables</code></pre>
-      </section>
-      <section id="migrations">
-        <p class="eyebrow">SQL migration file-by-file analysis</p>
-        <h2>21 migrations in execution order</h2>
-        <p class="sub">Each migration is additive (never destructive to existing data), ordered by the YYYYMMDDNNN version prefix.</p>
-        <details id="migration-01"><summary>1. 202605260001_initial_schema.sql</summary>
-          <dl class="kv">
-            <dt>Version</dt><dd><code>202605260001</code></dd>
-            <dt>Tables</dt><dd>15 tables: profiles, projects, documents, document_pages, chunks, conversations, messages, ask_runs, tool_calls, citations, quiz_sets, quiz_questions, jobs, deletion_jobs, api_usage</dd>
-            <dt>Fields &amp; indexes</dt><dd>8 enums, 12 indexes, owner_user_id() helper</dd>
-            <dt>RLS</dt><dd>RLS on all 15 tables. Owner-scoped auth.uid() policies. Gaps on document_pages/tool_calls/citations/quiz_questions closed in 002.</dd>
-            <dt>Incremental change</dt><dd>Creates full core data model. Documents capped at 25 MB, chunks reference Qdrant by qdrant_point_id.</dd>
-          </dl>
-        </details>
-        <details id="migration-02"><summary>2. 202607150002_evidence_review_schema.sql</summary>
-          <dl class="kv">
-            <dt>Version</dt><dd><code>202607150002</code></dd>
-            <dt>Tables</dt><dd>15 tables: pipeline_versions, workflow_runs, run_events, research_questions, claims, claim_evidence, claim_relations, reports, report_sections, human_decisions, outbox_events, evaluation_datasets, evaluation_cases, evaluation_runs, evaluation_scores</dd>
-            <dt>Fields &amp; indexes</dt><dd>17 indexes incl GIN on labels; composite PKs; idempotency_key uniqueness</dd>
-            <dt>RLS</dt><dd>RLS on all 15. Closes 4 gaps from 001. pipeline_versions: dev/admin I/U/D. outbox_events: NO auth policy (service-role).</dd>
-            <dt>Incremental change</dt><dd>Adds evidence-review + evaluation subsystem. PostgreSQL = source of truth.</dd>
-          </dl>
-        </details>
-        <details id="migration-03"><summary>3. 202607150003_job_delivery_lease.sql</summary>
-          <dl class="kv">
-            <dt>Version</dt><dd><code>202607150003</code></dd>
-            <dt>Tables</dt><dd>No new tables (alters jobs)</dd>
-            <dt>Fields &amp; indexes</dt><dd>Adds attempts, lease_owner, lease_expires_at, started_at, completed_at; idx_jobs_dispatch_lease</dd>
-            <dt>RLS</dt><dd>No RLS changes.</dd>
-            <dt>Incremental change</dt><dd>Safe at-least-once Celery execution with lease concurrency control.</dd>
-          </dl>
-        </details>
-        <details id="migration-04"><summary>4. 202607150004_evaluation_delivery_lease.sql</summary>
-          <dl class="kv">
-            <dt>Version</dt><dd><code>202607150004</code></dd>
-            <dt>Tables</dt><dd>No new tables (alters evaluation_runs)</dd>
-            <dt>Fields &amp; indexes</dt><dd>Adds attempts, lease_owner, lease_expires_at; idx_evaluation_runs_dispatch_lease</dd>
-            <dt>RLS</dt><dd>No RLS changes.</dd>
-            <dt>Incremental change</dt><dd>Resumable evaluation-run ownership for bounded parallel case execution.</dd>
-          </dl>
-        </details>
-        <details id="migration-05"><summary>5. 202607150005_evaluation_budget_and_fault_exercises.sql</summary>
-          <dl class="kv">
-            <dt>Version</dt><dd><code>202607150005</code></dd>
-            <dt>Tables</dt><dd>fault_exercises (1 new table)</dd>
-            <dt>Fields &amp; indexes</dt><dd>budget_limit_usd (default 1.0 fail-closed), budget_reserved_usd, last_error_code on evaluation_runs; fault_exercises: scenario enum, lease, request_hash</dd>
-            <dt>RLS</dt><dd>RLS on fault_exercises: owner SELECT + INSERT only.</dd>
-            <dt>Incremental change</dt><dd>Fail-closed cost budgets and auditable non-destructive reliability simulations.</dd>
-          </dl>
-        </details>
-        <details id="migration-06"><summary>6. 202607160006_runtime_readiness_and_workflow_budget.sql</summary>
-          <dl class="kv">
-            <dt>Version</dt><dd><code>202607160006</code></dd>
-            <dt>Tables</dt><dd>runtime_heartbeats (1 coordination table)</dd>
-            <dt>Fields &amp; indexes</dt><dd>delivery_attempts, lease, budget_limit_usd (default 1.0 max 25), budget_reserved_usd, actual_cost_usd on workflow_runs; runtime_heartbeats: component enum (worker/dispatcher)</dd>
-            <dt>RLS</dt><dd>RLS on runtime_heartbeats, REVOKE from anon/authenticated. Updated pipeline_versions SELECT for accepted discovery.</dd>
-            <dt>Incremental change</dt><dd>Operational readiness monitoring and fail-closed research budgets.</dd>
-          </dl>
-        </details>
-        <details id="migration-07"><summary>7. 202607280007_unified_chat_and_runtime_rerank.sql</summary>
-          <dl class="kv">
-            <dt>Version</dt><dd><code>202607280007</code></dd>
-            <dt>Tables</dt><dd>runtime_ai_config (1 coordination table)</dd>
-            <dt>Fields &amp; indexes</dt><dd>summary cols on conversations; ask_run_id on messages; web_enabled, context_strategy (6 values), rerank_provider, rerank_degraded on ask_runs; seeds runtime_ai_config</dd>
-            <dt>RLS</dt><dd>RLS on runtime_ai_config: admin/dev SELECT + UPDATE. source_mode defaults to local_only (expand phase).</dd>
-            <dt>Incremental change</dt><dd>Migrates source_mode to unified context_strategy + rerank. Two-phase expand-then-contract.</dd>
-          </dl>
-        </details>
-        <details id="migration-08"><summary>8. 202607280008_remove_source_modes.sql</summary>
-          <dl class="kv">
-            <dt>Version</dt><dd><code>202607280008</code></dd>
-            <dt>Tables</dt><dd>No new tables (contract phase drops columns)</dd>
-            <dt>Fields &amp; indexes</dt><dd>Drops source_mode + resolved_mode from ask_runs; drops source_mode from quiz_sets</dd>
-            <dt>RLS</dt><dd>No RLS changes.</dd>
-            <dt>Incremental change</dt><dd>Contract phase: unified runtime is live before retired columns are removed.</dd>
-          </dl>
-        </details>
-        <details id="migration-09"><summary>9. 202607290009_personal_chat_project_memory_and_quiz.sql</summary>
-          <dl class="kv">
-            <dt>Version</dt><dd><code>202607290009</code></dd>
-            <dt>Tables</dt><dd>No new tables (alters projects, documents, enum)</dd>
-            <dt>Fields &amp; indexes</dt><dd>kind (personal/workspace), memory cols on projects with unique partial index; conversation_id on documents; fill_blank + subjective quiz types</dd>
-            <dt>RLS</dt><dd>No RLS changes.</dd>
-            <dt>Incremental change</dt><dd>Personal chat workspace, project memory summaries, expanded quiz types.</dd>
-          </dl>
-        </details>
-        <details id="migration-10"><summary>10. 202608010010_api_idempotency.sql</summary>
-          <dl class="kv">
-            <dt>Version</dt><dd><code>202608010010</code></dd>
-            <dt>Tables</dt><dd>api_idempotency (1 coordination table)</dd>
-            <dt>Fields &amp; indexes</dt><dd>Composite PK (user_id, operation, idempotency_key); request_hash SHA-256; state (pending/succeeded); CHECK constraint</dd>
-            <dt>RLS</dt><dd>RLS on api_idempotency: owner ALL (user_id = auth.uid()).</dd>
-            <dt>Incremental change</dt><dd>Persists replay-safe request identities for cost-bearing Ask and Quiz operations.</dd>
-          </dl>
-        </details>
-        <details id="migration-11"><summary>11. 202608090006_add_structured_chunk_provenance.sql</summary>
-          <dl class="kv">
-            <dt>Version</dt><dd><code>202608090006</code></dd>
-            <dt>Tables</dt><dd>Alters chunks and citations without rewriting historical rows.</dd>
-            <dt>Fields &amp; indexes</dt><dd>section_title, section_path, chunk_index, char_start, char_end; validates offset pairs and indexes document chunk order.</dd>
-            <dt>Incremental change</dt><dd>Preserves structure-aware ingestion provenance through SQL, Qdrant payloads, and user-visible citations.</dd>
-          </dl>
-        </details>
-        <details id="migration-12"><summary>12. 202608080001_add_profiles_fk.sql</summary>
-          <dl class="kv">
-            <dt>Version</dt><dd><code>202608080001</code></dd>
-            <dt>Tables</dt><dd>No new tables (alters profiles).</dd>
-            <dt>Fields &amp; indexes</dt><dd>Adds <code>profiles_id_fk</code> foreign key referencing <code>auth.users(id)</code> with <code>ON DELETE CASCADE</code>.</dd>
-            <dt>RLS</dt><dd>No RLS changes.</dd>
-            <dt>Incremental change</dt><dd>Deleting a Supabase auth user now cascades through profiles to all owner-scoped data instead of leaving orphans.</dd>
-          </dl>
-        </details>
-        <details id="migration-13"><summary>13. 202608080002_add_updated_at_triggers.sql</summary>
-          <dl class="kv">
-            <dt>Version</dt><dd><code>202608080002</code></dd>
-            <dt>Tables</dt><dd>No new tables (alters profiles, projects, documents, and other <code>updated_at</code>-bearing tables).</dd>
-            <dt>Fields &amp; indexes</dt><dd>Creates <code>set_updated_at()</code> plpgsql function plus per-table <code>BEFORE UPDATE</code> triggers.</dd>
-            <dt>RLS</dt><dd>No RLS changes.</dd>
-            <dt>Incremental change</dt><dd>Keeps <code>updated_at</code> truthful on every partial UPDATE; stale timestamps no longer survive edits.</dd>
-          </dl>
-        </details>
-        <details id="migration-14"><summary>14. 202608080003_add_handle_new_user_trigger.sql</summary>
-          <dl class="kv">
-            <dt>Version</dt><dd><code>202608080003</code></dd>
-            <dt>Tables</dt><dd>No new tables (alters auth.users trigger).</dd>
-            <dt>Fields &amp; indexes</dt><dd>Creates <code>handle_new_user()</code> SECURITY DEFINER function and <code>on_auth_user_created</code> trigger on <code>auth.users</code>; uses <code>ON CONFLICT (id) DO NOTHING</code>.</dd>
-            <dt>RLS</dt><dd>Trigger runs as SECURITY DEFINER so auth-issued inserts can write to <code>profiles</code> under RLS.</dd>
-            <dt>Incremental change</dt><dd>Auto-provisions a profile row when Supabase Auth creates a user, removing defensive insertions from application code.</dd>
-          </dl>
-        </details>
-        <details id="migration-15"><summary>15. 202608080004_add_conversations_index.sql</summary>
-          <dl class="kv">
-            <dt>Version</dt><dd><code>202608080004</code></dd>
-            <dt>Tables</dt><dd>No new tables (alters conversations).</dd>
-            <dt>Fields &amp; indexes</dt><dd>Adds partial b-tree index <code>idx_conversations_user_created</code> on <code>(user_id, created_at desc)</code> scoped to <code>deleted_at IS NULL</code>.</dd>
-            <dt>RLS</dt><dd>No RLS changes.</dd>
-            <dt>Incremental change</dt><dd>Supports chat-history list pages without scanning tombstones.</dd>
-          </dl>
-        </details>
-        <details id="migration-16"><summary>16. 202608080005_align_human_decisions_dedup.sql</summary>
-          <dl class="kv">
-            <dt>Version</dt><dd><code>202608080005</code></dd>
-            <dt>Tables</dt><dd>No new tables (alters human_decisions).</dd>
-            <dt>Fields &amp; indexes</dt><dd>Adds <code>idempotency_key text NOT NULL</code>; backfills from <code>interrupt_key</code>; drops the old <code>(run_id, interrupt_key)</code> unique constraint and replaces it with <code>(run_id, idempotency_key)</code>.</dd>
-            <dt>RLS</dt><dd>No RLS changes.</dd>
-            <dt>Incremental change</dt><dd>Aligns DB dedup with the public <code>Idempotency-Key</code> header contract; retries with a different <code>interrupt_key</code> but the same header are now correctly deduped.</dd>
-          </dl>
-        </details>
-        <details id="migration-17"><summary>17. 202608110007_answer_feedback_eval_lab.sql</summary>
-          <dl class="kv">
-            <dt>Version</dt><dd><code>202608110007</code></dd>
-            <dt>Tables</dt><dd>Adds <code>answer_feedback</code> (1 new table) referencing profiles, projects, conversations, ask_runs, and evaluation_cases.</dd>
-            <dt>Fields &amp; indexes</dt><dd>rating (<code>helpful</code>/<code>not_helpful</code>), category (incorrect_answer &hellip; other), comment (max 1000), question/answer snapshots, citation/retrieved chunk ID arrays, retrieved_evidence jsonb, status (<code>new</code>/<code>promoted</code>), promoted_case_id; <code>unique (user_id, ask_run_id)</code>.</dd>
-            <dt>RLS</dt><dd>Owner-scoped RLS on answer_feedback.</dd>
-            <dt>Incremental change</dt><dd>Persists owner-scoped answer feedback and its immutable evaluation-case promotion state.</dd>
-          </dl>
-        </details>
-        <details id="migration-18"><summary>18. 202608110008_expand_document_file_types.sql</summary>
-          <dl class="kv">
-            <dt>Version</dt><dd><code>202608110008</code></dd>
-            <dt>Tables</dt><dd>No new tables (alters documents check constraint).</dd>
-            <dt>Fields &amp; indexes</dt><dd>Replaces <code>documents_file_type_check</code> to accept structured Office types (<code>pdf, docx, pptx, xlsx</code>) plus bounded plain-text/code formats (<code>md, csv, json, py, ts, tsx, sql, java, go, rs, kt</code>, etc.) with <code>NOT VALID</code> then <code>VALIDATE CONSTRAINT</code>.</dd>
-            <dt>RLS</dt><dd>No RLS changes.</dd>
-            <dt>Incremental change</dt><dd>Expands document ingestion to structured Office files and bounded plain-text/source formats.</dd>
-          </dl>
-        </details>
-        <details id="migration-19"><summary>19. 202608130009_add_chunk_has_vector.sql</summary>
-          <dl class="kv">
-            <dt>Version</dt><dd><code>202608130009</code></dd>
-            <dt>Tables</dt><dd>No new tables (alters chunks).</dd>
-            <dt>Fields &amp; indexes</dt><dd>Adds <code>has_vector boolean NOT NULL DEFAULT true</code>; partial index <code>idx_chunks_document_has_vector</code> on <code>(document_id, has_vector)</code> scoped to <code>has_vector = false</code>.</dd>
-            <dt>RLS</dt><dd>No RLS changes.</dd>
-            <dt>Incremental change</dt><dd>Allows lightweight documents to skip embedding and Qdrant upsert while remaining queryable via direct context injection.</dd>
-          </dl>
-        </details>
-        <details id="migration-20"><summary>20. 202608160010_allow_lightweight_chunks_without_vectors.sql</summary>
-          <dl class="kv">
-            <dt>Version</dt><dd><code>202608160010</code></dd>
-            <dt>Tables</dt><dd>No new tables (alters chunks).</dd>
-            <dt>Fields &amp; indexes</dt><dd>Drops <code>NOT NULL</code> from <code>chunks.qdrant_point_id</code>.</dd>
-            <dt>RLS</dt><dd>No RLS changes.</dd>
-            <dt>Incremental change</dt><dd>Lightweight chunks can persist without a Qdrant point; PostgreSQL unique constraints already permit multiple NULLs, so the existing uniqueness contract still holds for vector chunks.</dd>
-          </dl>
-        </details>
-        <details id="migration-21"><summary>21. 202608170001_sync_document_bucket_mime_types.sql</summary>
-          <dl class="kv">
-            <dt>Version</dt><dd><code>202608170001</code></dd>
-            <dt>Tables</dt><dd>No new tables (alters storage.buckets).</dd>
-            <dt>Fields &amp; indexes</dt><dd>Updates the private document bucket's <code>allowed_mime_types</code> to mirror the file-type check constraint added in 008.</dd>
-            <dt>RLS</dt><dd>No RLS changes.</dd>
-            <dt>Incremental change</dt><dd>Keeps the private document bucket aligned with MIME types accepted by the upload API; uploads rejected at the storage boundary now match uploads rejected at the schema boundary.</dd>
-          </dl>
-        </details>
-      </section>
-      <section id="tables">
-        <p class="eyebrow">Database table inventory</p>
-        <h2>34 tables (31 business + 3 coordination)</h2>
-        <p class="sub">31 business tables support user data, documents, chat, evidence review, and evaluation. 3 coordination tables (runtime_heartbeats, runtime_ai_config, api_idempotency) serve backend operations.</p>
-        <div class="scroll"><table class="dense">
-          <thead><tr>
-            <th>#</th>
-            <th>Table</th>
-            <th>Migration</th>
-            <th>Group</th>
-            <th>Key columns</th>
-            <th>RLS policy</th>
-          </tr></thead>
-          <tbody>
-            <tr id="table-profiles">
-              <td>1</td>
-              <td><code>profiles</code></td>
-              <td><code>001</code></td>
-              <td>identity</td>
-              <td>id (PK), email, provider, role (user/developer/admin)</td>
-              <td>auth.uid() = id (SELECT)</td>
-            </tr>
-            <tr id="table-projects">
-              <td>2</td>
-              <td><code>projects</code></td>
-              <td><code>001</code></td>
-              <td>identity</td>
-              <td>id (PK), user_id, name, status, kind, memory_summary_text</td>
-              <td>auth.uid() = user_id (ALL)</td>
-            </tr>
-            <tr id="table-documents">
-              <td>3</td>
-              <td><code>documents</code></td>
-              <td><code>001</code></td>
-              <td>documents</td>
-              <td>id (PK), user_id, project_id, filename, file_type, status, r2_object_key</td>
-              <td>auth.uid() = user_id (ALL)</td>
-            </tr>
-            <tr id="table-document_pages">
-              <td>4</td>
-              <td><code>document_pages</code></td>
-              <td><code>001</code></td>
-              <td>documents</td>
-              <td>id (PK), document_id, page_no, slide_no, text, metadata</td>
-              <td>Inherited via documents (SELECT, 002)</td>
-            </tr>
-            <tr id="table-chunks">
-              <td>5</td>
-              <td><code>chunks</code></td>
-              <td><code>001</code></td>
-              <td>documents</td>
-              <td>id (PK), user_id, project_id, document_id, source_type, text, qdrant_point_id</td>
-              <td>auth.uid() = user_id (ALL)</td>
-            </tr>
-            <tr id="table-conversations">
-              <td>6</td>
-              <td><code>conversations</code></td>
-              <td><code>001</code></td>
-              <td>chat</td>
-              <td>id (PK), user_id, project_id, title, summary_text, summary_token_count</td>
-              <td>auth.uid() = user_id (ALL)</td>
-            </tr>
-            <tr id="table-messages">
-              <td>7</td>
-              <td><code>messages</code></td>
-              <td><code>001</code></td>
-              <td>chat</td>
-              <td>id (PK), user_id, project_id, conversation_id, role, content, ask_run_id</td>
-              <td>auth.uid() = user_id (ALL)</td>
-            </tr>
-            <tr id="table-ask_runs">
-              <td>8</td>
-              <td><code>ask_runs</code></td>
-              <td><code>001</code></td>
-              <td>chat</td>
-              <td>id (PK), user_id, project_id, conversation_id, message, task_type, context_strategy, rerank_provider, web_enabled</td>
-              <td>auth.uid() = user_id (ALL)</td>
-            </tr>
-            <tr id="table-tool_calls">
-              <td>9</td>
-              <td><code>tool_calls</code></td>
-              <td><code>001</code></td>
-              <td>chat</td>
-              <td>id (PK), ask_run_id, tool_name, input, output_summary, status, latency_ms</td>
-              <td>Inherited via ask_runs (SELECT, 002)</td>
-            </tr>
-            <tr id="table-citations">
-              <td>10</td>
-              <td><code>citations</code></td>
-              <td><code>001</code></td>
-              <td>chat</td>
-              <td>id (PK), ask_run_id, chunk_id, document_id, source_type, quote, claim_id</td>
-              <td>Inherited via ask_runs (SELECT, 002)</td>
-            </tr>
-            <tr id="table-quiz_sets">
-              <td>11</td>
-              <td><code>quiz_sets</code></td>
-              <td><code>001</code></td>
-              <td>quiz</td>
-              <td>id (PK), user_id, project_id, ask_run_id, title, sources_summary</td>
-              <td>auth.uid() = user_id (ALL)</td>
-            </tr>
-            <tr id="table-quiz_questions">
-              <td>12</td>
-              <td><code>quiz_questions</code></td>
-              <td><code>001</code></td>
-              <td>quiz</td>
-              <td>id (PK), quiz_set_id, type, question, options, answer, explanation, difficulty</td>
-              <td>Inherited via quiz_sets (SELECT, 002)</td>
-            </tr>
-            <tr id="table-jobs">
-              <td>13</td>
-              <td><code>jobs</code></td>
-              <td><code>001</code></td>
-              <td>ops</td>
-              <td>id (PK), user_id, project_id, document_id, type, status, progress, attempts, lease_owner</td>
-              <td>auth.uid() = user_id (ALL)</td>
-            </tr>
-            <tr id="table-deletion_jobs">
-              <td>14</td>
-              <td><code>deletion_jobs</code></td>
-              <td><code>001</code></td>
-              <td>ops</td>
-              <td>id (PK), user_id, project_id, document_id, status, target_types</td>
-              <td>auth.uid() = user_id (ALL)</td>
-            </tr>
-            <tr id="table-api_usage">
-              <td>15</td>
-              <td><code>api_usage</code></td>
-              <td><code>001</code></td>
-              <td>ops</td>
-              <td>id (PK), user_id, usage_date, kind, count, unique(user_id, usage_date, kind)</td>
-              <td>auth.uid() = user_id (ALL)</td>
-            </tr>
-            <tr id="table-pipeline_versions">
-              <td>16</td>
-              <td><code>pipeline_versions</code></td>
-              <td><code>002</code></td>
-              <td>evidence</td>
-              <td>id (PK), name, version, status, configuration, prompt_hash, code_sha, created_by</td>
-              <td>Accepted=public; draft/candidate=creator+admin; dev/admin I/U/D</td>
-            </tr>
-            <tr id="table-workflow_runs">
-              <td>17</td>
-              <td><code>workflow_runs</code></td>
-              <td><code>002</code></td>
-              <td>evidence</td>
-              <td>id (PK), user_id, project_id, pipeline_version_id, kind, status, idempotency_key, budget_limit_usd, lease_owner</td>
-              <td>auth.uid() = user_id (SELECT + INSERT)</td>
-            </tr>
-            <tr id="table-run_events">
-              <td>18</td>
-              <td><code>run_events</code></td>
-              <td><code>002</code></td>
-              <td>evidence</td>
-              <td>id (bigint PK), run_id, sequence, node_key, event_type, attempt, status, cost_usd</td>
-              <td>Inherited via workflow_runs (SELECT)</td>
-            </tr>
-            <tr id="table-research_questions">
-              <td>19</td>
-              <td><code>research_questions</code></td>
-              <td><code>002</code></td>
-              <td>evidence</td>
-              <td>id (PK), user_id, project_id, parent_id, source_run_id, question, status, priority, plan_order</td>
-              <td>auth.uid() = user_id (SELECT)</td>
-            </tr>
-            <tr id="table-claims">
-              <td>20</td>
-              <td><code>claims</code></td>
-              <td><code>002</code></td>
-              <td>evidence</td>
-              <td>id (PK), user_id, project_id, question_id, source_run_id, text, normalized_key, stance, confidence, review_status</td>
-              <td>auth.uid() = user_id (SELECT)</td>
-            </tr>
-            <tr id="table-claim_evidence">
-              <td>21</td>
-              <td><code>claim_evidence</code></td>
-              <td><code>002</code></td>
-              <td>evidence</td>
-              <td>claim_id + citation_id + relation (PK), extraction_score, extractor_version</td>
-              <td>Dual inherited via claims + citations (SELECT)</td>
-            </tr>
-            <tr id="table-claim_relations">
-              <td>22</td>
-              <td><code>claim_relations</code></td>
-              <td><code>002</code></td>
-              <td>evidence</td>
-              <td>source_claim_id + target_claim_id + relation (PK), confidence, rationale_summary</td>
-              <td>Dual inherited via source + target claims (SELECT)</td>
-            </tr>
-            <tr id="table-reports">
-              <td>23</td>
-              <td><code>reports</code></td>
-              <td><code>002</code></td>
-              <td>evidence</td>
-              <td>id (PK), user_id, project_id, source_run_id, title, status, revision, validation_status</td>
-              <td>auth.uid() = user_id (SELECT)</td>
-            </tr>
-            <tr id="table-report_sections">
-              <td>24</td>
-              <td><code>report_sections</code></td>
-              <td><code>002</code></td>
-              <td>evidence</td>
-              <td>id (PK), report_id, parent_section_id, section_key, position, heading, body_markdown, evidence_snapshot</td>
-              <td>Inherited via reports (SELECT)</td>
-            </tr>
-            <tr id="table-human_decisions">
-              <td>25</td>
-              <td><code>human_decisions</code></td>
-              <td><code>002</code></td>
-              <td>evidence</td>
-              <td>id (PK), run_id, event_id, user_id, interrupt_key, decision, proposed_payload, final_payload</td>
-              <td>Inherited via workflow_runs (SELECT); INSERT owner or dev/admin</td>
-            </tr>
-            <tr id="table-outbox_events">
-              <td>26</td>
-              <td><code>outbox_events</code></td>
-              <td><code>002</code></td>
-              <td>evidence</td>
-              <td>id (PK), aggregate_type, aggregate_id, event_type, payload, idempotency_key, status, attempts</td>
-              <td>NO auth-user policy (service-role only)</td>
-            </tr>
-            <tr id="table-evaluation_datasets">
-              <td>27</td>
-              <td><code>evaluation_datasets</code></td>
-              <td><code>002</code></td>
-              <td>evaluation</td>
-              <td>id (PK), user_id, project_id, name, version, status, description</td>
-              <td>Owner SELECT + I/U/D (draft only)</td>
-            </tr>
-            <tr id="table-evaluation_cases">
-              <td>28</td>
-              <td><code>evaluation_cases</code></td>
-              <td><code>002</code></td>
-              <td>evaluation</td>
-              <td>id (PK), dataset_id, case_key, input, expected_output, expected_evidence, labels</td>
-              <td>Inherited via evaluation_datasets (draft-only writes)</td>
-            </tr>
-            <tr id="table-evaluation_runs">
-              <td>29</td>
-              <td><code>evaluation_runs</code></td>
-              <td><code>002</code></td>
-              <td>evaluation</td>
-              <td>id (PK), user_id, project_id, dataset_id, pipeline_version_id, status, idempotency_key, budget_limit_usd, lease_owner</td>
-              <td>Owner SELECT + INSERT (frozen dataset required)</td>
-            </tr>
-            <tr id="table-evaluation_scores">
-              <td>30</td>
-              <td><code>evaluation_scores</code></td>
-              <td><code>002</code></td>
-              <td>evaluation</td>
-              <td>id (PK), evaluation_run_id, case_id, metric_name, metric_version, value, passed, judge_model</td>
-              <td>Inherited via evaluation_runs (SELECT)</td>
-            </tr>
-            <tr id="table-fault_exercises">
-              <td>31</td>
-              <td><code>fault_exercises</code></td>
-              <td><code>005</code></td>
-              <td>evaluation</td>
-              <td>id (PK), requested_by, target_run_id, scenario, duration_seconds, status, request_hash, idempotency_key, lease_owner</td>
-              <td>Owner SELECT + INSERT (requested_by = auth.uid())</td>
-            </tr>
-            <tr id="table-runtime_heartbeats">
-              <td>32</td>
-              <td><code>runtime_heartbeats</code> <span class="tag warn">coord</span></td>
-              <td><code>006</code></td>
-              <td>coordination</td>
-              <td>component (PK: worker/dispatcher), instance_id, status, safe_metadata, updated_at</td>
-              <td>RLS enabled, REVOKE from anon/authenticated</td>
-            </tr>
-            <tr id="table-runtime_ai_config">
-              <td>33</td>
-              <td><code>runtime_ai_config</code> <span class="tag warn">coord</span></td>
-              <td><code>007</code></td>
-              <td>coordination</td>
-              <td>config_key (PK), provider, version, updated_at, updated_by</td>
-              <td>Admin/developer SELECT + UPDATE only</td>
-            </tr>
-            <tr id="table-api_idempotency">
-              <td>34</td>
-              <td><code>api_idempotency</code> <span class="tag warn">coord</span></td>
-              <td><code>010</code></td>
-              <td>coordination</td>
-              <td>user_id + operation + idempotency_key (PK), request_hash, state, response</td>
-              <td>Owner ALL (user_id = auth.uid())</td>
-            </tr>
-          </tbody>
-        </table></div>
-      </section>
-      <section id="qdrant">
-        <p class="eyebrow">Qdrant configuration</p>
-        <h2>Three vector collection roles</h2>
-        <p class="sub">researchmate_chunks remains the rollback path; researchmate_chunks_v2 performs late-interaction rerank; researchmate_chunks_v3 is the shadow native-BM25 retrieval target. All enforce tenant filtering.</p>
-        <h3>researchmate_chunks (v1)</h3>
-        <p>Primary retrieval collection, defined in <code>infra/qdrant/researchmate_chunks.json</code>. Supports hybrid retrieval: dense vectors (4096 dimensions, Cosine distance) + sparse vectors (IDF modifier), fused with RRF (Relative Reciprocal Fusion).</p>
-        <dl class="kv">
-          <dt>collection</dt><dd><code>researchmate_chunks</code></dd>
-          <dt>dense.size</dt><dd><code>4096</code></dd>
-          <dt>dense.distance</dt><dd><code>Cosine</code></dd>
-          <dt>sparse.modifier</dt><dd><code>idf</code></dd>
-          <dt>fusion</dt><dd><code>rrf</code></dd>
-          <dt>Payload schema</dt><dd>user_id (keyword)<br/>project_id (keyword)<br/>document_id (keyword)<br/>chunk_id (keyword)<br/>source_type (keyword)<br/>page_no (integer)<br/>slide_no (integer)<br/>title (text)<br/>url (keyword)<br/>content_hash (keyword)<br/>pipeline_version (keyword)<br/>expires_at (datetime)</dd>
-          <dt>Required filters</dt><dd><code>user_id</code> + <code>project_id</code> + <code>source_type</code> (triple tenant filter)</dd>
-        </dl>
-        <h3>researchmate_chunks_v2 (rerank)</h3>
-        <p>Rerank backfill collection, created programmatically by <code>scripts/provision_qdrant_rerank.py</code>. Uses multivector (late-interaction) embeddings, 96 dimensions, Cosine distance, MAX_SIM comparator. HNSW m=0 (brute-force). Backfill version <code>20260728_answerai_colbert_small_v1</code>.</p>
-        <dl class="kv">
-          <dt>collection</dt><dd><code>researchmate_chunks_v2</code></dd>
-          <dt>vector name</dt><dd><code>multi</code></dd>
-          <dt>multivector.size</dt><dd><code>96</code></dd>
-          <dt>multivector.distance</dt><dd><code>Cosine</code></dd>
-          <dt>multivector.comparator</dt><dd><code>MAX_SIM</code></dd>
-          <dt>hnsw.m</dt><dd><code>0 (brute-force)</code></dd>
-          <dt>payload indexes</dt><dd><code>user_id, project_id, document_id, source_type (all keyword)</code></dd>
-          <dt>Verification</dt><dd>Point count check + tenant-filter sample query; SHA-256 digest of chunk IDs stored in researchmate_vector_migrations</dd>
-        </dl>
-        <h3>researchmate_chunks_v3 (native hybrid)</h3>
-        <p>Created and replayed only by <code>scripts/provision_qdrant_hybrid.py</code>, never during service startup. It stores a named 4096-dimensional <code>dense</code> vector and a named <code>bm25</code> sparse vector with Qdrant IDF statistics. Route-specific weights feed weighted RRF; rewritten queries share one branch budget so they cannot win merely by adding votes.</p>
-        <dl class="kv">
-          <dt>Rollout</dt><dd>Deploy with native mode disabled, replay and verify the shadow collection, then cut over by configuration.</dd>
-          <dt>Verification</dt><dd>Exact count, SHA-256 corpus fingerprint, stale-point cleanup, and an owner-filtered lexical sample.</dd>
-          <dt>Rollback</dt><dd>Restore the legacy collection and disable native hybrid; no database rollback is required.</dd>
-        </dl>
-      </section>
-      <section id="openapi">
-        <p class="eyebrow">OpenAPI specification</p>
-        <h2>49 operations / 43 paths / 12 tags / 71 schemas</h2>
-        <p class="sub"><code>openapi.yaml</code> is deterministically rendered from FastAPI. Its current contract contains 49 method/path operations, 43 paths, 12 tags, and 71 component schemas.</p>
-        <h3>Tag distribution</h3>
-        <div class="scroll"><table class="dense">
-          <thead><tr>
-            <th>Tag</th>
-            <th>Endpoints</th>
-            <th>Paths</th>
-          </tr></thead><tbody>
-            <tr>
-              <td><code>health</code></td>
-              <td>2</td>
-              <td><code>GET /api/v1/healthz</code><br/><code>GET /api/v1/readyz</code></td>
-            </tr>
-            <tr>
-              <td><code>auth</code></td>
-              <td>1</td>
-              <td><code>GET /api/v1/me</code></td>
-            </tr>
-            <tr>
-              <td><code>projects</code></td>
-              <td>5</td>
-              <td><code>POST /api/v1/projects</code><br/><code>GET /api/v1/projects</code><br/><code>GET /api/v1/projects/{project_id}</code><br/><code>PATCH /api/v1/projects/{project_id}</code><br/><code>DELETE /api/v1/projects/{project_id}</code></td>
-            </tr>
-            <tr>
-              <td><code>documents</code></td>
-              <td>7</td>
-              <td><code>POST /api/v1/documents/upload-url</code><br/><code>POST /api/v1/documents</code><br/><code>GET /api/v1/documents</code><br/><code>GET /api/v1/projects/{project_id}/documents</code><br/><code>GET /api/v1/conversations/{conversation_id}/documents</code><br/><code>GET /api/v1/documents/{document_id}</code><br/><code>POST /api/v1/documents/{document_id}/complete</code><br/><code>DELETE /api/v1/documents/{document_id}</code></td>
-            </tr>
-            <tr>
-              <td><code>jobs</code></td>
-              <td>1</td>
-              <td><code>GET /api/v1/jobs/{job_id}</code></td>
-            </tr>
-            <tr>
-              <td><code>conversations</code></td>
-              <td>8</td>
-              <td><code>POST /api/v1/conversations</code><br/><code>GET /api/v1/conversations</code><br/><code>GET /api/v1/projects/{project_id}/conversations</code><br/><code>GET /api/v1/conversations/{conversation_id}/messages</code><br/><code>POST /api/v1/conversations/{conversation_id}/messages</code><br/><code>GET /api/v1/conversations/{conversation_id}</code><br/><code>PATCH /api/v1/conversations/{conversation_id}</code><br/><code>DELETE /api/v1/conversations/{conversation_id}</code></td>
-            </tr>
-            <tr>
-              <td><code>ask</code></td>
-              <td>1</td>
-              <td><code>POST /api/v1/ask</code></td>
-            </tr>
-            <tr>
-              <td><code>quiz</code></td>
-              <td>2</td>
-              <td><code>POST /api/v1/quiz</code><br/><code>GET /api/v1/projects/{project_id}/quiz</code></td>
-            </tr>
-            <tr>
-              <td><code>sources</code></td>
-              <td>1</td>
-              <td><code>GET /api/v1/runs/{run_id}/sources</code></td>
-            </tr>
-            <tr>
-              <td><code>developer-trace</code></td>
-              <td>1</td>
-              <td><code>GET /api/v1/dev/traces/{trace_id}</code></td>
-            </tr>
-            <tr>
-              <td><code>evidence-review</code></td>
-              <td>16</td>
-              <td><code>POST /api/v1/research-runs</code><br/><code>GET /api/v1/runs/{run_id}</code><br/><code>GET /api/v1/runs/{run_id}/events</code><br/><code>POST /api/v1/runs/{run_id}/decisions</code><br/><code>GET /api/v1/projects/{project_id}/claims</code><br/><code>GET /api/v1/projects/{project_id}/claim-relations</code><br/><code>GET /api/v1/projects/{project_id}/reports</code><br/><code>GET /api/v1/reports/{report_id}</code><br/><code>GET /api/v1/pipeline-versions</code><br/><code>GET /api/v1/evaluation-datasets</code><br/><code>POST /api/v1/reports/{report_id}/refresh</code><br/><code>POST /api/v1/evaluation-runs</code><br/><code>GET /api/v1/evaluation-runs/{evaluation_run_id}</code><br/><code>POST /api/v1/dev/reliability</code><br/><code>POST /api/v1/dev/fault-scenarios</code><br/><code>DELETE /api/v1/dev/fault-scenarios/{exercise_id}</code></td>
-            </tr>
-            <tr><td><code>answer-feedback</code></td><td>3</td><td>Owner-scoped answer feedback create, read, and summary operations.</td></tr>
-            <tr><td><strong>Total</strong></td><td><strong>49</strong></td><td><strong>43 paths / 12 tags</strong></td></tr>
-          </tbody></table></div>
-        <h3>Representative component schemas</h3>
-        <p>The generated specification currently contains 71 component schemas; the cards below highlight the established contract families.</p>
-        <div class="grid">
-          <article class="fact"><b>AskRequest</b></article>
-          <article class="fact"><b>AskResponse</b></article>
-          <article class="fact"><b>Citation</b></article>
-          <article class="fact"><b>ClaimListResponse</b></article>
-          <article class="fact"><b>ClaimRelationListResponse</b></article>
-          <article class="fact"><b>ClaimRelationSummary</b></article>
-          <article class="fact"><b>ClaimSummary</b></article>
-          <article class="fact"><b>ConversationCreate</b></article>
-          <article class="fact"><b>ConversationListResponse</b></article>
-          <article class="fact"><b>ConversationMessage</b></article>
-          <article class="fact"><b>ConversationMessagesResponse</b></article>
-          <article class="fact"><b>ConversationSummary</b></article>
-          <article class="fact"><b>ConversationUpdate</b></article>
-          <article class="fact"><b>CurrentUser</b></article>
-          <article class="fact"><b>DeveloperTrace</b></article>
-          <article class="fact"><b>Difficulty</b></article>
-          <article class="fact"><b>DocumentRecord</b></article>
-          <article class="fact"><b>DocumentStatus</b></article>
-          <article class="fact"><b>ErrorDetail</b></article>
-          <article class="fact"><b>ErrorResponse</b></article>
-          <article class="fact"><b>EvaluationDatasetListResponse</b></article>
-          <article class="fact"><b>EvaluationDatasetSummary</b></article>
-          <article class="fact"><b>EvaluationRunAccepted</b></article>
-          <article class="fact"><b>EvaluationRunCreate</b></article>
-          <article class="fact"><b>EvaluationRunRecord</b></article>
-          <article class="fact"><b>ExecutionPlan</b></article>
-          <article class="fact"><b>FaultScenarioAccepted</b></article>
-          <article class="fact"><b>FaultScenarioCreate</b></article>
-          <article class="fact"><b>FaultScenarioRecord</b></article>
-          <article class="fact"><b>HumanDecisionAccepted</b></article>
-          <article class="fact"><b>HumanDecisionCreate</b></article>
-          <article class="fact"><b>JobRecord</b></article>
-          <article class="fact"><b>JobStatus</b></article>
-          <article class="fact"><b>PipelineVersionListResponse</b></article>
-          <article class="fact"><b>PipelineVersionSummary</b></article>
-          <article class="fact"><b>ProjectCreate</b></article>
-          <article class="fact"><b>ProjectRecord</b></article>
-          <article class="fact"><b>QuizCoverage</b></article>
-          <article class="fact"><b>QuizHistoryResponse</b></article>
-          <article class="fact"><b>QuizQuestion</b></article>
-          <article class="fact"><b>QuizRequest</b></article>
-          <article class="fact"><b>QuizResponse</b></article>
-          <article class="fact"><b>QuizSet</b></article>
-          <article class="fact"><b>ReliabilityResponse</b></article>
-          <article class="fact"><b>ReportDetail</b></article>
-          <article class="fact"><b>ReportListResponse</b></article>
-          <article class="fact"><b>ReportRefreshAccepted</b></article>
-          <article class="fact"><b>ReportRefreshCreate</b></article>
-          <article class="fact"><b>ReportSectionRecord</b></article>
-          <article class="fact"><b>ReportSummary</b></article>
-          <article class="fact"><b>ResearchRunAccepted</b></article>
-          <article class="fact"><b>ResearchRunCreate</b></article>
-          <article class="fact"><b>RunSourcesResponse</b></article>
-          <article class="fact"><b>RuntimeRerankConfig</b></article>
-          <article class="fact"><b>RuntimeRerankConfigUpdate</b></article>
-          <article class="fact"><b>SourceScope</b></article>
-          <article class="fact"><b>SourceSummary</b></article>
-          <article class="fact"><b>SourceType</b></article>
-          <article class="fact"><b>TaskType</b></article>
-          <article class="fact"><b>ToolCallTrace</b></article>
-          <article class="fact"><b>UploadCompleteRequest</b></article>
-          <article class="fact"><b>UploadUrlRequest</b></article>
-          <article class="fact"><b>UploadUrlResponse</b></article>
-          <article class="fact"><b>WorkflowRunRecord</b></article>
-          <article class="fact"><b>HTTPBearer</b><p>Security scheme (securitySchemes), not a component schema</p></article>
+      <section id="render-topology">
+        <p class="eyebrow">Tech-stack-centered . Render deployment topology</p>
+        <h2>One Free-tier service runs API + worker from one image</h2>
+        <p class="sub">[Project fact] <code>render.yaml</code> declares exactly one <code>type: web</code> service on <code>plan: free</code>, region <code>oregon</code>, runtime <code>docker</code>, command <code>python -m researchmate_worker.render_combined</code>.</p>
+
+        <p>Picture what happens after you push code to <code>main</code>: GitHub Actions runs the CI pipeline; if every gate is green, Render notices and rebuilds the Docker image from <code>workers/ai-worker/Dockerfile</code>. The single container the image produces is asked to run <code>render_combined</code> &mdash; one Python process that starts the ASGI API server and the Celery worker loop together. There is no second Render service for the worker.</p>
+
+        <p>The reason to fuse them is one Free-tier rule: Render's Free plan provides exactly one always-on web service. Paid background workers need a paid tier. So the project puts both jobs into the one slot it gets for free. The cost is in-process contention &mdash; when a user request spikes the API, the same process also has to keep the Celery worker responsive &mdash; and the Free tier can cold-start or sleep after inactivity. <strong>[Reasonable inference]</strong> For an MVP-scale project the trade reads as acceptable: zero monthly spend beats clean separation.</p>
+
+        <div class="fact">
+          <b>Key mechanisms</b>
+          <ul>
+            <li><b>autoDeployTrigger: checksPass</b> &mdash; Render waits for the GitHub Actions <code>researchmate-ci</code> run to go green before it picks up a build. CI red = no deploy. [Project fact]</li>
+            <li><b>buildFilter paths</b> &mdash; a push only triggers a rebuild if it touches <code>apps/api/**</code>, <code>workers/ai-worker/**</code>, <code>infra/supabase/migrations/**</code>, the migration or Qdrant provisioner scripts, <code>pyproject.toml</code> or <code>uv.lock</code>. A README-only commit skips deploy. [Project fact]</li>
+            <li><b>healthCheckPath: /api/v1/healthz</b> &mdash; Render probes one cheap liveness route to mark the service up; <code>/api/v1/readyz</code> is the separate route that checks Postgres, Redis and Qdrant. [Reasonable inference]</li>
+            <li><b>envVarGroup: researchmate-backend</b> &mdash; non-secret values (model names, base URLs, toggles like <code>RUN_SCHEMA_MIGRATIONS=1</code>) are checked straight into render.yaml; secrets (<code>DATABASE_URL</code>, <code>REDIS_URL</code>, <code>NVIDIA_API_KEY</code>, Langfuse keys, etc.) are marked <code>sync: false</code> and live only on the Render dashboard. [Project fact]</li>
+          </ul>
         </div>
-      </section>
-      <section id="scripts">
-        <p class="eyebrow">scripts/ file-by-file analysis</p>
-        <h2>11 operational scripts</h2>
-        <p class="sub">8 Python scripts + 2 PowerShell scripts + 1 encoding repair script. All scripts use environment-variable gates or approval flags.</p>
-        <details id="script-01"><summary>1. apply_migrations.py</summary>
-          <dl class="kv">
-            <dt>Language</dt><dd><code>Python</code></dd>
-            <dt>Lines</dt><dd>96</dd>
-            <dt>Purpose</dt><dd>Validates and applies ordered additive PostgreSQL migrations. Enforces unique version prefixes, rejects empty files and DROP DATABASE, acquires pg_advisory_xact_lock, tracks with SHA-256 checksums. Requires ALLOW_SCHEMA_APPLY=1.</dd>
-            <dt>Details</dt><dd>Two modes: --check-files (validation) and --apply (execution). Advisory lock key 726334129. Single transaction per run.</dd>
-          </dl>
-        </details>
-        <details id="script-02"><summary>2. bootstrap_demo_catalog.py</summary>
-          <dl class="kv">
-            <dt>Language</dt><dd><code>Python</code></dd>
-            <dt>Lines</dt><dd>150</dd>
-            <dt>Purpose</dt><dd>Bootstraps an accepted demo pipeline version and frozen evaluation dataset from ready project chunks. Requires ALLOW_DEMO_BOOTSTRAP=1.</dd>
-            <dt>Details</dt><dd>Reads up to --case-limit (default 10, max 50) ready chunks, generates evaluation cases, freezes dataset, returns JSON with pipeline_version_id + dataset_id.</dd>
-          </dl>
-        </details>
-        <details id="script-03"><summary>3. check_contracts.ps1</summary>
-          <dl class="kv">
-            <dt>Language</dt><dd><code>PowerShell</code></dd>
-            <dt>Lines</dt><dd>14</dd>
-            <dt>Purpose</dt><dd>Validates core repository contracts via pytest (test_project_scaffold, test_api_workflow, test_frontend_contracts) with pinned venv at D:\software\env\researchmate.</dd>
-            <dt>Details</dt><dd>Creates venv if missing; optional -InstallDependencies runs uv sync --frozen --all-packages --group dev.</dd>
-          </dl>
-        </details>
-        <details id="script-04"><summary>4. dev_api.ps1</summary>
-          <dl class="kv">
-            <dt>Language</dt><dd><code>PowerShell</code></dd>
-            <dt>Lines</dt><dd>13</dd>
-            <dt>Purpose</dt><dd>Starts local reloadable uvicorn API on 127.0.0.1:8000 with pinned venv at D:\software\env\researchmate.</dd>
-            <dt>Details</dt><dd>Creates venv if missing; optional -InstallDependencies. Runs: python -m uvicorn researchmate_api.main:app --reload --host 127.0.0.1 --port 8000</dd>
-          </dl>
-        </details>
-        <details id="script-05"><summary>5. export_openapi.py</summary>
-          <dl class="kv">
-            <dt>Language</dt><dd><code>Python</code></dd>
-            <dt>Lines</dt><dd>36</dd>
-            <dt>Purpose</dt><dd>Renders FastAPI OpenAPI schema as deterministic YAML, writes or verifies infra/openapi/openapi.yaml. Uses Settings(app_env=test, llm_provider=fake).</dd>
-            <dt>Details</dt><dd>Default writes file; --check fails if tracked copy is stale. Inserts apps/api/src for module resolution.</dd>
-          </dl>
-        </details>
-        <details id="script-06"><summary>6. provision_qdrant_rerank.py</summary>
-          <dl class="kv">
-            <dt>Language</dt><dd><code>Python</code></dd>
-            <dt>Lines</dt><dd>152</dd>
-            <dt>Purpose</dt><dd>Provisions and verifies Qdrant rerank backfill. Creates researchmate_chunks_v2 with multivector embeddings, payload indexes, batch backfill. Requires ALLOW_QDRANT_RERANK_BACKFILL=1 and QDRANT_RERANK_MODEL_IS_FREE=true.</dd>
-            <dt>Details</dt><dd>Backfill version 20260728_answerai_colbert_small_v1. Creates researchmate_vector_migrations, verifies point count + tenant-filter sample, stores SHA-256 digest.</dd>
-          </dl>
-        </details>
-        <details id="script-07"><summary>7. repair_docs_html_encoding.py</summary>
-          <dl class="kv">
-            <dt>Language</dt><dd><code>Python</code></dd>
-            <dt>Lines</dt><dd>83</dd>
-            <dt>Purpose</dt><dd>Repairs HTML documentation encoding damage. Restores corrupted nav labels, fixes summary tags, restores lead paragraphs, replaces inline styles with shared site.css.</dd>
-            <dt>Details</dt><dd>Two passes: repair_common_wrappers (regex) and unify_shared_styles (relative path calculation).</dd>
-          </dl>
-        </details>
-        <details id="script-08"><summary>8. setup_langgraph_checkpoint.py</summary>
-          <dl class="kv">
-            <dt>Language</dt><dd><code>Python</code></dd>
-            <dt>Lines</dt><dd>26</dd>
-            <dt>Purpose</dt><dd>Creates LangGraph checkpoint tables during approved schema phase. Converts DATABASE_URL and calls PostgresSaver.setup(). Requires ALLOW_SCHEMA_APPLY=1.</dd>
-            <dt>Details</dt><dd>LangGraph owns/checkpoints its DDL. Run only during protected release migration phase, never during task delivery.</dd>
-          </dl>
-        </details>
-        <details id="script-09"><summary>9. provision_qdrant_hybrid.py</summary>
-          <dl class="kv">
-            <dt>Language</dt><dd><code>Python</code></dd>
-            <dt>Purpose</dt><dd>Creates the v3 shadow collection, replays ready local chunks in bounded batches, removes stale points, and verifies tenant-filtered native BM25 retrieval.</dd>
-            <dt>Safety</dt><dd>Requires <code>ALLOW_QDRANT_HYBRID_BACKFILL=1</code>; records exact count and corpus checksum before configuration cutover.</dd>
-          </dl>
-        </details>
-        <details id="script-10"><summary>10. check_evaluation_gate.py</summary>
-          <dl class="kv">
-            <dt>Language</dt><dd><code>Python</code></dd>
-            <dt>Lines</dt><dd>139</dd>
-            <dt>Purpose</dt><dd>Controlled release gate that fails when a durable evaluation run is incomplete, failed, or regressed. Reads the persisted status, execution summary, metric aggregates, and baseline comparison from the API; enforces Recall@K &ge; 0.80, MRR &ge; 0.50, NDCG &ge; 0.80 by default; rejects runs whose pipeline <code>code_sha</code> differs from the workflow commit.</dd>
-            <dt>Safety</dt><dd>Requires HTTPS outside localhost; thresholds are explicit CLI inputs so a release policy change is a code change, not a secret.</dd>
-          </dl>
-        </details>
-        <details id="script-11"><summary>11. measure_langgraph_recovery.py</summary>
-          <dl class="kv">
-            <dt>Language</dt><dd><code>Python</code></dd>
-            <dt>Lines</dt><dd>232</dd>
-            <dt>Purpose</dt><dd>Benchmark for durable LangGraph interrupt recovery across process restarts. Spawns child processes that start, interrupt, and resume a fixed workflow; reports attempted/successful counts, failures, and a Wilson confidence interval against a configurable minimum recovery rate (default 0.995).</dd>
-            <dt>Safety</dt><dd>Reads <code>RECOVERY_BENCHMARK_DATABASE_URL</code>; default <code>--trials 1000</code>, <code>--batch-size 50</code>, <code>--minimum-rate 0.995</code>, <code>--confidence 0.95</code>; exits non-zero when the lower confidence bound falls below the minimum rate.</dd>
-          </dl>
-        </details>
-      </section>
-      <section id="proof-chain">
-        <p class="eyebrow">Migration execution flow</p>
-        <h2>apply_migrations.py proof chain</h2>
-        <p class="sub">A 7-step verification chain ensures migrations are applied safely, ordered, and auditable.</p>
-        <div class="proof-chain">
-          <div class="proof-step"><b>1. Enforce unique prefixes</b><small>migration_files() sorts all .sql files and verifies version prefixes (YYYYMMDDNNN before first underscore) are unique.</small></div>
-          <div class="proof-step"><b>2. Reject destructive content</b><small>validate_files() strips each file, rejects empty migrations, blocks any file containing DROP DATABASE (case-insensitive).</small></div>
-          <div class="proof-step"><b>3. Approval gate</b><small>The apply path requires ALLOW_SCHEMA_APPLY=1. Without it the script exits immediately before touching the database.</small></div>
-          <div class="proof-step"><b>4. Advisory transaction lock</b><small>pg_advisory_xact_lock(726334129) serializes migration execution within the current transaction, preventing concurrent runners.</small></div>
-          <div class="proof-step"><b>5. Tracking table bootstrap</b><small>Creates researchmate_schema_migrations (version PK, checksum_sha256, applied_at) if not exists, reads all applied rows.</small></div>
-          <div class="proof-step"><b>6. Checksum verification</b><small>For each file already applied, recomputes SHA-256 and compares. Any drift raises RuntimeError, halting the run.</small></div>
-          <div class="proof-step"><b>7. Apply and record</b><small>Unapplied migrations are executed in order inside the transaction, then inserted with SHA-256 digest. Transaction commits once.</small></div>
+
+        <div class="notice">
+          <b>Why not two services?</b> Free tier = exactly one always-on web service. A second, paid background-worker tier would host the Celery loop separately. For MVP scale the project accepts in-process contention as the cost of zero monthly spend. [Reasonable inference]
         </div>
+
+        <h3>Interview question tree</h3>
+        <pre class="command-block">Why is API + worker fused into one Render service?
+└─ What does render_combined actually start in-process?
+   └─ What happens to worker throughput when the API gets a burst?
+Answer: They share one process and one CPU budget. A burst on the API starves the
+Celery loop, so worker latency degrades. At scale you split: API stays on the
+web service, worker moves to a paid background-worker tier or an external
+worker pool, and they share only Redis + Postgres.
+
+Why autoDeployTrigger: checksPass instead of every push to main?
+└─ Which CI jobs must pass before Render picks up the build?
+   └─ What if a CI job is flaky — does Render wait or skip?
+Answer: ci-success (see cicd page) must report success. If CI re-runs the
+flaky job and it greens, Render picks up the build. If CI stays red, Render
+holds the previous good release. There is no partial deploy.</pre>
       </section>
-      <section id="relationships">
-        <p class="eyebrow">Table relationship diagram</p>
-        <h2>27 foreign-key edges</h2>
-        <p class="sub">cascade means cascading delete; set null means nullify; restrict means blocking delete.</p>
-        <div class="relation-ledger">
-          <div class="relation-edge cascade"><code>profiles &rarr; projects</code><small>cascade &middot; user_id</small></div>
-          <div class="relation-edge cascade"><code>projects &rarr; documents</code><small>cascade &middot; project_id</small></div>
-          <div class="relation-edge cascade"><code>documents &rarr; document_pages</code><small>cascade &middot; document_id</small></div>
-          <div class="relation-edge cascade"><code>projects &rarr; chunks</code><small>cascade &middot; project_id</small></div>
-          <div class="relation-edge cascade"><code>documents &rarr; chunks</code><small>cascade &middot; document_id</small></div>
-          <div class="relation-edge cascade"><code>projects &rarr; conversations</code><small>cascade &middot; project_id</small></div>
-          <div class="relation-edge cascade"><code>conversations &rarr; messages</code><small>cascade &middot; conversation_id</small></div>
-          <div class="relation-edge cascade"><code>conversations &rarr; documents</code><small>cascade &middot; conversation_id (009)</small></div>
-          <div class="relation-edge cascade"><code>projects &rarr; ask_runs</code><small>cascade &middot; project_id</small></div>
-          <div class="relation-edge cascade"><code>ask_runs &rarr; tool_calls</code><small>cascade &middot; ask_run_id</small></div>
-          <div class="relation-edge cascade"><code>ask_runs &rarr; citations</code><small>cascade &middot; ask_run_id</small></div>
-          <div class="relation-edge set-null"><code>ask_runs &rarr; quiz_sets</code><small>set null &middot; ask_run_id</small></div>
-          <div class="relation-edge cascade"><code>quiz_sets &rarr; quiz_questions</code><small>cascade &middot; quiz_set_id</small></div>
-          <div class="relation-edge "><code>pipeline_versions &rarr; workflow_runs</code><small>restrict &middot; pipeline_version_id</small></div>
-          <div class="relation-edge cascade"><code>workflow_runs &rarr; run_events</code><small>cascade &middot; run_id</small></div>
-          <div class="relation-edge cascade"><code>workflow_runs &rarr; research_questions</code><small>cascade &middot; source_run_id</small></div>
-          <div class="relation-edge set-null"><code>research_questions &rarr; claims</code><small>set null &middot; question_id</small></div>
-          <div class="relation-edge cascade"><code>claims &rarr; claim_evidence</code><small>cascade &middot; claim_id</small></div>
-          <div class="relation-edge cascade"><code>citations &rarr; claim_evidence</code><small>cascade &middot; citation_id</small></div>
-          <div class="relation-edge cascade"><code>claims &rarr; claim_relations</code><small>cascade &middot; source/target_claim_id</small></div>
-          <div class="relation-edge "><code>workflow_runs &rarr; reports</code><small>restrict &middot; source_run_id</small></div>
-          <div class="relation-edge cascade"><code>reports &rarr; report_sections</code><small>cascade &middot; report_id</small></div>
-          <div class="relation-edge cascade"><code>workflow_runs &rarr; human_decisions</code><small>cascade &middot; run_id</small></div>
-          <div class="relation-edge cascade"><code>evaluation_datasets &rarr; evaluation_cases</code><small>cascade &middot; dataset_id</small></div>
-          <div class="relation-edge "><code>pipeline_versions &rarr; evaluation_runs</code><small>restrict &middot; pipeline_version_id</small></div>
-          <div class="relation-edge cascade"><code>evaluation_runs &rarr; evaluation_scores</code><small>cascade &middot; evaluation_run_id</small></div>
-          <div class="relation-edge set-null"><code>workflow_runs &rarr; fault_exercises</code><small>set null &middot; target_run_id</small></div>
+
+      <section id="vercel-rewrite">
+        <p class="eyebrow">Function-centered . Vercel + server-side rewrite</p>
+        <h2>Vercel rewrites /api/v1/* same-origin to dodge a corporate proxy</h2>
+        <p class="sub">[Project fact] <code>apps/web/next.config.ts</code> defines <code>async rewrites()</code> that, when <code>NODE_ENV !== "development"</code>, sends <code>/api/v1/:path*</code> to <code>${backendOrigin}/api/v1/:path*</code>.</p>
+
+        <p>Without the rewrite, the browser would call <code>https://researchmate-backend-dev.onrender.com/api/v1/*</code> directly. The problem: corporate or ISP proxies sometimes intercept that <code>*.onrender.com</code> host and hand the browser an HTML warning page instead of the JSON it expected &mdash; health checks break, authenticated calls break, everything looks broken to a user on a corporate laptop even though the backend is healthy.</p>
+
+        <p>Vercel's rewrite changes who talks to Render. The browser now calls a same-origin URL on the Vercel host (e.g. <code>research-mate-web.vercel.app/api/v1/*</code>), which the proxy does not intercept. Vercel's server then issues a server-to-server fetch to the Render backend. Because Vercel's servers are not behind the user's corporate proxy, the request reaches Render as JSON, and the response comes back as JSON. <strong>This is the single most asked-about infra decision in interviews</strong> because it touches CORS, same-origin cookies, and an unexpected deployment-environment constraint at once.</p>
+
+        <div class="fact">
+          <b>Key mechanisms</b>
+          <ul>
+            <li><b>Dev returns []</b> &mdash; in <code>NODE_ENV=development</code> no rewrite runs, so the local frontend talks straight to <code>http://localhost:8000/api/v1</code>. [Project fact]</li>
+            <li><b>backendOrigin derivation</b> &mdash; <code>NEXT_PUBLIC_API_BASE_URL</code> has its trailing <code>/api/v1</code> stripped to get the bare origin; the same env is the local fallback. One knob configures both modes. [Project fact]</li>
+            <li><b>CORS_ALLOWED_ORIGINS</b> &mdash; render.yaml pins it to <code>https://research-mate-web.vercel.app</code>. The backend only accepts cross-origin browser calls from that exact origin; a script calling from another origin is rejected. [Project fact]</li>
+            <li><b>Side benefit — same-origin cookies</b> &mdash; because the browser sees only the Vercel origin, cookies do not cross origins, which keeps SameSite defaults from breaking auth. [Reasonable inference]</li>
+          </ul>
         </div>
+
+        <div class="notice">
+          <b>Trade-off</b>: every API call now adds one Vercel hop (extra latency) and is capped by Vercel function execution time, which can hit long-running uploads. A presigned-S3 upload path was considered earlier and rejected; same-origin proxy is the project's chosen ceiling. [Project fact]
+        </div>
+
+        <h3>Interview question tree</h3>
+        <pre class="command-block">Why rewrite /api/v1/* through Vercel instead of letting the browser call Render directly?
+└─ What does the corporate proxy actually do to *.onrender.com?
+   └─ How does server-to-server fetch bypass it where the browser cannot?
+Answer: The proxy inspects outbound HTTP and swaps *.onrender.com responses with
+an HTML interstitial. The browser is behind the proxy; Vercel's edge is not.
+By having Vercel make the call, *.onrender.com never appears on the
+user-controlled wire, so the proxy has nothing to intercept.
+
+How does the backend know the request is legitimate?
+└─ CORS_ALLOWED_ORIGINS is set to the Vercel origin — what attack does that stop?
+   └─ If the proxy intercepts JSON, why does it not intercept the Vercel edge fetch?
+Answer: CORS_ALLOWED_ORIGINS stops another site's script from talking to the
+backend through the user's cookies. The Vercel fetch is server-to-server and
+never traverses the corporate proxy, so the proxy does not get to swap it.</pre>
       </section>
+
+      <section id="supabase-postgres">
+        <p class="eyebrow">Tech-stack-centered . Supabase Postgres</p>
+        <h2>RLS isolates tenants; migrations are additive, SHA-256 stamped and advisory-locked</h2>
+        <p class="sub">[Project fact] Supabase provides managed Postgres at <code>tjdkdganvszqawxspveg.supabase.co</code>; all business tables enforce RLS keyed on <code>auth.uid()</code>; <code>scripts/apply_migrations.py</code> runs migrations under <code>pg_advisory_xact_lock(726_334_129)</code> with SHA-256 checksums.</p>
+
+        <p>Postgres is the single source of truth for everything except embeddings. <strong>What "single source of truth" buys you:</strong> when a worker crashes mid-task, Postgres still holds the agreed state; restart picks up the lease row and continues. There is no second store to reconcile.</p>
+
+        <p>Tenant isolation is enforced in the database, not in application code. Supabase auth issues a JWT whose <code>sub</code> claim is the user UUID. Postgres RLS policies compare that claim against a <code>user_id</code> column on each business row; a row whose <code>user_id</code> doesn't match the JWT is refused at the database. <strong>[Project fact]</strong> Even if the API has a bug that forgets to filter by user, the database refuses to hand back another tenant's row.</p>
+
+        <div class="fact">
+          <b>Migration mechanics (apply_migrations.py)</b>
+          <ul>
+            <li><b>21 additive SQL files</b> &mdash; sorted by version prefix <code>YYYYMMDDNNNN_*.sql</code>; the validator rejects empty files and any file containing the literal string <code>drop database</code>. [Project fact]</li>
+            <li><b>pg_advisory_xact_lock(726_334_129)</b> &mdash; a hard-coded integer key; two concurrent apply attempts on the same Postgres cannot both proceed. The lock is transaction-scoped, so commit or rollback releases it. [Project fact]</li>
+            <li><b>SHA-256 ledger</b> &mdash; <code>researchmate_schema_migrations(version, checksum_sha256, applied_at)</code>. If an already-applied file's hash later changes, the runner raises and aborts. Replay drift cannot sneak through silently. [Project fact]</li>
+            <li><b>ALLOW_SCHEMA_APPLY=1</b> &mdash; without this env the apply path refuses to run, which is the human approval gate. CI's <code>npm run check:migrations</code> runs <code>--check-files</code> only, no DB write. [Project fact]</li>
+            <li><b>Idempotent statements</b> &mdash; every <code>create table</code>, <code>create index</code> and <code>create policy</code> uses <code>if not exists</code> or a <code>drop policy if exists ... create policy</code> pair, so the same file can be safely re-run within a transaction. [Project fact]</li>
+          </ul>
+        </div>
+
+        <div class="notice">
+          <b>RLS edges to call out</b> <code>outbox_events</code> has no authenticated-user read policy — only the service role can read it, so a misconfigured client JWT cannot leak coordinator rows. <code>pipeline_versions</code> layers developer and admin role policies above plain user-scope. [Project fact]
+        </div>
+
+        <h3>Interview question tree</h3>
+        <pre class="command-block">Why enforce isolation in Postgres RLS instead of in the API?
+└─ What can still go wrong even with RLS on?
+   └─ How does auth.uid() map onto the JWT the API sends?
+Answer: RLS means a buggy API still cannot leak another tenant's rows — the DB
+refuses. The remaining risks are: leaking the service-role key, or shipping a
+policy that matches the wrong column. auth.uid() reads the JWT sub claim
+(Supabase auth populates it server-side via request headers).
+
+Why pg_advisory_xact_lock with a magic key?
+└─ What would happen with two migration runners racing?
+   └─ Why advisory lock vs. SELECT ... FOR UPDATE on a sentinel row?
+Answer: A sentinel-row lock needs a real row to lock and can be skipped if
+someone deletes the row. An advisory lock is keyed on an integer and does not
+need a row at all. Transaction scope means the lock dies with the transaction,
+so a crashed runner releases the lock on rollback.
+
+How does the SHA-256 checksum protect against replay drift?
+└─ What if you legitimately need to edit an applied migration?
+   └─ Why are migrations additive and not destructive?
+Answer: You never edit an applied file — you ship a new forward migration that
+adds the column or undoes the previous behavior. The SHA-256 ledger enforces
+that contract: editing an applied file's bytes makes the runner fail. Destructive
+ops are rejected up front by the validator so an operator cannot accidentally
+DROP TABLE in production.</pre>
+      </section>
+
+      <section id="qdrant-hybrid">
+        <p class="eyebrow">Tech-stack-centered . Qdrant hybrid retrieval</p>
+        <h2>Native BM25 + dense 4096-d vectors; owner filters on every branch</h2>
+        <p class="sub">[Project fact] <code>infra/qdrant/researchmate_chunks.json</code> declares a dense vector (<code>size: 4096</code>, <code>Cosine</code>), an IDF-weighted sparse vector and <code>fusion: rrf</code>; <code>required_filters</code> lists <code>user_id</code>, <code>project_id</code>, <code>source_type</code>.</p>
+
+        <p>Text retrieval has two failure modes. A pure keyword search (BM25) misses paraphrase — asking "how do I cancel a lease?" fails to retrieve "termination of tenancy." A pure dense-vector search misses exact rare tokens — a doc that says "CVE-2026-1234" will not surface for "CVE-2026-1234" if the embedding has not seen it. Hybrid retrieval runs both and fuses their rankings.</p>
+
+        <p>[Project fact] Qdrant v3 collection <code>researchmate_chunks_v3</code> lives server-side and carries both retrievers in one collection. A 4096-d dense vector produced by NVIDIA <code>nv-embed-v1</code> covers paraphrase; a native BM25 sparse vector (<code>qdrant/bm25</code>, <code>modifier: idf</code>) covers exact term match. <strong>[Reasonable inference]</strong> RRF (Reciprocal Rank Fusion) interleaves the two ranked lists so the project gets the best of each without running a separate rerank step just for the candidate set. (A separate ColBERT rerank collection <code>researchmate_chunks_v2</code> is wired in afterwards for top candidates only.)</p>
+
+        <div class="fact">
+          <b>Key mechanisms</b>
+          <ul>
+            <li><b>Named vector config</b> &mdash; one collection holds <code>{"dense": VectorParams(4096, COSINE), "bm25": SparseVectorParams(modifier=IDF)}</code>. One query, two retrievers, fused output. [Project fact]</li>
+            <li><b>Required filter trio</b> &mdash; every query must filter by <code>user_id</code> + <code>project_id</code> + <code>source_type</code>. Payload indexes on those plus <code>document_id</code> keep filtered queries fast. [Project fact]</li>
+            <li><b>Resumable backfill</b> &mdash; <code>provision_qdrant_hybrid.py</code> batches <code>BATCH_SIZE=24</code> chunks, stores a corpus SHA-256 fingerprint in <code>researchmate_vector_migrations</code>, and only re-embeds when the fingerprint changes. Stale points are reconciled by scroll + delete. [Project fact]</li>
+            <li><b>cloud_inference=True</b> &mdash; Qdrant computes the sparse and dense vectors server-side instead of the client shipping them. For BM25 the client sends the raw text and Qdrant builds the sparse vector; for dense Qdrant calls the embedding API. [Reasonable inference]</li>
+          </ul>
+        </div>
+
+        <div class="notice">
+          <b>Magic numbers to justify</b> <code>BATCH_SIZE=24</code>, <code>timeout=180</code>s, BM25 document payload truncated to <code>1200</code> chars. <b>[Project fact]</b> Values are pinned constants in <code>provision_qdrant_hybrid.py</code>; <b>[Optimization suggestion]</b> benchmark batch size against Qdrant upsert latency and the NVIDIA embedding API rate limit — no project-level benchmark evidence in the repo.
+        </div>
+
+        <h3>Interview question tree</h3>
+        <pre class="command-block">Why dense + BM25 fused with RRF, instead of one or the other?
+└─ What does dense catch that BM25 misses?
+   └─ What does BM25 catch that dense misses?
+      └─ Why is IDF weighting on the sparse vector important?
+Answer: Dense catches paraphrase and shared intent. BM25 catches exact rare
+tokens (CVE IDs, product codes). IDF weighting down-weights common words on the
+sparse side, so rare terms surface — without IDF, "the" and "CVE-2026-1234"
+would contribute equally.
+
+Why are user_id + project_id required on every query, not optional filters?
+└─ What happens if you forget the filter — does Qdrant leak rows?
+   └─ Why payload indexes on exactly those four fields, not all?
+Answer: Forgetting the filter means a query could match another tenant's chunks.
+required_filters in the collection config refuses an unfiltered query at the
+client level. Payload indexes are paid storage and build time, so the project
+indexes only the fields every query filters on.
+
+How does the backfill stay resumable and never re-embed the same corpus?
+└─ What does the corpus fingerprint protect against?
+   └─ How are points that exist in Qdrant but not in Postgres reconciled?
+Answer: The fingerprint is sha256 over (chunk_id, chunk_text sha256) for the
+whole corpus. If the source text changed, the fingerprint changes and the run
+re-embeds. Stale points (in Qdrant but not Postgres) are detected by scroll and
+deleted before upsert.</pre>
+      </section>
+
       <section id="further">
         <p class="eyebrow">Further reading</p>
         <h2>Related documentation</h2>
         <div class="doc-index">
-          <a class="doc-link" href="../contracts/data/index.html"><b>Database contracts</b><span>Full table definitions, RLS policies, and data lifecycle.</span></a>
-          <a class="doc-link" href="../contracts/api/index.html"><b>API contracts</b><span>Request/response specs and auth flow for 49 operations.</span></a>
-          <a class="doc-link" href="../architecture/index.html"><b>Architecture &amp; stack</b><span>System layers, data flow, and security boundaries.</span></a>
-          <a class="doc-link" href="backend.html"><b>Backend guide</b><span>File-by-file source analysis of the FastAPI app.</span></a>
-          <a class="doc-link" href="worker.html"><b>Worker guide</b><span>Celery worker task delivery and lease mechanism.</span></a>
-          <a class="doc-link" href="cicd.html"><b>CI/CD</b><span>Continuous integration and deployment pipeline.</span></a>
+          <a class="doc-link" href="../contracts/data/index.html"><b>Database contracts</b><span>Full table definitions and RLS policies.</span></a>
+          <a class="doc-link" href="cicd.html"><b>CI/CD guide</b><span>Pipeline, pre-commit hooks, migration runner and coverage gate.</span></a>
+          <a class="doc-link" href="ai-stack.html"><b>AI stack</b><span>Hybrid retrieval architecture and rerank path.</span></a>
+          <a class="doc-link" href="worker.html"><b>Worker guide</b><span>Celery task delivery, lease, and SoftTimeLimit handling.</span></a>
         </div>
       </section>
     </div>
     <aside class="toc"><b>On this page</b>
-      <a href="#stack">Tech stack</a>
-      <a href="#tree">Directory tree</a>
-      <a href="#migrations">SQL migrations</a>
-      <a href="#tables">Table inventory</a>
-      <a href="#qdrant">Qdrant</a>
-      <a href="#openapi">OpenAPI</a>
-      <a href="#scripts">Scripts</a>
-      <a href="#proof-chain">Proof chain</a>
-      <a href="#relationships">Relationships</a>
+      <a href="#render-topology">Render topology</a>
+      <a href="#vercel-rewrite">Vercel rewrite</a>
+      <a href="#supabase-postgres">Supabase Postgres</a>
+      <a href="#qdrant-hybrid">Qdrant hybrid</a>
       <a href="#further">Further reading</a>
     </aside></div>
   </main>
-  <footer class="shell footer">ResearchMate infrastructure learning guide . written 6 August 2026</footer>
+  <footer class="shell footer">ResearchMate infrastructure interview guide . written 21 August 2026</footer>
   <script src="../assets/site.js"></script>
 </body>
 </html>

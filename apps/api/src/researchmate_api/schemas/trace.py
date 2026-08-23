@@ -42,7 +42,9 @@ class DeveloperTrace(BaseModel):
     run_id: UUID
     execution_plan: ExecutionPlan
     router_reason: str = Field(max_length=MAX_ROUTER_REASON_LENGTH)
-    retrieved_chunks: list[dict] = Field(default_factory=list, max_length=MAX_RETRIEVED_CHUNKS_SUMMARY)
+    retrieved_chunks: list[dict] = Field(
+        default_factory=list, max_length=MAX_RETRIEVED_CHUNKS_SUMMARY
+    )
     tool_calls: list[ToolCallTrace] = Field(default_factory=list, max_length=MAX_TOOL_CALLS_SUMMARY)
     validation_result: dict
     latency_ms: int | None = Field(default=None, ge=MIN_LATENCY_MS)

@@ -2,9 +2,9 @@
 <html lang="zh">
 <head>
   <meta charset="utf-8"/>
+  <meta content="ResearchMate CI/CD 面试深挖：GitHub Actions 流水线、pre-commit、SHA-256 摘要的 SQL 迁移 runner、覆盖率门禁。0 基础也能读懂，保留面试深度。" name="description"/>
   <meta content="width=device-width,initial-scale=1" name="viewport"/>
-  <meta content="ResearchMate CI/CD 学习指南:逐文件解析 GitHub Actions 流水线、多阶段 Dockerfile、Render 部署配置、依赖管理与环境变量分类。" name="description"/>
-  <title>ResearchMate . CI/CD 学习</title>
+  <title>ResearchMate . CI/CD 面试指南</title>
   <link href="../assets/site.css" rel="stylesheet"/>
   <style>
     .layout section > h2 { cursor: pointer; user-select: none; }
@@ -12,7 +12,7 @@
     .layout section.collapsed > h2::before { transform: rotate(-90deg); }
     .layout section.collapsed > :not(h2):not(.eyebrow) { display: none; }
   </style>
-  <button class="back-to-top" aria-label="Back to top" data-back-to-top hidden>
+  <button class="back-to-top" aria-label="返回顶部" data-back-to-top hidden>
     <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="M9 3L3 9l1.4 1.4L9 5.8l4.6 4.6L15 9L9 3z" fill="currentColor"/></svg>
   </button>
   <script>
@@ -27,7 +27,7 @@
   <style>.module-nav{border-top:1px solid var(--g200)}.module-nav .shell{padding:6px 0 12px}.module-nav a{font-size:11.5px;padding:5px 11px}</style>
 </head>
 <body>
-  <header class="mast"><div class="shell mast-row"><a class="brand" href="../index.zh.html">ResearchMate 文档</a><div class="mast-right"><span class="stamp">CI/CD . 2026 年 8 月 7 日</span><a class="lang-toggle" href="cicd.html" hreflang="en" lang="en">English</a></div></div></header>
+  <header class="mast"><div class="shell mast-row"><a class="brand" href="../index.zh.html">ResearchMate 文档</a><div class="mast-right"><span class="stamp">CI/CD . 2026 年 8 月 21 日</span><a class="lang-toggle" href="cicd.html" hreflang="en" lang="en">English</a></div></div></header>
   <nav aria-label="文档" class="global"><div class="shell">
     <a href="../index.zh.html">概览</a>
     <a href="../product/index.zh.html">产品与路线图</a>
@@ -36,562 +36,322 @@
     <a href="../contracts/api/index.zh.html">API</a>
     <a aria-current="page" href="index.zh.html">学习</a>
   </div></nav>
-  <nav aria-label="子页面" class="global module-nav"><div class="shell">
+  <nav aria-label="学习模块" class="global module-nav"><div class="shell">
     <a href="frontend.zh.html">前端</a>
     <a href="backend.zh.html">后端</a>
     <a href="worker.zh.html">Worker</a>
     <a href="infra.zh.html">基础设施</a>
     <a aria-current="page" href="cicd.zh.html">CI/CD</a>
-    <a href="contracts-tests.zh.html">合约与测试</a>
-    <a href="flows.zh.html">切面分析</a>
-    <a href="ai-stack.zh.html">AI 技术栈</a>
+    <a href="contracts-tests.zh.html">契约与测试</a>
+    <a href="flows.zh.html">流程分析</a>
+    <a href="ai-stack.zh.html">AI 栈</a>
+      <a href="project-structure.zh.html">结构</a>
   </div></nav>
   <main class="shell">
     <div class="hero">
-      <p class="eyebrow">GitHub Actions / Docker / Render / Vercel / uv / npm workspaces</p>
-      <h1>CI/CD . 流水线与部署</h1>
-      <p class="lede">ResearchMate 通过三个 GitHub Actions 工作流发布:主工作流 researchmate-ci 包含 5 个 Job(4 个并行质量门控 + 1 个 ci-success 聚合器)、按需触发的 evaluation-release-gate、按需触发的 recovery-benchmark。CI 检查的正是 Render 为合并后端构建的镜像,所需检查通过后由单个 Render Free 服务自动部署。</p>
+      <p class="eyebrow">GitHub Actions / pre-commit / 迁移 runner / 覆盖率门禁 . 4 个主题，面试导向</p>
+      <h1>CI/CD . 面试深挖</h1>
+      <p class="lede">你 push 之后，CI 并行做四件事：跑 Python 测试带 69% 覆盖率门禁；构建前端并跑单测加依赖审计；跑 Playwright 端到端浏览器测试；扫描 Docker 镜像找 HIGH/CRITICAL 漏洞。第五个聚合 job 名叫 <code>ci-success</code>，只有前四个全绿它才绿；Render 的部署门禁就看这一个 job。下面深挖：流水线结构与 <code>ci-success</code> 哨兵；pre-commit 的 ruff + pyright hook 复用锁定的 uv 环境；SQL 迁移 runner 的 advisory lock 和 SHA-256 账本；以及挂在 <code>npm run check:all</code> 上的 69% 覆盖率门禁。</p>
       <div class="meta">
-        <span class="status local">3 个工作流(ci.yml 含 5 个 Job)</span>
-        <span class="status local">1 个部署 Dockerfile</span>
-        <span class="status local">render.yaml 中 48 个环境变量</span>
-        <span class="status local">11 个 sync:false 密钥</span>
-        <span class="status local">checksPass 自动部署</span>
-        <span class="status local">双锁策略: uv.lock + package-lock.json</span>
+        <span class="status local">ci.yml 5 job + ci-success</span>
+        <span class="status local">总计 3 个 workflow</span>
+        <span class="status local">--frozen uv + npm ci 双锁</span>
+        <span class="status local">69% 覆盖率门禁</span>
+        <span class="status local">SHA-256 迁移账本</span>
       </div>
     </div>
     <div class="layout"><div class="content">
 
-      <section id="stack">
-        <p class="eyebrow">技术栈基础</p>
-        <h2>定义构建与部署生命周期的 7 个工具</h2>
-        <p class="sub">每张卡片说明该工具的通用职责,以及 ResearchMate 中的具体用法。</p>
-        <div class="grid two">
-          <article class="fact"><b>CI/CD</b><p>持续集成 / 持续部署 (Continuous Integration / Continuous Deployment) 是通过可复现的流水线自动测试、构建、扫描并部署每次代码变更的实践。ResearchMate 将 CI 视为发布就绪的唯一事实来源:除非全部五个门控 Job 通过且 ci-success 聚合器确认每个结果均为 success,否则任何 commit 都不会进入生产环境。</p></article>
-          <article class="fact"><b>GitHub Actions</b><p>工作流自动化平台,在 push 到 main 或 develop 以及每个 pull request 时触发。仓库共有三个工作流:<code>ci.yml</code>(researchmate-ci,含 5 个 Job:4 个并行质量门控 + 1 个 ci-success 聚合器)、<code>evaluation-release-gate.yml</code>(按需触发,接受 <code>evaluation_run_id</code> 输入)、<code>recovery-benchmark.yml</code>(按需触发,接受 <code>trials</code> 输入,默认 1000)。主工作流使用 concurrency group 配合 cancel-in-progress 取消过时运行,将每个 action 固定到主版本号,并运行显式 timeout-minutes(20 至 35 分钟)。ci-success Job 使用 <code>if: always()</code> 配合 <code>needs</code> 聚合全部四个质量门控。</p></article>
-          <article class="fact"><b>Docker</b><p>仓库只保留一个多阶段 Dockerfile，因为 Render 在同一镜像中运行 API、worker 和 dispatcher。镜像固定 uv 和 <code>python:3.13-slim</code>，安装锁定的 workspace、原生解析库和 Docling 模型，随后移除构建工具，并以 uid 10001 运行。CI 对这一个部署制品执行 lint、构建和扫描。</p></article>
-          <article class="fact"><b>Render</b><p>云部署平台,将合并的 backend-plus-worker 服务作为单个 Free 层 Docker web 服务托管在 Oregon 区域。render.yaml 声明一个包含 48 条目的 envVarGroups 块(37 条带值,11 条 sync:false 密钥),autoDeployTrigger 设为 checksPass,并使用 buildFilter 将重建限制在相关路径变更时触发。Render 探测常量时间的 <code>/api/v1/healthz</code> 存活端点；运维仍通过 <code>/api/v1/readyz</code> 检查依赖就绪。</p></article>
-          <article class="fact"><b>Vercel</b><p>apps/web 中 Next.js 16.3.0 前端应用的部署平台。Vercel 独立于后端构建并服务生产前端。render.yaml 中的 CORS_ALLOWED_ORIGINS 设为 Vercel 源地址,使 API 接受来自已部署前端的浏览器请求。</p></article>
-          <article class="fact"><b>uv</b><p>Astral 开发的 Python 包管理器与项目管理器,在 CI 和 Dockerfile 中固定为 0.12.1 版本。uv 解析 monorepo workspace(apps/api + workers/ai-worker),通过 uv.lock 以 --frozen 标志安装锁定依赖,并支持 --all-packages 在一条命令中安装所有 workspace 成员。setup-uv action 在 CI 中启用缓存以加速运行。</p></article>
-          <article class="fact"><b>npm workspaces</b><p>JavaScript monorepo 管理方案,通过根 package.json 中的 packageManager 声明 npm@11.6.0。workspaces 数组包含 apps/web。CI 运行 npm install --no-audit --no-fund 安装完整 workspace 树,package-lock.json 锁文件保证本地与 CI 环境间的可复现 JavaScript 依赖解析。</p></article>
-        </div>
-      </section>
-
       <section id="ci-pipeline">
-        <p class="eyebrow">CI/CD 工作流</p>
-        <h2>从 commit 到线上:五个质量流与部署提升链</h2>
-        <p class="sub">每次 push 到 main/develop 以及每个 pull request 都遵循同一条门禁链。状态转换遵循 planned → ready → executed → verified 四态模型:前四个并行门控 Job 在 ready 阶段验证源 artifact，ci-success 聚合门禁在 verified 阶段确认全部成功。只有聚合门禁通过后，Render 的 autoDeployTrigger: checksPass 才触发生产部署提升——在 CI 绿灯与生产部署之间建立硬依赖。</p>
+        <p class="eyebrow">功能中心 . GitHub Actions 流水线</p>
+        <h2>四个并行质量门禁，由 ci-success 哨兵聚合</h2>
 
-        <!-- 全景预览 chips 条 -->
-        <div class="coverage-strip">
-          <div class="coverage-item"><b>1. 源码变更</b><small>planned — push / PR 触发</small></div>
-          <div class="coverage-item"><b>2. python-quality</b><small>ready — lint + test + coverage 69%</small></div>
-          <div class="coverage-item"><b>3. web-quality</b><small>ready — Vitest + next build + audit</small></div>
-          <div class="coverage-item"><b>4. browser-e2e</b><small>ready — Playwright 验收</small></div>
-          <div class="coverage-item"><b>5. container-quality</b><small>ready — hadolint + Trivy</small></div>
-          <div class="coverage-item"><b>6. ci-success</b><small>verified — 聚合门禁</small></div>
-          <div class="coverage-item"><b>7. Render 部署</b><small>executed — checksPass 提升</small></div>
-          <div class="coverage-item"><b>8. 健康检查上线</b><small>verified — /api/v1/healthz</small></div>
+        <div class="fact">
+          <b>大白话：push 之后，CI 跑 4 件事；4 件全绿 + ci-success 才允许 Render 部署</b>
+          <ul>
+            <li><b>python-quality</b> &mdash; Python 测试 + 69% 覆盖率门禁 + ruff lint + pyright 类型检查 + OpenAPI 漂移检测 + 迁移文件校验。<em>新增一个 API 端点时，CI 检查提交的 OpenAPI spec 与渲染出来的是否一致。</em></li>
+            <li><b>web-quality</b> &mdash; 前端生产构建 + 单元测试 + <code>npm audit</code> 依赖扫描。<em>升级一个 npm 包时，CI 构建并跑单测，发现 prod 依赖里有中等以上漏洞就拦住。</em></li>
+            <li><b>browser-e2e</b> &mdash; Playwright 跑端到端浏览器流程，失败上传报告 artifact 留 7 天便于排查。<em>改了登录流程时，CI 在真浏览器里走完整个用户路径。</em></li>
+            <li><b>container-quality</b> &mdash; hadolint 检查 Dockerfile，带层缓存构建镜像，用 <code>trivy</code> 扫 HIGH/CRITICAL 漏洞。<em>改 Dockerfile 时，CI 扫描生成的镜像找已知 CVE。</em></li>
+            <li><b>ci-success</b> &mdash; 聚合哨兵：在四条之后用 <code>if: always()</code> 跑，断言每条的 result 都是 <code>success</code>。Render 的 <code>checksPass</code> 部署门禁读这个 job。<em>任何一条红 = 不部署。</em></li>
+          </ul>
         </div>
 
-        <!-- 垂直时间线 -->
-        <h3 style="margin-top:28px;">完整门禁时间线</h3>
-        <div class="timeline">
+        <p class="sub">[项目事实] <code>.github/workflows/ci.yml</code> 在 PR 和 push 到 <code>main</code> / <code>develop</code> 时触发。<code>concurrency: cancel-in-progress: true</code> 会杀掉同分支的旧 run。上面四个 job 并行跑；<code>ci-success</code> 设了 <code>needs: [四个]</code> 和 <code>if: always()</code>。</p>
 
-          <div class="event">
-            <h3>1. 源码变更 <span class="status">planned</span></h3>
-            <p>开发者 push 到 main/develop 或发起 PR。GitHub Actions 触发 researchmate-ci 工作流。</p>
-            <div class="flow">
-              <div class="node"><b>触发条件</b><small>push to main/develop<br/>每个 pull request</small></div>
-              <div class="node"><b>并发控制</b><small>concurrency group<br/>cancel-in-progress: true</small></div>
-              <div class="node"><b>工作流定义</b><small>.github/workflows/ci.yml<br/>researchmate-ci</small></div>
-            </div>
-          </div>
+        <p>这条流水线是发布就绪的唯一事实来源 —— Render 的 <code>autoDeployTrigger: checksPass</code> 等的就是这一组检查。<strong>关键设计</strong>：不让 GitHub 在任一 job 失败时隐式拒绝整条 workflow，而是显式起一个聚合 job，对每个下游 result 跑 <code>test "$RESULT" = success</code>。为什么这样：GitHub 的隐式 <code>needs</code> 把 <code>continue-on-error: true</code> 的 job 当成不阻断，所以兄弟 job 软失败会从默认门禁里漏过去。显式断言把门禁收成单一、可命名、可检查、且不怕软失败的关卡。</p>
 
-          <div class="event">
-            <h3>2. 四个并行质量流 <span class="status">ready</span></h3>
-            <p>python-quality、web-quality、browser-e2e 和 container-quality 在 ubuntu-latest 上并发运行。它们相互独立、无依赖关系，仅共享源 artifact。全部通过才进入下一步。</p>
-            <div class="journey-map">
-              <div class="journey-step">
-                <span class="step-no">FLOW 1</span>
-                <b>python-quality</b>
-                <small>35 min · 后端质量</small>
-                <p style="margin-top:8px;font-size:12px;">lint + test + coverage 69% + OpenAPI + migrations</p>
-              </div>
-              <div class="journey-step">
-                <span class="step-no">FLOW 2</span>
-                <b>web-quality</b>
-                <small>20 min · 前端质量</small>
-                <p style="margin-top:8px;font-size:12px;">Vitest + next build + npm audit</p>
-              </div>
-              <div class="journey-step">
-                <span class="step-no">FLOW 3</span>
-                <b>browser-e2e</b>
-                <small>20 min · 端到端验收</small>
-                <p style="margin-top:8px;font-size:12px;">Playwright 1.62 浏览器验收</p>
-              </div>
-              <div class="journey-step">
-                <span class="step-no">FLOW 4</span>
-                <b>container-quality</b>
-                <small>25 min · 容器安全</small>
-                <p style="margin-top:8px;font-size:12px;">hadolint + Docker build + Trivy CVE</p>
-              </div>
-            </div>
-          </div>
-
-          <div class="event">
-            <h3>3. ci-success 聚合门禁 <span class="status">verified</span></h3>
-            <p>使用 if: always() 运行，needs 全部四个 Job。断言四个环境变量均等于 success。任一门控失败或被取消，此步骤失败，工作流标红，部署被阻止。</p>
-            <div class="flow">
-              <div class="node"><b>稳定契约</b><small>ci-success<br/>外部名称不变</small></div>
-              <div class="node"><b>断言</b><small>PYTHON_RESULT = success<br/>WEB_RESULT = success<br/>E2E_RESULT = success<br/>CONTAINER_RESULT = success</small></div>
-              <div class="node"><b>失败处理</b><small>工作流标红<br/>Render 部署被阻止</small></div>
-            </div>
-          </div>
-
-          <div class="event">
-            <h3>4. Render checksPass 提升 <span class="status">executed</span></h3>
-            <p>Render 观察 main 分支上的 GitHub 检查状态，仅当所有检查报告成功时才开始新部署。buildFilter 确保不相关路径变更不触发重建。</p>
-            <div class="flow">
-              <div class="node"><b>触发机制</b><small>autoDeployTrigger<br/>checksPass</small></div>
-              <div class="node"><b>路径过滤</b><small>buildFilter<br/>7 个路径模式</small></div>
-              <div class="node"><b>Docker 构建</b><small>workers/ai-worker/Dockerfile<br/>dockerContext: .</small></div>
-            </div>
-          </div>
-
-          <div class="event">
-            <h3>5. 健康检查上线 <span class="status">verified</span></h3>
-            <p>Render 构建镜像、应用环境变量、启动容器。探测 <code>/api/v1/healthz</code> 返回 200 后标记 live 并路由流量。数据库、Redis、Qdrant 与 Worker 的严格依赖检查仍保留在 <code>/api/v1/readyz</code>，不再占用平台五秒存活超时。</p>
-            <div class="flow">
-              <div class="node"><b>健康检查</b><small>/api/v1/healthz<br/>HTTP 200 = live</small></div>
-              <div class="node"><b>环境变量</b><small>48 个 envVarGroup<br/>+ 3 个服务级覆盖</small></div>
-              <div class="node"><b>启动命令</b><small>python -m<br/>researchmate_worker<br/>.render_combined</small></div>
-            </div>
-          </div>
-
+        <div class="fact">
+          <b>逐 job（每个门禁实际检查什么）</b>
+          <ul>
+            <li><b>python-quality</b> &mdash; <code>npm run test:python</code>（69% 覆盖率门禁）、<code>npm run check:types</code>（pyright basic）、<code>npm run check:lint</code> + <code>check:openapi</code> + <code>check:migrations</code>；安装用 <code>uv sync --frozen --all-packages --group dev</code>。timeout 35 min。[项目事实]</li>
+            <li><b>web-quality</b> &mdash; <code>npm ci --no-audit --no-fund</code>、<code>npm run test:web</code>、<code>npm run check:web</code>（生产构建）、<code>npm run check:audit</code>（<code>npm audit --omit=dev --audit-level=moderate</code>）。timeout 20 min。[项目事实]</li>
+            <li><b>browser-e2e</b> &mdash; <code>npx playwright install --with-deps chromium</code> 然后 <code>npm run test:e2e</code>；失败上传 <code>apps/web/playwright-report</code> artifact（保留 7 天）。timeout 20 min。[项目事实]</li>
+            <li><b>container-quality</b> &mdash; 对 <code>workers/ai-worker/Dockerfile</code> 跑 <code>hadolint --ignore DL3008</code>，<code>docker build-push-action</code> 用 <code>load: true, push: false</code> + GHA cache 构建，再跑 <code>aquasec/trivy:0.73.0 image --exit-code 1 --ignore-unfixed --severity HIGH,CRITICAL</code>。timeout 25 min。[项目事实]</li>
+            <li><b>ci-success</b> &mdash; <code>if: always()</code>，<code>needs: [python-quality, web-quality, browser-e2e, container-quality]</code>；跑四条字面 <code>test "$X_RESULT" = success</code> 断言。[项目事实]</li>
+          </ul>
         </div>
 
-        <!-- 有效性说明 -->
-        <div class="notice" style="border-left:3px solid var(--clay);background:#fbede8;padding:16px;margin-top:24px;border-radius:0 8px 8px 0;">
-          <b>为什么这个拓扑有效</b>
-          <p style="margin-top:8px;color:var(--g700);">四个独立质量流并行运行而非串行，将墙钟时间从 100 分钟压缩到 35 分钟（最长路径）。ci-success 聚合门禁使用 if: always() 确保即使上游失败也显式报告结果，而非静默跳过。Render 的 checksPass 在 CI 绿灯与生产部署之间建立硬依赖——绿色 build 不等于已提升，只有聚合门禁通过才触发部署。buildFilter 将重建限制在相关路径变更，避免纯文档变更触发不必要的后端重建。</p>
+        <h3>python-quality — Python 测试、类型、lint、契约</h3>
+        <p><strong>跑什么（5 步，35 分钟 timeout）：</strong></p>
+        <ol>
+          <li><code>uv sync --frozen --all-packages --group dev</code> &mdash; 安装锁定的 Python 依赖。<code>--frozen</code> 意味着 <code>uv.lock</code> 是唯一事实来源；lockfile 与 <code>pyproject.toml</code> 不匹配就失败，不会偷偷解决。</li>
+          <li><code>npm run test:python</code> &mdash; <code>coverage run --branch --source=apps/api/src,workers/ai-worker/src -m pytest -q && coverage report --fail-under=69</code>。跑 <code>tests/</code> 下全部测试，测量两个包的分支覆盖率，总覆盖率低于 69% 就阻断。</li>
+          <li><code>npm run check:types</code> &mdash; <code>npx --yes pyright@1.1.390</code>。<code>basic</code> 模式静态类型分析。在运行前抓 <code>None</code> 解引用、参数类型错误、缺失返回标注。</li>
+          <li><code>npm run check:lint</code> &mdash; <code>ruff check apps/api/src workers/ai-worker/src tests</code>。用 ruff 0.16.0 规则（UP、F、E、I 等）lint 三棵树。任何本地未修复的 autofix 违规都会失败。</li>
+          <li><code>npm run check:openapi && npm run check:migrations</code> &mdash; OpenAPI 漂移检查：渲染 FastAPI spec 并与 <code>infra/openapi/openapi.yaml</code> 逐字节对比。迁移文件检查：校验每个 SQL 文件有唯一版本前缀、非空、且不含 <code>drop database</code>。</li>
+        </ol>
+        <p><strong>原理：</strong> 这个 job 是契约门禁。测试验行为；pyright 验类型安全；ruff 验风格一致；OpenAPI 检查验公开 API 契约没偷偷漂移；迁移检查验数据库 schema 文件结构有效。它们合在一起就是"代码是否做到了它声称的"门禁，其他每个 job 都依赖它。</p>
+
+        <h3>web-quality — 构建、单元测试、依赖审计</h3>
+        <p><strong>跑什么（4 步，20 分钟 timeout）：</strong></p>
+        <ol>
+          <li><code>npm ci --no-audit --no-fund</code> &mdash; 严格按 <code>package-lock.json</code> 安装。<code>ci</code>（不是 <code>install</code>）拒绝写 lockfile；<code>package.json</code> 与 lockfile 不一致就失败。<code>--no-audit --no-fund</code> 跳过 npm registry 遥测省约 10s。</li>
+          <li><code>npm run test:web</code> &mdash; <code>npm --workspace @researchmate/web run test</code>。跑 Vitest 前端 workspace 单元测试。覆盖组件渲染、hook 逻辑、工具函数。</li>
+          <li><code>npm run check:web</code> &mdash; <code>npm --workspace @researchmate/web run build</code>。完整 Next.js 生产构建。TypeScript 编译失败或页面 import 错误都会失败。这是前端能否干净编译的最强信号。</li>
+          <li><code>npm run check:audit</code> &mdash; <code>npm audit --omit=dev --audit-level=moderate</code>。扫描生产依赖的已知 CVE。<code>--omit=dev</code> 跳过 devDependencies（不发布）。<code>--audit-level=moderate</code> 意味着 prod 依赖里有中等以上 CVE 就失败。</li>
+        </ol>
+        <p><strong>原理：</strong> 构建 + 测试 + 审计。构建能抓单元测试抓不到的 TypeScript 和 import 错误（一个组件可以错但仍然可 import）。审计抓供应链风险：一个有已知漏洞的传递依赖应该阻断发布，不是部署后才发现。</p>
+
+        <h3>browser-e2e — Playwright 浏览器验收测试</h3>
+        <p><strong>跑什么（4 步，20 分钟 timeout）：</strong></p>
+        <ol>
+          <li><code>npm ci --no-audit --no-fund</code> &mdash; 安装 web 依赖（同 web-quality）。</li>
+          <li><code>npx playwright install --with-deps chromium</code> &mdash; 下载 Chromium + OS 级浏览器依赖（字体、库）。版本钉在 <code>package-lock.json</code> 的 Playwright 版本。</li>
+          <li><code>npm run test:e2e</code> &mdash; 启动 Next.js dev server 在 <code>127.0.0.1:3100</code>，设 <code>NEXT_PUBLIC_DEMO_MODE=true</code>，然后跑 <code>apps/web/e2e/demo-workspace.e2e.ts</code>。</li>
+          <li><em>仅失败时：</em>上传 <code>apps/web/playwright-report</code> 为 7 天 artifact（HTML 报告 + trace + 截图 + 视频）。</li>
+        </ol>
+
+        <p><strong>测试在浏览器里具体检查什么：</strong></p>
+        <p>唯一的测试（<code>demo-workspace.e2e.ts</code>）在真实 Chromium 实例里走完一整条用户旅程。它不是 stub DOM &mdash; 它点击、输入、拖拽、读渲染后的 HTML。[项目事实]</p>
+        <ul>
+          <li><b>Console + 运行时错误监控</b> &mdash; 全程监听 <code>page.on("console")</code> 和 <code>page.on("pageerror")</code>。任何 console error 或未捕获异常都会在测试末尾判失败，即使触发它的断言已经通过。</li>
+          <li><b>网络隔离</b> &mdash; 监听每个 <code>page.on("request")</code>，记录任何 hostname 不是 <code>127.0.0.1</code> 的请求。测试末尾断言 <code>externalRequests === []</code>。这证明 demo 模式不会意外调用云 API、LLM provider 或外部 CDN。</li>
+          <li><b>Healthz mock</b> &mdash; 拦截 <code>**/api/v1/healthz</code> 返回 <code>{"status":"ok"}</code>。应用健康检查在无真实后端时通过。</li>
+          <li><b>聊天旅程</b> &mdash; 导航到 <code>/app?new=1</code>，断言标题 "What can I help with?" 可见，输入研究问题，点击 "Send message"，然后断言用户消息和 AI 回复（含 "retrieval is useful when evidence is relevant"）都出现。</li>
+          <li><b>引用下钻</b> &mdash; 断言引用 "1. Project source, page 3" 可见，点击它，断言 "Grounding and explicit source attribution" 详情面板打开。还断言 URL 变成含 <code>?conversation=</code>（深链接生效）。</li>
+          <li><b>侧边栏拖拽</b> &mdash; 用 ARIA 角色 <code>complementary</code>（不是 CSS class）找侧边栏，用 ARIA 角色 <code>separator</code> 找拖拽手柄，拖 72px，轮询直到侧边栏宽度超过原始宽度 40px。这测的是交互布局，不是静态渲染。</li>
+          <li><b>项目创建</b> &mdash; 点击 "New project"，填名称 "E2E evidence workspace"，点 "Create"，断言 URL 匹配 <code>/app/projects/[^/]+/chat?new=1</code> 且标题 "Chat in E2E evidence workspace" 出现。</li>
+          <li><b>测验生成</b> &mdash; 点 "Quiz"，断言测验面板（ARIA 角色 <code>complementary</code>，name "Project quiz"）可见，点 "Generate quiz"，断言含 "What makes a retrieved conclusion defensible" 的问题出现。</li>
+        </ul>
+
+        <p><strong>原理：</strong></p>
+        <ul>
+          <li><b>确定性 demo 模式</b> &mdash; <code>NEXT_PUBLIC_DEMO_MODE=true</code> 让应用在没有后端、LLM provider 或凭证的情况下返回预置响应。测试可复现：无 flaky API 调用、无限流、无成本。[项目事实]</li>
+          <li><b>无障碍优先断言</b> &mdash; 每个元素都通过 ARIA 角色和可访问名找到（<code>getByRole("complementary", { name: "Workspace navigation" })</code>），不是 CSS class 或 test ID。这意味着测试验证语义 HTML 结构。开发者删掉一个 <code>aria-label</code> 测试就挂 &mdash; 顺带抓无障碍回归。[项目事实]</li>
+          <li><b>浏览器错误即测试失败</b> &mdash; 测试不只检查"正确文本出现了吗"。它检查"整个过程中浏览器是否保持干净"。懒加载组件在断言后渲染出的 console error 仍然判失败。[合理推断]</li>
+          <li><b>CI 专用 Playwright 配置</b> &mdash; CI 里：<code>forbidOnly: true</code>（不允许 <code>test.only</code> 逃逸）、2 次重试、1 个 worker（串行，无并行浏览器实例）、HTML reporter 用于 artifact 上传、失败时保留 trace/截图/视频。[项目事实]</li>
+        </ul>
+
+        <h3>container-quality — Dockerfile lint、镜像构建、CVE 扫描</h3>
+        <p><strong>跑什么（3 步，25 分钟 timeout）：</strong></p>
+        <ol>
+          <li><code>hadolint --ignore DL3008</code> &mdash; 通过官方 hadolint Docker 镜像 lint <code>workers/ai-worker/Dockerfile</code>。<code>DL3008</code>（钉 apt 包版本）被忽略因为基础镜像 <code>python:3.13-slim</code> 自己管 apt 版本。其他规则（DL3005 <code>--no-install-recommends</code>、DL3059 <code>COPY</code> 不带 <code>--chown</code>）仍然生效。</li>
+          <li><code>docker build-push-action</code> 用 <code>load: true, push: false</code> &mdash; 本地构建镜像（不推 registry）。用 GHA 层缓存（<code>cache-from: type=gha, cache-to: type=gha,mode=max</code>）让重复构建复用层。镜像 tag 为 <code>researchmate-render:ci</code>。</li>
+          <li><code>trivy image --exit-code 1 --ignore-unfixed --severity HIGH,CRITICAL</code> &mdash; 扫描构建镜像的层文件系统，找已安装系统包和 Python 包的已知 CVE。<code>--ignore-unfixed</code> 跳过上游还没修复的 CVE（减噪）。<code>--exit-code 1</code> 意味着任何有修复可用的 HIGH 或 CRITICAL CVE 都判失败。</li>
+        </ol>
+        <p><strong>原理：</strong> Dockerfile 就是 Render 部署的确切产物。lint 它能抓 Dockerfile 反模式（缺 <code>--no-install-recommends</code>、以 root 跑、大层浪费）。构建它证明镜像能编译。扫描它在已知漏洞到达生产前抓 OS 级和 Python 级包的 CVE。扫描用 <code>--ignore-unfixed</code> 因为标记不可修复的 CVE 只会造成告警疲劳却没有可操作的修复。</p>
+
+        <h3>ci-success — 聚合哨兵</h3>
+        <p><strong>跑什么（1 步，无 timeout 压力）：</strong></p>
+        <ol>
+          <li>四条字面 <code>test "$X_RESULT" = success</code> 断言，每条上游 job 一条。任何一条返回非零（即任一 job 的 result 不是 <code>success</code>），步骤失败，<code>ci-success</code> 变红。</li>
+        </ol>
+        <p><strong>原理：</strong> GitHub 的 <code>needs</code> 图把 <code>continue-on-error: true</code> 的 job 当成不阻断 &mdash; 软失败的兄弟 job 不会阻断下游 <code>needs</code>。显式断言绕过这一点：<code>ci-success</code> 用 <code>if: always()</code> 跑（所以即使兄弟失败也跑），逐条字面检查 result。Render 的 <code>autoDeployTrigger: checksPass</code> 读这一个 job 的 conclusion。任何一条红 = 不部署。</p>
+
+        <h3>按需触发的 workflow — 评测门禁与恢复压测</h3>
+        <p>除了 <code>ci.yml</code>，仓库还有两个 <code>workflow_dispatch</code> workflow，只在手动触发时运行，不在 push 时跑。[项目事实]</p>
+        <ul>
+          <li><b>evaluation-release-gate</b> &mdash; 手动输入 <code>evaluation_run_id</code> 触发。调 <code>scripts/check_evaluation_gate.py</code>，从 dev API 拉取评测运行的聚合结果，检查六个条件（status=succeeded、summary.complete、execution_succeeded、quality_passed、无回归、pipeline_code_sha 匹配），并对比三个指标阈值（<code>evidence_recall &ge; 0.80</code>、<code>retrieval_mrr &ge; 0.50</code>、<code>retrieval_ndcg &ge; 0.80</code>）。gate 步骤用 <code>continue-on-error: true</code> 让 artifact 上传总是跑；最后一步 <code>test "$GATE_OUTCOME" = success</code> 强制执行决策。[项目事实]</li>
+          <li><b>langgraph-recovery-benchmark</b> &mdash; 手动输入 <code>trials</code>（默认 1000）触发。启动 <code>postgres:16</code> service container，跑 <code>scripts/measure_langgraph_recovery.py</code>，该脚本 fork 子进程写 LangGraph checkpoint、杀进程、尝试恢复。断言恢复率的 95% 置信区间下界 &ge; 99.5%。[项目事实]</li>
+        </ul>
+
+        <div class="notice">
+          <b>值得点名的风险</b>（1）<code>evaluation-release-gate</code> workflow 在 gate 步骤上用了 <code>continue-on-error: true</code> —— <code>gh run watch</code> 会把这个步骤误报为 failed，哪怕 workflow 结论是 success；应读 <code>gh run view --json conclusion</code>。（2）<code>cancel-in-progress: true</code> 的并发组以 <code>github.ref</code> 为 key，所以两个 PR 并行跑，只有同分支的 push 会互相 kill。[合理推断]
         </div>
 
-        <h3>Flow 1: python-quality — 后端质量门控 <span class="status">ready</span></h3>
-        <p class="sub">超时 35 分钟。验证 Python 代码的 lint 合规性、测试通过性、覆盖率阈值、OpenAPI 导出一致性和 migration 有效性。</p>
-        <div class="journey-map">
-          <div class="journey-step">
-            <span class="step-no">STEP 1</span>
-            <b>环境准备</b>
-            <small>setup-uv 0.12.1 (enable-cache) + setup-python 3.13</small>
-            <p style="margin-top:8px;font-size:12px;">uv 缓存命中加速后续运行</p>
-          </div>
-          <div class="journey-step">
-            <span class="step-no">STEP 2</span>
-            <b>依赖安装</b>
-            <small><code>uv sync --frozen --all-packages --group dev</code></small>
-            <p style="margin-top:8px;font-size:12px;"><code>--frozen</code> 拒绝锁文件漂移，<code>--all-packages</code> 安装 workspace 全部成员</p>
-          </div>
-          <div class="journey-step">
-            <span class="step-no">STEP 3</span>
-            <b>测试 + 覆盖率</b>
-            <small><code>npm run test:python</code></small>
-            <p style="margin-top:8px;font-size:12px;"><code>coverage run --branch</code> + <code>pytest -q</code>，覆盖率阈值 69% (<code>--fail-under=69</code>)</p>
-          </div>
-          <div class="journey-step">
-            <span class="step-no">STEP 4</span>
-            <b>类型检查</b>
-            <small><code>npm run check:types</code></small>
-            <p style="margin-top:8px;font-size:12px;">pyright basic 模式，类型错误将阻断 CI</p>
-          </div>
-          <div class="journey-step">
-            <span class="step-no">STEP 5</span>
-            <b>Lint + OpenAPI + Migrations</b>
-            <small><code>npm run check:lint && npm run check:openapi && npm run check:migrations</code></small>
-            <p style="margin-top:8px;font-size:12px;">ruff 零违规，OpenAPI 导出与源码一致，migrations 有效</p>
-          </div>
-        </div>
-        <div class="notice"><strong>门控条件:</strong> 覆盖率 ≥ 69%，ruff 无违规，OpenAPI 导出一致，migrations 有效，pyright 类型检查通过。</div>
+        <h3>面试追问树</h3>
+        <pre class="command-block">为什么显式做 ci-success job，而不是让 GitHub 在任一 job 失败时拒绝？
+└─ if: always() 防的是哪类部分失败场景？
+   └─ Render 的 checksPass 实际怎么消费这个 job 的结论？
+答：兄弟 job 上加 `continue-on-error: true` 不会让默认 `needs` 图失败，因为
+GitHub 把软失败当成 success。ci-success 在四条之后用 `if: always()` 跑，
+逐条 `result == success` 字面断言，让 Render 能挂在一个可命名的 job 上。
+Render 读的是这个 job 的 conclusion，不是 workflow 的。
 
-        <h3>Flow 2: web-quality — 前端质量门控 <span class="status">ready</span></h3>
-        <p class="sub">超时 20 分钟。验证前端单元测试、生产构建和依赖安全。</p>
-        <div class="journey-map">
-          <div class="journey-step">
-            <span class="step-no">STEP 1</span>
-            <b>环境准备</b>
-            <small>setup-node 22 (cache: npm)</small>
-            <p style="margin-top:8px;font-size:12px;">npm 缓存加速安装</p>
-          </div>
-          <div class="journey-step">
-            <span class="step-no">STEP 2</span>
-            <b>依赖安装</b>
-            <small><code>npm install --no-audit --no-fund</code></small>
-            <p style="margin-top:8px;font-size:12px;">安装完整 workspace 树，跳过审计和 fund 信息以加速</p>
-          </div>
-          <div class="journey-step">
-            <span class="step-no">STEP 3</span>
-            <b>单元测试</b>
-            <small><code>npm run test:web</code></small>
-            <p style="margin-top:8px;font-size:12px;">Vitest 4 + coverage-v8 套件全部通过</p>
-          </div>
-          <div class="journey-step">
-            <span class="step-no">STEP 4</span>
-            <b>生产构建</b>
-            <small><code>npm run check:web</code></small>
-            <p style="margin-top:8px;font-size:12px;"><code>next build</code> 成功，确认 TypeScript 编译和生产优化无错误</p>
-          </div>
-          <div class="journey-step">
-            <span class="step-no">STEP 5</span>
-            <b>依赖审计</b>
-            <small><code>npm run check:audit</code></small>
-            <p style="margin-top:8px;font-size:12px;">npm audit 无 moderate+ 级别漏洞</p>
-          </div>
-        </div>
-        <div class="notice"><strong>门控条件:</strong> Vitest 套件通过，next build 成功，零 moderate+ 安全漏洞。</div>
+为什么拆成恰好四个并行 job，而不是一条大 job？
+└─ 每个 job 的隔离换来了什么（缓存、runner、timeout）？
+   └─ container-quality（trivy + hadolint）为什么单列？
+答：并行 job 各跑各的 runner，慢的 Python 测试不阻塞前端构建。缓存按
+技术栈分开（uv vs npm）。timeout 按 job 调。container-quality 单列
+是因为它产出 Docker 镜像，每次生产重启都靠它，所以单独扫 CVE，不等
+代码测试跑完。
 
-        <h3>Flow 3: browser-e2e — 端到端验收门控 <span class="status">ready</span></h3>
-        <p class="sub">超时 20 分钟。使用 Playwright 在真实浏览器中验证关键用户流程。</p>
-        <div class="journey-map">
-          <div class="journey-step">
-            <span class="step-no">STEP 1</span>
-            <b>环境准备</b>
-            <small>setup-node 22 (cache: npm)</small>
-            <p style="margin-top:8px;font-size:12px;">npm 缓存加速安装</p>
-          </div>
-          <div class="journey-step">
-            <span class="step-no">STEP 2</span>
-            <b>依赖安装</b>
-            <small><code>npm install --no-audit --no-fund</code></small>
-            <p style="margin-top:8px;font-size:12px;">安装完整 workspace 树</p>
-          </div>
-          <div class="journey-step">
-            <span class="step-no">STEP 3</span>
-            <b>浏览器安装</b>
-            <small><code>npx playwright install --with-deps chromium</code></small>
-            <p style="margin-top:8px;font-size:12px;">安装 Chromium 及其系统依赖</p>
-          </div>
-          <div class="journey-step">
-            <span class="step-no">STEP 4</span>
-            <b>验收测试</b>
-            <small><code>npm run test:e2e</code></small>
-            <p style="margin-top:8px;font-size:12px;">Playwright 1.62 验收流程全部通过</p>
-          </div>
-          <div class="journey-step">
-            <span class="step-no">STEP 5</span>
-            <b>失败报告</b>
-            <small>上传 playwright-report artifact（保留 7 天）</small>
-            <p style="margin-top:8px;font-size:12px;">失败时提供可下载的 HTML 报告用于调试</p>
-          </div>
-        </div>
-        <div class="notice"><strong>门控条件:</strong> Playwright 验收流程全部通过。失败时 artifact 保留 7 天供调试。</div>
-
-        <h3>Flow 4: container-quality — 容器安全门控 <span class="status">ready</span></h3>
-        <p class="sub">超时 25 分钟。验证 Dockerfile 规范性、镜像可构建性和镜像安全。</p>
-        <div class="journey-map">
-          <div class="journey-step">
-            <span class="step-no">STEP 1</span>
-            <b>Dockerfile lint</b>
-            <small>hadolint v2.15.1 检查 <code>workers/ai-worker/Dockerfile</code>（<code>--ignore DL3008</code>）</small>
-            <p style="margin-top:8px;font-size:12px;">Dockerfile 符合最佳实践，忽略 DL3008（apt 版本固定）</p>
-          </div>
-          <div class="journey-step">
-            <span class="step-no">STEP 2</span>
-            <b>Buildx 设置</b>
-            <small>docker/setup-buildx-action v4</small>
-            <p style="margin-top:8px;font-size:12px;">启用 BuildKit 构建缓存</p>
-          </div>
-          <div class="journey-step">
-            <span class="step-no">STEP 3</span>
-            <b>最终 Render 镜像构建</b>
-            <small>构建 <code>researchmate-render:ci</code></small>
-            <p style="margin-top:8px;font-size:12px;">最终 Render runtime 镜像成功构建。</p>
-          </div>
-          <div class="journey-step">
-            <span class="step-no">STEP 4</span>
-            <b>漏洞扫描</b>
-            <small>Trivy 0.73.0 扫描最终 Render 镜像，参数为 <code>--exit-code 1 --ignore-unfixed --severity HIGH,CRITICAL</code></small>
-            <p style="margin-top:8px;font-size:12px;">零可修复 HIGH/CRITICAL CVE（<code>--ignore-unfixed</code> 跳过无补丁项）</p>
-          </div>
-        </div>
-        <div class="notice"><strong>门控条件：</strong>部署 Dockerfile 通过 lint，最终 runtime 镜像构建成功，且没有可修复的 HIGH 或 CRITICAL CVE。</div>
-
-        <h3>Flow 5: ci-success — 稳定聚合门禁 <span class="status">verified</span></h3>
-        <p class="sub">无显式超时（使用默认值）。此 Job 是稳定的外部发布契约——内部 Job 名称可自由演进，但聚合门禁名称保持不变，确保 Render 的 checksPass 依赖不受影响。</p>
-        <div class="journey-map">
-          <div class="journey-step">
-            <span class="step-no">STEP 1</span>
-            <b>始终运行</b>
-            <small><code>if: always()</code> + <code>needs: [python-quality, web-quality, browser-e2e, container-quality]</code></small>
-            <p style="margin-top:8px;font-size:12px;">即使上游 Job 失败也运行，确保工作流有明确的最终状态</p>
-          </div>
-          <div class="journey-step">
-            <span class="step-no">STEP 2</span>
-            <b>结果断言</b>
-            <small>读取 PYTHON_RESULT、WEB_RESULT、E2E_RESULT、CONTAINER_RESULT</small>
-            <p style="margin-top:8px;font-size:12px;">四条 <code>test "$VAR" = success</code> 断言全部通过</p>
-          </div>
-        </div>
-        <div class="notice"><strong>门控条件:</strong> 前四个 Job 必须全部等于 success。任一失败或被取消，工作流标红，Render 部署被阻止。</div>
-
-        <div class="notice"><strong>并发控制:</strong> 工作流声明 <code>concurrency: group: researchmate-ci-${{ github.workflow }}-${{ github.ref }}</code> 并设置 <code>cancel-in-progress: true</code>。当开发者快速连续 push 两次时，第一次运行会在执行中被取消，只有最新 commit 被测试。</div>
-        <div class="command-block"><code>npm run test:python
-  = uv run --frozen coverage run --branch \
-      --source=apps/api/src/researchmate_api,workers/ai-worker/src/researchmate_worker \
-      -m pytest -q
-  && uv run --frozen coverage report --fail-under=69
-
-npm run check:lint
-  = uv run --frozen ruff check apps/api/src workers/ai-worker/src tests</code></div>
-
-        <div class="visual-panel">
-          <div class="visual-head"><h3>服务拓扑</h3><p>Render 托管从 worker Dockerfile 构建的 Docker 容器。Vercel 托管 Next.js 前端。外部托管服务通过环境变量连接。</p></div>
-          <div class="architecture-map">
-            <div class="arch-column">
-              <span>Source</span>
-              <button class="arch-node" data-title="GitHub repository" data-detail="包含 apps/api、workers/ai-worker 和 apps/web 的 monorepo。main 分支是部署目标。"><b>GitHub repo</b><small>main / develop / PR</small></button>
-            </div>
-            <div class="arch-column">
-              <span>CI</span>
-              <button class="arch-node" data-title="GitHub Actions" data-detail="researchmate-ci 工作流:5 个 Job，concurrency cancel-in-progress，固定 action 版本。ci-success 聚合门禁验证四个门控均返回 success。"><b>GitHub Actions</b><small>5 个 Job，4 个并行门控</small></button>
-            </div>
-            <div class="arch-column">
-              <span>Backend deploy</span>
-              <button class="arch-node" data-title="Render Free service" data-detail="Docker 运行时，Oregon 区域，checksPass 自动部署，healthCheckPath /api/v1/healthz。dockerCommand 启动合并 API+worker 进程；/readyz 保留为运维依赖探测。"><b>Render (Free)</b><small>合并 API + worker</small></button>
-            </div>
-            <div class="arch-column">
-              <span>Frontend deploy</span>
-              <button class="arch-node" data-title="Vercel" data-detail="Next.js 16.3.0 生产构建。CORS_ALLOWED_ORIGINS 指向 Vercel 源地址。"><b>Vercel</b><small>Next.js web 应用</small></button>
-            </div>
-            <div class="arch-column">
-              <span>Data layer</span>
-              <button class="arch-node" data-title="Supabase" data-detail="PostgreSQL 数据库、S3 兼容 Storage、Auth/JWKS。DATABASE_URL 和 SUPABASE_URL 为 sync:false 密钥。"><b>Supabase</b><small>Postgres + Storage + Auth</small></button>
-              <button class="arch-node" data-title="Qdrant Cloud" data-detail="向量数据库，含 dense + sparse + rerank 集合。QDRANT_URL 为 sync:false。"><b>Qdrant Cloud</b><small>chunks + rerank</small></button>
-              <button class="arch-node" data-title="Upstash Redis" data-detail="Celery broker 和 result backend。REDIS_URL 为 sync:false。"><b>Upstash Redis</b><small>Celery broker</small></button>
-            </div>
-            <div class="arch-column">
-              <span>AI &amp; observability</span>
-              <button class="arch-node" data-title="NVIDIA NIM" data-detail="通过 OpenAI SDK 调用 LLM chat completions 和 embeddings。NVIDIA_API_KEY 为 sync:false。"><b>NVIDIA NIM</b><small>LLM + embedding</small></button>
-              <button class="arch-node" data-title="Tavily" data-detail="Web 搜索 API。TAVILY_API_KEY 为 sync:false。"><b>Tavily</b><small>web search</small></button>
-              <button class="arch-node" data-title="Langfuse" data-detail="LLM 可观测性和 OpenTelemetry trace 导出。LANGFUSE 密钥和 OTEL 头为 sync:false。"><b>Langfuse</b><small>traces + observations</small></button>
-            </div>
-          </div>
-          <div class="arch-inspector" data-arch-title="选择一个节点" data-arch-body="点击上方任一节点查看其部署详情。"></div>
-        </div>
-        <div class="notice"><strong>合并运行时:</strong> Render 的 dockerCommand <code>python -m researchmate_worker.render_combined</code> 在单个进程中启动 FastAPI API 服务器和 Celery worker，专为只允许一个服务的 Free 层限制而设计。<code>RESEARCHMATE_PROCESS_ROLE</code> 变量控制是否运行 outbox dispatcher 而非 Celery worker。</div>
-        <div class="notice"><strong>恢复与回滚:</strong> 若部署后健康检查失败，Render 自动回滚到上一个稳定版本。若 CI 门控失败，开发者需修复后重新 push，工作流从步骤 1 重新开始。所有状态转换（planned / ready / executed / verified）均通过 GitHub Actions 日志和 Render 部署记录留痕，可追溯每次变更的执行结果。</div>
+cancel-in-progress 怎么省 CI 成本？
+└─ 并发组的 key 是什么，对两个并开 PR 意味着什么？
+   └─ 同分支 force-push 时已经在跑的 workflow 会怎样？
+答：并发组以 `github.ref` 为 key。两个 PR 是不同 ref 并行跑；同分支
+push 新 commit 会杀掉前一次还在跑的 run，省掉你 push 修正时的多余等待。</pre>
       </section>
 
-      <section id="evaluation-release-gate">
-        <p class="eyebrow">受控质量提升</p>
-        <h2>评估发布门禁 . 持久证据,显式触发</h2>
-        <p class="sub">常规密封 CI 保持快速且不消耗 provider quota。当候选 pipeline 已完成一次托管评估时,运维人员使用该持久化的 run ID 触发单独的受控工作流。</p>
-        <div class="proof-chain">
-          <div class="proof-step"><b>1 &middot; 完成一次版本化评估</b><small>对 accepted 的 dense-only、sparse-only 或 hybrid pipeline 版本运行冻结的数据集。</small></div>
-          <div class="proof-step"><b>2 &middot; 分发门禁</b><small>将评估 run UUID 提供给 <code>evaluation-release-gate.yml</code>。该工作流将受保护 token 绑定到仓库控制的 Render origin,而非接受调用方指定的 host。</small></div>
-          <div class="proof-step"><b>3 &middot; 拉取持久结果</b><small><code>check_evaluation_gate.py</code> 在 localhost 之外要求 HTTPS,读取持久化的状态、执行摘要、指标聚合与基线对比。</small></div>
-          <div class="proof-step"><b>4 &middot; 失败即关闭</b><small>该门禁拒绝未完成或失败的 run、pipeline <code>code_sha</code> 与工作流 commit 不一致、缺失指标、Recall@K 低于 0.80、MRR 低于 0.50、NDCG 低于 0.80 或任何已记录回归。阈值为显式 CLI 输入,发布策略变更属于代码变更。</small></div>
-          <div class="proof-step"><b>5 &middot; 保留决定</b><small>即使门禁失败,安全的 JSON 决定 artifact 也会保留 30 天;最终工作流步骤强制执行结果。</small></div>
+      <section id="pre-commit">
+        <p class="eyebrow">技术栈中心 . Pre-commit hooks</p>
+        <h2>ruff + pyright 复用锁定的 uv 环境，外加卫生 hook</h2>
+        <p class="sub">[项目事实] <code>.pre-commit-config.yaml</code> 有三个 repo：<code>pre-commit-hooks v5.0.0</code>（merge-conflict、EOF、YAML/TOML、trailing-whitespace）、<code>ruff-pre-commit v0.16.0</code>（lint + autofix、format check）、本地 <code>pyright</code> hook。每个 Python hook 都用 <code>language: system</code> 复用 uv 管理的 Python 环境。</p>
+
+        <p>pre-commit 的目的不是「跑 linter」，而是<strong>把 CI 跑的那套同样 pin 死的版本左移到本地</strong>。设想一个贡献者：本地 hook 过了，push 上去 CI lint 步骤意外挂掉，因为他的笔记本装了更新的 ruff，新 ruff 报了 CI 旧 ruff 不知道的规则。这种漂移项目就靠 pin 死消除。因为 ruff（0.16.0）和 pyright（1.1.390）都在 <code>uv.lock</code> 里钉死，hook 又通过 <code>language: system</code>（直接调被 uv 管理的 Python，而不是让 pre-commit 自己搭一个 venv）跑，本地和 CI 用的是位级别一致的工具版本。</p>
+
+        <div class="fact">
+          <b>关键机制</b>
+          <ul>
+            <li><b>ruff：<code>check --force-exclude --fix</code></b>，<code>files: \.py$</code>，<code>pass_filenames: false</code>。autofix 开；如果 fix 改写了文件，pre-commit 把这次提交标记为失败，作者重新 stage。[项目事实]</li>
+            <li><b>ruff-format：只 <code>--check</code></b> &mdash; 格式不在提交时自动应用，必须自己跑 <code>ruff format</code>。专抓漂移。[项目事实]</li>
+            <li><b>pyright 本地 hook</b>，entry <code>pyright</code>，<code>pass_filenames: false</code>，不做文件过滤，读根 <code>pyproject.toml</code>，<code>typeCheckingMode = "basic"</code>。调用方式与 CI 的 <code>npm run check:types</code> 一致。[项目事实]</li>
+            <li><b>卫生 hook</b> &mdash; <code>check-merge-conflict --assume-in-merge</code>、<code>end-of-file-fixer</code>、<code>check-yaml --allow-multiple-documents</code>、<code>check-toml</code>、<code>trailing-whitespace</code>。[项目事实]</li>
+          </ul>
         </div>
-        <div class="notice warning"><strong>当前边界:</strong> 脚本与工作流已有本地自动化证据,但尚未向该工作流提交任何托管评估 run。它是一个受控提升门禁,而非声称每次普通 commit 都会消耗 provider quota。</div>
+
+        <div class="notice">
+          <b>需要标注的坑</b> 有 autofix 的 hook 会改写文件，导致 commit 失败并提示 "files were modified by this hook。" 这<i>不是</i>真正的错误 —— 重新 stage 修复后的文件再 retry 一次提交即可。忘了这一步会让新贡献者卡住。[合理推断]
+        </div>
+
+        <h3>面试追问树</h3>
+        <pre class="command-block">为什么 language: system 而不是 pre-commit 默认的托管 venv？
+└─ 它拿到的是 pre-commit 自建 venv 拿不到的什么？
+   └─ 这层与 uv.lock 的耦合怎么减少 CI/本地漂移？
+答：pre-commit 自建 venv 会自己装一份 ruff/pyright，本地版本可能与
+uv.lock 漂移。`language: system` 调的是被 uv 管理的 Python，它和 CI 通过
+`uv sync --frozen` 装下来的二进制是同一份字节。
+
+为什么 ruff-format 在提交时 --check 而 ruff --fix 却开？
+└─ autofix 与 check-only 之间的权衡是什么？
+   └─ 想在提交时强制应用格式，应该怎么做？
+答：autofix 会自动改写不安全规则（摩擦小，但你可能没看就提交了）。format
+只 check、不应用，逼作者自己跑 `ruff format`，从而保证作者看了一眼 diff。
+想要提交时自动应用，把 `--check` 去掉，再在 hook 标记文件被修改时重新
+stage。
+
+ruff hook 里 pass_filenames: false 换来什么？
+└─ 为什么不让 pre-commit 只把改动文件传给 ruff？
+   └─ 那种情况下 --force-exclude 会出什么问题？
+答：这个 hook 不管哪些文件变了，都对着整片目标树跑 ruff。pre-commit 只
+传改动文件的话，重命名或挪动的文件会从被 lint 的列表里漏出去。整树
+调用让 ruff 的 --force-exclude 语义保持可预测。</pre>
       </section>
 
-      <section id="recovery-benchmark">
-        <p class="eyebrow">可靠性基准 . 按需</p>
-        <h2>恢复基准 . interrupt-restart 持久化证据</h2>
-        <p class="sub">一个独立的按需工作流,衡量跨进程重启的 LangGraph interrupt 持久化恢复。它不属于密封 CI 门控;仅在 checkpoint-recovery 变更需要定量证据时运行。</p>
-        <div class="proof-chain">
-          <div class="proof-step"><b>1 &middot; 分发工作流</b><small>运维人员向 <code>recovery-benchmark.yml</code> 提供 <code>trials</code>(默认 1000)。该运行与主 CI concurrency group 无关,不会取消 pull-request 运行。</small></div>
-          <div class="proof-step"><b>2 &middot; 准备 postgres:16</b><small>Job 启动 <code>postgres:16</code> 服务容器,导出 <code>RECOVERY_BENCHMARK_DATABASE_URL</code>,并使用 <code>ALLOW_SCHEMA_APPLY=1</code> 运行 <code>scripts/setup_langgraph_checkpoint.py</code> 确保 LangGraph checkpoint 表在基准开始前已存在。</small></div>
-          <div class="proof-step"><b>3 &middot; 运行 <code>measure_langgraph_recovery.py</code></b><small>每批 50 次生成子进程,依次启动、interrupt、恢复一个固定工作流。记录每阶段的 attempted、successful、失败列表,以及 <code>--confidence 0.95</code> 下的 Wilson 置信区间。</small></div>
-          <div class="proof-step"><b>4 &middot; 失败即关闭</b><small>当 Wilson 区间下界低于 <code>--minimum-rate 0.995</code> 时以非零状态退出,使恢复持久性的回归成为硬失败而非软指标。</small></div>
-          <div class="proof-step"><b>5 &middot; 保留报告</b><small>JSON 基准报告作为工作流 artifact 上传,即使门禁失败也保留 30 天,便于审查者检查失败列表与置信区间。</small></div>
+      <section id="db-migrations">
+        <p class="eyebrow">功能中心 . 数据库迁移策略</p>
+        <h2>增量 SQL 文件、SHA-256 账本、advisory lock、幂等语句</h2>
+        <p class="sub">[项目事实] <code>scripts/apply_migrations.py</code> 强制唯一版本前缀、拒绝空文件和 <code>drop database</code>，在 <code>ALLOW_SCHEMA_APPLY=1</code> 时取 <code>pg_advisory_xact_lock(726_334_129)</code>，按顺序应用未应用的文件，并把每个的 SHA-256 写入 <code>researchmate_schema_migrations</code>。</p>
+
+        <p>想象危险场景：运维跑一个改生产租户表的脚本，同时另一个同脚本的实例也在跑，两个进程争抢改 schema，结果表结构进入不一致状态。更糟的是有人改一条已经跑过的迁移文件，以为改完能干净地补上 —— 实际上生产库和迁移账本对「跑过什么」已经不一致了。</p>
+
+        <p>迁移 runner 叠了四层防护，让对生产库重跑也安全。<strong>第一层</strong>，apply 路径取一个事务级 advisory lock，两个 apply 没法同时跑。<strong>第二层</strong>，<code>researchmate_schema_migrations</code> 表给每条已应用文件记 SHA-256，已应用文件的字节后来变了，runner 抛 <code>RuntimeError</code> 中止。<strong>第三层</strong>，校验器拒掉空文件和字面字符串 <code>drop database</code>。<strong>第四层</strong>，SQL 自身用 <code>if not exists</code> / <code>drop policy if exists ... create policy</code> 写成幂等，所以同一文件在事务里重放也不会重复应用。</p>
+
+        <div class="fact">
+          <b>关键机制</b>
+          <ul>
+            <li><b>pg_advisory_xact_lock(726_334_129)</b> &mdash; 事务级；同一 Postgres 上任何并发 apply 会被阻塞，直到第一个 commit 或 rollback。这个整数是 <code>apply_migrations.py</code> 里硬编码的 magic number。[项目事实]</li>
+            <li><b>researchmate_schema_migrations</b> &mdash; <code>(version text primary key, checksum_sha256 text not null, applied_at timestamptz)</code>；用 <code>create table if not exists</code> 在同一事务里建。如果 <code>applied.get(name) != sha256(source)</code>，则抛 <code>RuntimeError</code> 并中止。[项目事实]</li>
+            <li><b>--check-files 与 --apply</b> &mdash; <code>--check-files</code> 是 CI-only 校验（不访问 DB）；<code>--apply</code> 要求 <code>ALLOW_SCHEMA_APPLY=1</code> 加 <code>DATABASE_URL</code>，作为人工审批关口。CI 跑的是 <code>npm run check:migrations</code> = <code>--check-files</code>。[项目事实]</li>
+            <li><b>幂等 SQL 风格</b> &mdash; <code>create table</code> / <code>create index</code> / <code>create policy</code> 都用 <code>if not exists</code> 或 <code>drop policy if exists ... create policy</code> 配对；例子：<code>202608010010_api_idempotency.sql</code> 建 <code>api_idempotency</code>，主键 <code>(user_id, operation, idempotency_key)</code>，还加一条状态机 CHECK 约束。[项目事实]</li>
+          </ul>
         </div>
-        <div class="notice"><strong>边界:</strong> 恢复基准是一个度量工作流,而非部署门禁。失败的运行会阻止运维人员的提升决定,但不会使主 CI 工作流转红,也不会单独触发 Render 回滚。</div>
+
+        <div class="notice">
+          <b>为什么只允许增量</b> validator 拒绝 <code>drop database</code> 和空文件，但并没拦 <code>alter table drop column</code>。项目真实自律是只写前向迁移：任何要改既有列的变更都以新迁移文件发布，而不是改已应用过的那个。SHA-256 账本就是这件事的强制机制：改已应用文件的字节会让 runner 失败。[合理推断]
+        </div>
+
+        <h3>面试追问树</h3>
+        <pre class="command-block">为什么用 advisory lock 而不是给 migrations 表加行锁？
+└─ 事务级意味着锁的生命周期是怎样的？
+   └─ 换成 SELECT ... FOR UPDATE 锁一个哨兵行，会改什么？
+答：哨兵行锁要先有一行真行可锁；行被删了就锁不住。advisory lock 按
+整数 key，不需要真行。事务级意味着锁跟事务一同生死 —— commit 或 rollback
+都释放，所以崩溃的 runner 在 rollback 时自然清理。
+
+SHA-256 摘要怎么防漂移？
+└─ 如果已应用文件的内容变了，runner 会做什么？
+   └─ 真的需要修一个已应用的迁移时，项目的流程是什么？
+答：抛错中止。流程是永远不改已应用文件 —— 发一条新的前向迁移，加列或
+撤销上一个行为。原地改会让生产偷偷脱离提交上的文件列表。
+
+为什么把 --check-files（CI）和 --apply（运维）拆成两种模式？
+└─ ALLOW_SCHEMA_APPLY=1 具体防的是什么？
+   └─ CI 有可能误跑 --apply 吗？
+答：--check-files 只读文件字节；--apply 打开数据库连接并改 schema。
+ALLOW_SCHEMA_APPLY=1 强制人在任何 DB write 之前显式设这个 env，所以一个
+没继承该 env 的 CI job 没法碰生产。CI 跑 --check-files，只有持有生产
+secret 的运维才能跑 --apply。</pre>
       </section>
 
-      <section id="worker-dockerfile">
-        <p class="eyebrow">Dockerfile · Render 部署</p>
-        <h2>workers/ai-worker/Dockerfile · 唯一运行时镜像</h2>
-        <p class="sub">该文件构建 Render 使用的 CPU-only 合并运行时，同时包含 API、worker 和 dispatcher。只保留一个部署制品，可以避免 CI 专用镜像与生产镜像漂移。</p>
-        <div class="grid two">
-          <article class="fact"><b>三个阶段</b><p>阶段 1 (<code>uv</code>) 复制 uv 二进制。阶段 2 (<code>dependencies</code>) 在 python:3.13-slim 上安装系统包和 Python 依赖。阶段 3 (<code>runtime</code>) 继承 dependencies,下载 Docling 模型并设置所有权,将模型制品保留在单独的可缓存层中。</p></article>
-          <article class="fact"><b>系统依赖</b><p><code>libgl1</code> 和 <code>libglib2.0-0</code> 支持文档渲染，<code>libmagic1</code> 在摄取前提供服务端 MIME 检测；apt 缓存在同一层清理。</p></article>
-          <article class="fact"><b>Docling 模型</b><p><code>docling-tools models download layout tableformer rapidocr -o /opt/docling/models</code> 将三个模型包预取到 <code>DOCLING_ARTIFACTS_PATH=/opt/docling/models</code>。<code>chown -R researchmate:researchmate /opt/docling</code> 确保非 root 用户在运行时可以读取它们。</p></article>
-          <article class="fact"><b>--all-packages</b><p><code>uv sync --frozen --no-dev --all-packages</code> 在一个解析图中安装每个 workspace 成员(researchmate-api + researchmate-worker)。这是必需的,因为 Render 通过 <code>python -m researchmate_worker.render_combined</code> 运行合并运行时,该模块导入两个包。</p></article>
-          <article class="fact"><b>角色切换</b><p>CMD 检查 <code>RESEARCHMATE_PROCESS_ROLE</code>。当设为 <code>dispatcher</code> 时,运行 <code>exec researchmate-dispatch-outbox</code>。否则启动 Celery worker,消费 5 个队列(ingestion, deletion, workflow, evaluation, reliability),设置 <code>--concurrency=2</code>。</p></article>
-          <article class="fact"><b>torch CPU index</b><p>worker 的 pyproject.toml 通过 <code>[tool.uv.sources]</code> 指向 <code>pytorch-cpu</code> index,固定 <code>torch==2.13.0+cpu</code> 和 <code>torchvision==0.28.0+cpu</code>。这避免在没有 GPU 的 Free 层主机上拉取 CUDA 驱动。</p></article>
+      <section id="coverage-gate">
+        <p class="eyebrow">技术栈中心 . 覆盖率门禁 &amp; check:all</p>
+        <h2>挂在 npm run check:all 上的 69% 门禁</h2>
+        <p class="sub">[项目事实] <code>package.json</code> 把 <code>test:python</code> 定义为 <code>uv run --frozen coverage run --branch --source=apps/api/src/researchmate_api,workers/ai-worker/src/researchmate_worker -m pytest -q &amp;&amp; uv run --frozen coverage report --fail-under=69</code>；<code>check:all</code> 串联 test、lint、types、openapi、migrations、web build、audit。</p>
+
+        <p>覆盖率是一个 0 到 100 之间的数字，含义是「测试可能跑到的所有行或所有分支里，有多少在测试套件运行时真的跑过了」。100% 意味着每一行、每一个 <code>if</code> 的分支都至少跑过一次。项目把下限钉在 69%。覆盖率掉到 69% 以下时，<code>coverage report --fail-under=69</code> 退出非零，<code>python-quality</code> CI 步骤就挂。</p>
+
+        <p><strong>为什么是 69%？</strong> [项目事实] <code>package.json</code> 里的字面值，不是从 benchmark 推出来的。<strong>[合理推断]</strong> 它反映当前代码面在按分支（不只按行）计数时可达到的覆盖率 —— 项目用 <code>--branch</code>，所以部分分支算未覆盖。部分分支指一个 <code>if x: A else: B</code> 测试只走了 A 或 B 其中一边，没走的那边算未覆盖。</p>
+
+        <div class="fact">
+          <b>check:all 的组成</b>
+          <ul>
+            <li><b>test</b> = <code>test:python &amp;&amp; test:web</code> &mdash; Python（带 69% 门禁）和 web workspace 测试都得过。[项目事实]</li>
+            <li><b>check:lint</b> = <code>uv run --frozen ruff check apps/api/src workers/ai-worker/src tests</code>。[项目事实]</li>
+            <li><b>check:types</b> = <code>npx --yes pyright@1.1.390</code> &mdash; 版本钉得与 pre-commit 一致。[项目事实]</li>
+            <li><b>check:openapi</b> = <code>uv run --frozen python scripts/export_openapi.py --check</code> &mdash; 渲染出的 OpenAPI 必须等于已提交的 <code>infra/openapi/openapi.yaml</code>；漂移即失败。[项目事实]</li>
+            <li><b>check:migrations</b> = <code>uv run --frozen python scripts/apply_migrations.py --check-files</code> &mdash; CI 安全的文件校验，不写 DB。[项目事实]</li>
+          </ul>
         </div>
-        <div class="command-block"><code>FROM ghcr.io/astral-sh/uv:0.12.1 AS uv
-FROM python:3.13-slim AS dependencies
 
-COPY --from=uv /uv /uvx /bin/
-RUN apt-get update \
-    &amp;&amp; apt-get install --yes --no-install-recommends libgl1 libglib2.0-0 libmagic1 \
-    &amp;&amp; rm -rf /var/lib/apt/lists/*
-
-COPY pyproject.toml uv.lock /app/
-COPY apps/api /app/apps/api
-COPY workers/ai-worker /app/workers/ai-worker
-RUN uv sync --frozen --no-dev --all-packages
-
-FROM dependencies AS runtime
-RUN docling-tools models download layout tableformer rapidocr -o /opt/docling/models \
-    &amp;&amp; chown -R researchmate:researchmate /opt/docling
-
-USER 10001:10001
-CMD ["sh", "-c", "if [ \"${RESEARCHMATE_PROCESS_ROLE:-worker}\" = dispatcher ]; then exec researchmate-dispatch-outbox; \
-else exec python -m celery -A researchmate_worker.celery_app:celery_app worker --loglevel=INFO \
---queues=ingestion,deletion,workflow,evaluation,reliability --concurrency=2; fi"]</code></div>
-      </section>
-
-      <section id="render-yaml">
-        <p class="eyebrow">render.yaml</p>
-        <h2>Render 部署蓝图 . 48 个环境变量,1 个服务,CI 通过后自动部署</h2>
-        <p class="sub">render.yaml 声明唯一的 Render Free 层服务及其完整环境配置。它将 48 个环境变量集中到一个命名组中,将重建限制在相关路径,并仅在 GitHub 检查通过后触发部署。</p>
-        <div class="kv">
-          <dt>envVarGroups</dt>
-          <dd>
-            <p>一个名为 <code>researchmate-backend</code> 的组,包含 <strong>48 条目</strong>:37 条带有显式值(跨 preview 同步),11 条标记为 <code>sync: false</code>(在 Render dashboard 中手动输入的服务端密钥)。</p>
-            <p><b>sync:false 密钥(共 11 个):</b> DATABASE_URL, REDIS_URL, OBJECT_STORAGE_ACCESS_KEY_ID, OBJECT_STORAGE_SECRET_ACCESS_KEY, QDRANT_URL, QDRANT_API_KEY, NVIDIA_API_KEY, TAVILY_API_KEY, LANGFUSE_PUBLIC_KEY, LANGFUSE_SECRET_KEY, OTEL_EXPORTER_OTLP_TRACES_HEADERS</p>
-          </dd>
-          <dt>services[0]</dt>
-          <dd>
-            <p><code>type: web</code>, <code>name: researchmate-backend-dev</code>, <code>runtime: docker</code>, <code>plan: free</code>, <code>region: oregon</code>, <code>branch: main</code></p>
-          </dd>
-          <dt>dockerfilePath</dt>
-          <dd><p><code>./workers/ai-worker/Dockerfile</code>,配合 <code>dockerContext: .</code>。使用 worker Dockerfile 是因为 Render 运行合并运行时。</p></dd>
-          <dt>dockerCommand</dt>
-          <dd><p><code>python -m researchmate_worker.render_combined</code> 覆盖 Dockerfile CMD,启动由 Render 管理的合并 API-plus-worker 进程。</p></dd>
-          <dt>healthCheckPath</dt>
-          <dd><p><code>/api/v1/healthz</code>。Render 在路由流量前探测此常量时间存活路径；<code>/api/v1/readyz</code> 保留为数据库、Redis、Qdrant 与 Worker 的严格运维就绪端点。</p></dd>
-          <dt>autoDeployTrigger</dt>
-          <dd><p><code>checksPass</code>。Render 仅在 main 分支上的 GitHub Actions 检查报告成功后部署,在 CI 绿灯与生产部署之间建立硬依赖。</p></dd>
-          <dt>buildFilter</dt>
-          <dd>
-            <p>七个路径模式,限制何时触发重建:</p>
-            <p><code>apps/api/**</code>, <code>workers/ai-worker/**</code>, <code>infra/supabase/migrations/**</code>, <code>scripts/apply_migrations.py</code>, <code>scripts/provision_qdrant_rerank.py</code>, <code>pyproject.toml</code>, <code>uv.lock</code></p>
-          </dd>
-          <dt>envVars (服务级)</dt>
-          <dd>
-            <p>在组之上应用的三个覆盖:</p>
-            <p><code>AUTH_MODE=supabase</code>, <code>REPOSITORY_BACKEND=postgres</code>, <code>CORS_ALLOWED_ORIGINS=https://research-mate-web.vercel.app</code></p>
-          </dd>
+        <div class="notice">
+          <b>[优化建议]</b> 69% 是项目特定值，未做 benchmark。开发态可考虑跑 <code>coverage report --skip-covered</code> 暴露最值得补的空缺，并按 1–2 个点为步长逐步抬高下限，而不是在回退后重置基线。
         </div>
-        <div class="notice"><strong>Rerank 模型:</strong> <code>QDRANT_RERANK_MODEL</code> 设为 <code>answerdotai/answerai-colbert-small-v1</code>,维度 96,<code>QDRANT_RERANK_MODEL_IS_FREE=true</code>。<code>RUN_QDRANT_RERANK_BACKFILL=1</code> 标志在首次启动时触发 provision 脚本。</div>
-      </section>
 
-      <section id="dependency-mgmt">
-        <p class="eyebrow">依赖管理</p>
-        <h2>Python 与 JavaScript 的双锁策略</h2>
-        <p class="sub">ResearchMate 使用两个独立的锁文件管理依赖:Python workspace 的 uv.lock 和 npm workspace 的 package-lock.json。两者都提交到仓库,并在 CI 和 Docker 中使用 --frozen 标志保证可复现安装。</p>
-        <div class="grid two">
-          <article class="fact"><b>根 package.json</b><p>声明 <code>packageManager: npm@11.6.0</code> 和 <code>workspaces: ["apps/web"]</code>。定义 17 个脚本,包括 <code>test:python</code>、<code>test:web</code>、<code>test:e2e</code>、<code>check:lint</code>、<code>check:openapi</code>、<code>check:migrations</code>、<code>check:web</code>、<code>check:audit</code> 以及总括脚本 <code>check:all</code>。private 标志防止意外 npm 发布。</p></article>
-          <article class="fact"><b>根 pyproject.toml</b><p>声明 uv workspace(<code>members = ["apps/api", "workers/ai-worker"]</code>)和 dev 依赖组:<code>coverage&gt;=7.10.0,&lt;8</code>、<code>httpx2&gt;=2.5.0,&lt;3</code>、<code>pre-commit&gt;=4.2.0,&lt;5</code>、<code>pytest&gt;=9.0.0,&lt;10</code>、<code>pyyaml&gt;=6.0.0,&lt;7</code>、<code>ruff==0.16.0</code>。pyright 不再列入 dev 依赖——<code>check:types</code> 脚本改用 <code>npx --yes pyright@1.1.390</code> 拉取。声明专用 <code>pytorch-cpu</code> index 用于 torch CPU wheel,并通过新的 <code>[tool.pyright]</code> 节集中配置类型检查器:<code>typeCheckingMode = "basic"</code>、<code>pythonVersion = "3.13"</code>、<code>venvPath = "."</code>、<code>venv = ".venv"</code>,include 覆盖 <code>apps/api/src/researchmate_api</code>、<code>workers/ai-worker/src/researchmate_worker</code> 和 <code>tests</code>。</p></article>
-          <article class="fact"><b>apps/api/pyproject.toml</b><p>17 个生产依赖,包括 FastAPI、Pydantic、SQLAlchemy、psycopg、PyJWT、qdrant-client、redis、boto3、OpenAI SDK、Langfuse 和四个 OpenTelemetry 包(<code>opentelemetry-api</code>、<code>opentelemetry-exporter-otlp-proto-http</code>、<code>opentelemetry-instrumentation-fastapi</code>、<code>opentelemetry-sdk</code>)。Ruff 配置 line-length=100,忽略 B008 和 BLE001。</p></article>
-          <article class="fact"><b>workers/ai-worker/pyproject.toml</b><p>18 个生产依赖,包括 Celery[redis]、Docling(固定 2.111.0)、LangGraph、RAGAS 0.4.3、torch 2.13.0+cpu、torchvision 0.28.0+cpu 和 pypdf。声明 <code>researchmate-dispatch-outbox</code> console script。torch 和 torchvision 从 pytorch-cpu index 获取。</p></article>
-          <article class="fact"><b>apps/web/package.json</b><p>Next.js 16.3.0 配合 React、10 个 Radix UI 原语、Tailwind CSS 4、lucide-react 和 class-variance-authority。Dev 工具:Vitest 4 配合 coverage-v8、Playwright 1.62、TypeScript 6.0.3、jsdom。<code>type: module</code> 标志启用 ESM。</p></article>
-          <article class="fact"><b>双锁策略</b><p>uv.lock 固定完整的 Python 依赖图(包括传递依赖和 pytorch-cpu index)。package-lock.json 固定 npm workspace 树。CI 和 Dockerfile 使用 <code>--frozen</code>(uv)和 <code>npm install</code>(默认读取锁文件)。两个锁文件均不手动编辑,由各自的包管理器重新生成。</p></article>
-          <article class="fact"><b>质量门禁与 AI 指导</b><p>新增 <code>.pre-commit-config.yaml</code> 通过 <code>uv run pre-commit install</code> 启用本地提交门禁,包含三组钩子:基础设施(check-merge-conflict、end-of-file-fixer、check-yaml、check-toml、trailing-whitespace)、ruff(<code>ruff</code> lint+autofix 与 <code>ruff-format</code> 检查,均通过 <code>language: system</code> 复用 uv 环境)以及本地 pyright 钩子(读取根 <code>[tool.pyright]</code> 配置)。同时新增根级 <code>AGENTS.md</code> 作为面向 AI 代码生成工具(Cursor、Copilot、CodeAgentCLI 等)的指导文件,规定 <code>from __future__ import annotations</code>、强制类型标注、snake_case/PascalCase 命名、按边界捕获异常、英文注释、避免 <code>typing.Any</code>、使用域常量替代魔术数字,并列出 <code>npm run check:lint</code>、<code>npm run check:types</code>、<code>npm run test:python</code> 与 <code>npm run check:all</code> 四个门禁命令。</p></article>
-        </div>
-        <div class="command-block"><code># Python dev 依赖组 (根 pyproject.toml)
-[dependency-groups]
-dev = [
-  "coverage&gt;=7.10.0,&lt;8",
-  "httpx2&gt;=2.5.0,&lt;3",
-  "pre-commit&gt;=4.2.0,&lt;5",
-  "pytest&gt;=9.0.0,&lt;10",
-  "pyyaml&gt;=6.0.0,&lt;7",
-  "ruff==0.16.0",
-]
+        <h3>面试追问树</h3>
+        <pre class="command-block">为什么用 --branch 分支覆盖率而非行覆盖率？
+└─ 部分分支算覆盖还是未覆盖？
+   └─ 为什么 69% 是可信数字而不是 100%？
+答：部分分支的一侧没被测过；--branch 把这侧算未覆盖。100% 在真实代码里
+不现实，因为有些分支纯粹是防御性代码（错误路径、框架桩），测试里从不触发。
+69% 是项目当前可量化的下限，不是愿景目标。
 
-# pyright 改由 npx 拉取,不在 dev 依赖中
-# package.json: "check:types": "npx --yes pyright@1.1.390"
+为什么把 OpenAPI --check 也挂进 check:all？
+└─ 它能抓到测试抓不到的哪类漂移？
+   └─ 什么时候你会合理地想跳过它？
+答：抓的是已提交 OpenAPI spec 与 FastAPI 渲染出的不一致。测试很少覆盖
+每个端点的每个形状；作者改了响应模型，测试还能过，但公开契约已经悄悄
+破坏。只有在同一次 PR 内有意识地做契约迁移时才跳过。
 
-# CI 安装命令
-uv sync --frozen --all-packages --group dev
-
-# Docker 安装命令 (仅 API)
-uv sync --frozen --no-dev --package researchmate-api
-
-# Docker 安装命令 (合并 worker)
-uv sync --frozen --no-dev --all-packages</code></div>
-      </section>
-
-      <section id="env-example">
-        <p class="eyebrow">.env.example</p>
-        <h2>7 大类环境配置</h2>
-        <p class="sub">.env.example 文件记录运行时接受的每个变量,分为七个类别。密钥使用占位符,非密钥配置使用安全默认值。</p>
-        <div class="scroll">
-          <table>
-            <thead><tr><th>类别</th><th>关键变量</th><th>说明</th></tr></thead>
-            <tbody>
-              <tr>
-                <td><b>1. Frontend public</b></td>
-                <td><code>APP_ENV</code>, <code>AUTH_MODE</code>, <code>NEXT_PUBLIC_APP_ENV</code>, <code>NEXT_PUBLIC_SUPABASE_URL</code>, <code>NEXT_PUBLIC_SUPABASE_ANON_KEY</code>, <code>NEXT_PUBLIC_API_BASE_URL</code></td>
-                <td>通过 NEXT_PUBLIC_ 前缀暴露给浏览器。本地开发使用 AUTH_MODE=development。</td>
-              </tr>
-              <tr>
-                <td><b>2. Database &amp; Supabase</b></td>
-                <td><code>REPOSITORY_BACKEND</code>, <code>DATABASE_URL</code>, <code>SUPABASE_URL</code>, <code>SUPABASE_JWKS_URL</code></td>
-                <td>本地开发默认使用 memory backend。生产使用 postgres 配合 JWKS 进行 JWT 验证。</td>
-              </tr>
-              <tr>
-                <td><b>3. Object storage</b></td>
-                <td><code>OBJECT_STORAGE_ENDPOINT_URL</code>, <code>OBJECT_STORAGE_ACCESS_KEY_ID</code>, <code>OBJECT_STORAGE_SECRET_ACCESS_KEY</code>, <code>OBJECT_STORAGE_BUCKET</code>, <code>OBJECT_STORAGE_REGION</code></td>
-                <td>S3 兼容。Supabase Storage 是无需信用卡的开发默认值;R2 旧变量仍受支持。</td>
-              </tr>
-              <tr>
-                <td><b>4. Vector database</b></td>
-                <td><code>QDRANT_URL</code>, <code>QDRANT_API_KEY</code>, <code>QDRANT_COLLECTION</code>, <code>QDRANT_RERANK_COLLECTION</code>, <code>QDRANT_RERANK_MODEL</code>, <code>QDRANT_RERANK_DIMENSION</code>, <code>RERANK_PROVIDER_DEFAULT</code>, <code>NVIDIA_RERANK_MODEL</code>, <code>CHAT_*_TOKEN_BUDGET</code>, <code>FULL_CONTEXT_TOKEN_LIMIT</code></td>
-                <td>Rerank 模型: answerdotai/answerai-colbert-small-v1,维度 96。Token 预算控制上下文窗口分区。</td>
-              </tr>
-              <tr>
-                <td><b>5. LLM &amp; embedding</b></td>
-                <td><code>LLM_PROVIDER</code>, <code>NVIDIA_API_KEY</code>, <code>NVIDIA_BASE_URL</code>, <code>NVIDIA_MODEL</code>, <code>LLM_TEMPERATURE</code>, <code>LLM_MAX_TOKENS</code>, <code>EMBEDDING_PROVIDER</code>, <code>NVIDIA_EMBEDDING_MODEL</code>, <code>EMBEDDING_DIMENSION</code></td>
-                <td>本地开发使用 fake provider。生产使用 NVIDIA NIM,配合成本跟踪变量。</td>
-              </tr>
-              <tr>
-                <td><b>6. Search &amp; crawl</b></td>
-                <td><code>WEB_SEARCH_PROVIDER</code>, <code>TAVILY_API_KEY</code>, <code>TAVILY_BASE_URL</code>, <code>WEB_SEARCH_TIMEOUT_SECONDS</code></td>
-                <td>本地禁用。生产使用 Tavily,30 秒超时。</td>
-              </tr>
-              <tr>
-                <td><b>7. Runtime, jobs &amp; observability</b></td>
-                <td><code>REDIS_URL</code>, <code>RUNTIME_HEARTBEAT_SECONDS</code>, <code>WORKFLOW_LEASE_SECONDS</code>, <code>RESEARCHMATE_PROCESS_ROLE</code>, <code>CORS_ALLOWED_ORIGINS</code>, <code>MAX_UPLOAD_BYTES</code>, <code>DOCLING_ARTIFACTS_PATH</code>, <code>LANGGRAPH_STRICT_MSGPACK</code>, <code>LOG_LEVEL</code>, <code>OTEL_ENABLED</code>, <code>OTEL_EXPORTER_OTLP_TRACES_ENDPOINT</code>, <code>LANGFUSE_ENABLED</code>, <code>LANGFUSE_PUBLIC_KEY</code>, <code>LANGFUSE_SECRET_KEY</code></td>
-                <td>本地禁用可观测性(OTEL_ENABLED=false, LANGFUSE_ENABLED=false)。在 preview/production 中必需且单独密钥化。</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+为什么 ruff 和 pyright 要在三个地方（uv.lock、.pre-commit、CI npx）都 pin 同一版本？
+└─ 每个 pin 各防哪类失败？
+   └─ CI 的 pyright 漂移到比 pre-commit 新会出什么问题？
+答：CI npx 钉 `pyright@1.1.390` 让一台没有 uv 缓存的新 CI runner 也能拿到
+精确版本；uv.lock 给本地装同一份；.pre-commit 通过同一 uv 环境跑。CI
+漂到前面的话，hook 本地过、CI 挂 —— 正是这个设计要消灭的漂移。</pre>
       </section>
 
       <section id="further-reading">
         <p class="eyebrow">延伸阅读</p>
         <h2>相关文档</h2>
         <div class="doc-index">
-          <a class="doc-link" href="../architecture/index.zh.html"><b>Architecture &amp; stack</b><span>系统概览、部署拓扑和托管服务边界</span></a>
-          <a class="doc-link" href="backend.zh.html"><b>Backend 学习</b><span>运行在 Render 组合镜像中的 FastAPI 应用</span></a>
-          <a class="doc-link" href="worker.zh.html"><b>Worker 学习</b><span>运行在同一 Render 镜像中的 Celery worker 和 LangGraph 运行时</span></a>
-          <a class="doc-link" href="infra.zh.html"><b>Infrastructure</b><span>托管服务配置、Supabase migrations 和 Qdrant provision 脚本</span></a>
-          <a class="doc-link" href="frontend.zh.html"><b>Frontend 学习</b><span>部署到 Vercel 的 Next.js 应用</span></a>
-          <a class="doc-link" href="contracts-tests.zh.html"><b>Contracts &amp; Tests</b><span>CI 强制执行的测试套件、契约检查和覆盖率阈值</span></a>
+          <a class="doc-link" href="infra.zh.html"><b>基础设施</b><span>Render 拓扑、Vercel rewrite、Supabase Postgres、Qdrant。</span></a>
+          <a class="doc-link" href="contracts-tests.zh.html"><b>契约与测试</b><span>测试设计哲学、两阶段契约先行。</span></a>
+          <a class="doc-link" href="worker.zh.html"><b>Worker 指南</b><span>Celery 租约、重试与 SoftTimeLimit 处理。</span></a>
+          <a class="doc-link" href="../contracts/data/index.zh.html"><b>数据库契约</b><span>迁移文件清单与表清单。</span></a>
         </div>
       </section>
-
     </div>
     <aside class="toc"><b>本页目录</b>
-      <a href="#stack">技术栈基础</a>
-      <a href="#ci-pipeline">CI/CD 工作流</a>
-      <a href="#evaluation-release-gate">评估门禁</a>
-      <a href="#recovery-benchmark">恢复基准</a>
-      <a href="#worker-dockerfile">Render Dockerfile</a>
-      <a href="#render-yaml">render.yaml</a>
-      <a href="#dependency-mgmt">依赖管理</a>
-      <a href="#env-example">.env.example</a>
+      <a href="#ci-pipeline">CI/CD 流水线</a>
+      <a href="#pre-commit">Pre-commit hooks</a>
+      <a href="#db-migrations">数据库迁移</a>
+      <a href="#coverage-gate">覆盖率门禁</a>
       <a href="#further-reading">延伸阅读</a>
     </aside></div>
   </main>
-  <footer class="shell footer">ResearchMate CI/CD 学习指南 . 编写于 2026 年 8 月 7 日</footer>
+  <footer class="shell footer">ResearchMate CI/CD 面试指南 . 写于 2026 年 8 月 21 日</footer>
   <script src="../assets/site.js"></script>
 </body>
 </html>

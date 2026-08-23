@@ -78,8 +78,7 @@ def main() -> None:
         ).fetchone()
         if completed is not None:
             print(
-                f"Qdrant rerank backfill {BACKFILL_VERSION} already verified "
-                f"for {completed[0]} chunks."
+                f"Qdrant rerank backfill {BACKFILL_VERSION} already verified for {completed[0]} chunks."
             )
             client.close()
             return

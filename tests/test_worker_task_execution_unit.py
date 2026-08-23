@@ -147,9 +147,7 @@ def test_ingestion_and_deletion_serialize_document_removal() -> None:
     assert "for update of j, d, p" in replace_sql, (
         "replace_content must acquire FOR UPDATE on job, document, and project"
     )
-    assert "d.deleted_at is null" in replace_sql, (
-        "replace_content must skip soft-deleted documents"
-    )
+    assert "d.deleted_at is null" in replace_sql, "replace_content must skip soft-deleted documents"
     assert "lease_expires_at > now()" in replace_sql, (
         "replace_content must verify the lease is still valid"
     )
@@ -244,9 +242,7 @@ def test_project_deletion_reclaims_expired_ingestion_leases() -> None:
         "project deletion must mark expired ingestion jobs as failed"
     )
     assert "lease_owner = null" in sql_text, "failed jobs must clear lease owners"
-    assert "lease_expires_at <= now()" in sql_text, (
-        "project deletion must reap expired leases"
-    )
+    assert "lease_expires_at <= now()" in sql_text, "project deletion must reap expired leases"
     # The claim must check no running ingestion with valid lease blocks it.
     assert sql_text.count("running_ingestion.lease_expires_at > now()") >= 2, (
         "project deletion must block on running ingestion at least twice "

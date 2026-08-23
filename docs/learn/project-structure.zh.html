@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="utf-8"/>
+  <title>项目结构 . 面试深挖</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <link href="../assets/site.css" rel="stylesheet"/>
+  <style>
+    .layout section > h2 { cursor: pointer; user-select: none; }
+    .layout section > h2::before { content: "▾ "; color: var(--clay); font-size: 0.8em; transition: transform 0.2s; display: inline-block; }
+    .layout section.collapsed > h2::before { transform: rotate(-90deg); }
+    .layout section.collapsed > :not(h2):not(.eyebrow) { display: none; }
+    .file-table { width: 100%; border-collapse: collapse; margin-top: 1rem; font-size: 0.9rem; }
+    .file-table th { text-align: left; padding: 0.5rem 0.75rem; border-bottom: 2px solid var(--clay); color: var(--ink); background: var(--sand); }
+    .file-table td { padding: 0.4rem 0.75rem; border-bottom: 1px solid var(--mist); vertical-align: top; }
+    .file-table tr:hover td { background: var(--sand); }
+    .file-table code { font-size: 0.85rem; }
+    .file-table .loc { text-align: right; white-space: nowrap; color: var(--clay); }
+  </style>
+  <button class="back-to-top" aria-label="返回顶部" data-back-to-top hidden>
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="M9 3L3 9l1.4 1.4L9 5.8l4.6 4.6L15 9L9 3z" fill="currentColor"/></svg>
+  </button>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      document.querySelectorAll('.layout section > h2').forEach(function(h2) {
+        h2.addEventListener('click', function() {
+          h2.closest('section').classList.toggle('collapsed');
+        });
+      });
+    });
+  </script>
+</head>
+<body>
+  <header class="mast"><div class="shell mast-row"><a class="brand" href="../index.zh.html">ResearchMate 文档</a><div class="mast-right"><span class="stamp">项目结构 . 2026 年 8 月 21 日</span><a class="lang-toggle" href="project-structure.html" hreflang="en" lang="en">EN</a></div></div></header>
+  <nav aria-label="文档" class="global"><div class="shell">
+    <a href="../index.zh.html">概览</a>
+    <a href="../product/index.zh.html">产品与路线图</a>
+    <a href="../architecture/index.zh.html">架构与技术栈</a>
+    <a href="../contracts/data/index.zh.html">数据库</a>
+    <a href="../contracts/api/index.zh.html">API</a>
+    <a aria-current="page" href="index.zh.html">学习</a>
+  </div></nav>
+  <nav aria-label="学习模块" class="global module-nav"><div class="shell">
+    <a href="frontend.zh.html">前端</a>
+    <a href="backend.zh.html">后端</a>
+    <a href="worker.zh.html">Worker</a>
+    <a href="infra.zh.html">基础设施</a>
+    <a href="cicd.zh.html">CI/CD</a>
+    <a href="contracts-tests.zh.html">契约与测试</a>
+    <a href="flows.zh.html">跨切面</a>
+    <a href="ai-stack.zh.html">AI 技术栈</a>
+    <a aria-current="page" href="project-structure.zh.html">结构</a>
+  </div></nav>
+  <main class="shell">
+    <div class="hero">
+      <p class="eyebrow">Monorepo / API 模块 / Worker 模块 / 共享测试</p>
+      <h1>项目结构 . 面试深挖</h1>
+      <p class="lede">clone 下 ResearchMate 后，你拿到的是一个仓库里三个独立部署的应用：Next.js 前端、FastAPI 后端、Python Worker。四条面试主线：仓库为什么这样切、API 四层怎么组织、Worker 为什么单独成包、测试为什么放在顶层而不是各应用内。</p>
+      <div class="meta">
+        <span class="status local">API 100 个 .py</span>
+        <span class="status local">Worker 46 个 .py</span>
+        <span class="status local">52 个测试文件</span>
+        <span class="status local">21 个 SQL 迁移</span>
+      </div>
+    </div>
+    <div class="layout"><div class="content">
+
+      <section id="monorepo">
+        <p class="eyebrow">[项目事实] 一个仓库三个应用，两个包管理器</p>
+        <h2>1. 打开仓库你看到什么</h2>
+        <p class="sub">先讲场景，再讲每个目录的职责。顶层故意做得简洁：它的作用只是指向三个部署物和跨它们的共享测试套件。</p>
+        <p>打开项目根目录，你看到七个顶层目录。每个目录对应一个清晰的职责：<code>apps/web</code> 是浏览器里看到的 Next.js 前端；<code>apps/api</code> 是处理 HTTP 请求的 FastAPI 后端（100 个 Python 文件）；<code>workers/ai-worker</code> 是单独的 Python 包，跑文档摄入和证据评审这种长任务（46 个 Python 文件）；<code>tests/</code> 放着 52 个 pytest 套件，从同一处测两个 Python 包；<code>infra/</code> 是声明式配置（SQL 迁移、Qdrant collection 规格、OpenAPI spec）；<code>scripts/</code> 是一次性 provisioning 工具；<code>docs/</code> 就是你正在读的 HTML 优先文档。</p>
+
+        <h3>为什么是一个仓库而不是三个</h3>
+        <p>三个应用必须同步演进：API 改了请求结构，前端必须跟上，Worker 也得继续写兼容的行。把三个放进一个仓库，意味着一次 <code>git pull</code> 全部更新，一个 PR 可以同时改 API + worker + tests。分成三个仓库，则意味着改一次路由要在三个仓库各开一个 PR，再走一遍版本号博弈。</p>
+
+        <h3>为什么用两个包管理器而不是一个</h3>
+        <p>前端是 JavaScript，API 和 Worker 是 Python，没有一个工具能把两边都管好。所以项目用了两个各自语言生态里的 workspace 工具：<code>npm workspaces</code> 管 JS，<code>uv workspace</code> 管 Python。两个各司其职——npm 给 Vercel 原生部署识别，uv 产出与生产 Docker 镜像锁文件一致的 <code>uv.lock</code>。</p>
+
+        <table class="file-table">
+          <thead><tr><th>机制</th><th>位于</th><th>带来什么</th></tr></thead>
+          <tbody>
+            <tr><td>npm workspaces</td><td>根 <code>package.json</code>：<code>"workspaces": ["apps/web"]</code></td><td>单一锁文件（根 <code>package-lock.json</code>）；从根一次 <code>npm install</code></td></tr>
+            <tr><td>uv workspace</td><td>根 <code>pyproject.toml</code>：<code>[tool.uv.workspace] members = ["apps/api", "workers/ai-worker"]</code></td><td>API 与 worker 共享开发依赖（ruff、pyright、pytest）和同一个 <code>uv.lock</code></td></tr>
+            <tr><td>Render 部署边界</td><td><code>render.yaml</code> 的 <code>buildFilter</code> paths</td><td>仅前端提交不触发 Render 上后端 Docker 重建</td></tr>
+            <tr><td>单容器跑两个 Python 应用</td><td><code>dockerCommand: python -m researchmate_worker.render_combined</code></td><td>[项目事实] Render Free 档 = 一个睡眠服务；这个入口在同一进程内运行 API HTTP server 与 Celery worker</td></tr>
+          </tbody>
+        </table>
+
+        <div class="fact"><b>[合理推断]</b> API 与 worker 同进程运行是 Free 档的主动权衡。好处是部署简单、共享内存单例（LLM client、Qdrant client 复用）。代价是不能独立伸缩；流量上来后要把 worker 拆成 Render Background Worker，保留共享 <code>uv.lock</code>，放弃单进程简单性。</div>
+
+        <h3>面试追问树</h3>
+        <pre class="command-block">为什么用两个包管理器而不是单一 Monorepo 工具（Nx / Turborepo）？
+├─ 各自带来什么单工具无法提供的价值？
+│  └─ npm workspaces → Vercel 原生识别；uv workspace → 与 Docker 锁文件一致的单一 Python 锁文件
+└─ 迁移到 Nx/Turborepo 会损失什么？
+   └─ [面试扩展] 你得到跨语言任务图和缓存；只有 CI 分钟数成为瓶颈才划算——本项目目前不是这样
+
+为什么 worker 和 API 放在同一个 Render 容器？
+├─ 与独立 worker 服务的权衡是什么？
+│  └─ [项目事实] Free 档 = 1 个服务；合并入口同时提供 HTTP 与同进程 Celery
+└─ 流量增长时如何拆分？
+   └─ [优化建议] 把 Celery 迁到 Render Background Worker；保留共享 uv.lock；放弃单进程简单性</pre>
+      </section>
+
+      <section id="api">
+        <p class="eyebrow">[项目事实] routers → services → schemas → persistence</p>
+        <h2>2. API 内部：四层加一个 graph</h2>
+        <p class="sub">面试主线是每层为什么存在、跨层传递什么。不要背文件名——讲清楚每层的职责，再讲清楚它为什么不能折叠进下一层。</p>
+
+        <p>FastAPI 可以把 SQL 直接写在路由 handler 里，小项目也确实这么干。本项目没有，因为 handler 是唯一和 HTTP 打交道的层，SQL 是唯一和 Postgres 打交道的层——折叠起来后，路由要测就得起一个数据库，SQL 要测就得起一个 HTTP 客户端。本项目把 API 拆成四层：routers 接 HTTP；services 放业务逻辑；persistence 跟 Postgres 打交道；schemas 校验跨层数据形状。还有一个额外包 <code>graph/</code>，放着驱动 Ask 和 Evidence 流程的 LangGraph 状态机。</p>
+
+        <h3>分层请求流（Ask 端点）</h3>
+        <pre class="command-block">HTTP 请求 POST 到 /api/v1/ask
+  → routers/ask.py        # 接 HTTP，调用 Depends() 取 services，返回 Pydantic schema
+    → services/grounded_query.py  # GroundedQueryService.execute() 决策检索路由，调 provider，调 LLM
+      → services/qdrant_hybrid_query.py, rerank.py, answering.py  # 对接 Qdrant、rerank、LLM 的适配模块
+      → services/idempotency.py    # 包住整次调用：begin() → execute() → complete()；重放返回缓存
+        → persistence/postgres.py  # ResearchMateRepository 经 Supabase 跑 SQL，按 owner_id 走 RLS
+          → schemas/ask.py           # AskRequest / AskResponse Pydantic 校验
+          → 返回 → HTTP</pre>
+
+        <table class="file-table">
+          <thead><tr><th>包</th><th>职责</th><th>数量</th></tr></thead>
+          <tbody>
+            <tr><td><code>routers/</code></td><td>HTTP 边界。薄：只做 Depends() 注入 + 经 <code>raise_api_error</code> 映射错误。在这里写 SQL，分层就坏了。</td><td>13 个</td></tr>
+            <tr><td><code>services/</code></td><td>业务编排。按能力一服务一类——grounded_query、evidence_generation、quiz_generation、retrieval、rerank、llm、object_storage、idempotency。调 provider；管事务边界。</td><td>~40 个</td></tr>
+            <tr><td><code>persistence/</code></td><td>经 Supabase 访问 SQL。每次查询传 RLS owner_id。<code>postgres.py</code> 是公开接口；<code>_*postgres_*.py</code> 是私有辅助。</td><td>~20 个</td></tr>
+            <tr><td><code>schemas/</code></td><td>Pydantic v2 模型。<code>common.py</code> 放共享常量（JobStatus、MAX_TEXT_LENGTH）——validator 里没有魔法数字。</td><td>11 个</td></tr>
+            <tr><td><code>graph/</code></td><td>LangGraph ResearchGraph 定义：状态、条件路由、节点组合。驱动内联的 Ask 和 Evidence 流程。</td><td>3 个</td></tr>
+            <tr><td><code>dependencies.py, main.py, mcp_server.py</code></td><td>三个根文件：FastAPI 装配、DI provider、暴露 6 工具 3 资源的 MCP server。</td><td>3 个</td></tr>
+          </tbody>
+        </table>
+
+        <div class="fact"><b>[项目事实]</b> 每个模块以 <code>from __future__ import annotations</code> 开头，每个函数签名完整类型标注。pre-commit 跑 ruff + pyright 强制。<code>Any</code> 仅留给真正的边界载荷（原始 JSON、框架体）。</div>
+
+        <h3>面试追问树</h3>
+        <pre class="command-block">为什么 routers / services / persistence 分层，而不是把 SQL 写在路由里？
+├─ 每一次拆分带来什么？
+│  └─ 路由保持薄（可 mock 做 HTTP 测试）；服务与 provider 解耦；持久化按 RLS 隔离（不起 HTTP 也能测）
+└─ 幂等性住在哪里，为什么？
+   └─ [项目事实] services/idempotency.py 包住整次服务调用：begin() → execute() → complete()；重放返回缓存，不重新调 LLM
+
+API 里有 graph/ 包，而 Celery 也有 workflow，区别在哪？
+├─ API 的 ResearchGraph 和 worker 的 workflow_execution.py 差异？
+│  └─ [项目事实] graph/ 构建驱动 Ask 和 Evidence 的进程内 ResearchGraph 状态机；workflows/*.py 是 Celery 触发的多步管线（摄入、评估、证据评审）
+└─ 何时走 API graph，何时排队 worker 任务？
+   └─ Ask 同步执行；文档上传和证据评审经 outbox → Celery 入队</pre>
+      </section>
+
+      <section id="worker">
+        <p class="eyebrow">[项目事实] tasks → evidence_graph → workflow_execution</p>
+        <h2>3. Worker 内部：为什么单独成包</h2>
+        <p class="sub">单独一个 worker 包不是装饰风格问题。它反映 worker 有自己的部署、自己的运行时诉求（长运行、可重启、可杀掉），以及自己依赖 Celery + LangGraph——这些都不应进 API 的请求/响应回路。</p>
+
+        <p>Worker 是单独的包（<code>workers/ai-worker</code>，包名 <code>researchmate_worker</code>），因为它的运行时画像和 API 相反。API 几毫秒内回包，请求太久就被杀；worker 跑的是分钟级任务（PDF 解析、切片、向量索引、证据评审），并且必须能扛崩溃——重启、重试、可被杀，且不丢活。把 worker 塞进 API 包，会让 API 一次意外的 import 就把 Celery 拖进请求路径；分开存放后，每一次跨边界调用都得经过真正的任务队列。</p>
+
+        <h3>按职责看布局</h3>
+        <table class="file-table">
+          <thead><tr><th>集群</th><th>文件</th><th>职责</th></tr></thead>
+          <tbody>
+            <tr><td>任务入口</td><td><code>tasks.py, task_builders.py, jobs.py, celery_app.py</code></td><td>Celery 任务注册；<code>celery_app.py</code> 设置 broker=Redis、result backend、soft time limit</td></tr>
+            <tr><td>workflow 核心</td><td><code>workflow_execution.py, workflow_core.py, workflow_runtime.py, workflow_loader.py, workflow_models.py, workflow_events.py, workflow_commit.py</code></td><td>LangGraph workflow 执行 + checkpoint + commit</td></tr>
+            <tr><td>证据评审</td><td><code>evidence_graph.py</code></td><td>证据评审 graph：节点含检索、生成、故障、充分性、提交</td></tr>
+            <tr><td>摄入</td><td><code>ingestion*.py</code>（7 个）+ <code>parsing/</code></td><td>文档解析（Docling/pdfium）→ 切片 → 投影 → 向量索引入 Qdrant</td></tr>
+            <tr><td>outbox + 运维</td><td><code>dispatch_outbox.py, outbox.py, runtime_health.py, worker_heartbeat.py, budget.py</code></td><td>outbox 派发器轮询 + 健康心跳 + token/成本预算约束</td></tr>
+            <tr><td>评估</td><td><code>evaluation*.py</code>（8 个）+ <code>fault_simulation.py, deletion*.py</code></td><td>RAGAS 式评估框架 + 故障注入 + 级联删除任务</td></tr>
+            <tr><td>部署入口</td><td><code>render_combined.py</code></td><td>单一入口：在 Render Free 档同一进程内启动 FastAPI + Celery worker</td></tr>
+          </tbody>
+        </table>
+
+        <div class="fact"><b>[项目事实]</b> worker 自身不起 HTTP 服务。<code>render_combined.py</code> 把 API 应用与 Celery worker 装载进同一进程上下文。API 与 worker 通过 uv workspace 共享一个 Python 环境与相同代码路径。</div>
+
+        <div class="notice"><b>[合理推断]</b> API 与 worker 同进程，LLM client、Qdrant client 这种内存单例可复用。Free 档负载下没问题；规模化后应拆进程，会失去这种共享。</div>
+
+        <h3>面试追问树</h3>
+        <pre class="command-block">为什么 API 与 worker 之间用 outbox，而不是直接 task.delay()？
+├─ outbox 解决什么问题？
+│  └─ [项目事实] API 在一次 DB 事务中同时写 outbox_events 行 + 业务数据；派发器轮询后入队；规避"DB 已提交但任务丢失"的竞态
+└─ 派发器把同一任务入队两次会怎样？
+   └─ [项目事实] 摄入与证据任务在 document_id / run_id 上幂等；重放安全
+
+长运行 workflow 如何避免被中途杀死？
+├─ [项目事实] Celery soft_time_limit + task_acks_late；SoftTimeLimitExceeded 在 except Exception 之前有显式 handler（否则被宽捕获吞掉）
+└─ [面试扩展] 为什么 Celery soft 超时打不断阻塞的 C 调用？
+   └─ soft 超时在 Python 字节码之间抛出；boto3 / C 扩展调用无视它；只有 SIGKILL 是硬兜底</pre>
+      </section>
+
+      <section id="tests-infra">
+        <p class="eyebrow">[项目事实] 顶层测试 + 声明式基础设施</p>
+        <h2>4. 测试为什么在顶层，基础设施在哪</h2>
+        <p class="sub">测试放顶层和基础设施声明式都是撑得住规模的结构选择。两者来自同一条原则：仓库布局应该告诉你什么被部署、什么被验证，而不是某位开发者先组织了什么。</p>
+
+        <p>测试放顶层（<code>tests/</code>，52 个 pytest 文件），而不是各应用目录内。原因是：最重要的测试是跨 API 和 worker 边界的——一次文档上传触发一条 outbox 行，worker 消费这一行，写回证据供下一次 Ask 读。把这些测试放进 <code>apps/api</code> 会逼它在 workspace 边界上反过来 import worker 包；放顶层后两边都能干净地 import <code>researchmate_api</code> 和 <code>researchmate_worker</code>。从根一次 <code>test:python</code> 就跑完 52 个文件，69% 覆盖率门槛。</p>
+
+        <p>基础设施全部声明式——线上跑的一切都在你能读到的文件里有定义。三件事：21 个 SQL 迁移在 <code>infra/supabase/migrations/</code> 管数据库 schema；<code>render.yaml</code> 管部署（单 Render Free web 服务、Docker、health check 走 <code>/api/v1/healthz</code>、~48 个 env 变量）；<code>scripts/</code> 管一次性 provisioning 工具，容器启动时或按需运行。</p>
+
+        <table class="file-table">
+          <thead><tr><th>路径</th><th>负责什么</th></tr></thead>
+          <tbody>
+            <tr><td><code>tests/</code></td><td>52 个 pytest 文件；契约测试同时 import 两个 Python 包；一条 <code>test:python</code> 命令，69% 覆盖率门槛</td></tr>
+            <tr><td><code>infra/supabase/migrations/</code></td><td>21 个 SQL 文件；由 <code>scripts/apply_migrations.py</code> 在容器启动且 <code>RUN_SCHEMA_MIGRATIONS=1</code> 时应用；CI 跑 <code>check:migrations</code> 校验文件完整性</td></tr>
+            <tr><td><code>infra/qdrant/</code></td><td>Qdrant collection 配置（hybrid 检索 v3 + rerank v2）；由 <code>scripts/provision_qdrant_hybrid.py</code> + <code>provision_qdrant_rerank.py</code> 创建</td></tr>
+            <tr><td><code>infra/openapi/</code></td><td>生成的 OpenAPI spec；经 <code>scripts/export_openapi.py --check</code> 校验</td></tr>
+            <tr><td><code>render.yaml</code></td><td>单 Render Free web 服务：<code>runtime=docker</code>、<code>dockerCommand=python -m researchmate_worker.render_combined</code>、<code>healthCheckPath=/api/v1/healthz</code>、~48 个键的 env 变量组</td></tr>
+            <tr><td><code>scripts/</code></td><td>11 个 Python + PowerShell 工具：<code>apply_migrations, export_openapi, provision_qdrant_*, setup_langgraph_checkpoint, check_evaluation_gate, measure_langgraph_recovery</code></td></tr>
+          </tbody>
+        </table>
+
+        <div class="fact"><b>[项目事实]</b> render.yaml 的 env 键讲清整条 provider 故事：<code>QDRANT_*</code>（向量 + 原生 hybrid + ColBERT rerank）、<code>NVIDIA_*</code>（LLM + embedding 经 NVIDIA NIM）、<code>TAVILY_*</code>（web 搜索）、<code>SUPABASE_URL</code> + <code>OBJECT_STORAGE_*</code>（Postgres + RLS + S3 兼容存储）、<code>LANGFUSE_*</code> + <code>OTEL_*</code>（可观测性）。</div>
+
+        <h3>面试追问树</h3>
+        <pre class="command-block">为什么测试在顶层而不是各包内？
+├─ 哪些测试放进单个包会很别扭？
+│  └─ [项目事实] API→worker outbox 往返的契约测试需要同时 import 两个包；顶层避免跨 workspace 反向 import
+└─ 覆盖率门槛？
+   └─ [项目事实] 从根一次 test:python 跑完 52 个文件；pre-commit 强制 69% 阈值
+
+为什么迁移在容器启动时跑，而不是 CI 独立步骤？
+├─ [项目事实] RUN_SCHEMA_MIGRATIONS=1 触发 apply_migrations.py 在启动时执行；CI 的 check:migrations 校验文件完整性
+├─ 权衡：单服务部署更简单 vs. 启动延迟 + "迁移阻塞发布"风险
+└─ 规模化后？
+   └─ [优化建议] 改为评审门控的迁移作业；启动时对 schema 只读</pre>
+      </section>
+
+    </div>
+
+
+      <aside class="toc"><b>本页目录</b>
+        <a href="#monorepo">1. 打开仓库你看到什么</a>
+        <a href="#api">2. API 内部：四层</a>
+        <a href="#worker">3. Worker 内部</a>
+        <a href="#tests-infra">4. 顶层测试 + 基础设施</a>
+      </aside>
+    </div>
+  </main>
+  <script>
+    (function() {
+      var btn = document.querySelector('[data-back-to-top]');
+      if (!btn) return;
+      function toggle() {
+        if (window.scrollY > 400) { btn.hidden = false; }
+        else { btn.hidden = true; }
+      }
+      window.addEventListener('scroll', toggle);
+      btn.addEventListener('click', function() { window.scrollTo({ top: 0, behavior: 'smooth' }); });
+    })();
+  </script>
+  <footer class="shell footer">ResearchMate 项目结构面试指南 . 写于 2026 年 8 月 21 日</footer>
+</body>
+</html>

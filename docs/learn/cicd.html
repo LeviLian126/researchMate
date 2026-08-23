@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8"/>
   <meta content="width=device-width,initial-scale=1" name="viewport"/>
-  <meta content="ResearchMate CI/CD learning guide: GitHub Actions, the multi-stage Render Dockerfile, dependency management, and environment configuration explained file-by-file." name="description"/>
-  <title>ResearchMate . CI/CD learning</title>
+  <meta content="ResearchMate CI/CD interview deep dive: GitHub Actions pipeline, pre-commit hooks, SQL migration runner with SHA-256 checksums, and coverage gate. Plain-language for 0-experience readers, keeps interview depth." name="description"/>
+  <title>ResearchMate . CI/CD interview guide</title>
   <link href="../assets/site.css" rel="stylesheet"/>
   <style>
     .layout section > h2 { cursor: pointer; user-select: none; }
@@ -27,7 +27,7 @@
   <style>.module-nav{border-top:1px solid var(--g200)}.module-nav .shell{padding:6px 0 12px}.module-nav a{font-size:11.5px;padding:5px 11px}</style>
 </head>
 <body>
-  <header class="mast"><div class="shell mast-row"><a class="brand" href="../index.html">ResearchMate documentation</a><div class="mast-right"><span class="stamp">CI/CD . 7 August 2026</span><a class="lang-toggle" href="cicd.zh.html" hreflang="zh" lang="zh">中文</a></div></div></header>
+  <header class="mast"><div class="shell mast-row"><a class="brand" href="../index.html">ResearchMate documentation</a><div class="mast-right"><span class="stamp">CI/CD . 21 August 2026</span><a class="lang-toggle" href="cicd.zh.html" hreflang="zh" lang="zh">中文</a></div></div></header>
   <nav aria-label="Documentation" class="global"><div class="shell">
     <a href="../index.html">Overview</a>
     <a href="../product/index.html">Product &amp; roadmap</a>
@@ -45,552 +45,325 @@
     <a href="contracts-tests.html">Contracts &amp; Tests</a>
     <a href="flows.html">Flow analysis</a>
     <a href="ai-stack.html">AI stack</a>
+      <a href="project-structure.html">Structure</a>
   </div></nav>
   <main class="shell">
     <div class="hero">
-      <p class="eyebrow">GitHub Actions / Docker / Render / Vercel / uv / npm workspaces</p>
-      <h1>CI/CD . Pipeline &amp; deployment</h1>
-      <p class="lede">ResearchMate ships through three GitHub Actions workflows: the main five-job researchmate-ci pipeline (4 parallel quality gates + 1 ci-success aggregator), the on-demand evaluation-release-gate, and the on-demand recovery-benchmark. CI checks the same combined backend image that Render builds, and the single Render Free service deploys after the required checks pass.</p>
+      <p class="eyebrow">GitHub Actions / pre-commit / migration runner / coverage gate . 4 topics, interview-focused</p>
+      <h1>CI/CD . interview deep dive</h1>
+      <p class="lede">After you push, CI does four things in parallel: runs Python tests with a 69% coverage gate, builds the frontend and runs its unit tests plus a dependency audit, runs Playwright end-to-end browser tests, and scans the Docker image for HIGH/CRITICAL CVEs. A fifth aggregator job, named <code>ci-success</code>, only goes green when all four are green; Render's deploy gate waits on that single job. Below: the pipeline's shape and the <code>ci-success</code> sentinel; pre-commit's ruff + pyright hooks reusing the locked uv environment; the SQL migration runner's advisory lock and SHA-256 ledger; and the 69% coverage threshold wired into <code>npm run check:all</code>.</p>
       <div class="meta">
-        <span class="status local">3 workflows (5 jobs in ci.yml)</span>
-        <span class="status local">1 deployment Dockerfile</span>
-        <span class="status local">48 env vars in render.yaml</span>
-        <span class="status local">11 sync:false secrets</span>
-        <span class="status local">autoDeploy on checksPass</span>
-        <span class="status local">Dual-lock: uv.lock + package-lock.json</span>
+        <span class="status local">5 jobs in ci.yml + ci-success</span>
+        <span class="status local">3 workflows total</span>
+        <span class="status local">--frozen uv + npm ci dual lock</span>
+        <span class="status local">69% coverage threshold</span>
+        <span class="status local">SHA-256 migration ledger</span>
       </div>
     </div>
     <div class="layout"><div class="content">
 
-      <section id="stack">
-        <p class="eyebrow">Technology stack fundamentals</p>
-        <h2>7 tools that define the build and deploy lifecycle</h2>
-        <p class="sub">Each card explains what the tool does in general and how ResearchMate uses it specifically.</p>
-        <div class="grid two">
-          <article class="fact"><b>CI/CD</b><p>Continuous Integration / Continuous Deployment is the practice of automatically testing, building, scanning, and deploying every code change through a reproducible pipeline. ResearchMate treats CI as the single source of truth for release readiness: no commit reaches production unless all five gate jobs pass and the ci-success aggregator confirms every result equals success.</p></article>
-          <article class="fact"><b>GitHub Actions</b><p>Workflow automation platform triggered on push to main or develop and on every pull request. The repository has three workflows: <code>ci.yml</code> (researchmate-ci, 5 jobs: 4 parallel quality gates plus the ci-success aggregator), <code>evaluation-release-gate.yml</code> (on-demand, accepts an <code>evaluation_run_id</code> input), and <code>recovery-benchmark.yml</code> (on-demand, accepts a <code>trials</code> input default 1000). The main workflow uses a concurrency group with cancel-in-progress to kill stale runs, pins every action to a major version, and runs with explicit timeout-minutes ranging from 20 to 35 minutes. The ci-success job uses <code>if: always()</code> with <code>needs</code> to aggregate all four quality gates.</p></article>
-          <article class="fact"><b>Docker</b><p>The repository keeps one multi-stage Dockerfile because Render runs API, worker, and dispatcher from the same image. It uses a pinned uv stage and <code>python:3.13-slim</code>, installs the locked workspace and native parser libraries, preloads Docling models, removes build tooling, and runs as uid 10001. CI lints, builds, and scans this deployment artifact.</p></article>
-          <article class="fact"><b>Render</b><p>Cloud deployment platform hosting the combined backend-plus-worker service as a single Free-tier Docker web service in the Oregon region. render.yaml declares one envVarGroups block with 48 entries (37 with values, 11 sync:false secrets), an autoDeployTrigger of checksPass, and a buildFilter that limits rebuilds to relevant path patterns. Render probes the constant-time <code>/api/v1/healthz</code> liveness route; operators retain <code>/api/v1/readyz</code> for dependency readiness.</p></article>
-          <article class="fact"><b>Vercel</b><p>Frontend deployment platform for the Next.js 16.3.0 web application in apps/web. Vercel builds and serves the production frontend independently from the backend. CORS_ALLOWED_ORIGINS in render.yaml is set to the Vercel origin so the API accepts browser requests from the deployed frontend.</p></article>
-          <article class="fact"><b>uv</b><p>Python package manager and project manager by Astral, pinned to version 0.12.1 in CI and the deployment Dockerfile. uv resolves the monorepo workspace (apps/api + workers/ai-worker), installs locked dependencies via uv.lock with the --frozen flag, and supports --all-packages for installing every workspace member in one command. The setup-uv action enables caching in CI for faster runs.</p></article>
-          <article class="fact"><b>npm workspaces</b><p>JavaScript monorepo management with npm 11.6.0 declared via packageManager in the root package.json. The workspaces array includes apps/web. CI runs npm install --no-audit --no-fund to install the full workspace tree, and the package-lock.json lockfile guarantees reproducible JavaScript dependency resolution across local and CI environments.</p></article>
-        </div>
-      </section>
-
       <section id="ci-pipeline">
-        <p class="eyebrow">CI/CD workflow</p>
-        <h2>From commit to production: five quality flows and deployment elevation chain</h2>
-        <p class="sub">Every push to main/develop and every pull request follows the same gate chain. State transitions follow the planned → ready → executed → verified four-state model: the first four parallel gate Jobs verify the source artifact in the ready phase, and the ci-success aggregation gate confirms all succeeded in the verified phase. Only after the aggregation gate passes does Render's autoDeployTrigger: checksPass trigger the production deployment elevation—establishing a hard dependency between CI green light and production deployment.</p>
+        <p class="eyebrow">Function-centered . GitHub Actions pipeline</p>
+        <h2>Four parallel quality gates aggregated by a ci-success sentinel</h2>
 
-        <!-- Pipeline overview chips -->
-        <div class="coverage-strip">
-          <div class="coverage-item"><b>1. Source change</b><small>planned — push / PR trigger</small></div>
-          <div class="coverage-item"><b>2. python-quality</b><small>ready — lint + test + coverage 69%</small></div>
-          <div class="coverage-item"><b>3. web-quality</b><small>ready — Vitest + next build + audit</small></div>
-          <div class="coverage-item"><b>4. browser-e2e</b><small>ready — Playwright acceptance</small></div>
-          <div class="coverage-item"><b>5. container-quality</b><small>ready — hadolint + Trivy</small></div>
-          <div class="coverage-item"><b>6. ci-success</b><small>verified — aggregation gate</small></div>
-          <div class="coverage-item"><b>7. Render deploy</b><small>executed — checksPass elevation</small></div>
-          <div class="coverage-item"><b>8. Health check live</b><small>verified — /api/v1/healthz</small></div>
+        <div class="fact">
+          <b>In plain language: after a push, CI runs 4 things; Render deploys only after all 4 + ci-success go green</b>
+          <ul>
+            <li><b>python-quality</b> &mdash; Python tests + 69% coverage gate + ruff lint + pyright type-check + OpenAPI drift detection + migration file validation. <em>When you add an API endpoint, CI catches if the committed OpenAPI spec and the rendered one diverge.</em></li>
+            <li><b>web-quality</b> &mdash; Frontend production build + unit tests + <code>npm audit</code> dependency scan. <em>When you bump a package, CI builds, runs unit tests, and blocks on a moderate-or-worse vulnerability in prod deps.</em></li>
+            <li><b>browser-e2e</b> &mdash; Playwright runs end-to-end browser flows; on failure uploads the report artifact with 7-day retention for triage. <em>When you change the login flow, CI verifies the whole user path in a real browser.</em></li>
+            <li><b>container-quality</b> &mdash; lint the Dockerfile with hadolint, build the image with layer cache, scan with <code>trivy</code> for HIGH/CRITICAL CVEs. <em>When you change the Dockerfile, CI scans the produced image for known CVEs.</em></li>
+            <li><b>ci-success</b> &mdash; aggregator sentinel: runs <code>if: always()</code> after all four and asserts each result equals <code>success</code>. Render's <code>checksPass</code> deploy gate reads this job. <em>One red gate anywhere = no deploy.</em></li>
+          </ul>
         </div>
 
-        <!-- Vertical timeline -->
-        <h3 style="margin-top:28px;">Full gate timeline</h3>
-        <div class="timeline">
+        <p class="sub">[Project fact] <code>.github/workflows/ci.yml</code> triggers on PR and on push to <code>main</code> / <code>develop</code>. <code>concurrency: cancel-in-progress: true</code> kills stale runs of the same branch. The four jobs above run in parallel; <code>ci-success</code> has <code>needs: [all four]</code> and <code>if: always()</code>.</p>
 
-          <div class="event">
-            <h3>1. Source change <span class="status">planned</span></h3>
-            <p>Developer pushes to main/develop or opens a PR. GitHub Actions triggers the researchmate-ci workflow.</p>
-            <div class="flow">
-              <div class="node"><b>Trigger</b><small>push to main/develop<br/>every pull request</small></div>
-              <div class="node"><b>Concurrency</b><small>concurrency group<br/>cancel-in-progress: true</small></div>
-              <div class="node"><b>Workflow</b><small>.github/workflows/ci.yml<br/>researchmate-ci</small></div>
-            </div>
-          </div>
+        <p>The pipeline is the single source of truth for release readiness &mdash; Render's <code>autoDeployTrigger: checksPass</code> waits on exactly these checks. <strong>The key design move:</strong> instead of letting GitHub implicitly reject the workflow when any job fails, the project runs an explicit aggregator job that asserts <code>test "$RESULT" = success</code> on each downstream job's result. Why this matters: GitHub's implicit "needs" treats <code>continue-on-error: true</code> jobs as non-blocking, so a sibling job that fails softly would slip past a default gate. The explicit assertions make the gate single, named, inspectable, and immune to soft failures.</p>
 
-          <div class="event">
-            <h3>2. Four parallel quality flows <span class="status">ready</span></h3>
-            <p>python-quality, web-quality, browser-e2e, and container-quality run concurrently on ubuntu-latest. They are independent with no dependencies, sharing only the source artifact. All must pass to proceed.</p>
-            <div class="journey-map">
-              <div class="journey-step">
-                <span class="step-no">FLOW 1</span>
-                <b>python-quality</b>
-                <small>35 min · Backend quality</small>
-                <p style="margin-top:8px;font-size:12px;">lint + test + coverage 69% + OpenAPI + migrations</p>
-              </div>
-              <div class="journey-step">
-                <span class="step-no">FLOW 2</span>
-                <b>web-quality</b>
-                <small>20 min · Frontend quality</small>
-                <p style="margin-top:8px;font-size:12px;">Vitest + next build + npm audit</p>
-              </div>
-              <div class="journey-step">
-                <span class="step-no">FLOW 3</span>
-                <b>browser-e2e</b>
-                <small>20 min · E2E acceptance</small>
-                <p style="margin-top:8px;font-size:12px;">Playwright 1.62 browser acceptance</p>
-              </div>
-              <div class="journey-step">
-                <span class="step-no">FLOW 4</span>
-                <b>container-quality</b>
-                <small>25 min · Container security</small>
-                <p style="margin-top:8px;font-size:12px;">hadolint + Docker build + Trivy CVE</p>
-              </div>
-            </div>
-          </div>
-
-          <div class="event">
-            <h3>3. ci-success aggregation gate <span class="status">verified</span></h3>
-            <p>Runs with if: always(), needs all four Jobs. Asserts all four environment variables equal success. If any gate fails or is cancelled, this step fails, the workflow turns red, and deployment is blocked.</p>
-            <div class="flow">
-              <div class="node"><b>Stable contract</b><small>ci-success<br/>external name unchanged</small></div>
-              <div class="node"><b>Assertions</b><small>PYTHON_RESULT = success<br/>WEB_RESULT = success<br/>E2E_RESULT = success<br/>CONTAINER_RESULT = success</small></div>
-              <div class="node"><b>Failure handling</b><small>Workflow turns red<br/>Render deploy blocked</small></div>
-            </div>
-          </div>
-
-          <div class="event">
-            <h3>4. Render checksPass elevation <span class="status">executed</span></h3>
-            <p>Render observes GitHub check status on the main branch, starting a new deployment only when all checks report success. buildFilter ensures irrelevant path changes don't trigger rebuilds.</p>
-            <div class="flow">
-              <div class="node"><b>Trigger</b><small>autoDeployTrigger<br/>checksPass</small></div>
-              <div class="node"><b>Path filter</b><small>buildFilter<br/>7 path patterns</small></div>
-              <div class="node"><b>Docker build</b><small>workers/ai-worker/Dockerfile<br/>dockerContext: .</small></div>
-            </div>
-          </div>
-
-          <div class="event">
-            <h3>5. Health check live <span class="status">verified</span></h3>
-            <p>Render builds the image, applies environment variables, and starts the container. After <code>/api/v1/healthz</code> returns 200, the service is marked live and routes traffic. Dependency readiness remains observable at <code>/api/v1/readyz</code> without placing database, Redis, and Qdrant probes on the five-second platform liveness deadline.</p>
-            <div class="flow">
-              <div class="node"><b>Health check</b><small>/api/v1/healthz<br/>HTTP 200 = live</small></div>
-              <div class="node"><b>Env vars</b><small>48 envVarGroup entries<br/>+ 3 service-level overrides</small></div>
-              <div class="node"><b>Start command</b><small>python -m<br/>researchmate_worker<br/>.render_combined</small></div>
-            </div>
-          </div>
-
+        <div class="fact">
+          <b>Job-by-job (what each gate actually checks)</b>
+          <ul>
+            <li><b>python-quality</b> &mdash; <code>npm run test:python</code> (69% coverage gate), <code>npm run check:types</code> (pyright basic), <code>npm run check:lint</code> + <code>check:openapi</code> + <code>check:migrations</code>; install uses <code>uv sync --frozen --all-packages --group dev</code>. timeout 35 min. [Project fact]</li>
+            <li><b>web-quality</b> &mdash; <code>npm ci --no-audit --no-fund</code>, <code>npm run test:web</code>, <code>npm run check:web</code> (production build), <code>npm run check:audit</code> (<code>npm audit --omit=dev --audit-level=moderate</code>). timeout 20 min. [Project fact]</li>
+            <li><b>browser-e2e</b> &mdash; <code>npx playwright install --with-deps chromium</code> then <code>npm run test:e2e</code>; on failure uploads <code>apps/web/playwright-report</code> artifact (7-day retention). timeout 20 min. [Project fact]</li>
+            <li><b>container-quality</b> &mdash; <code>hadolint --ignore DL3008</code> on <code>workers/ai-worker/Dockerfile</code>, <code>docker build-push-action</code> with <code>load: true, push: false</code> + GHA cache, then <code>aquasec/trivy:0.73.0 image --exit-code 1 --ignore-unfixed --severity HIGH,CRITICAL</code>. timeout 25 min. [Project fact]</li>
+            <li><b>ci-success</b> &mdash; <code>if: always()</code>, <code>needs: [python-quality, web-quality, browser-e2e, container-quality]</code>; runs four literal <code>test "$X_RESULT" = success</code> assertions. [Project fact]</li>
+          </ul>
         </div>
 
-        <!-- Why this topology works -->
-        <div class="notice" style="border-left:3px solid var(--clay);background:#fbede8;padding:16px;margin-top:24px;border-radius:0 8px 8px 0;">
-          <b>Why this topology works</b>
-          <p style="margin-top:8px;color:var(--g700);">Four independent quality flows run in parallel instead of sequentially, compressing wall-clock time from 100 minutes to 35 minutes (the longest path). The ci-success aggregation gate uses if: always() to ensure explicit result reporting even when upstream fails, rather than silently skipping. Render's checksPass establishes a hard dependency between CI green light and production deployment — a green build does not mean it has been elevated; only the aggregation gate passing triggers deployment. buildFilter restricts rebuilds to relevant path changes, preventing pure documentation changes from triggering unnecessary backend rebuilds.</p>
+        <h3>python-quality — Python tests, types, lint, contracts</h3>
+        <p><strong>What it runs (5 steps, 35-min timeout):</strong></p>
+        <ol>
+          <li><code>uv sync --frozen --all-packages --group dev</code> &mdash; install locked Python deps. <code>--frozen</code> means <code>uv.lock</code> is the oracle; if the lockfile does not match <code>pyproject.toml</code>, the step fails. No silent resolution.</li>
+          <li><code>npm run test:python</code> &mdash; <code>coverage run --branch --source=apps/api/src,workers/ai-worker/src -m pytest -q && coverage report --fail-under=69</code>. Runs every test in <code>tests/</code>, measures branch coverage across both packages, and blocks if total coverage drops below 69%.</li>
+          <li><code>npm run check:types</code> &mdash; <code>npx --yes pyright@1.1.390</code>. Static type analysis in <code>basic</code> mode. Catches <code>None</code>-dereference risks, wrong argument types, and missing return annotations before runtime.</li>
+          <li><code>npm run check:lint</code> &mdash; <code>ruff check apps/api/src workers/ai-worker/src tests</code>. Lints all three trees with ruff 0.16.0 rules (UP, F, E, I, etc.). Any autofix-able violation that was not fixed locally fails the step.</li>
+          <li><code>npm run check:openapi && npm run check:migrations</code> &mdash; OpenAPI drift check: renders the FastAPI spec and compares it byte-for-byte with <code>infra/openapi/openapi.yaml</code>. Migration file check: validates every SQL file has a unique version prefix, is non-empty, and contains no <code>drop database</code>.</li>
+        </ol>
+        <p><strong>Principle:</strong> This job is the contract gate. Tests verify behavior; pyright verifies type safety; ruff verifies style consistency; OpenAPI check verifies the public API contract has not silently drifted; migration check verifies the database schema files are structurally valid. Together they form the "does the code do what it claims" gate that every other job depends on.</p>
+
+        <h3>web-quality — Build, unit tests, dependency audit</h3>
+        <p><strong>What it runs (4 steps, 20-min timeout):</strong></p>
+        <ol>
+          <li><code>npm ci --no-audit --no-fund</code> &mdash; install from <code>package-lock.json</code> exactly. <code>ci</code> (not <code>install</code>) refuses to write the lockfile; if <code>package.json</code> and lockfile disagree, the step fails. <code>--no-audit --no-fund</code> skips the npm registry telemetry to save ~10s.</li>
+          <li><code>npm run test:web</code> &mdash; <code>npm --workspace @researchmate/web run test</code>. Runs Vitest unit tests for the frontend workspace. Tests cover component rendering, hook logic, and utility functions.</li>
+          <li><code>npm run check:web</code> &mdash; <code>npm --workspace @researchmate/web run build</code>. Full Next.js production build. If TypeScript compilation fails or a page has an import error, the build fails. This is the strongest signal that the frontend compiles cleanly.</li>
+          <li><code>npm run check:audit</code> &mdash; <code>npm audit --omit=dev --audit-level=moderate</code>. Scans production dependencies for known CVEs. <code>--omit=dev</code> skips devDependencies (not shipped). <code>--audit-level=moderate</code> means a moderate-or-worse CVE in a prod dep fails the step.</li>
+        </ol>
+        <p><strong>Principle:</strong> Build + test + audit. The build catches TypeScript and import errors that unit tests might miss (a component can be wrong but still importable). The audit catches supply-chain risk: a transitive dependency with a known vulnerability should block the release, not be discovered after deploy.</p>
+
+        <h3>browser-e2e — Playwright browser acceptance test</h3>
+        <p><strong>What it runs (4 steps, 20-min timeout):</strong></p>
+        <ol>
+          <li><code>npm ci --no-audit --no-fund</code> &mdash; install web deps (same as web-quality).</li>
+          <li><code>npx playwright install --with-deps chromium</code> &mdash; download Chromium + OS-level browser dependencies (fonts, libs). Pinned to the Playwright version in <code>package-lock.json</code>.</li>
+          <li><code>npm run test:e2e</code> &mdash; starts a Next.js dev server on <code>127.0.0.1:3100</code> with <code>NEXT_PUBLIC_DEMO_MODE=true</code>, then runs <code>apps/web/e2e/demo-workspace.e2e.ts</code> against it.</li>
+          <li><em>On failure only:</em> uploads <code>apps/web/playwright-report</code> as a 7-day artifact (HTML report + traces + screenshots + video).</li>
+        </ol>
+
+        <p><strong>What the test actually checks in the browser:</strong></p>
+        <p>The single test (<code>demo-workspace.e2e.ts</code>) exercises a complete user journey in a real Chromium instance. It does not stub the DOM &mdash; it clicks, types, drags, and reads rendered HTML. [Project fact]</p>
+        <ul>
+          <li><b>Console + runtime error monitoring</b> &mdash; listens to <code>page.on("console")</code> and <code>page.on("pageerror")</code> throughout the entire test. Any console error or uncaught exception makes the test fail at the end, even if the assertion that triggered it passed.</li>
+          <li><b>Network isolation</b> &mdash; listens to every <code>page.on("request")</code> and records any request whose hostname is not <code>127.0.0.1</code>. The test asserts <code>externalRequests === []</code> at the end. This proves the demo mode does not accidentally call cloud APIs, LLM providers, or external CDNs.</li>
+          <li><b>Healthz mock</b> &mdash; intercepts <code>**/api/v1/healthz</code> and returns <code>{"status":"ok"}</code>. The app's health check passes without a real backend.</li>
+          <li><b>Chat journey</b> &mdash; navigates to <code>/app?new=1</code>, asserts the heading "What can I help with?" is visible, types a research question, clicks "Send message", then asserts the user's message and the AI's response (containing "retrieval is useful when evidence is relevant") both appear.</li>
+          <li><b>Citation drill-down</b> &mdash; asserts a citation "1. Project source, page 3" is visible, clicks it, and asserts a detail panel with "Grounding and explicit source attribution" opens. Also asserts the URL changed to include <code>?conversation=</code> (deep linking works).</li>
+          <li><b>Sidebar resize</b> &mdash; finds the sidebar by ARIA role <code>complementary</code> (not by CSS class), finds the resize handle by ARIA role <code>separator</code>, drags it 72px, and polls until the sidebar width exceeds the original by 40px. This tests interactive layout, not just static rendering.</li>
+          <li><b>Project creation</b> &mdash; clicks "New project", fills the name "E2E evidence workspace", clicks "Create", and asserts the URL matches <code>/app/projects/[^/]+/chat?new=1</code> and the heading "Chat in E2E evidence workspace" appears.</li>
+          <li><b>Quiz generation</b> &mdash; clicks "Quiz", asserts the quiz panel (ARIA role <code>complementary</code>, name "Project quiz") is visible, clicks "Generate quiz", and asserts a quiz question containing "What makes a retrieved conclusion defensible" appears.</li>
+        </ul>
+
+        <p><strong>Principles:</strong></p>
+        <ul>
+          <li><b>Deterministic demo mode</b> &mdash; <code>NEXT_PUBLIC_DEMO_MODE=true</code> makes the app serve pre-baked responses without any backend, LLM provider, or credentials. The test is reproducible: no flaky API calls, no rate limits, no cost. [Project fact]</li>
+          <li><b>Accessibility-first assertions</b> &mdash; every element is found by ARIA role and accessible name (<code>getByRole("complementary", { name: "Workspace navigation" })</code>), not by CSS class or test ID. This means the test validates semantic HTML structure. If a developer removes an <code>aria-label</code>, the test breaks &mdash; catching accessibility regressions for free. [Project fact]</li>
+          <li><b>Browser error as test failure</b> &mdash; the test does not just check "did the right text appear." It checks "did the browser stay clean the entire time." A console error from a lazy-loaded component that renders after the assertion still fails the test. [Reasonable inference]</li>
+          <li><b>CI-specific Playwright config</b> &mdash; in CI: <code>forbidOnly: true</code> (no <code>test.only</code> escapes), 2 retries, 1 worker (serial, no parallel browser instances), HTML reporter for artifact upload, trace/screenshot/video retained on failure. [Project fact]</li>
+        </ul>
+
+        <h3>container-quality — Dockerfile lint, image build, CVE scan</h3>
+        <p><strong>What it runs (3 steps, 25-min timeout):</strong></p>
+        <ol>
+          <li><code>hadolint --ignore DL3008</code> &mdash; lints <code>workers/ai-worker/Dockerfile</code> via the official hadolint Docker image. <code>DL3008</code> (pin apt package versions) is suppressed because the base image <code>python:3.13-slim</code> manages its own apt versions. Other rules (DL3005 <code>--no-install-recommends</code>, DL3059 no <code>--chown</code> on <code>COPY</code>) still apply.</li>
+          <li><code>docker build-push-action</code> with <code>load: true, push: false</code> &mdash; builds the image locally (does not push to a registry). Uses GHA layer cache (<code>cache-from: type=gha, cache-to: type=gha,mode=max</code>) so repeated builds reuse layers. The image is tagged <code>researchmate-render:ci</code>.</li>
+          <li><code>trivy image --exit-code 1 --ignore-unfixed --severity HIGH,CRITICAL</code> &mdash; scans the built image's layer filesystem for known CVEs in installed system packages and Python packages. <code>--ignore-unfixed</code> skips CVEs that have no upstream fix yet (reduces noise). <code>--exit-code 1</code> means any HIGH or CRITICAL CVE with a fix available fails the step.</li>
+        </ol>
+        <p><strong>Principle:</strong> The Dockerfile is the exact artifact that Render deploys. Linting it catches Dockerfile anti-patterns (missing <code>--no-install-recommends</code>, running as root, large layer waste). Building it proves the image compiles. Scanning it catches known vulnerabilities in the OS-level and Python-level packages before they reach production. The scan uses <code>--ignore-unfixed</code> because flagging unfixable CVEs creates alert fatigue without actionable remediation.</p>
+
+        <h3>ci-success — the aggregator sentinel</h3>
+        <p><strong>What it runs (1 step, no timeout pressure):</strong></p>
+        <ol>
+          <li>Four literal <code>test "$X_RESULT" = success</code> assertions, one per upstream job. If any returns non-zero (i.e., any job's result is not <code>success</code>), the step fails and <code>ci-success</code> goes red.</li>
+        </ol>
+        <p><strong>Principle:</strong> GitHub's <code>needs</code> graph treats <code>continue-on-error: true</code> jobs as non-blocking &mdash; a soft-fail sibling would not block downstream <code>needs</code>. The explicit assertions bypass this: <code>ci-success</code> runs <code>if: always()</code> (so it runs even if siblings fail) and checks each result literally. Render's <code>autoDeployTrigger: checksPass</code> reads this single job's conclusion. One red gate anywhere = no deploy.</p>
+
+        <h3>On-demand workflows — evaluation gate and recovery benchmark</h3>
+        <p>Beyond <code>ci.yml</code>, the repo has two <code>workflow_dispatch</code> workflows that run on manual trigger, not on push. [Project fact]</p>
+        <ul>
+          <li><b>evaluation-release-gate</b> &mdash; triggered with an <code>evaluation_run_id</code> input. Calls <code>scripts/check_evaluation_gate.py</code>, which fetches the evaluation run's aggregate result from the dev API, checks six conditions (status=succeeded, summary.complete, execution_succeeded, quality_passed, no regression, pipeline_code_sha matches), and compares three metric thresholds (<code>evidence_recall &ge; 0.80</code>, <code>retrieval_mrr &ge; 0.50</code>, <code>retrieval_ndcg &ge; 0.80</code>). The gate step uses <code>continue-on-error: true</code> so the artifact upload always runs; a final <code>test "$GATE_OUTCOME" = success</code> step enforces the decision. [Project fact]</li>
+          <li><b>langgraph-recovery-benchmark</b> &mdash; triggered with a <code>trials</code> input (default 1000). Spins up a <code>postgres:16</code> service container, runs <code>scripts/measure_langgraph_recovery.py</code> which forks child processes that write LangGraph checkpoints, kill the process, and attempt recovery. Asserts the recovery rate's 95% confidence interval lower bound is &ge; 99.5%. [Project fact]</li>
+        </ul>
+
+        <div class="notice">
+          <b>Risks worth naming</b> (1) The <code>evaluation-release-gate</code> workflow uses <code>continue-on-error: true</code> on its gate step &mdash; <code>gh run watch</code> misreports that step as failed even when the workflow conclusion is success; read <code>gh run view --json conclusion</code> instead. (2) <code>cancel-in-progress: true</code> is keyed on <code>github.ref</code>, so two PRs run in parallel and only same-branch pushes kill each other. [Reasonable inference]
         </div>
 
-        <h3>Flow 1: python-quality — Backend quality gate <span class="status">ready</span></h3>
-        <p class="sub">Timeout 35 minutes. Validates Python code lint compliance, test pass rate, coverage threshold, OpenAPI export consistency, and migration validity.</p>
-        <div class="journey-map">
-          <div class="journey-step">
-            <span class="step-no">STEP 1</span>
-            <b>Environment setup</b>
-            <small>setup-uv 0.12.1 (enable-cache) + setup-python 3.13</small>
-            <p style="margin-top:8px;font-size:12px;">uv cache hits accelerate subsequent runs</p>
-          </div>
-          <div class="journey-step">
-            <span class="step-no">STEP 2</span>
-            <b>Dependency installation</b>
-            <small><code>uv sync --frozen --all-packages --group dev</code></small>
-            <p style="margin-top:8px;font-size:12px;"><code>--frozen</code> refuses lockfile drift, <code>--all-packages</code> installs all workspace members</p>
-          </div>
-          <div class="journey-step">
-            <span class="step-no">STEP 3</span>
-            <b>Tests + coverage</b>
-            <small><code>npm run test:python</code></small>
-            <p style="margin-top:8px;font-size:12px;"><code>coverage run --branch</code> + <code>pytest -q</code>, coverage threshold 69% (<code>--fail-under=69</code>)</p>
-          </div>
-          <div class="journey-step">
-            <span class="step-no">STEP 4</span>
-            <b>Type checking</b>
-            <small><code>npm run check:types</code></small>
-            <p style="margin-top:8px;font-size:12px;">pyright basic mode, blocking on error</p>
-          </div>
-          <div class="journey-step">
-            <span class="step-no">STEP 5</span>
-            <b>Lint + OpenAPI + Migrations</b>
-            <small><code>npm run check:lint && npm run check:openapi && npm run check:migrations</code></small>
-            <p style="margin-top:8px;font-size:12px;">ruff zero violations, OpenAPI export matches source, migrations valid</p>
-          </div>
-        </div>
-        <div class="notice"><strong>Gate condition:</strong> Coverage ≥ 69%, ruff clean, OpenAPI export consistent, migrations valid, pyright type checks passing.</div>
+        <h3>Interview question tree</h3>
+        <pre class="command-block">Why an explicit ci-success job instead of letting GitHub reject on any failed job?
+└─ What partial-failure scenario does `if: always()` guard against?
+   └─ How does Render's checksPass actually consume this job's result?
+Answer: A sibling job with `continue-on-error: true` would not fail a default
+`needs` graph, because GitHub treats soft-fail as success. ci-success runs after
+all four (`if: always()`), asserts each `result == success` literally, and
+exposes a single job whose status Render can pin on. Render reads that job's
+conclusion, not the workflow's.
 
-        <h3>Flow 2: web-quality — Frontend quality gate <span class="status">ready</span></h3>
-        <p class="sub">Timeout 20 minutes. Validates frontend unit tests, production build, and dependency security.</p>
-        <div class="journey-map">
-          <div class="journey-step">
-            <span class="step-no">STEP 1</span>
-            <b>Environment setup</b>
-            <small>setup-node 22 (cache: npm)</small>
-            <p style="margin-top:8px;font-size:12px;">npm cache accelerates installation</p>
-          </div>
-          <div class="journey-step">
-            <span class="step-no">STEP 2</span>
-            <b>Dependency installation</b>
-            <small><code>npm install --no-audit --no-fund</code></small>
-            <p style="margin-top:8px;font-size:12px;">Installs full workspace tree, skips audit and fund info to accelerate</p>
-          </div>
-          <div class="journey-step">
-            <span class="step-no">STEP 3</span>
-            <b>Unit tests</b>
-            <small><code>npm run test:web</code></small>
-            <p style="margin-top:8px;font-size:12px;">Vitest 4 + coverage-v8 suite all pass</p>
-          </div>
-          <div class="journey-step">
-            <span class="step-no">STEP 4</span>
-            <b>Production build</b>
-            <small><code>npm run check:web</code></small>
-            <p style="margin-top:8px;font-size:12px;"><code>next build</code> succeeds, confirming TypeScript compilation and production optimization without errors</p>
-          </div>
-          <div class="journey-step">
-            <span class="step-no">STEP 5</span>
-            <b>Dependency audit</b>
-            <small><code>npm run check:audit</code></small>
-            <p style="margin-top:8px;font-size:12px;">npm audit no moderate+ level vulnerabilities</p>
-          </div>
-        </div>
-        <div class="notice"><strong>Gate condition:</strong> Vitest suite passes, next build succeeds, zero moderate+ security vulnerabilities.</div>
+Why split into exactly four parallel jobs instead of one big job?
+└─ What does each job's isolation buy (cache, runner, timeout)?
+   └─ Why is container-quality (trivy + hadolint) a separate gate?
+Answer: Parallel jobs have separate runners, so a slow Python test does not
+block web build. Caches stay per-stack (uv vs npm). Timeouts are tuned per
+job. container-quality is separate because it produces a Docker image that
+every later prod restart depends on, so scanning it standalone catches CVEs
+even before code tests run.
 
-        <h3>Flow 3: browser-e2e — End-to-end acceptance gate <span class="status">ready</span></h3>
-        <p class="sub">Timeout 20 minutes. Uses Playwright to validate critical user flows in a real browser.</p>
-        <div class="journey-map">
-          <div class="journey-step">
-            <span class="step-no">STEP 1</span>
-            <b>Environment setup</b>
-            <small>setup-node 22 (cache: npm)</small>
-            <p style="margin-top:8px;font-size:12px;">npm cache accelerates installation</p>
-          </div>
-          <div class="journey-step">
-            <span class="step-no">STEP 2</span>
-            <b>Dependency installation</b>
-            <small><code>npm install --no-audit --no-fund</code></small>
-            <p style="margin-top:8px;font-size:12px;">Installs full workspace tree</p>
-          </div>
-          <div class="journey-step">
-            <span class="step-no">STEP 3</span>
-            <b>Browser installation</b>
-            <small><code>npx playwright install --with-deps chromium</code></small>
-            <p style="margin-top:8px;font-size:12px;">Installs Chromium and its system dependencies</p>
-          </div>
-          <div class="journey-step">
-            <span class="step-no">STEP 4</span>
-            <b>Acceptance tests</b>
-            <small><code>npm run test:e2e</code></small>
-            <p style="margin-top:8px;font-size:12px;">Playwright 1.62 acceptance flow all pass</p>
-          </div>
-          <div class="journey-step">
-            <span class="step-no">STEP 5</span>
-            <b>Failure reporting</b>
-            <small>Upload playwright-report artifact (7-day retention)</small>
-            <p style="margin-top:8px;font-size:12px;">Provides downloadable HTML report for debugging on failure</p>
-          </div>
-        </div>
-        <div class="notice"><strong>Gate condition:</strong> Playwright acceptance flow all pass. On failure, artifact retained for 7 days for debugging.</div>
-
-        <h3>Flow 4: container-quality — Container security gate <span class="status">ready</span></h3>
-        <p class="sub">Timeout 25 minutes. Validates Dockerfile best practices, image buildability, and image security.</p>
-        <div class="journey-map">
-          <div class="journey-step">
-            <span class="step-no">STEP 1</span>
-            <b>Dockerfile lint</b>
-            <small>hadolint v2.15.1 on <code>workers/ai-worker/Dockerfile</code> (<code>--ignore DL3008</code>)</small>
-            <p style="margin-top:8px;font-size:12px;">The deployment Dockerfile follows best practices, ignoring DL3008 (apt version pinning)</p>
-          </div>
-          <div class="journey-step">
-            <span class="step-no">STEP 2</span>
-            <b>Buildx setup</b>
-            <small>docker/setup-buildx-action v4</small>
-            <p style="margin-top:8px;font-size:12px;">Enables BuildKit build cache</p>
-          </div>
-          <div class="journey-step">
-            <span class="step-no">STEP 3</span>
-            <b>Final Render image build</b>
-            <small>Build <code>researchmate-render:ci</code></small>
-            <p style="margin-top:8px;font-size:12px;">The final Render runtime image builds successfully.</p>
-          </div>
-          <div class="journey-step">
-            <span class="step-no">STEP 4</span>
-            <b>Vulnerability scan</b>
-            <small>Trivy 0.73.0 <code>--exit-code 1 --ignore-unfixed --severity HIGH,CRITICAL</code> on the final Render image</small>
-            <p style="margin-top:8px;font-size:12px;">Zero fixable HIGH/CRITICAL CVEs (<code>--ignore-unfixed</code> skips no-patch issues)</p>
-          </div>
-        </div>
-        <div class="notice"><strong>Gate condition:</strong> the deployment Dockerfile passes lint, its final runtime image builds, and Trivy finds no fixable HIGH or CRITICAL CVE.</div>
-
-        <h3>Flow 5: ci-success — Stable aggregation gate <span class="status">verified</span></h3>
-        <p class="sub">No explicit timeout (uses default). This Job is the stable external release contract—internal Job names can evolve freely, but the aggregation gate name remains unchanged to ensure Render's checksPass dependency is unaffected.</p>
-        <div class="journey-map">
-          <div class="journey-step">
-            <span class="step-no">STEP 1</span>
-            <b>Always runs</b>
-            <small><code>if: always()</code> + <code>needs: [python-quality, web-quality, browser-e2e, container-quality]</code></small>
-            <p style="margin-top:8px;font-size:12px;">Runs even if upstream Jobs fail, ensuring the workflow has a definitive final state</p>
-          </div>
-          <div class="journey-step">
-            <span class="step-no">STEP 2</span>
-            <b>Result assertion</b>
-            <small>Reads PYTHON_RESULT, WEB_RESULT, E2E_RESULT, CONTAINER_RESULT</small>
-            <p style="margin-top:8px;font-size:12px;">Four <code>test "$VAR" = success</code> assertions all pass</p>
-          </div>
-        </div>
-        <div class="notice"><strong>Gate condition:</strong> All four preceding Jobs must equal success. If any fails or is cancelled, the workflow turns red and Render deployment is blocked.</div>
-
-        <div class="notice"><strong>Concurrency control:</strong> The workflow declares <code>concurrency: group: researchmate-ci-${{ github.workflow }}-${{ github.ref }}</code> with <code>cancel-in-progress: true</code>. When a developer pushes twice in quick succession, the first run is cancelled mid-flight and only the latest commit is tested.</div>
-        <div class="command-block"><code>npm run test:python
-  = uv run --frozen coverage run --branch \
-      --source=apps/api/src/researchmate_api,workers/ai-worker/src/researchmate_worker \
-      -m pytest -q
-  && uv run --frozen coverage report --fail-under=69
-
-npm run check:lint
-  = uv run --frozen ruff check apps/api/src workers/ai-worker/src tests</code></div>
-
-        <div class="visual-panel">
-          <div class="visual-head"><h3>Service topology</h3><p>Render hosts the Docker container built from the worker Dockerfile. Vercel hosts the Next.js frontend. External hosted services connect via environment variables.</p></div>
-          <div class="architecture-map">
-            <div class="arch-column">
-              <span>Source</span>
-              <button class="arch-node" data-title="GitHub repository" data-detail="Monorepo containing apps/api, workers/ai-worker, and apps/web. The main branch is the deployment target."><b>GitHub repo</b><small>main / develop / PR</small></button>
-            </div>
-            <div class="arch-column">
-              <span>CI</span>
-              <button class="arch-node" data-title="GitHub Actions" data-detail="researchmate-ci workflow: 5 Jobs, concurrency cancel-in-progress, pinned action versions. The ci-success aggregation gate verifies all four gates return success."><b>GitHub Actions</b><small>5 Jobs, 4 parallel gates</small></button>
-            </div>
-            <div class="arch-column">
-              <span>Backend deploy</span>
-              <button class="arch-node" data-title="Render Free service" data-detail="Docker runtime, Oregon region, checksPass auto-deploy, healthCheckPath /api/v1/healthz. dockerCommand starts the merged API+worker process; /readyz remains the operator dependency probe."><b>Render (Free)</b><small>Merged API + worker</small></button>
-            </div>
-            <div class="arch-column">
-              <span>Frontend deploy</span>
-              <button class="arch-node" data-title="Vercel" data-detail="Next.js 16.3.0 production build. CORS_ALLOWED_ORIGINS points to the Vercel source address."><b>Vercel</b><small>Next.js web app</small></button>
-            </div>
-            <div class="arch-column">
-              <span>Data layer</span>
-              <button class="arch-node" data-title="Supabase" data-detail="PostgreSQL database, S3-compatible Storage, Auth/JWKS. DATABASE_URL and SUPABASE_URL are sync:false secrets."><b>Supabase</b><small>Postgres + Storage + Auth</small></button>
-              <button class="arch-node" data-title="Qdrant Cloud" data-detail="Vector database with dense + sparse + rerank collections. QDRANT_URL is sync:false."><b>Qdrant Cloud</b><small>chunks + rerank</small></button>
-              <button class="arch-node" data-title="Upstash Redis" data-detail="Celery broker and result backend. REDIS_URL is sync:false."><b>Upstash Redis</b><small>Celery broker</small></button>
-            </div>
-            <div class="arch-column">
-              <span>AI &amp; observability</span>
-              <button class="arch-node" data-title="NVIDIA NIM" data-detail="Calls LLM chat completions and embeddings via OpenAI SDK. NVIDIA_API_KEY is sync:false."><b>NVIDIA NIM</b><small>LLM + embedding</small></button>
-              <button class="arch-node" data-title="Tavily" data-detail="Web search API. TAVILY_API_KEY is sync:false."><b>Tavily</b><small>web search</small></button>
-              <button class="arch-node" data-title="Langfuse" data-detail="LLM observability and OpenTelemetry trace export. LANGFUSE keys and OTEL headers are sync:false."><b>Langfuse</b><small>traces + observations</small></button>
-            </div>
-          </div>
-          <div class="arch-inspector" data-arch-title="Select a node" data-arch-body="Click any node above to see its deployment details."></div>
-        </div>
-        <div class="notice"><strong>Merged runtime:</strong> Render's dockerCommand <code>python -m researchmate_worker.render_combined</code> starts the FastAPI API server and Celery worker in a single process, designed for the Free tier limitation that allows only one service. The <code>RESEARCHMATE_PROCESS_ROLE</code> variable controls whether to run the outbox dispatcher instead of the Celery worker.</div>
-        <div class="notice"><strong>Recovery and rollback:</strong> If the health check fails after deployment, Render automatically rolls back to the last stable version. If a CI gate fails, developers must fix and push again, and the workflow restarts from step 1. All state transitions (planned / ready / executed / verified) are logged through GitHub Actions logs and Render deployment records, making every change's execution results traceable.</div>
+How does cancel-in-progress avoid wasted CI spend?
+└─ What is the concurrency group keyed on, and what does that mean for two open PRs?
+   └─ What happens to an already-running workflow when you force-push to the same branch?
+Answer: Group keyed on `github.ref`. Two PRs run in parallel (different refs);
+a new push to the same branch cancels the previous run on that branch. Saves
+minutes when you push a fix while the previous run is still mid-flight.</pre>
       </section>
 
-      <section id="evaluation-release-gate">
-        <p class="eyebrow">Controlled quality promotion</p>
-        <h2>Evaluation release gate . durable evidence, explicit invocation</h2>
-        <p class="sub">The normal hermetic CI remains fast and quota-free. When a candidate pipeline has completed a managed evaluation, an operator runs a separate controlled workflow with that durable run ID.</p>
-        <div class="proof-chain">
-          <div class="proof-step"><b>1 · Complete a versioned evaluation</b><small>Run a frozen dataset against an accepted dense-only, sparse-only, or hybrid pipeline version.</small></div>
-          <div class="proof-step"><b>2 · Dispatch the gate</b><small>Provide the evaluation run UUID to <code>evaluation-release-gate.yml</code>. The workflow binds the protected token to the repository-controlled Render origin rather than accepting a caller-selected host.</small></div>
-          <div class="proof-step"><b>3 · Fetch durable results</b><small><code>check_evaluation_gate.py</code> requires HTTPS outside localhost and reads the persisted status, execution summary, metric aggregates, and baseline comparison.</small></div>
-          <div class="proof-step"><b>4 · Fail closed</b><small>The gate rejects incomplete or failed runs, a pipeline <code>code_sha</code> that differs from the workflow commit, missing metrics, Recall@K below 0.80, MRR below 0.50, NDCG below 0.80, or any recorded regression. Thresholds are explicit CLI inputs when a release policy changes.</small></div>
-          <div class="proof-step"><b>5 · Preserve the decision</b><small>A safe JSON decision artifact is uploaded for 30 days even when the gate fails; the final workflow step enforces the result.</small></div>
+      <section id="pre-commit">
+        <p class="eyebrow">Tech-stack-centered . Pre-commit hooks</p>
+        <h2>ruff + pyright reuse the locked uv environment, plus hygiene hooks</h2>
+        <p class="sub">[Project fact] <code>.pre-commit-config.yaml</code> has three repos: <code>pre-commit-hooks v5.0.0</code> (merge-conflict, EOF, YAML/TOML, trailing-whitespace), <code>ruff-pre-commit v0.16.0</code> (lint + autofix, format check), and a local <code>pyright</code> hook. Every Python hook uses <code>language: system</code> to reuse the uv-managed Python environment.</p>
+
+        <p>The point of pre-commit is not "run a linter" &mdash; it's to <strong>shift left the exact same pinned tool versions that CI runs.</strong> Imagine a contributor whose pre-commit hook succeeds locally, pushes, and the CI lint step unexpectedly fails because their laptop has a newer ruff that flags rules CI's older ruff does not. That drift is what the project eliminates. Because ruff (0.16.0) and pyright (1.1.390) are pinned in <code>uv.lock</code>, and the hooks run via <code>language: system</code> (which calls the uv-managed Python directly instead of pre-commit building a fresh venv), local and CI use literal bit-identical tool versions.</p>
+
+        <div class="fact">
+          <b>Key mechanisms</b>
+          <ul>
+            <li><b>ruff: <code>check --force-exclude --fix</code></b>, <code>files: \.py$</code>, <code>pass_filenames: false</code>. Autofix is on; if a fix rewrites a file, pre-commit marks the commit failed and the author re-stages. [Project fact]</li>
+            <li><b>ruff-format: <code>--check</code> only</b> &mdash; formatting is not auto-applied at commit time; you must run <code>ruff format</code> yourself. Strictly catches drift. [Project fact]</li>
+            <li><b>pyright local hook</b>, entry <code>pyright</code>, <code>pass_filenames: false</code>, no file filter; reads root <code>pyproject.toml</code> with <code>typeCheckingMode = "basic"</code>. Same invocation as CI's <code>npm run check:types</code>. [Project fact]</li>
+            <li><b>Hygiene hooks</b> &mdash; <code>check-merge-conflict --assume-in-merge</code>, <code>end-of-file-fixer</code>, <code>check-yaml --allow-multiple-documents</code>, <code>check-toml</code>, <code>trailing-whitespace</code>. [Project fact]</li>
+          </ul>
         </div>
-        <div class="notice warning"><strong>Current boundary:</strong> the script and workflow have local automated evidence, but no managed evaluation run has been supplied to this workflow yet. It is a controlled promotion gate, not a claim that every ordinary commit spends provider quota.</div>
+
+        <div class="notice">
+          <b>Gotcha to flag</b> hooks that auto-fix files cause the commit to fail with the message "files were modified by this hook." That is <i>not</i> a real error &mdash; re-stage the fixed files and retry the commit. Forgetting this trips up new contributors. [Reasonable inference]
+        </div>
+
+        <h3>Interview question tree</h3>
+        <pre class="command-block">Why `language: system` instead of pre-commit's default managed virtualenv?
+└─ What does it gain that a pre-commit-managed env cannot?
+   └─ How does that coupling with uv.lock reduce CI/local drift?
+Answer: A pre-commit-managed env builds its own ruff/pyright, so the local
+version can drift from uv.lock. `language: system` calls the uv-managed
+Python, which is pinned to exactly the bytes CI installs via `uv sync --frozen`.
+
+Why is ruff-format check-only at commit time when ruff --fix is on?
+└─ What is the trade-off between autofix and check-only?
+   └─ How would you enforce format on commit if you wanted to?
+Answer: autofix rewrites unsafe rules automatically (less friction, but you
+can commit changes you didn't review). format check-only refuses to apply
+and forces the author to run `ruff format` themselves, which guarantees they
+look at the diff. To enforce apply-on-commit, swap `--check` for nothing and
+re-stage on the hook's modified-file failure.
+
+What does `pass_filenames: false` buy in the ruff hook?
+└─ Why not let pre-commit pass only the changed files to ruff?
+   └─ What goes wrong with --force-exclude in that case?
+Answer: The hook calls ruff on the whole target tree regardless of changed
+files. Pre-commit passing only changed files means a rename or move can let
+a no-longer-passed file slip un-linted. Whole-tree invocation keeps ruff's
+--force-exclude semantics predictable.</pre>
       </section>
 
-      <section id="recovery-benchmark">
-        <p class="eyebrow">Reliability benchmark . on-demand</p>
-        <h2>Recovery benchmark . interrupt-restart durability evidence</h2>
-        <p class="sub">A separate on-demand workflow measures durable LangGraph interrupt recovery across process restarts. It is not part of the hermetic CI gate; it is run when a checkpoint-recovery change needs quantitative evidence.</p>
-        <div class="proof-chain">
-          <div class="proof-step"><b>1 &middot; Dispatch the workflow</b><small>Operator provides <code>trials</code> (default 1000) to <code>recovery-benchmark.yml</code>. The run is independent of the main CI concurrency group so it never cancels pull-request runs.</small></div>
-          <div class="proof-step"><b>2 &middot; Provision postgres:16</b><small>The job spins up a <code>postgres:16</code> service container, exports <code>RECOVERY_BENCHMARK_DATABASE_URL</code>, and runs <code>scripts/setup_langgraph_checkpoint.py</code> with <code>ALLOW_SCHEMA_APPLY=1</code> so the LangGraph checkpoint tables exist before the benchmark.</small></div>
-          <div class="proof-step"><b>3 &middot; Run <code>measure_langgraph_recovery.py</code></b><small>Spawns child processes that start, interrupt, and resume a fixed workflow for each trial in batches of 50. Records attempted, successful, and failure list per phase with a Wilson confidence interval at <code>--confidence 0.95</code>.</small></div>
-          <div class="proof-step"><b>4 &middot; Fail closed</b><small>Exits non-zero when the lower bound of the Wilson interval falls below <code>--minimum-rate 0.995</code>, making a regression in recovery durability a hard failure rather than a soft metric.</small></div>
-          <div class="proof-step"><b>5 &middot; Preserve the report</b><small>The JSON benchmark report is uploaded as a workflow artifact retained for 30 days even when the gate fails, so reviewers can inspect the failure list and confidence bounds.</small></div>
+      <section id="db-migrations">
+        <p class="eyebrow">Function-centered . Database migration strategy</p>
+        <h2>Additive SQL files, SHA-256 ledger, advisory lock, idempotent statements</h2>
+        <p class="sub">[Project fact] <code>scripts/apply_migrations.py</code> enforces unique version prefixes, rejects empty files and <code>drop database</code>, then (when <code>ALLOW_SCHEMA_APPLY=1</code>) acquires <code>pg_advisory_xact_lock(726_334_129)</code> and applies unapplied files in order, stamping each with a SHA-256 into <code>researchmate_schema_migrations</code>.</p>
+
+        <p>Picture the danger: an operator runs a script that alters a tenant table in production while another instance of the same script runs at the same time, racing the schema into an inconsistent state. Or worse: someone edits a migration file that already ran in prod, thinking the change will pick up cleanly &mdash; instead the prod DB and the migration ledger no longer agree on what was applied.</p>
+
+        <p>The migration runner stacks four defenses so re-running against a live database is safe. <strong>First</strong>, the apply path acquires a transaction-scoped advisory lock; two apply attempts cannot both proceed. <strong>Second</strong>, the <code>researchmate_schema_migrations</code> table records each applied file's SHA-256; an already-applied file whose bytes later changed raises <code>RuntimeError</code> and aborts. <strong>Third</strong>, the validator bans empty files and the literal string <code>drop database</code>. <strong>Fourth</strong>, the SQL itself is written idempotently with <code>if not exists</code> / <code>drop policy if exists ... create policy</code>, so re-running a file in a transaction never double-applies.</p>
+
+        <div class="fact">
+          <b>Key mechanisms</b>
+          <ul>
+            <li><b>pg_advisory_xact_lock(726_334_129)</b> &mdash; transaction-scoped; any concurrent apply on the same Postgres is blocked until the first commits or rolls back. The integer is a hardcoded magic number in <code>apply_migrations.py</code>. [Project fact]</li>
+            <li><b>researchmate_schema_migrations</b> &mdash; <code>(version text primary key, checksum_sha256 text not null, applied_at timestamptz)</code>; created with <code>create table if not exists</code> inside the same transaction. If <code>applied.get(name) != sha256(source)</code>, raise <code>RuntimeError</code> and abort. [Project fact]</li>
+            <li><b>--check-files vs --apply</b> &mdash; <code>--check-files</code> is the CI-only validation (no DB access); <code>--apply</code> requires <code>ALLOW_SCHEMA_APPLY=1</code> and <code>DATABASE_URL</code>, which is the human approval gate. CI runs <code>npm run check:migrations</code> = <code>--check-files</code>. [Project fact]</li>
+            <li><b>Idempotent SQL style</b> &mdash; every <code>create table</code> / <code>create index</code> / <code>create policy</code> uses <code>if not exists</code> or a <code>drop policy if exists ... create policy</code> pair; example: <code>202608010010_api_idempotency.sql</code> creates <code>api_idempotency</code> with PK <code>(user_id, operation, idempotency_key)</code> and a state-machine CHECK constraint. [Project fact]</li>
+          </ul>
         </div>
-        <div class="notice"><strong>Boundary:</strong> the recovery benchmark is a measurement workflow, not a deployment gate. A failed run blocks the operator's promotion decision but does not turn the main CI workflow red or trigger Render rollback on its own.</div>
+
+        <div class="notice">
+          <b>Why additive only</b> The validator rejects <code>drop database</code> and empty files, but does not block <code>alter table drop column</code>. The project's actual discipline is forward-only migrations: any change to an existing column ships as a new migration file rather than editing one that already ran. The SHA-256 ledger is the enforcement mechanism: editing an applied file's bytes fails the runner. [Reasonable inference]
+        </div>
+
+        <h3>Interview question tree</h3>
+        <pre class="command-block">Why an advisory lock instead of a row lock on a migrations table?
+└─ What does transaction-scoped mean for the lock's lifecycle?
+   └─ What would a `SELECT ... FOR UPDATE` on a sentinel row change?
+Answer: A sentinel-row lock needs a real row; deleting it skips the lock.
+Advisory locks are keyed on an integer and need no row. Transaction-scoped means
+the lock dies with the transaction — commit or rollback releases it, so a
+crashed runner cleans up automatically via rollback.
+
+How does the SHA-256 checksum protect against drift?
+└─ What does the runner do if an applied file's content changes?
+   └─ If you legitimately need to fix an applied migration, what is the project's process?
+Answer: Raise and abort. The process is never edit an applied file — write a
+new forward migration that adds the column or undoes the prior behavior. Editing
+in place would silently desync prod from the committed file list.
+
+Why split --check-files (CI) and --apply (operator) into two modes?
+└─ What does ALLOW_SCHEMA_APPLY=1 specifically guard against?
+   └─ Could a CI job ever run --apply by mistake?
+Answer: --check-files reads file bytes only; --apply opens a database
+connection and writes schema. ALLOW_SCHEMA_APPLY=1 forces a human to set the
+env explicitly before any DB write can happen, which blocks a CI job
+(inheriting no such env) from touching prod. CI runs --check-files; only the
+operator with prod secrets can run --apply.</pre>
       </section>
 
-      <section id="worker-dockerfile">
-        <p class="eyebrow">Dockerfile . Render deployment</p>
-        <h2>workers/ai-worker/Dockerfile . the only runtime image</h2>
-        <p class="sub">This Dockerfile builds the CPU-only combined API, worker, and dispatcher runtime used by Render. Keeping one deployment artifact prevents CI-only and production images from drifting.</p>
-        <div class="grid two">
-          <article class="fact"><b>Three stages</b><p>Stage 1 (<code>uv</code>) copies the uv binary. Stage 2 (<code>dependencies</code>) installs system packages and Python dependencies on python:3.13-slim. Stage 3 (<code>runtime</code>) extends dependencies to download Docling models and set ownership, keeping the model artifacts in a separate cacheable layer.</p></article>
-          <article class="fact"><b>System dependencies</b><p><code>libgl1</code> and <code>libglib2.0-0</code> support document rendering; <code>libmagic1</code> enables server-side MIME detection before ingestion. The apt cache is removed in the same layer.</p></article>
-          <article class="fact"><b>Docling models</b><p><code>docling-tools models download layout tableformer rapidocr -o /opt/docling/models</code> pre-fetches three model bundles into <code>DOCLING_ARTIFACTS_PATH=/opt/docling/models</code>. <code>chown -R researchmate:researchmate /opt/docling</code> ensures the non-root user can read them at runtime.</p></article>
-          <article class="fact"><b>--all-packages</b><p><code>uv sync --frozen --no-dev --all-packages</code> installs every workspace member (researchmate-api + researchmate-worker) in one resolved graph. This is required because Render runs the combined runtime via <code>python -m researchmate_worker.render_combined</code>, which imports both packages.</p></article>
-          <article class="fact"><b>Role switching</b><p>The CMD inspects <code>RESEARCHMATE_PROCESS_ROLE</code>. When set to <code>dispatcher</code>, it runs <code>exec researchmate-dispatch-outbox</code>. Otherwise it starts a Celery worker consuming 5 queues (ingestion, deletion, workflow, evaluation, reliability) with <code>--concurrency=2</code>.</p></article>
-          <article class="fact"><b>torch CPU index</b><p>The worker pyproject.toml pins <code>torch==2.13.0+cpu</code> and <code>torchvision==0.28.0+cpu</code> via <code>[tool.uv.sources]</code> pointing to the <code>pytorch-cpu</code> index. This avoids pulling CUDA drivers on Free-tier hosts that have no GPU.</p></article>
+      <section id="coverage-gate">
+        <p class="eyebrow">Tech-stack-centered . Coverage gate &amp; check:all</p>
+        <h2>69% threshold wired into npm run check:all</h2>
+        <p class="sub">[Project fact] <code>package.json</code> defines <code>test:python</code> as <code>uv run --frozen coverage run --branch --source=apps/api/src/researchmate_api,workers/ai-worker/src/researchmate_worker -m pytest -q && uv run --frozen coverage report --fail-under=69</code>; <code>check:all</code> chains test, lint, types, openapi, migrations, web build, and audit.</p>
+
+        <p>Coverage is a number between 0 and 100 that says "of the lines or branches your tests could have exercised, what fraction actually ran during the test suite." A 100% number means every line and every branch of every <code>if</code> ran at least once during tests. The project pins a 69% floor. When coverage drifts below 69%, <code>coverage report --fail-under=69</code> exits non-zero and the <code>python-quality</code> CI step fails.</p>
+
+        <p><strong>Why 69% in particular?</strong> [Project fact] The number is a literal in <code>package.json</code>, not derivable from a benchmark. <strong>[Reasonable inference]</strong> It reflects the achievable coverage on the current code surface when branches (not just lines) are counted — the project uses <code>--branch</code>, so partial branches count as uncovered. A partial branch is an <code>if x: A else: B</code> where tests only took one of A or B; the missing side is counted uncovered.</p>
+
+        <div class="fact">
+          <b>check:all composition</b>
+          <ul>
+            <li><b>test</b> = <code>test:python &amp;&amp; test:web</code> &mdash; Python (with the 69% gate) and web workspace tests must both pass. [Project fact]</li>
+            <li><b>check:lint</b> = <code>uv run --frozen ruff check apps/api/src workers/ai-worker/src tests</code>. [Project fact]</li>
+            <li><b>check:types</b> = <code>npx --yes pyright@1.1.390</code> &mdash; version pinned to match pre-commit. [Project fact]</li>
+            <li><b>check:openapi</b> = <code>uv run --frozen python scripts/export_openapi.py --check</code> &mdash; rendered OpenAPI must match the committed <code>infra/openapi/openapi.yaml</code>; drift fails. [Project fact]</li>
+            <li><b>check:migrations</b> = <code>uv run --frozen python scripts/apply_migrations.py --check-files</code> &mdash; CI-safe file validation only, no DB write. [Project fact]</li>
+          </ul>
         </div>
-        <div class="command-block"><code>FROM ghcr.io/astral-sh/uv:0.12.1 AS uv
-FROM python:3.13-slim AS dependencies
 
-COPY --from=uv /uv /uvx /bin/
-RUN apt-get update \
-    &amp;&amp; apt-get install --yes --no-install-recommends libgl1 libglib2.0-0 libmagic1 \
-    &amp;&amp; rm -rf /var/lib/apt/lists/*
-
-COPY pyproject.toml uv.lock /app/
-COPY apps/api /app/apps/api
-COPY workers/ai-worker /app/workers/ai-worker
-RUN uv sync --frozen --no-dev --all-packages
-
-FROM dependencies AS runtime
-RUN docling-tools models download layout tableformer rapidocr -o /opt/docling/models \
-    &amp;&amp; chown -R researchmate:researchmate /opt/docling
-
-USER 10001:10001
-CMD ["sh", "-c", "if [ \"${RESEARCHMATE_PROCESS_ROLE:-worker}\" = dispatcher ]; then exec researchmate-dispatch-outbox; \
-else exec python -m celery -A researchmate_worker.celery_app:celery_app worker --loglevel=INFO \
---queues=ingestion,deletion,workflow,evaluation,reliability --concurrency=2; fi"]</code></div>
-      </section>
-
-      <section id="render-yaml">
-        <p class="eyebrow">render.yaml</p>
-        <h2>Render deployment blueprint . 48 env vars, 1 service, auto-deploy on CI pass</h2>
-        <p class="sub">render.yaml declares the single Render Free-tier service and its full environment configuration. It centralizes 48 environment variables into one named group, restricts rebuilds to relevant paths, and triggers deploys only after GitHub checks pass.</p>
-        <div class="kv">
-          <dt>envVarGroups</dt>
-          <dd>
-            <p>One group named <code>researchmate-backend</code> with <strong>48 entries</strong>: 37 carry explicit values (synced across previews), and 11 are marked <code>sync: false</code> (server-only secrets entered manually in the Render dashboard).</p>
-            <p><b>sync:false secrets (11):</b> DATABASE_URL, REDIS_URL, OBJECT_STORAGE_ACCESS_KEY_ID, OBJECT_STORAGE_SECRET_ACCESS_KEY, QDRANT_URL, QDRANT_API_KEY, NVIDIA_API_KEY, TAVILY_API_KEY, LANGFUSE_PUBLIC_KEY, LANGFUSE_SECRET_KEY, OTEL_EXPORTER_OTLP_TRACES_HEADERS</p>
-          </dd>
-          <dt>services[0]</dt>
-          <dd>
-            <p><code>type: web</code>, <code>name: researchmate-backend-dev</code>, <code>runtime: docker</code>, <code>plan: free</code>, <code>region: oregon</code>, <code>branch: main</code></p>
-          </dd>
-          <dt>dockerfilePath</dt>
-          <dd><p><code>./workers/ai-worker/Dockerfile</code> with <code>dockerContext: .</code>. The worker Dockerfile is used because Render runs the combined runtime.</p></dd>
-          <dt>dockerCommand</dt>
-          <dd><p><code>python -m researchmate_worker.render_combined</code> overrides the Dockerfile CMD, launching the combined API-plus-worker process managed by Render.</p></dd>
-          <dt>healthCheckPath</dt>
-          <dd><p><code>/api/v1/healthz</code>. Render probes this constant-time liveness path before routing traffic. <code>/api/v1/readyz</code> remains the stricter operator endpoint for database, Redis, Qdrant, and worker readiness.</p></dd>
-          <dt>autoDeployTrigger</dt>
-          <dd><p><code>checksPass</code>. Render deploys only after GitHub Actions checks on the main branch report success, creating a hard dependency between CI green and production deploy.</p></dd>
-          <dt>buildFilter</dt>
-          <dd>
-            <p>Seven path patterns that limit when a rebuild is triggered:</p>
-            <p><code>apps/api/**</code>, <code>workers/ai-worker/**</code>, <code>infra/supabase/migrations/**</code>, <code>scripts/apply_migrations.py</code>, <code>scripts/provision_qdrant_rerank.py</code>, <code>pyproject.toml</code>, <code>uv.lock</code></p>
-          </dd>
-          <dt>envVars (service-level)</dt>
-          <dd>
-            <p>Three overrides applied on top of the group:</p>
-            <p><code>AUTH_MODE=supabase</code>, <code>REPOSITORY_BACKEND=postgres</code>, <code>CORS_ALLOWED_ORIGINS=https://research-mate-web.vercel.app</code></p>
-          </dd>
+        <div class="notice">
+          <b>[Optimization suggestion]</b> The 69% threshold is project-specific and not benchmarked. Consider running <code>coverage report --skip-covered</code> in dev to surface the most valuable gaps, and raising the floor in 1–2 point increments as coverage grows rather than resetting after a regression.
         </div>
-        <div class="notice"><strong>Rerank model:</strong> <code>QDRANT_RERANK_MODEL</code> is set to <code>answerdotai/answerai-colbert-small-v1</code> with dimension 96 and <code>QDRANT_RERANK_MODEL_IS_FREE=true</code>. The <code>RUN_QDRANT_RERANK_BACKFILL=1</code> flag triggers the provision script on first boot.</div>
-      </section>
 
-      <section id="dependency-mgmt">
-        <p class="eyebrow">Dependency management</p>
-        <h2>Dual-lock strategy across Python and JavaScript</h2>
-        <p class="sub">ResearchMate manages dependencies with two independent lockfiles: uv.lock for the Python workspace and package-lock.json for the npm workspace. Both are committed to the repository and used with --frozen flags in CI and Docker to guarantee reproducible installs.</p>
-        <div class="grid two">
-          <article class="fact"><b>Root package.json</b><p>Declares <code>packageManager: npm@11.6.0</code> and <code>workspaces: ["apps/web"]</code>. Defines 17 scripts including <code>test:python</code>, <code>test:web</code>, <code>test:e2e</code>, <code>check:lint</code>, <code>check:openapi</code>, <code>check:migrations</code>, <code>check:web</code>, <code>check:audit</code>, and the umbrella <code>check:all</code>. The private flag prevents accidental npm publish.</p></article>
-          <article class="fact"><b>Root pyproject.toml</b><p>Declares the uv workspace (<code>members = ["apps/api", "workers/ai-worker"]</code>) and the dev dependency group: <code>coverage&gt;=7.10.0,&lt;8</code>, <code>httpx2&gt;=2.5.0,&lt;3</code>, <code>pre-commit&gt;=4.2.0,&lt;5</code>, <code>pytest&gt;=9.0.0,&lt;10</code>, <code>pyyaml&gt;=6.0.0,&lt;7</code>, <code>ruff==0.16.0</code>. A dedicated <code>pytorch-cpu</code> index is declared for torch CPU wheels. The pinned <code>pyright==1.1.390</code> is no longer in this dev group: <code>npm run check:types</code> now invokes <code>npx --yes pyright@1.1.390</code>. A new <code>[tool.pyright]</code> section configures the project-wide type checker with <code>typeCheckingMode = "basic"</code>, <code>venvPath = "."</code>, <code>venv = ".venv"</code>, <code>pythonVersion = "3.13"</code>, and <code>include</code>/<code>exclude</code> path lists.</p></article>
-          <article class="fact"><b>apps/api/pyproject.toml</b><p>17 production dependencies including FastAPI, Pydantic, SQLAlchemy, psycopg, PyJWT, qdrant-client, redis, boto3, OpenAI SDK, Langfuse, and four OpenTelemetry packages (<code>opentelemetry-api</code>, <code>opentelemetry-exporter-otlp-proto-http</code>, <code>opentelemetry-instrumentation-fastapi</code>, <code>opentelemetry-sdk</code>). Ruff is configured with line-length=100 and ignores B008 and BLE001.</p></article>
-          <article class="fact"><b>workers/ai-worker/pyproject.toml</b><p>18 production dependencies including Celery[redis], Docling (pinned 2.111.0), LangGraph, RAGAS 0.4.3, torch 2.13.0+cpu, torchvision 0.28.0+cpu, and pypdf. Declares the <code>researchmate-dispatch-outbox</code> console script. Sources torch and torchvision from the pytorch-cpu index.</p></article>
-          <article class="fact"><b>apps/web/package.json</b><p>Next.js 16.3.0 with React, 10 Radix UI primitives, Tailwind CSS 4, lucide-react, and class-variance-authority. Dev tools: Vitest 4 with coverage-v8, Playwright 1.62, TypeScript 6.0.3, jsdom. The <code>type: module</code> flag enables ESM.</p></article>
-          <article class="fact"><b>Dual-lock strategy</b><p>uv.lock pins the complete Python dependency graph (including transitive deps and the pytorch-cpu index). package-lock.json pins the npm workspace tree. CI and the deployment Dockerfile use <code>--frozen</code> (uv), while npm reads its lockfile. Neither lockfile is edited manually; both are regenerated by their package managers.</p></article>
-          <article class="fact"><b>Quality gates &amp; AI guidance</b><p>Two new root-level files codify the local quality and code-generation gates. The new <code>.pre-commit-config.yaml</code> installs three hook groups through the locked uv environment (<code>language: system</code>): built-in checks (merge-conflict, end-of-file-fixer, check-yaml, check-toml, trailing-whitespace), <code>ruff</code> with <code>--fix</code> + <code>ruff-format --check</code> on <code>apps/api/src workers/ai-worker/src tests</code>, and a local <code>pyright</code> hook that reuses the <code>[tool.pyright]</code> config. The new root <code>AGENTS.md</code> file orients AI coding tools (CodeAgentCLI, Cursor, Copilot, Codex) to ResearchMate's standards: <code>from __future__ import annotations</code> on every module, full type hints, snake_case/PascalCase/SCREAMING_SNAKE_CASE naming, fail-closed error handling at boundaries, English-only comments, no unjustified <code>typing.Any</code>, domain constants instead of magic numbers, and the <code>npm run check:*</code> gate commands.</p></article>
-        </div>
-        <div class="command-block"><code># Python dev group (root pyproject.toml)
-[dependency-groups]
-dev = [
-  "coverage&gt;=7.10.0,&lt;8",
-  "httpx2&gt;=2.5.0,&lt;3",
-  "pre-commit&gt;=4.2.0,&lt;5",
-  "pytest&gt;=9.0.0,&lt;10",
-  "pyyaml&gt;=6.0.0,&lt;7",
-  "ruff==0.16.0",
-]
-# pyright is invoked via `npx --yes pyright@1.1.390` (npm run check:types)
-# rather than the uv dev group.
+        <h3>Interview question tree</h3>
+        <pre class="command-block">Why branch coverage (--branch) instead of line coverage?
+└─ What does a partial branch count as — covered or uncovered?
+   └─ Why is 69% a believable number instead of 100%?
+Answer: A partial branch has one side untested; --branch counts that side as
+uncovered. 100% is unrealistic on a real codebase because some branches are
+defensive-only (error paths, framework stubs) and never fire in tests. 69% is
+the project's current measurable floor, not an aspirational target.
 
-# CI install command
-uv sync --frozen --all-packages --group dev
+Why wire the OpenAPI --check into check:all?
+└─ What kind of drift would it catch that tests would not?
+   └─ When would you legitimately want to skip it?
+Answer: It catches drift between the committed OpenAPI spec and what
+FastAPI would render. Tests rarely exercise every endpoint shape; an author
+can change a response model, tests still pass, and the public contract has
+silently broken. Skip only during a known, intentional contract migration
+that ships in the same PR.
 
-# Docker install command (API only)
-uv sync --frozen --no-dev --package researchmate-api
-
-# Docker install command (combined worker)
-uv sync --frozen --no-dev --all-packages</code></div>
-      </section>
-
-      <section id="env-example">
-        <p class="eyebrow">.env.example</p>
-        <h2>7 categories of environment configuration</h2>
-        <p class="sub">The .env.example file documents every variable accepted by the runtime, grouped into seven categories. Values use placeholders for secrets and safe defaults for non-secret configuration.</p>
-        <div class="scroll">
-          <table>
-            <thead><tr><th>Category</th><th>Key variables</th><th>Notes</th></tr></thead>
-            <tbody>
-              <tr>
-                <td><b>1. Frontend public</b></td>
-                <td><code>APP_ENV</code>, <code>AUTH_MODE</code>, <code>NEXT_PUBLIC_APP_ENV</code>, <code>NEXT_PUBLIC_SUPABASE_URL</code>, <code>NEXT_PUBLIC_SUPABASE_ANON_KEY</code>, <code>NEXT_PUBLIC_API_BASE_URL</code></td>
-                <td>Exposed to the browser via NEXT_PUBLIC_ prefix. Local dev uses AUTH_MODE=development.</td>
-              </tr>
-              <tr>
-                <td><b>2. Database &amp; Supabase</b></td>
-                <td><code>REPOSITORY_BACKEND</code>, <code>DATABASE_URL</code>, <code>SUPABASE_URL</code>, <code>SUPABASE_JWKS_URL</code></td>
-                <td>Local dev defaults to memory backend. Production uses postgres with JWKS for JWT verification.</td>
-              </tr>
-              <tr>
-                <td><b>3. Object storage</b></td>
-                <td><code>OBJECT_STORAGE_ENDPOINT_URL</code>, <code>OBJECT_STORAGE_ACCESS_KEY_ID</code>, <code>OBJECT_STORAGE_SECRET_ACCESS_KEY</code>, <code>OBJECT_STORAGE_BUCKET</code>, <code>OBJECT_STORAGE_REGION</code></td>
-                <td>S3-compatible. Supabase Storage is the no-card dev default; R2 legacy vars still supported.</td>
-              </tr>
-              <tr>
-                <td><b>4. Vector database</b></td>
-                <td><code>QDRANT_URL</code>, <code>QDRANT_API_KEY</code>, <code>QDRANT_COLLECTION</code>, <code>QDRANT_RERANK_COLLECTION</code>, <code>QDRANT_RERANK_MODEL</code>, <code>QDRANT_RERANK_DIMENSION</code>, <code>RERANK_PROVIDER_DEFAULT</code>, <code>NVIDIA_RERANK_MODEL</code>, <code>CHAT_*_TOKEN_BUDGET</code>, <code>FULL_CONTEXT_TOKEN_LIMIT</code></td>
-                <td>Rerank model: answerdotai/answerai-colbert-small-v1, dimension 96. Token budgets control context window partitioning.</td>
-              </tr>
-              <tr>
-                <td><b>5. LLM &amp; embedding</b></td>
-                <td><code>LLM_PROVIDER</code>, <code>NVIDIA_API_KEY</code>, <code>NVIDIA_BASE_URL</code>, <code>NVIDIA_MODEL</code>, <code>LLM_TEMPERATURE</code>, <code>LLM_MAX_TOKENS</code>, <code>EMBEDDING_PROVIDER</code>, <code>NVIDIA_EMBEDDING_MODEL</code>, <code>EMBEDDING_DIMENSION</code></td>
-                <td>Local dev uses fake providers. Production uses NVIDIA NIM with cost tracking vars.</td>
-              </tr>
-              <tr>
-                <td><b>6. Search &amp; crawl</b></td>
-                <td><code>WEB_SEARCH_PROVIDER</code>, <code>TAVILY_API_KEY</code>, <code>TAVILY_BASE_URL</code>, <code>WEB_SEARCH_TIMEOUT_SECONDS</code></td>
-                <td>Disabled locally. Production uses Tavily with a 30-second timeout.</td>
-              </tr>
-              <tr>
-                <td><b>7. Runtime, jobs &amp; observability</b></td>
-                <td><code>REDIS_URL</code>, <code>RUNTIME_HEARTBEAT_SECONDS</code>, <code>WORKFLOW_LEASE_SECONDS</code>, <code>RESEARCHMATE_PROCESS_ROLE</code>, <code>CORS_ALLOWED_ORIGINS</code>, <code>MAX_UPLOAD_BYTES</code>, <code>DOCLING_ARTIFACTS_PATH</code>, <code>LANGGRAPH_STRICT_MSGPACK</code>, <code>LOG_LEVEL</code>, <code>OTEL_ENABLED</code>, <code>OTEL_EXPORTER_OTLP_TRACES_ENDPOINT</code>, <code>LANGFUSE_ENABLED</code>, <code>LANGFUSE_PUBLIC_KEY</code>, <code>LANGFUSE_SECRET_KEY</code></td>
-                <td>Observability disabled locally (OTEL_ENABLED=false, LANGFUSE_ENABLED=false). Required and separately keyed in preview/production.</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+Why is the same ruff and pyright pinned in three places (uv.lock, .pre-commit, CI npx)?
+└─ What failure mode does each pin defend against?
+   └─ What goes wrong if CI's pyright version drifts ahead of pre-commit's?
+Answer: CI npx pins `pyright@1.1.390` so a fresh CI runner without uv cache
+still gets the exact version. uv.lock pins the same for local installs.
+.pre-commit pins via the same uv environment. If CI drifts ahead, a hook can
+pass locally and CI fails — exactly the drift the design exists to prevent.</pre>
       </section>
 
       <section id="further-reading">
         <p class="eyebrow">Further reading</p>
         <h2>Related documentation</h2>
         <div class="doc-index">
-          <a class="doc-link" href="../architecture/index.html"><b>Architecture &amp; stack</b><span>System overview, deployment topology, and managed service boundaries</span></a>
-          <a class="doc-link" href="backend.html"><b>Backend learning</b><span>FastAPI application inside the combined Render image</span></a>
-          <a class="doc-link" href="worker.html"><b>Worker learning</b><span>Celery worker and LangGraph runtime inside the same Render image</span></a>
-          <a class="doc-link" href="infra.html"><b>Infrastructure</b><span>Managed service configuration, Supabase migrations, and Qdrant provisioning scripts</span></a>
-          <a class="doc-link" href="frontend.html"><b>Frontend learning</b><span>Next.js application deployed to Vercel</span></a>
-          <a class="doc-link" href="contracts-tests.html"><b>Contracts &amp; Tests</b><span>Test suite, contract checks, and coverage thresholds enforced by CI</span></a>
+          <a class="doc-link" href="infra.html"><b>Infrastructure</b><span>Render topology, Vercel rewrite, Supabase Postgres, Qdrant.</span></a>
+          <a class="doc-link" href="contracts-tests.html"><b>Contracts &amp; Tests</b><span>Test design philosophy, two-phase contract-first.</span></a>
+          <a class="doc-link" href="worker.html"><b>Worker guide</b><span>Celery lease, retries, SoftTimeLimit handling.</span></a>
+          <a class="doc-link" href="../contracts/data/index.html"><b>Database contracts</b><span>Migration files and table inventory.</span></a>
         </div>
       </section>
-
     </div>
     <aside class="toc"><b>On this page</b>
-      <a href="#stack">Tech stack</a>
-      <a href="#ci-pipeline">CI/CD workflow</a>
-      <a href="#evaluation-release-gate">Evaluation gate</a>
-      <a href="#recovery-benchmark">Recovery benchmark</a>
-      <a href="#worker-dockerfile">Render Dockerfile</a>
-      <a href="#render-yaml">render.yaml</a>
-      <a href="#dependency-mgmt">Dependency mgmt</a>
-      <a href="#env-example">.env.example</a>
+      <a href="#ci-pipeline">CI/CD pipeline</a>
+      <a href="#pre-commit">Pre-commit hooks</a>
+      <a href="#db-migrations">DB migrations</a>
+      <a href="#coverage-gate">Coverage gate</a>
       <a href="#further-reading">Further reading</a>
     </aside></div>
   </main>
-  <footer class="shell footer">ResearchMate CI/CD learning guide . written 7 August 2026</footer>
+  <footer class="shell footer">ResearchMate CI/CD interview guide . written 21 August 2026</footer>
   <script src="../assets/site.js"></script>
 </body>
 </html>

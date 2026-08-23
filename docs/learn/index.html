@@ -1,15 +1,15 @@
-<!-- ResearchMate technical learning guide: module-by-module breakdown of architecture, tech stack, and code flow. -->
+<!-- ResearchMate interview-focused learning guide: how to read these docs, module map, interview cheat sheet. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8"/>
   <meta content="width=device-width,initial-scale=1" name="viewport"/>
-  <meta content="ResearchMate technical learning guide: module-by-module breakdown of frontend, backend, worker, infrastructure, CI/CD tech stack fundamentals and code flow." name="description"/>
+  <meta content="ResearchMate interview-focused learning guide: how to read these docs, module relationship map, interview cheat sheet." name="description"/>
   <title>ResearchMate · Technical learning</title>
   <link href="../assets/site.css" rel="stylesheet"/>
 </head>
 <body>
-  <header class="mast"><div class="shell mast-row"><a class="brand" href="../index.html">ResearchMate documentation</a><div class="mast-right"><span class="stamp">Learning guide · 14 August 2026</span><a class="lang-toggle" href="index.zh.html" hreflang="zh" lang="zh">中文</a></div></div></header>
+  <header class="mast"><div class="shell mast-row"><a class="brand" href="../index.html">ResearchMate documentation</a><div class="mast-right"><span class="stamp">Learning guide · August 21, 2026</span><a class="lang-toggle" href="index.zh.html" hreflang="zh" lang="zh">中文</a></div></div></header>
   <nav aria-label="Documentation" class="global"><div class="shell">
     <a href="../index.html">Overview</a>
     <a href="../product/index.html">Product &amp; roadmap</a>
@@ -18,98 +18,136 @@
     <a href="../contracts/api/index.html">API</a>
     <a aria-current="page" href="index.html">Learn</a>
   </div></nav>
+  <nav aria-label="Learning modules" class="global module-nav"><div class="shell">
+    <a href="frontend.html">Frontend</a>
+    <a href="backend.html">Backend</a>
+    <a href="worker.html">Worker</a>
+    <a href="infra.html">Infra</a>
+    <a href="cicd.html">CI/CD</a>
+    <a href="contracts-tests.html">Contracts &amp; Tests</a>
+    <a href="flows.html">Cross-cutting</a>
+    <a href="ai-stack.html">AI Stack</a>
+    <a href="project-structure.html">Structure</a>
+  </div></nav>
   <main class="shell">
     <div class="hero">
-      <p class="eyebrow">Tech stack fundamentals / Module breakdown / Request flow slices</p>
-      <h1>Technical learning guide</h1>
-      <p class="lede">This page is aimed at beginners, breaking down the ResearchMate monorepo file structure layer by layer, explaining the purpose of each folder and key file, and analyzing from a slice perspective which files a frontend request passes through from the browser into the backend and what role each file plays. Each technology stack includes fundamentals and project-specific code analysis.</p>
+      <p class="eyebrow">How to read this guide / Module map / Cheat sheet</p>
+      <h1>Technical learning guide (interview-focused)</h1>
+      <p class="lede">Start here if you do not know which page to open. Three sections tell you: how to read these docs in order, how the eight learning modules relate to each other, and which interview points come up most often. The goal is not exhaustive coverage — it is a path through the project that an interviewer can follow with you.</p>
       <div class="meta">
-        <span class="status local">Frontend · Next.js + React + Tailwind + shadcn/ui</span>
-        <span class="status local">Backend · FastAPI + Pydantic + PostgreSQL</span>
-        <span class="status local">Worker · Celery + LangGraph + Hybrid RAG</span>
-        <span class="status local">CI/CD · GitHub Actions + Docker + Render</span>
+        <span class="status local">FastAPI + Celery + LangGraph</span>
+        <span class="status local">Qdrant + Supabase + NVIDIA NIM</span>
+        <span class="status local">Hybrid RAG + Evidence review</span>
       </div>
     </div>
     <div class="layout"><div class="content">
 
-      <section id="sub-pages">
-        <p class="eyebrow">Deep dive</p>
-        <h2>Module sub-pages</h2>
-        <p class="sub">Each sub-page goes to file-level granularity, explaining every file's purpose, key logic, and dependencies, with technology stack fundamentals.</p>
-        <div class="doc-index capability-index">
-          <a class="doc-link" href="frontend.html"><b>Frontend · apps/web</b><span>50 source files (excluding config and assets): Next.js / React / Tailwind / shadcn-ui component walkthrough, API request slice, state management, file upload flow.</span></a>
-          <a class="doc-link" href="backend.html"><b>Backend · apps/api</b><span>96 files: FastAPI routers/schemas/services/persistence file-by-file, authentication, provider adapters, idempotency coordinator.</span></a>
-          <a class="doc-link" href="worker.html"><b>Worker · workers/ai-worker</b><span>37 files: Celery tasks, document ingestion, LangGraph workflow, Outbox pattern, RAGAS evaluation, process supervision.</span></a>
-          <a class="doc-link" href="infra.html"><b>Infrastructure · infra + scripts</b><span>20 files: 31-table SQL migrations file-by-file, Qdrant collection config, OpenAPI spec, operational scripts.</span></a>
-          <a class="doc-link" href="cicd.html"><b>CI/CD · GitHub Actions + Docker + Render</b><span>ci.yml job-by-job, the Render deployment Dockerfile, render.yaml config, and the dual-lock dependency strategy.</span></a>
-          <a class="doc-link" href="contracts-tests.html"><b>Contracts &amp; Tests</b><span>OpenAPI and Pydantic mirroring, 52 test files, and hermetic verification strategy.</span></a>
-          <a class="doc-link" href="flows.html"><b>Flow analysis · Core business flows</b><span>4 interview-grade flows: Grounded Ask with a five-route Hybrid RAG matrix, document ingestion Outbox, LangGraph evidence review, and idempotency + transactional consistency, traced file by file.</span></a>
-          <a class="doc-link" href="ai-stack.html"><b>AI agent stack · Hybrid RAG + MCP + LangGraph</b><span>Three foundations deep dive: Wiki-guided Hybrid RAG with five-route retrieval, RRF fusion, dual rerank, and Wiki-first routing; MCP server with six tools and three resources; LangGraph six-node evidence workflow with checkpointing and human-in-the-loop review.</span></a>
-        </div>
+      <section id="how-to-read">
+        <p class="eyebrow">Reading path</p>
+        <h2>1. How to use this guide</h2>
+        <p class="sub">Lead with the scene, then explain the order. If you are new to the project, open the docs one level at a time — each page assumes the previous one built a model you can use.</p>
+
+        <p>Each learning page is structured the same way: a hero lede gives the one-sentence pitch and key file counts; sections open with a conclusion paragraph and then expand; every page ends with an interview question tree with answers attached, not bare questions. Read top-to-bottom on a first pass — the structure is designed so a single page gives you a model you can apply, not a list of facts to memorize.</p>
+
+        <h3>Recommended order for a 0-foundation reader</h3>
+        <p>If you are new to ResearchMate or to the stack itself, read in this order. The project-structure page gives you the map of where things live; backend, worker, and AI-stack pages deepen the three layers you saw on that map; contracts-tests and infra verify the contracts and the deployment; flows ties the layers together end-to-end. Read cross-cutting flows last — it makes sense only once you can name each layer from memory.</p>
+
+        <table class="file-table">
+          <thead><tr><th>Step</th><th>Read this</th><th>You will be able to</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td><a href="project-structure.html">Project structure</a></td><td>Name the three apps, four API layers, and where Worker and tests live</td></tr>
+            <tr><td>2</td><td><a href="backend.html">Backend</a> + <a href="worker.html">Worker</a></td><td>Explain one Ask request and one ingestion job in your own words</td></tr>
+            <tr><td>3</td><td><a href="ai-stack.html">AI stack</a></td><td>Describe hybrid retrieval, rerank, and the LangGraph evidence workflow</td></tr>
+            <tr><td>4</td><td><a href="contracts-tests.html">Contracts &amp; tests</a> + <a href="infra.html">Infrastructure</a></td><td>Justify the type-safe surface and the single-container Render deploy</td></tr>
+            <tr><td>5</td><td><a href="flows.html">Cross-cutting flows</a></td><td>Trace one end-to-end flow from HTTP to Supabase and back</td></tr>
+          </tbody>
+        </table>
+
+        <div class="fact"><b>[Project fact]</b> Eight learning pages exist (Frontend, Backend, Worker, Infrastructure, CI/CD, Contracts &amp; tests, Cross-cutting, AI stack) plus this index and the project-structure page. Each page targets 3–5 core topics with depth over breadth — no encyclopedic catalogs.</div>
+
+        <h3>Interview question trees</h3>
+        <pre class="command-block">How do I quickly re-orient before an interview?
+├─ Re-read project-structure + ai-stack only; they cover the map and the deepest topic
+└─ Then open flows.html for one full end-to-end trace
+
+Which page should I skip if I have only one hour?
+├─ [Reasonable inference] Skip CI/CD details; the AI stack and the four-layer API split carry the highest hit-rate
+└─ Revisit CI/CD only if the role is explicitly SRE-adjacent</pre>
       </section>
 
-      <section id="structure">
-        <p class="eyebrow">Monorepo structure</p>
-        <h2>Project structure</h2>
-        <p class="sub">ResearchMate is a monorepo (single repository, multiple projects) managed by npm workspaces for JavaScript/TypeScript packages and uv workspace for Python packages. All code, configuration, and documentation live in the same Git repository.</p>
-        <div class="notice"><strong>What is a monorepo?</strong> A monorepo is a strategy for managing multiple related projects in a single version-controlled repository. Advantages include shared configuration, unified version locking, and easier cross-project refactoring. ResearchMate's frontend (<code>apps/web</code>), backend API (<code>apps/api</code>), and AI Worker (<code>workers/ai-worker</code>) all live in the same repository.</div>
-        <dl class="repo-map">
-          <dt><code>apps/web/</code></dt><dd>Next.js frontend application deployed on Vercel. Contains page routes, React components, API client, and authentication logic.</dd>
-          <dt><code>apps/api/</code></dt><dd>FastAPI backend REST API providing 49 <code>/api/v1</code> operations. Contains routers, Pydantic models, service orchestration, and PostgreSQL persistence layer.</dd>
-          <dt><code>workers/ai-worker/</code></dt><dd>Celery Worker + Outbox Dispatcher handling document parsing, vector indexing, LangGraph workflow, and evaluation. Deployed with the API in the same Render container.</dd>
-          <dt><code>packages/shared/</code></dt><dd>Removed on 2026-08-08; shared TypeScript contracts moved into app-local modules.</dd>
-          <dt><code>infra/</code></dt><dd>Infrastructure configuration: Supabase SQL migration files, Qdrant collection config, OpenAPI spec.</dd>
-          <dt><code>scripts/</code></dt><dd>Operational scripts: database migration runner, Qdrant rerank backfill, OpenAPI export, and more.</dd>
-          <dt><code>tests/</code></dt><dd>Python test suite (52 files) covering unit tests, HTTP integration tests, contract inspection, and release safety.</dd>
-          <dt><code>docs/</code></dt><dd>Browser-openable project documentation (HTML), the page you are viewing now.</dd>
-          <dt><code>.github/workflows/</code></dt><dd>GitHub Actions CI pipeline definition (<code>ci.yml</code>).</dd>
-          <dt><code>skill/</code></dt><dd>gstack development skill library, including land-and-deploy, qa, review, and other workflow skills.</dd>
-        </dl>
-        <div class="grid two">
-          <article class="fact"><b>npm workspaces (Node.js package management)</b><p>The root <code>package.json</code> declares <code>"workspaces": ["apps/web"]</code>. All JS/TS dependencies are locked by the root-level <code>package-lock.json</code>, and the frontend and any workspace members reference each other via the workspace protocol.</p></article>
-          <article class="fact"><b>uv workspace (Python package management)</b><p>The root <code>pyproject.toml</code> declares <code>[tool.uv.workspace] members = ["apps/api", "workers/ai-worker"]</code>. All Python dependencies are locked by <code>uv.lock</code>, and CI and Docker install with <code>uv sync --frozen</code> to strictly follow the lockfile.</p></article>
-        </div>
+      <section id="module-map">
+        <p class="eyebrow">Module relationships</p>
+        <h2>2. How the eight modules fit together</h2>
+        <p class="sub">The map shows the dependency edges between learning modules. The core shape is a fan: a request enters through the Frontend, hits the Backend, splits inline (Ask) or queued (ingestion + evidence) into the Worker, and the AI stack modules run inside both.</p>
+
+        <p>Think of the project as a fan with one handle and three ribs. The handle is the Frontend — it only talks to the backend over HTTP. The three ribs are the Backend, the Worker, and the AI stack that lives inside both. Frontend and Worker do not talk directly: the Backend writes an outbox row in Supabase, the Worker polls it, and results come back through Supabase — not through HTTP. Every other module (Infrastructure, CI/CD, Contracts &amp; tests, Cross-cutting flows, Project structure) supports how the four ribs are built and verified, not how they call each other.</p>
+
+        <h3>Three edges that carry the architecture</h3>
+        <table class="file-table">
+          <thead><tr><th>Edge</th><th>What crosses</th><th>Where to read</th></tr></thead>
+          <tbody>
+            <tr><td>Frontend → Backend (HTTP, same-origin proxy)</td><td>Chat composer messages, file upload, idempotency-key headers; Vercel rewrite proxies to Render to avoid corporate proxy interception</td><td><a href="frontend.html">Frontend</a> + <a href="backend.html">Backend</a></td></tr>
+            <tr><td>Backend → Worker (Outbox, not direct call)</td><td>Tasks for ingestion and evidence review; one DB transaction writes business data + outbox_events; worker polls and enqueues</td><td><a href="worker.html">Worker</a> + <a href="flows.html">Cross-cutting flows</a></td></tr>
+            <tr><td>Backend + Worker → AI providers (NVIDIA NIM, Qdrant, Tavily)</td><td>LLM calls, embedding calls, hybrid retrieval, rerank; same adapters used by both Ask (inline) and Evidence (queued)</td><td><a href="ai-stack.html">AI stack</a> + <a href="backend.html">Backend</a> + <a href="worker.html">Worker</a></td></tr>
+          </tbody>
+        </table>
+
+        <div class="notice"><b>[Reasonable inference]</b> The most-asked architecture question is "why does the Frontend not call the Worker directly?" The answer is on the Backend → Worker edge: an HTTP call would race against the database commit, and if the API crashes between the DB write and the task dispatch, the task is lost. The Outbox pattern fixes this — task and business data commit together, the task becomes reliable because it is just a database row.</div>
+
+        <h3>Interview question trees</h3>
+        <pre class="command-block">Why does the Frontend proxy through Vercel rewrites instead of calling Render directly?
+├─ [Project fact] Vercel rewrite proxies the API request through the frontend host
+└─ Why is that needed?
+   └─ Corporate/ISP proxy interception of *.onrender.com serves HTML instead of JSON; the rewrite uses the Vercel domain which the proxy permits
+
+Why is the outbox pattern on the Backend → Worker edge?
+├─ Direct task.delay() races the DB transaction
+├─ If the API crashes after commit but before dispatch, the task is lost
+└─ [Project fact] Outbox writes business row + outbox_events row in one transaction; the dispatcher polls and enqueues — task becomes durable as long as Postgres is up</pre>
       </section>
 
-      <section id="e2e-slice">
-        <p class="eyebrow">End-to-end slice</p>
-        <h2>The complete journey of an Ask request</h2>
-        <p class="sub">From the user typing a question in the browser to receiving a cited answer, all files and modules the request passes through:</p>
-        <div class="proof-chain">
-          <div class="proof-step"><b>Browser</b><small>chat-composer.tsx, use-chat-workspace.ts, api.ts (apiFetch + getAccessToken), supabase.ts (JWT), fetch()</small></div>
-          <div class="proof-step"><b>FastAPI middleware</b><small>main.py: CORS, attach_request_id (generate request_id + security headers)</small></div>
-          <div class="proof-step"><b>Auth + DI</b><small>dependencies.py: get_current_user (JWKS JWT verification), get_store / get_chat_provider / get_hybrid_store / get_reranker (read singletons from app.state)</small></div>
-          <div class="proof-step"><b>Router + idempotency</b><small>routers/ask.py (thin orchestration), services/idempotency.py (four-state machine: execute / replay / mismatch / in_progress)</small></div>
-          <div class="proof-step"><b>Conversation scope</b><small>services/query_conversation.py: validate project/conversation, load chunks, query_context.py (summary compression + token budget + cross-conversation memory)</small></div>
-          <div class="proof-step"><b>Routed hybrid retrieval</b><small>query_planning.py selects full-context, exact, semantic, hybrid, or expanded-hybrid; Qdrant v3 executes named BM25 + NVIDIA 4096-dim dense branches with route-weighted RRF and mandatory owner filters.</small></div>
-          <div class="proof-step"><b>Rerank</b><small>services/rerank.py: Qdrant native, NVIDIA ranking, Deterministic (three-way fallback), pack_chunks (token budget packing)</small></div>
-          <div class="proof-step"><b>Answer generation</b><small>services/query_generation.py, answering.py: with evidence → LLM grounded (JSON schema validation + one repair); without evidence → chat or abstain</small></div>
-          <div class="proof-step"><b>Persistence + response</b><small>store.py / persistence/postgres.py (RLS parameter): save run/trace/messages, return AskResponse, middleware attaches headers, browser renders</small></div>
-        </div>
-        <div class="notice"><strong>Async path:</strong> After document upload, the API writes outbox_events, the dispatcher polls and dispatches, the Celery worker ingests (parse + chunk + vector), and Qdrant becomes ready. The next Ask retrieves evidence from the new document. This async chain passes through dispatch_outbox.py, tasks.py, ingestion_service.py, parsing.py, ingestion_projections.py, qdrant_store.py.</div>
-      </section>
+      <section id="cheat-sheet">
+        <p class="eyebrow">High-frequency interview points</p>
+        <h2>3. Cheat sheet: the points that come up most</h2>
+        <p class="sub">Five points cover roughly 80% of the deep-dive questions on this project. Each names the page where the full explanation lives.</p>
 
-      <section id="reading-paths">
-        <p class="eyebrow">Further reading</p>
-        <h2>Deep learning paths</h2>
-        <div class="doc-index">
-          <a class="doc-link" href="../architecture/index.html#stack"><b>Architecture &amp; stack</b><span>Runtime boundaries, stack justification, failure recovery, deployment plan, and CI/CD details.</span></a>
-          <a class="doc-link" href="../contracts/data/index.html#tables"><b>Database design</b><span>Complete field, relationship, integrity, and RLS ledger for 31 tables.</span></a>
-          <a class="doc-link" href="../contracts/api/index.html#operations"><b>API design</b><span>Complete contracts and integration status for 49 REST operations.</span></a>
-          <a class="doc-link" href="../product/index.html#capabilities"><b>Product capabilities</b><span>Scenario, current capabilities, acceptance criteria, and non-goals.</span></a>
-          <a class="doc-link" href="../index.html"><b>Project overview</b><span>Evidence snapshot, verification status, and delivery boundary.</span></a>
-        </div>
+        <table class="file-table">
+          <thead><tr><th>Point</th><th>One-line answer</th><th>Full page</th></tr></thead>
+          <tbody>
+            <tr><td>Why hybrid retrieval (BM25 + dense) instead of one method?</td><td>BM25 catches keyword-style queries; dense catches paraphrase queries; RRF fuses the ranked lists into one top-K</td><td><a href="ai-stack.html">AI stack</a></td></tr>
+            <tr><td>Why is rerank budgeted before invocation?</td><td>Bypass candidates from full-text or keyword paths are cheap; running rerank on a huge pile wastes tokens, so candidates are split by type and budget-capped before rerank sees them</td><td><a href="ai-stack.html">AI stack</a></td></tr>
+            <tr><td>Why the outbox, not task.delay()?</td><td>The API commits business data + outbox_events in one transaction; the dispatcher polls; if the API crashes, the task is still in Postgres</td><td><a href="worker.html">Worker</a> + <a href="flows.html">Cross-cutting</a></td></tr>
+            <tr><td>Why idempotency on the Ask request?</td><td>Network timeout may push the client to retry; same Idempotency-Key replays without re-calling the LLM — saves tokens and prevents duplicate runs</td><td><a href="backend.html">Backend</a></td></tr>
+            <tr><td>Why one Render container for API + worker?</td><td>Render Free tier = one sleeping service; <code>render_combined</code> runs both in one process; trade-off is no independent scaling</td><td><a href="project-structure.html">Project structure</a></td></tr>
+          </tbody>
+        </table>
+
+        <div class="fact"><b>[Project fact]</b> None of these answers reference fabricated metrics. The project does not publish QPS, recall, or latency numbers; in an interview, say what the source confirms and mark the rest as <code>[Reasonable inference]</code> or <code>[Optimization suggestion]</code>.</div>
+
+        <h3>Interview question trees</h3>
+        <pre class="command-block">What is the cheapest path through an Ask request?
+├─ Idempotency replay → return cached response, no LLM call
+└─ [Project fact] IdempotencyCoordinator.begin() checks the key before execute()
+
+What is the worst-case path?
+├─ Extended-hybrid retrieval → rerank → LLM with one repair retry
+└─ Where are the latency sinks?
+   └─ [Project fact] NVIDIA embedding (4096-dim) + Qdrant hybrid query + NVIDIA LLM; rerank is gated by a budget cap before invocation
+
+How do you keep long workflows from being killed mid-execution?
+├─ [Project fact] Celery soft_time_limit + task_acks_late; SoftTimeLimitExceeded has an explicit handler ahead of except Exception
+└─ [Interview extension] Why can't soft timeout interrupt a blocking C call?
+   └─ Raises only between Python bytecodes; boto3/C-extension calls ignore it; only SIGKILL is a hard backstop</pre>
       </section>
 
     </div>
     <aside class="toc"><b>On this page</b>
-      <a href="#sub-pages">Sub-pages</a>
-      <a href="#structure">Project structure</a>
-      <a href="#e2e-slice">End-to-end slice</a>
-      <a href="#reading-paths">Further reading</a>
+      <a href="#how-to-read">1. How to use this guide</a>
+      <a href="#module-map">2. How the eight modules fit together</a>
+      <a href="#cheat-sheet">3. Cheat sheet</a>
     </aside></div>
   </main>
-  <footer class="shell footer">ResearchMate technical learning guide · written 14 August 2026</footer>
+  <footer class="shell footer">ResearchMate technical learning guide · written 21 August 2026</footer>
   <button class="back-to-top" aria-label="Back to top" data-back-to-top hidden>
     <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="M9 3L3 9l1.4 1.4L9 5.8l4.6 4.6L15 9L9 3z" fill="currentColor"/></svg>
   </button>

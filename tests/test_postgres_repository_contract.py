@@ -312,9 +312,7 @@ class CompleteDocumentConnection(RecordingConnection):
             return OneMappingResult({"?column?": 1})
         # Transaction 2 step 3: UPDATE documents...RETURNING returns project_id + r2_object_key.
         if "update documents" in statement and "returning" in statement:
-            return OneMappingResult(
-                {"project_id": PROJECT_ID, "r2_object_key": self.R2_OBJECT_KEY}
-            )
+            return OneMappingResult({"project_id": PROJECT_ID, "r2_object_key": self.R2_OBJECT_KEY})
         # Transaction 2 step 4: job INSERT...RETURNING returns the full job row.
         if "insert into jobs" in statement:
             return OneMappingResult(
@@ -374,9 +372,7 @@ def test_completion_persists_job_and_outbox_intent_in_one_method() -> None:
     assert "on conflict (idempotency_key) do nothing" in sql_text, (
         "document event enqueue must guard deduplication"
     )
-    assert "insert into chunks" not in sql_text, (
-        "complete_document must not persist chunks"
-    )
+    assert "insert into chunks" not in sql_text, "complete_document must not persist chunks"
 
 
 # ---------------------------------------------------------------------------
@@ -629,9 +625,7 @@ def test_project_scoped_writes_lock_the_active_project_transition() -> None:
     )
 
     # The document INSERT must run after the lock.
-    insert_idx = next(
-        i for i, call in enumerate(calls) if "insert into documents" in call[0]
-    )
+    insert_idx = next(i for i, call in enumerate(calls) if "insert into documents" in call[0])
     lock_idx = calls.index(lock_calls[0])
     assert insert_idx > lock_idx, "the document INSERT must follow the active-project lock"
 

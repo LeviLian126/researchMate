@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <title>Project Structure . Interview deep dive</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <link href="../assets/site.css" rel="stylesheet"/>
+  <style>
+    .layout section > h2 { cursor: pointer; user-select: none; }
+    .layout section > h2::before { content: "▾ "; color: var(--clay); font-size: 0.8em; transition: transform 0.2s; display: inline-block; }
+    .layout section.collapsed > h2::before { transform: rotate(-90deg); }
+    .layout section.collapsed > :not(h2):not(.eyebrow) { display: none; }
+    .file-table { width: 100%; border-collapse: collapse; margin-top: 1rem; font-size: 0.9rem; }
+    .file-table th { text-align: left; padding: 0.5rem 0.75rem; border-bottom: 2px solid var(--clay); color: var(--ink); background: var(--sand); }
+    .file-table td { padding: 0.4rem 0.75rem; border-bottom: 1px solid var(--mist); vertical-align: top; }
+    .file-table tr:hover td { background: var(--sand); }
+    .file-table code { font-size: 0.85rem; }
+    .file-table .loc { text-align: right; white-space: nowrap; color: var(--clay); }
+  </style>
+  <button class="back-to-top" aria-label="Back to top" data-back-to-top hidden>
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="M9 3L3 9l1.4 1.4L9 5.8l4.6 4.6L15 9L9 3z" fill="currentColor"/></svg>
+  </button>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      document.querySelectorAll('.layout section > h2').forEach(function(h2) {
+        h2.addEventListener('click', function() {
+          h2.closest('section').classList.toggle('collapsed');
+        });
+      });
+    });
+  </script>
+</head>
+<body>
+  <header class="mast"><div class="shell mast-row"><a class="brand" href="../index.html">ResearchMate Docs</a><div class="mast-right"><span class="stamp">Project Structure . August 21, 2026</span><a class="lang-toggle" href="project-structure.zh.html" hreflang="zh" lang="zh">中文</a></div></div></header>
+  <nav aria-label="Docs" class="global"><div class="shell">
+    <a href="../index.html">Overview</a>
+    <a href="../product/index.html">Product &amp; Roadmap</a>
+    <a href="../architecture/index.html">Architecture &amp; Stack</a>
+    <a href="../contracts/data/index.html">Database</a>
+    <a href="../contracts/api/index.html">API</a>
+    <a aria-current="page" href="index.html">Learn</a>
+  </div></nav>
+  <nav aria-label="Learning modules" class="global module-nav"><div class="shell">
+    <a href="frontend.html">Frontend</a>
+    <a href="backend.html">Backend</a>
+    <a href="worker.html">Worker</a>
+    <a href="infra.html">Infra</a>
+    <a href="cicd.html">CI/CD</a>
+    <a href="contracts-tests.html">Contracts &amp; Tests</a>
+    <a href="flows.html">Cross-cutting</a>
+    <a href="ai-stack.html">AI Stack</a>
+    <a aria-current="page" href="project-structure.html">Structure</a>
+  </div></nav>
+  <main class="shell">
+    <div class="hero">
+      <p class="eyebrow">Monorepo / API module / Worker module / Shared tests</p>
+      <h1>Project Structure . Interview deep dive</h1>
+      <p class="lede">When you clone ResearchMate, you get one repository with three independently-deployable apps: a Next.js frontend, a FastAPI backend, and a Python worker. The four interview beats are: why the repo is split the way it is, how the API stacks four layers, why the worker lives as its own package, and why tests sit at the top level instead of inside each app.</p>
+      <div class="meta">
+        <span class="status local">100 API .py files</span>
+        <span class="status local">46 worker .py files</span>
+        <span class="status local">52 test files</span>
+        <span class="status local">21 SQL migrations</span>
+      </div>
+    </div>
+    <div class="layout"><div class="content">
+
+      <section id="monorepo">
+        <p class="eyebrow">[Project fact] Three apps in one repo, two package managers</p>
+        <h2>1. What you see when you open the repo</h2>
+        <p class="sub">Lead with the scene, then name each dir's job. The top level is small on purpose — it exists to point at three deployables and the shared test suite that crosses them.</p>
+        <p>Open the project root and you see seven top-level directories. Each one maps to a clear job: <code>apps/web</code> is the Next.js frontend that users see in the browser; <code>apps/api</code> is the FastAPI backend that answers HTTP requests (100 Python files); <code>workers/ai-worker</code> is a separate Python package that runs long jobs like document ingestion and evidence review (46 Python files); <code>tests/</code> holds 52 pytest suites that test both Python packages from one place; <code>infra/</code> holds declarative config (SQL migrations, Qdrant collection specs, OpenAPI spec); <code>scripts/</code> is one-off provisioning tools; <code>docs/</code> is the HTML-first documentation you are reading now.</p>
+
+        <h3>Why one repo instead of three</h3>
+        <p>The three apps need to stay in sync: API routers change a request shape, the frontend must follow, and the worker must keep writing compatible rows. Putting them in one repo means one <code>git pull</code> moves all three together, and one pull request can touch API + worker + tests in the same diff. Splitting them would mean a router change requires three PRs across three repos plus a version bump dance.</p>
+
+        <h3>Why two package managers, not one</h3>
+        <p>The frontend is JavaScript; the API and worker are Python. There is no one tool that handles both well. So the project uses two workspace-native tools: <code>npm workspaces</code> for the JS side and <code>uv workspace</code> for the Python side. Each does one job well — npm gives Vercel native detection for deploys, and uv produces one <code>uv.lock</code> parity with the production Docker image.</p>
+
+        <table class="file-table">
+          <thead><tr><th>Mechanism</th><th>Where it lives</th><th>What it buys</th></tr></thead>
+          <tbody>
+            <tr><td>npm workspaces</td><td>Root <code>package.json</code>: <code>"workspaces": ["apps/web"]</code></td><td>One lockfile (root <code>package-lock.json</code>); one <code>npm install</code> from root</td></tr>
+            <tr><td>uv workspace</td><td>Root <code>pyproject.toml</code>: <code>[tool.uv.workspace] members = ["apps/api", "workers/ai-worker"]</code></td><td>API and worker share dev deps (ruff, pyright, pytest) and one <code>uv.lock</code></td></tr>
+            <tr><td>Render deploy boundary</td><td><code>render.yaml</code> <code>buildFilter</code> paths</td><td>Frontend-only commits do not trigger backend Docker rebuild on Render</td></tr>
+            <tr><td>One container, both Python apps</td><td><code>dockerCommand: python -m researchmate_worker.render_combined</code></td><td>[Project fact] Render Free tier allows one sleeping service; this entrypoint runs the API HTTP server and Celery worker inside the same process</td></tr>
+          </tbody>
+        </table>
+
+        <div class="fact"><b>[Reasonable inference]</b> Running the API and worker in one Python process is a deliberate Free-tier trade-off. The upside is simple deploys and shared in-memory clients (LLM client, Qdrant client get reused). The cost is no independent scaling: when traffic grows you split the worker into its own Render Background Worker, keep the shared <code>uv.lock</code>, and give up that single-process simplicity.</div>
+
+        <h3>Interview question trees</h3>
+        <pre class="command-block">Why two package managers instead of one monorepo tool (Nx, Turborepo)?
+├─ What does each one buy that a single cross-language tool would not?
+│  └─ npm workspaces → Vercel native detection; uv workspace → one Python lockfile matching Docker
+└─ What would it cost to migrate to Nx/Turborepo?
+   └─ [Interview extension] You gain a cross-language task graph and caching; payoff only appears once CI minutes become the bottleneck — not the case for this project today
+
+Why does the worker ship in the same Render container as the API?
+├─ What is the trade-off vs. a separate worker service?
+│  └─ [Project fact] Free tier = 1 service; combined entrypoint serves HTTP and runs Celery in-process
+└─ How would you split them when traffic grows?
+   └─ [Optimization suggestion] Move Celery to a Render Background Worker; keep the shared uv.lock; lose the single-process simplicity</pre>
+      </section>
+
+      <section id="api">
+        <p class="eyebrow">[Project fact] routers → services → schemas → persistence</p>
+        <h2>2. Inside the API: four layers and one graph</h2>
+        <p class="sub">The interview beat is why each layer exists and what crosses the boundary. Don't memorize filenames — name the layer job, then why it cannot collapse into the next.</p>
+
+        <p>A FastAPI app could put SQL queries right inside the route handler, and small apps do. This project does not, because the handler is the only place that talks HTTP and the SQL is the only place that talks Postgres — collapse them and the route becomes untestable without a database, and the SQL becomes untestable without an HTTP client. The project splits the API into four layers: routers receive HTTP; services hold business logic; persistence talks to Postgres; schemas validate the data shapes that cross between them. One extra package — <code>graph/</code> — holds the LangGraph state machine that drives the grounded Ask and Evidence flows.</p>
+
+        <h3>Layered request flow (Ask endpoint)</h3>
+        <pre class="command-block">HTTP request POSTs to /api/v1/ask
+  → routers/ask.py        # receives HTTP, calls Depends() to get services, returns a Pydantic schema
+    → services/grounded_query.py  # GroundedQueryService.execute() decides retrieval route, calls providers, calls LLM
+      → services/qdrant_hybrid_query.py, rerank.py, answering.py  # adapter modules for Qdrant, rerank, LLM
+      → services/idempotency.py    # wraps the whole call: begin() → execute() → complete(); replay returns cached result
+        → persistence/postgres.py  # ResearchMateRepository runs SQL through Supabase with RLS owner_id scope
+          → schemas/ask.py           # AskRequest / AskResponse Pydantic validation
+          → response → HTTP</pre>
+
+        <table class="file-table">
+          <thead><tr><th>Package</th><th>What it does</th><th>Count</th></tr></thead>
+          <tbody>
+            <tr><td><code>routers/</code></td><td>HTTP boundary. Thin: only Depends() wiring + error mapping via <code>raise_api_error</code>. If you write SQL here, the layering is broken.</td><td>13 files</td></tr>
+            <tr><td><code>services/</code></td><td>Business orchestration. One service per capability — grounded_query, evidence_generation, quiz_generation, retrieval, rerank, llm, object_storage, idempotency. Calls providers; owns transaction boundaries.</td><td>~40 files</td></tr>
+            <tr><td><code>persistence/</code></td><td>SQL access through Supabase. Every query passes RLS owner_id scope. <code>postgres.py</code> is the public face; <code>_*postgres_*.py</code> are private helpers.</td><td>~20 files</td></tr>
+            <tr><td><code>schemas/</code></td><td>Pydantic v2 models. <code>common.py</code> holds shared constants (JobStatus, MAX_TEXT_LENGTH) — no magic numbers in validators.</td><td>11 files</td></tr>
+            <tr><td><code>graph/</code></td><td>LangGraph ResearchGraph definition: state, conditional routing, node composition. Drives the inline Ask and Evidence flows.</td><td>3 files</td></tr>
+            <tr><td><code>dependencies.py, main.py, mcp_server.py</code></td><td>Three root files: FastAPI app wiring, DI providers, MCP server exposing 6 tools and 3 resources.</td><td>3 files</td></tr>
+          </tbody>
+        </table>
+
+        <div class="fact"><b>[Project fact]</b> Every module starts with <code>from __future__ import annotations</code> and every function signature is fully type-annotated. Pre-commit runs ruff + pyright to enforce it. <code>Any</code> is reserved for true boundary payloads (raw JSON, framework bodies).</div>
+
+        <h3>Interview question trees</h3>
+        <pre class="command-block">Why separate routers / services / persistence instead of writing SQL inside routes?
+├─ What does each separation buy?
+│  └─ Routers stay thin (mockable for HTTP tests); services are provider-agnostic; persistence is RLS-scoped (testable without HTTP)
+└─ Where does idempotency live and why?
+   └─ [Project fact] services/idempotency.py wraps the whole service call: begin() → execute() → complete(); replay returns the cached response without re-calling the LLM
+
+Why is there a graph/ package inside the API when Celery also has a workflow?
+├─ What is the difference between the API's ResearchGraph and the worker's workflow_execution.py?
+│  └─ [Project fact] graph/ builds the in-process ResearchGraph state machine driving Ask + Evidence; workflows/*.py are Celery-invoked multi-step pipelines (ingestion, evaluation, evidence review)
+└─ When does a request hit the API graph vs. enqueue a worker task?
+   └─ Ask runs inline; document upload and evidence review enqueue via the outbox → Celery</pre>
+      </section>
+
+      <section id="worker">
+        <p class="eyebrow">[Project fact] tasks → evidence_graph → workflow_execution</p>
+        <h2>3. Inside the worker: why it is its own package</h2>
+        <p class="sub">A separate worker package is not a styling choice. It reflects that the worker has its own deploy, its own runtime concerns (long-running, restartable, killable), and its own dependency on Celery + LangGraph — none of which belong in the API's request/response loop.</p>
+
+        <p>The worker is a separate package (<code>workers/ai-worker</code>, package name <code>researchmate_worker</code>) because its runtime profile is opposite to the API's. The API answers in milliseconds and is killed if a request takes too long; the worker runs jobs that take minutes (PDF parsing, chunking, vector indexing, evidence review) and must survive crashes — it restarts, retries, and is killable without losing work. Bundling the worker into the API package would let an import from the API accidentally pull Celery into a request path; keeping them separate forces every cross-boundary call to go through a real task queue.</p>
+
+        <h3>Layout by responsibility</h3>
+        <table class="file-table">
+          <thead><tr><th>Cluster</th><th>Files</th><th>Job</th></tr></thead>
+          <tbody>
+            <tr><td>Task entry</td><td><code>tasks.py, task_builders.py, jobs.py, celery_app.py</code></td><td>Celery task registration; <code>celery_app.py</code> sets broker=Redis, result backend, soft time limit</td></tr>
+            <tr><td>Workflow core</td><td><code>workflow_execution.py, workflow_core.py, workflow_runtime.py, workflow_loader.py, workflow_models.py, workflow_events.py, workflow_commit.py</code></td><td>LangGraph workflow execution + checkpoint + commit</td></tr>
+            <tr><td>Evidence review</td><td><code>evidence_graph.py</code></td><td>Evidence review graph: nodes for retrieve, generate, fault, sufficiency, commit</td></tr>
+            <tr><td>Ingestion</td><td><code>ingestion*.py</code> (7 files) + <code>parsing/</code></td><td>Document parse (Docling/pdfium) → chunk → project → vector index into Qdrant</td></tr>
+            <tr><td>Outbox + ops</td><td><code>dispatch_outbox.py, outbox.py, runtime_health.py, worker_heartbeat.py, budget.py</code></td><td>Outbox dispatcher polling + health heartbeat + token/cost budget enforcement</td></tr>
+            <tr><td>Evaluation</td><td><code>evaluation*.py</code> (8 files) + <code>fault_simulation.py, deletion*.py</code></td><td>RAGAS-style eval harness + fault injection + cascade deletion tasks</td></tr>
+            <tr><td>Deploy entry</td><td><code>render_combined.py</code></td><td>Single entrypoint: starts FastAPI + Celery worker in one process for the Render Free tier</td></tr>
+          </tbody>
+        </table>
+
+        <div class="fact"><b>[Project fact]</b> The worker does not run an HTTP server of its own. <code>render_combined.py</code> imports the API app and a Celery worker into the same process context. API and worker share one Python env and the same code paths via the uv workspace.</div>
+
+        <div class="notice"><b>[Reasonable inference]</b> Because API and worker share one process, in-memory singletons (the LLM client, the Qdrant client) can be reused across both. That is fine at Free-tier load; at scale you would split processes and lose that sharing.</div>
+
+        <h3>Interview question trees</h3>
+        <pre class="command-block">Why is the API and worker connected via an outbox, not direct task.delay()?
+├─ What problem does the outbox solve?
+│  └─ [Project fact] API writes outbox_events row + business data in one DB transaction; the dispatcher polls and enqueues; avoids the "DB committed but task lost" race
+└─ What happens if the dispatcher enqueues the same task twice?
+   └─ [Project fact] ingestion and evidence tasks are idempotent on document_id / run_id; replay is safe
+
+How are long-running workflows protected from being killed mid-execution?
+├─ [Project fact] Celery soft_time_limit + task_acks_late; SoftTimeLimitExceeded has an explicit handler ahead of except Exception (the broad catch would swallow it otherwise)
+└─ [Interview extension] Why can't Celery's soft timeout interrupt a blocking C call?
+   └─ Soft timeout raises between Python bytecodes; boto3 / C-extension calls ignore it; only SIGKILL is a hard backstop</pre>
+      </section>
+
+      <section id="tests-infra">
+        <p class="eyebrow">[Project fact] Top-level tests + declarative infra</p>
+        <h2>4. Why tests live at the top, and where infra lives</h2>
+        <p class="sub">Tests at the top level and infra in declarative files are the two structural choices that survive scaling. Both come from the same principle: the repo layout should tell you what is deployed and what is verified, not what one developer happened to organize first.</p>
+
+        <p>Tests live at the top level (<code>tests/</code>, 52 pytest files), not inside each app's directory. The reason is that the most important tests cross the boundary between the API and the worker — a document upload triggers an outbox row, which the worker consumes, which writes back evidence that the next Ask reads. Putting these tests inside <code>apps/api</code> would force them to import the worker package across a workspace boundary; putting them at the top lets them import both <code>researchmate_api</code> and <code>researchmate_worker</code> cleanly. One <code>test:python</code> command from the repo root runs all 52 files with a 69% coverage gate.</p>
+
+        <p>Infra is declarative-only — everything that runs in production is defined in files you can read here. Three things to know: 21 SQL migrations in <code>infra/supabase/migrations/</code> own the database schema; <code>render.yaml</code> owns the deploy (one Render Free web service, Docker, health check on <code>/api/v1/healthz</code>, ~48 env vars); <code>scripts/</code> owns one-off provisioning tools that run on container start or on demand.</p>
+
+        <table class="file-table">
+          <thead><tr><th>Path</th><th>What it owns</th></tr></thead>
+          <tbody>
+            <tr><td><code>tests/</code></td><td>52 pytest files; contract tests import both Python packages; one <code>test:python</code> command, 69% coverage gate</td></tr>
+            <tr><td><code>infra/supabase/migrations/</code></td><td>21 SQL files; applied by <code>scripts/apply_migrations.py</code> on container start when <code>RUN_SCHEMA_MIGRATIONS=1</code>; CI runs <code>check:migrations</code> on file integrity</td></tr>
+            <tr><td><code>infra/qdrant/</code></td><td>Qdrant collection config (hybrid retrieval v3 + rerank v2); provisioned by <code>scripts/provision_qdrant_hybrid.py</code> + <code>provision_qdrant_rerank.py</code></td></tr>
+            <tr><td><code>infra/openapi/</code></td><td>Generated OpenAPI spec; checked via <code>scripts/export_openapi.py --check</code></td></tr>
+            <tr><td><code>render.yaml</code></td><td>Single Render Free web service: <code>runtime=docker</code>, <code>dockerCommand=python -m researchmate_worker.render_combined</code>, <code>healthCheckPath=/api/v1/healthz</code>, env var group with ~48 keys</td></tr>
+            <tr><td><code>scripts/</code></td><td>11 Python + PowerShell tools: <code>apply_migrations, export_openapi, provision_qdrant_*, setup_langgraph_checkpoint, check_evaluation_gate, measure_langgraph_recovery</code></td></tr>
+          </tbody>
+        </table>
+
+        <div class="fact"><b>[Project fact]</b> render.yaml env keys tell the whole provider story: <code>QDRANT_*</code> (vector + native hybrid + ColBERT rerank), <code>NVIDIA_*</code> (LLM + embedding via NVIDIA NIM), <code>TAVILY_*</code> (web search), <code>SUPABASE_URL</code> + <code>OBJECT_STORAGE_*</code> (Postgres + RLS + S3-compatible storage), <code>LANGFUSE_*</code> + <code>OTEL_*</code> (observability).</div>
+
+        <h3>Interview question trees</h3>
+        <pre class="command-block">Why are tests at the top level instead of inside each package?
+├─ What tests would be awkward to place inside one package?
+│  └─ [Project fact] Contract tests for the API→worker outbox round-trip import both packages; top-level avoids cross-workspace imports
+└─ Coverage gate?
+   └─ [Project fact] One test:python from root runs all 52 files; 69% threshold enforced in pre-commit
+
+Why run migrations on container start instead of a separate CI step?
+├─ [Project fact] RUN_SCHEMA_MIGRATIONS=1 triggers apply_migrations.py at boot; check:migrations in CI asserts file integrity
+├─ Trade-off: simpler single-service deploy vs. startup latency and "migration blocks rollout" risk
+└─ At scale?
+   └─ [Optimization suggestion] Move to a review-gated migration job; boot becomes read-only on schema</pre>
+      </section>
+
+    </div>
+
+
+      <aside class="toc"><b>On this page</b>
+        <a href="#monorepo">1. What you see when you open the repo</a>
+        <a href="#api">2. Inside the API: four layers</a>
+        <a href="#worker">3. Inside the worker</a>
+        <a href="#tests-infra">4. Top-level tests + infra</a>
+      </aside>
+    </div>
+  </main>
+  <script>
+    (function() {
+      var btn = document.querySelector('[data-back-to-top]');
+      if (!btn) return;
+      function toggle() {
+        if (window.scrollY > 400) { btn.hidden = false; }
+        else { btn.hidden = true; }
+      }
+      window.addEventListener('scroll', toggle);
+      btn.addEventListener('click', function() { window.scrollTo({ top: 0, behavior: 'smooth' }); });
+    })();
+  </script>
+  <footer class="shell footer">ResearchMate project structure interview guide . written 21 August 2026</footer>
+</body>
+</html>
