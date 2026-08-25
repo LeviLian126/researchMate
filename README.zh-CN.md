@@ -2,11 +2,11 @@
 
 > 面向多文档证据审查的研究工作台：以引用为核心，结合混合检索与可恢复的 Agent 工作流。
 
-[English](./README.md) · [文档](./docs/index.zh.html) · [GitHub](https://github.com/LeviLian126/researchMate)
+[在线体验](https://research-mate-web.vercel.app/) · [English](./README.md) · [文档](./docs/index.zh.html) · [GitHub](https://github.com/LeviLian126/researchMate)
 
 ### ResearchMate 是什么？
 
-ResearchMate 将一个有边界的研究问题和一组来源文档，转化为可审查、带引用的研究结果。它定位为工程作品集项目和实验性研究工作台，不是商业 SaaS 产品。
+ResearchMate 将一个有边界的研究问题和一组来源文档，转化为可审查、带引用的研究结果。
 
 系统组合了：
 
@@ -15,6 +15,41 @@ ResearchMate 将一个有边界的研究问题和一组来源文档，转化为�
 - 证据提取、声明关系对账、带引用报告综合和增量刷新；
 - 基于 LangGraph 的编排、PostgreSQL Checkpoint，以及风险节点的人机协同审核；
 - 版本化 RAG 评测、Bad Case 回归和可追踪的运行记录。
+
+### 产品导览
+
+<p align="center">
+  <img src="./docs/assets/readme/chat-workspace.png" alt="ResearchMate 聊天工作区" width="100%">
+</p>
+
+在统一工作区发起对话、添加文件或启用 Web 证据。项目和最近对话集中在侧边栏，随时可以继续。
+
+<table>
+  <tr>
+    <td width="50%">
+      <img src="./docs/assets/readme/login.png" alt="ResearchMate GitHub 登录页" width="100%">
+      <br><strong>GitHub 登录</strong><br>
+      通过统一的 GitHub 认证入口进入在线工作区。
+    </td>
+    <td width="50%">
+      <img src="./docs/assets/readme/project-chat.png" alt="ResearchMate 项目聊天" width="100%">
+      <br><strong>项目工作区</strong><br>
+      将项目对话、来源、测验和研究报告放在同一范围内。
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <img src="./docs/assets/readme/source-library.png" alt="ResearchMate 来源库" width="100%">
+      <br><strong>可索引的来源库</strong><br>
+      上传文档并检查摄取状态，再将其作为回答和研究的证据。
+    </td>
+    <td width="50%">
+      <img src="./docs/assets/readme/research-report.png" alt="ResearchMate 研究报告工作流" width="100%">
+      <br><strong>可恢复的研究流程</strong><br>
+      设置研究目标、来源范围、Web 和审核策略，然后跟踪报告运行。
+    </td>
+  </tr>
+</table>
 
 ### 为什么要做它
 

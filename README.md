@@ -2,11 +2,11 @@
 
 > A citation-first research workspace for multi-document evidence review, hybrid retrieval, and resumable Agent workflows.  
 
-[中文](./README.zh-CN.md) · [Documentation](./docs/index.html) · [GitHub](https://github.com/LeviLian126/researchMate)
+[Live demo](https://research-mate-web.vercel.app/) · [中文](./README.zh-CN.md) · [Documentation](./docs/index.html) · [GitHub](https://github.com/LeviLian126/researchMate)
 
 ### What is ResearchMate?
 
-ResearchMate turns a bounded research question and a set of source documents into an auditable, citation-backed result. It is designed as an engineering portfolio project and an experimental research workspace—not as a commercial SaaS product.
+ResearchMate turns a bounded research question and a set of source documents into an auditable, citation-backed result.
 
 The system combines:
 
@@ -15,6 +15,42 @@ The system combines:
 - evidence extraction, claim reconciliation, citation-aware report synthesis, and incremental refresh;
 - LangGraph orchestration with PostgreSQL checkpoints and human approval at risk-sensitive stages;
 - versioned RAG evaluation, Bad Case regression, and operational traceability.
+
+### Product tour
+
+<p align="center">
+  <img src="./docs/assets/readme/chat-workspace.png" alt="ResearchMate chat workspace" width="100%">
+</p>
+
+Start a focused conversation, attach files, or enable Web evidence from one ChatGPT-style
+workspace. Projects and recent conversations stay available in the sidebar.
+
+<table>
+  <tr>
+    <td width="50%">
+      <img src="./docs/assets/readme/login.png" alt="ResearchMate GitHub login" width="100%">
+      <br><strong>GitHub sign-in</strong><br>
+      Enter the hosted workspace through one authenticated GitHub flow.
+    </td>
+    <td width="50%">
+      <img src="./docs/assets/readme/project-chat.png" alt="ResearchMate project chat" width="100%">
+      <br><strong>Project workspace</strong><br>
+      Keep project chats, sources, quizzes, and research reports in one scope.
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <img src="./docs/assets/readme/source-library.png" alt="ResearchMate source library" width="100%">
+      <br><strong>Indexed source library</strong><br>
+      Upload documents and track their ingestion state before using them as evidence.
+    </td>
+    <td width="50%">
+      <img src="./docs/assets/readme/research-report.png" alt="ResearchMate research report workflow" width="100%">
+      <br><strong>Resumable research</strong><br>
+      Set a goal, source scope, Web policy, and review policy, then follow the report run.
+    </td>
+  </tr>
+</table>
 
 ### Why it exists
 
