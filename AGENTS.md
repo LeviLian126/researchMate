@@ -22,7 +22,7 @@ Tooling baseline:
 
 ## Output style and delivery discipline
 
-All AI-generated output must follow the rules in `skill/human/SKILL.md`. This includes:
+All AI-generated output must follow the rules in `skill/human.md`. This includes:
 
 - ADHD-shaped output: lead with the next action, number multi-step work, restate state across turns, suppress tangents, give specific time estimates, make wins visible.
 - Human-sounding writing: no filler, no sycophancy, no hedging, no rhetorical scaffolding, no fabricated specificity.
