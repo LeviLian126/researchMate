@@ -2,7 +2,7 @@
 
 > A citation-first research workspace for multi-document evidence review, hybrid retrieval, and resumable Agent workflows.  
 
-[Live demo](https://research-mate-web.vercel.app/) · [中文](./README.zh-CN.md) · [Documentation](./docs/index.html) · [GitHub](https://github.com/LeviLian126/researchMate)
+[Live demo](https://research-mate-web.vercel.app/) · [中文](./README.zh-CN.md)
 
 ### What is ResearchMate?
 
