@@ -206,7 +206,7 @@ class SqlIngestionStore:
                             text(
                                 """
                                 delete from chunks
-                                where id = any(:merged_page_ids)
+                                where id = any(cast(:merged_page_ids as uuid[]))
                                   and user_id = :user_id and project_id = :project_id
                                   and metadata ->> 'wiki_mode' = 'true'
                                 """
