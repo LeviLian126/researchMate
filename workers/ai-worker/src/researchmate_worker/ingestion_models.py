@@ -58,6 +58,16 @@ class PageProjection:
     metadata: dict[str, Any]
 
 
+@dataclass(frozen=True)
+class WikiProjectState:
+    """Carry the current canonical Wiki and project generation counters."""
+
+    chunks: list[ChunkEntry] = field(default_factory=list)
+    knowledge_generation: int = 0
+    wiki_generation: int = 0
+    pending_chunks: list[ChunkEntry] = field(default_factory=list)
+
+
 class ParserAdapterError(RuntimeError):
     """Normalize parser failures without leaking library-specific errors."""
 
@@ -105,6 +115,8 @@ class WikiCompiler(Protocol):
         user_id: UUID,
         project_id: UUID,
         document_id: UUID,
+        existing_chunks: list[ChunkEntry] | None = None,
+        generation: int = 0,
     ) -> list[ChunkEntry]: ...
 
 
@@ -115,6 +127,8 @@ class IngestionStore(Protocol):
         self, event: IngestionEvent, *, worker_id: str, lease_seconds: int
     ) -> IngestionRecord | None: ...
 
+    def load_wiki_state(self, record: IngestionRecord) -> WikiProjectState: ...
+
     def replace_content(
         self,
         record: IngestionRecord,
@@ -123,6 +137,9 @@ class IngestionStore(Protocol):
         pages: list[PageProjection],
         chunks: list[ChunkEntry],
         pipeline_version: str,
+        wiki_chunks: list[ChunkEntry] | None = None,
+        base_knowledge_generation: int = 0,
+        recovered_wiki_generation: int | None = None,
     ) -> None: ...
 
     def mark_ready(self, record: IngestionRecord, *, worker_id: str) -> None: ...

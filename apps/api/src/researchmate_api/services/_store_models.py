@@ -69,14 +69,19 @@ class WikiPage:
     id: UUID
     user_id: UUID
     project_id: UUID
-    document_id: UUID
+    document_id: UUID | None
     title: str
     page_type: str
     content: str
+    summary: str = ""
     aliases: list[str] = field(default_factory=list)
     links: list[str] = field(default_factory=list)
+    claims: list[dict[str, object]] = field(default_factory=list)
+    relations: list[dict[str, object]] = field(default_factory=list)
+    legacy_content: list[str] = field(default_factory=list)
     source_chunk_ids: list[UUID] = field(default_factory=list)
     references: list[dict[str, object]] = field(default_factory=list)
+    generation: int = 0
     created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     updated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 

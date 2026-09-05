@@ -9,6 +9,8 @@ from typing import Any
 from uuid import UUID
 
 import pytest
+from researchmate_api.schemas.common import SourceType
+from researchmate_api.services.store import ChunkEntry
 from researchmate_worker import tasks
 from researchmate_worker.deletion import SqlDeletionStore, SqlProjectDeletionStore
 from researchmate_worker.evaluation import EvaluationRuntimeError
@@ -131,6 +133,8 @@ def test_ingestion_and_deletion_serialize_document_removal() -> None:
             # The lease-guard SELECT returns a marker row so the method proceeds.
             if "for update of j, d, p" in statement:
                 return StubResult(row={"?column?": 1})
+            if "select knowledge_generation, wiki_generation" in statement:
+                return StubResult(row={"knowledge_generation": 0, "wiki_generation": 0})
             return StubResult()
 
     engine = RecordingEngine(IngestionGuardConnection())
@@ -212,6 +216,64 @@ def test_ingestion_and_deletion_serialize_document_removal() -> None:
     assert claim_sql.count("running_ingestion.lease_expires_at > now()") >= 1, (
         "deletion claim must run the blocked-detection query"
     )
+
+
+def test_stale_wiki_generation_cannot_be_marked_fresh_by_later_ingestion() -> None:
+    """Keep Wiki stale until a compensating rebuild includes every missing generation."""
+    from researchmate_worker.ingestion import IngestionRecord
+
+    record = IngestionRecord(
+        job_id=JOB_ID,
+        user_id=USER_ID,
+        project_id=PROJECT_ID,
+        document_id=DOCUMENT_ID,
+        filename="doc.pdf",
+        file_type="pdf",
+        r2_object_key="users/u/doc.pdf",
+        checksum_sha256=None,
+        attempts=1,
+    )
+
+    class StaleWikiConnection(RecordingConnection):
+        def route(self, statement, parameters):
+            if "for update of j, d, p" in statement:
+                return StubResult(row={"?column?": 1})
+            if "select knowledge_generation, wiki_generation" in statement:
+                return StubResult(row={"knowledge_generation": 11, "wiki_generation": 10})
+            return StubResult()
+
+    connection = StaleWikiConnection()
+    store = SqlIngestionStore(RecordingEngine(connection))  # type: ignore[arg-type]
+    wiki_chunk = ChunkEntry(
+        id=UUID("60000000-0000-4000-8000-000000000001"),
+        user_id=USER_ID,
+        project_id=PROJECT_ID,
+        document_id=None,
+        source_type=SourceType.LOCAL_DOC,
+        source_title="Canonical page",
+        text="Compiled from only the latest source.",
+        metadata={"wiki_mode": True},
+    )
+
+    store.replace_content(
+        record,
+        worker_id="worker-1",
+        pages=[],
+        chunks=[],
+        pipeline_version="v1",
+        wiki_chunks=[wiki_chunk],
+        base_knowledge_generation=11,
+    )
+
+    project_update = next(
+        parameters
+        for statement, parameters in connection.calls
+        if "update projects" in statement.lower()
+    )
+    assert project_update is not None
+    assert project_update["knowledge_generation"] == 12
+    assert project_update["apply_wiki"] is False
+    assert not any("insert into chunks" in statement.lower() for statement, _ in connection.calls)
 
 
 def test_project_deletion_reclaims_expired_ingestion_leases() -> None:

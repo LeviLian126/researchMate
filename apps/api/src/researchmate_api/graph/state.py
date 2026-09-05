@@ -17,6 +17,7 @@ class ResearchState(TypedDict, total=False):
     has_wiki: bool
     web_allowed: bool
     wiki_candidates: list[ChunkEntry]
+    wiki_source_evidence: list[ChunkEntry]
     wiki_fresh: bool
     needs_raw_evidence: bool
     local_candidates: list[ChunkEntry]

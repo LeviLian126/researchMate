@@ -13,7 +13,22 @@ def after_prepare(state: ResearchState) -> Literal["chat", "select_wiki", "plan"
         return "plan"
     if not state.get("corpus_tokens", 0):
         return "chat"
-    return "select_wiki" if state.get("has_wiki") else "plan"
+    return "select_wiki" if state.get("has_wiki") and state.get("wiki_fresh") else "plan"
+
+
+def after_wiki(state: ResearchState) -> Literal["generate", "expand_sources", "plan"]:
+    """Use fresh sufficient Wiki pages, expand their provenance, or fall back to raw RAG."""
+    if not state.get("wiki_fresh"):
+        return "plan"
+    if (
+        state.get("evidence_sufficient")
+        and state.get("judge_confidence", 0) >= state.get("wiki_threshold", 1)
+        and not state.get("needs_raw_evidence")
+    ):
+        return "generate"
+    if state.get("wiki_source_evidence"):
+        return "expand_sources"
+    return "plan"
 
 
 def after_evidence(state: ResearchState) -> Literal["generate", "lightweight_fallback", "refine"]:

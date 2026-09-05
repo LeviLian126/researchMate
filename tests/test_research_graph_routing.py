@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from researchmate_api.graph.routing import after_evidence, after_prepare
+from researchmate_api.graph.routing import after_evidence, after_prepare, after_wiki
 
 
 def test_small_corpus_without_wiki_plans_raw_evidence() -> None:
@@ -13,8 +13,58 @@ def test_small_corpus_without_wiki_plans_raw_evidence() -> None:
 def test_wiki_corpus_selects_index_before_raw_evidence_planning() -> None:
     """Wiki presence selects navigation context but cannot generate an answer directly."""
     assert (
-        after_prepare({"corpus_tokens": 20, "web_allowed": False, "has_wiki": True})
+        after_prepare(
+            {
+                "corpus_tokens": 20,
+                "web_allowed": False,
+                "has_wiki": True,
+                "wiki_fresh": True,
+            }
+        )
         == "select_wiki"
+    )
+
+
+def test_stale_wiki_corpus_plans_raw_evidence() -> None:
+    """A stale Wiki cannot enter the Wiki-first branch."""
+    assert (
+        after_prepare(
+            {
+                "corpus_tokens": 20,
+                "web_allowed": False,
+                "has_wiki": True,
+                "wiki_fresh": False,
+            }
+        )
+        == "plan"
+    )
+
+
+def test_fresh_sufficient_wiki_short_circuits_only_without_raw_requirement() -> None:
+    """Tier 1 is limited to fresh, confident, non-exact Wiki answers."""
+    state = {
+        "wiki_fresh": True,
+        "evidence_sufficient": True,
+        "judge_confidence": 0.9,
+        "wiki_threshold": 0.8,
+        "needs_raw_evidence": False,
+    }
+
+    assert after_wiki(state) == "generate"
+    assert after_wiki({**state, "needs_raw_evidence": True}) == "plan"
+
+
+def test_wiki_provenance_expands_before_full_rag() -> None:
+    """Tier 2 uses provenance when Wiki cannot answer directly."""
+    assert (
+        after_wiki(
+            {
+                "wiki_fresh": True,
+                "evidence_sufficient": False,
+                "wiki_source_evidence": [object()],
+            }
+        )
+        == "expand_sources"
     )
 
 

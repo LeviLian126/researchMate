@@ -1,3 +1,4 @@
+# Verify artifacts and apply additive schema before the Render promotion gate.
 name: researchmate-ci
 
 on:
@@ -111,10 +112,38 @@ jobs:
             aquasec/trivy:0.73.0 image --exit-code 1 --ignore-unfixed \
             --severity HIGH,CRITICAL researchmate-render:ci
 
+  schema-migration:
+    name: schema-migration
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [python-quality, web-quality, browser-e2e, container-quality]
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v9.0.0
+        with:
+          version: "0.12.1"
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - run: uv sync --frozen --all-packages --group dev
+      - name: Verify PostgreSQL generation contract in rollback-only temporary tables
+        env:
+          WIKI_DATABASE_TEST_URL: ${{ secrets.DATABASE_URL }}
+        run: uv run --frozen pytest tests/test_wiki_postgres_contract.py -q
+      - name: Apply additive migrations before application promotion
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          ALLOW_SCHEMA_APPLY: "1"
+        run: uv run --frozen python scripts/apply_migrations.py --apply
+
   ci-success:
     name: ci-success
     if: always()
-    needs: [python-quality, web-quality, browser-e2e, container-quality]
+    needs: [python-quality, web-quality, browser-e2e, container-quality, schema-migration]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -125,8 +154,13 @@ jobs:
           WEB_RESULT: ${{ needs.web-quality.result }}
           E2E_RESULT: ${{ needs.browser-e2e.result }}
           CONTAINER_RESULT: ${{ needs.container-quality.result }}
+          MIGRATION_RESULT: ${{ needs.schema-migration.result }}
+          REQUIRE_MIGRATION: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
         run: |
           test "$PYTHON_RESULT" = success
           test "$WEB_RESULT" = success
           test "$E2E_RESULT" = success
           test "$CONTAINER_RESULT" = success
+          if [ "$REQUIRE_MIGRATION" = true ]; then
+            test "$MIGRATION_RESULT" = success
+          fi

@@ -69,6 +69,13 @@ WIKI_PAGE_TYPE_LENGTH = 50
 # summarize into an overview page without exceeding the LLM context window.
 WIKI_OVERVIEW_MAX_INPUT_TOKENS = 6000
 WIKI_PLANNER_CONTENT_LENGTH = 1200
+WIKI_MAX_ENTITIES = 64
+WIKI_MAX_CLAIMS = 128
+WIKI_MAX_RELATIONS = 128
+WIKI_MAX_SUMMARY_LENGTH = 4000
+WIKI_MAX_CLAIM_PART_LENGTH = 1000
+WIKI_MAX_DELTA_SOURCE_CHUNKS = 512
+WIKI_CANONICAL_TOKEN_OVERLAP = 0.8
 
 # Developer-trace bounds. Each limit constrains an admin-visible diagnostic
 # field so trace payloads stay privacy-bounded and storage-stable.

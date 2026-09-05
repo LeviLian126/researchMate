@@ -570,7 +570,7 @@ confidence &lt; 0.75 和提示注入标记——为什么选这些触发条件?
         <p class="eyebrow">主题 4 . 功能中心</p>
         <h2>文档摄取链路</h2>
         <p class="sub">下载 → 解析 → 投影 → 索引 → ready,每步都有 lease 保护。</p>
-        <p><b>结论:</b>摄取把一个上传文件变成可查询的 chunk。链路在边界有 lease 保护(两个 worker 不会重复处理同一文件),在 chunk-ID 层是确定性的(重新摄取是安全的),末端有分支:短文档跳过 Qdrant 只保留 wiki-page chunk;较大的文档走 Qdrant upsert 加一个追加的 overview wiki chunk。</p>
+        <p><b>结论:</b>摄取把一个上传文件变成 raw evidence 和项目级 knowledge delta。短文档保留词法 raw chunk；长文档还会写入 Qdrant。两条路径都会抽取并 Reduce 知识，只 upsert 受影响的 canonical WikiPage。Wiki 失败不影响 raw ingestion 成功，但项目 Wiki 会保持 stale。</p>
 
         <h3>链路</h3>
         <pre class="command-block"><code>outbox 事件 → Celery 摄取任务
@@ -582,7 +582,7 @@ confidence &lt; 0.75 和提示注入标记——为什么选这些触发条件?
 → 分支:
    短文档（≤4000 tokens）: 不写入 Qdrant 向量库，has_vector=False
    较大文档:               写入 Qdrant 向量库，has_vector=True
-                           + 追加一个 overview wiki chunk
+                           + 编译 Knowledge Delta 并 upsert 受影响 canonical WikiPage
 → 替换内容           SELECT FOR UPDATE，删旧 + 插新 pages/chunks
 → 标记 ready         job 成功，document ready</code></pre>
 

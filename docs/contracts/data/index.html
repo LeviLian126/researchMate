@@ -474,7 +474,7 @@
 <tr id="field-profiles-created_at"><td><code>created_at</code></td><td><code>timestamptz not null default now()</code></td><td>required</td><td>default now()</td><td>Creation timestamp.</td></tr>
 <tr id="field-profiles-updated_at"><td><code>updated_at</code></td><td><code>timestamptz not null default now()</code></td><td>required</td><td>default now()</td><td>Last-update timestamp; application-managed.</td></tr>
 </tbody></table></div></details>
-      <details id="projects"><summary><code>projects</code> &middot; 12 fields</summary>
+      <details id="projects"><summary><code>projects</code> &middot; 14 fields</summary>
        <div class="grid">
         <div class="fact"><b>Purpose</b><p>Owner-scoped research workspace and lifecycle root.</p></div>
         <div class="fact"><b>Integrity and indexes</b><p>Owner FK cascades; name is 1–120 characters; kind is personal or workspace. Indexes include owner/status and owner/kind; a partial unique index permits one active personal project per user.</p></div>
@@ -488,6 +488,8 @@
 <tr id="field-projects-memory_summary_text"><td><code>memory_summary_text</code></td><td><code>text</code></td><td>nullable</td><td>none declared</td><td>Reserved durable project-memory summary; current cross-chat memory reads conversation summaries and bounded recent messages.</td></tr>
 <tr id="field-projects-memory_summary_token_count"><td><code>memory_summary_token_count</code></td><td><code>integer not null default 0</code></td><td>required</td><td>CHECK ≥ 0</td><td>Estimated durable project-summary tokens.</td></tr>
 <tr id="field-projects-memory_updated_at"><td><code>memory_updated_at</code></td><td><code>timestamptz</code></td><td>nullable</td><td>none declared</td><td>Last project-summary refresh timestamp.</td></tr>
+<tr id="field-projects-knowledge_generation"><td><code>knowledge_generation</code></td><td><code>bigint not null default 0</code></td><td>required</td><td>default 0</td><td>Advances after each successful raw ingestion.</td></tr>
+<tr id="field-projects-wiki_generation"><td><code>wiki_generation</code></td><td><code>bigint not null default 0</code></td><td>required</td><td>CHECK ≤ knowledge_generation</td><td>Last raw generation fully reflected by the canonical Wiki.</td></tr>
 <tr id="field-projects-status"><td><code>status</code></td><td><code>project_status not null default &#x27;active&#x27;</code></td><td>required</td><td>default &#x27;active&#x27;</td><td>Lifecycle state value.</td></tr>
 <tr id="field-projects-expires_at"><td><code>expires_at</code></td><td><code>timestamptz</code></td><td>nullable</td><td>none declared</td><td>Expiry intent; cleanup is application/worker-managed.</td></tr>
 <tr id="field-projects-created_at"><td><code>created_at</code></td><td><code>timestamptz not null default now()</code></td><td>required</td><td>default now()</td><td>Creation timestamp.</td></tr>

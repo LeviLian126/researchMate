@@ -10,7 +10,7 @@ from uuid import UUID, uuid4
 from langgraph.graph import END, START, StateGraph
 
 from researchmate_api.config import Settings
-from researchmate_api.graph.routing import after_evidence, after_prepare
+from researchmate_api.graph.routing import after_evidence, after_prepare, after_wiki
 from researchmate_api.graph.state import ResearchState
 from researchmate_api.schemas.common import WIKI_PLANNER_CONTENT_LENGTH, CurrentUser
 from researchmate_api.schemas.conversation import ConversationMessage, RuntimeRerankConfig
@@ -177,6 +177,8 @@ class _GraphRuntime:
         workflow = StateGraph(ResearchState)
         workflow.add_node("prepare_context", self.prepare_context)
         workflow.add_node("select_wiki", self.select_wiki)
+        workflow.add_node("judge_wiki", self.judge_wiki)
+        workflow.add_node("expand_wiki_sources", self.expand_wiki_sources)
         workflow.add_node("plan_evidence", self.plan_evidence)
         workflow.add_node("search_sources", self.search_sources)
         workflow.add_node("merge_evidence", self.merge_evidence)
@@ -195,7 +197,17 @@ class _GraphRuntime:
                 "plan": "plan_evidence",
             },
         )
-        workflow.add_edge("select_wiki", "plan_evidence")
+        workflow.add_edge("select_wiki", "judge_wiki")
+        workflow.add_conditional_edges(
+            "judge_wiki",
+            after_wiki,
+            {
+                "generate": "generate",
+                "expand_sources": "expand_wiki_sources",
+                "plan": "plan_evidence",
+            },
+        )
+        workflow.add_edge("expand_wiki_sources", "judge_evidence")
         workflow.add_edge("plan_evidence", "search_sources")
         workflow.add_edge("search_sources", "merge_evidence")
         workflow.add_edge("merge_evidence", "rerank_evidence")
@@ -232,6 +244,49 @@ class _GraphRuntime:
             )
         ]
         return {"wiki_candidates": selected, "source_strategy": "wiki_index"}
+
+    def judge_wiki(self, state: ResearchState) -> ResearchState:
+        """Assess fresh Wiki candidates and resolve their raw provenance for Tier 2."""
+        wiki = state.get("wiki_candidates", [])
+        assessment = self.graph.judge.assess(self.question, wiki)
+        source_ids: list[UUID] = []
+        for chunk in wiki:
+            values = chunk.metadata.get("wiki_source_chunk_ids", [])
+            if isinstance(values, list):
+                for value in values:
+                    try:
+                        source_ids.append(UUID(str(value)))
+                    except ValueError:
+                        continue
+        raw_by_id = {chunk.id: chunk for chunk in self._scoped_raw_chunks()}
+        source_evidence = [
+            raw_by_id[source_id]
+            for source_id in dict.fromkeys(source_ids)
+            if source_id in raw_by_id
+        ]
+        update = self._assessment_update(assessment)
+        update.update(
+            {
+                "wiki_source_evidence": source_evidence,
+                "final_evidence": wiki,
+                "source_strategy": "wiki",
+            }
+        )
+        return update
+
+    def expand_wiki_sources(self, state: ResearchState) -> ResearchState:
+        """Pack raw source chunks named by selected Wiki provenance before full RAG."""
+        evidence = pack_chunks(
+            state.get("wiki_source_evidence", []),
+            self.graph.settings.retrieval_evidence_token_budget,
+        )
+        return {
+            "reranked_evidence": evidence,
+            "final_evidence": evidence,
+            "source_strategy": "wiki_provenance",
+            "has_lightweight_evidence": any(not chunk.has_vector for chunk in evidence),
+            "new_evidence_found": bool(evidence),
+        }
 
     def plan_evidence(self, state: ResearchState) -> ResearchState:
         """Use the legacy planner as prior, then constrain an optional adaptive recommendation."""

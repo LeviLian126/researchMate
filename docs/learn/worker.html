@@ -569,7 +569,7 @@ confidence &lt; 0.75 and the prompt-injection markers — why these triggers?
         <p class="eyebrow">Topic 4 . Function-centered</p>
         <h2>Document ingestion pipeline</h2>
         <p class="sub">Download → parse → project → index → ready, every step lease-protected.</p>
-        <p><b>Conclusion:</b> Ingestion turns one uploaded file into queryable chunks. The pipeline is lease-protected at the boundary (so two workers cannot double-process the same file), deterministic at the chunk-ID level (so re-ingestion is safe), and branches at the end: short documents skip Qdrant entirely and keep only wiki-page chunks; larger documents go through Qdrant upsert plus one appended overview wiki chunk.</p>
+        <p><b>Conclusion:</b> Ingestion turns one upload into raw evidence plus a project-level knowledge delta. Short documents keep lexical raw chunks; larger documents also reach Qdrant. Both paths extract and reduce knowledge, then upsert only affected canonical Wiki pages. A Wiki failure leaves raw ingestion successful and the project Wiki stale.</p>
 
         <h3>The chain</h3>
         <pre class="command-block"><code>outbox event → Celery ingest_document task
@@ -581,7 +581,7 @@ confidence &lt; 0.75 and the prompt-injection markers — why these triggers?
 → branch:
    if is_lightweight_corpus: skip Qdrant, has_vector=False
    else:                     QdrantHybridStore.upsert_chunks(), has_vector=True
-                            + _compile_overview_wiki() appends an overview chunk
+                            + compile Knowledge Delta and upsert affected canonical Wiki pages
 → replace_content   SELECT FOR UPDATE, delete old + insert new pages/chunks
 → mark_ready        job succeeded, document ready</code></pre>
 

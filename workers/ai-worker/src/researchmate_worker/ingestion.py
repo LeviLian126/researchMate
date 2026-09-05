@@ -14,6 +14,7 @@ from researchmate_worker.ingestion_models import (
     ParserAdapterError,
     VectorProjection,
     WikiCompiler,
+    WikiProjectState,
 )
 from researchmate_worker.ingestion_projections import build_projections
 from researchmate_worker.ingestion_service import DocumentIngestionService
@@ -33,5 +34,6 @@ __all__ = [
     "SqlIngestionStore",
     "VectorProjection",
     "WikiCompiler",
+    "WikiProjectState",
     "build_projections",
 ]

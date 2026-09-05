@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from hashlib import sha256
 
 from researchmate_api.services.store import ChunkEntry
@@ -13,7 +14,10 @@ from researchmate_worker.ingestion_models import (
     IngestionFailure,
     IngestionRecord,
     PageProjection,
+    WikiProjectState,
 )
+
+LOGGER = logging.getLogger(__name__)
 
 
 class SqlIngestionStore:
@@ -95,6 +99,9 @@ class SqlIngestionStore:
         pages: list[PageProjection],
         chunks: list[ChunkEntry],
         pipeline_version: str,
+        wiki_chunks: list[ChunkEntry] | None = None,
+        base_knowledge_generation: int = 0,
+        recovered_wiki_generation: int | None = None,
     ) -> None:
         """Atomically replace parsed pages and chunks for the leased document."""
         with self.engine.begin() as connection:
@@ -116,12 +123,47 @@ class SqlIngestionStore:
             ).one_or_none()
             if runnable is None:
                 raise IngestionFailure("DOCUMENT_NOT_RUNNABLE", retryable=False)
+            generation_row = (
+                connection.execute(
+                    text(
+                        """
+                    select knowledge_generation, wiki_generation
+                    from projects
+                    where id = :project_id and user_id = :user_id
+                      and status = 'active' and deleted_at is null
+                    for update
+                    """
+                    ),
+                    {"project_id": record.project_id, "user_id": record.user_id},
+                )
+                .mappings()
+                .one_or_none()
+            )
+            if generation_row is None:
+                raise IngestionFailure("DOCUMENT_NOT_RUNNABLE", retryable=False)
+            current_generation = int(generation_row["knowledge_generation"])
+            current_wiki_generation = int(generation_row["wiki_generation"])
+            next_generation = current_generation + 1
+            apply_wiki = (
+                wiki_chunks is not None
+                and current_generation == base_knowledge_generation
+                and (
+                    current_wiki_generation == current_generation
+                    or current_wiki_generation == recovered_wiki_generation
+                )
+            )
             connection.execute(
                 text("delete from document_pages where document_id = :document_id"),
                 {"document_id": record.document_id},
             )
             connection.execute(
-                text("delete from chunks where document_id = :document_id"),
+                text(
+                    """
+                    delete from chunks
+                    where document_id = :document_id
+                      and metadata ->> 'wiki_mode' is distinct from 'true'
+                    """
+                ),
                 {"document_id": record.document_id},
             )
             for page in pages:
@@ -146,8 +188,35 @@ class SqlIngestionStore:
                         "metadata": json.dumps(page.metadata, ensure_ascii=False),
                     },
                 )
-            for chunk in chunks:
+            persisted_chunks = [*chunks, *(wiki_chunks or [])] if apply_wiki else chunks
+            for chunk in persisted_chunks:
                 chunk_hash = sha256(chunk.text.encode("utf-8")).hexdigest()
+                is_wiki = chunk.metadata.get("wiki_mode") is True
+                metadata = {
+                    **chunk.metadata,
+                    "content_hash": chunk_hash,
+                    "pipeline_version": pipeline_version,
+                    "knowledge_generation": next_generation,
+                }
+                if is_wiki:
+                    metadata["wiki_generation"] = next_generation
+                    merged_page_ids = chunk.metadata.get("wiki_merged_page_ids", [])
+                    if isinstance(merged_page_ids, list) and merged_page_ids:
+                        connection.execute(
+                            text(
+                                """
+                                delete from chunks
+                                where id = any(:merged_page_ids)
+                                  and user_id = :user_id and project_id = :project_id
+                                  and metadata ->> 'wiki_mode' = 'true'
+                                """
+                            ),
+                            {
+                                "merged_page_ids": merged_page_ids,
+                                "user_id": record.user_id,
+                                "project_id": record.project_id,
+                            },
+                        )
                 connection.execute(
                     text(
                         """
@@ -162,13 +231,21 @@ class SqlIngestionStore:
                           :char_start, :char_end, :text, :token_count, :qdrant_point_id,
                           :has_vector, cast(:metadata as jsonb)
                         )
+                        on conflict (id) do update set
+                          source_title = excluded.source_title,
+                          text = excluded.text,
+                          document_id = excluded.document_id,
+                          chunk_index = excluded.chunk_index,
+                          has_vector = excluded.has_vector,
+                          qdrant_point_id = excluded.qdrant_point_id,
+                          metadata = excluded.metadata
                         """
                     ),
                     {
                         "id": chunk.id,
                         "user_id": chunk.user_id,
                         "project_id": chunk.project_id,
-                        "document_id": chunk.document_id,
+                        "document_id": None if is_wiki else chunk.document_id,
                         "source_title": chunk.source_title,
                         "page_no": chunk.page_no,
                         "slide_no": chunk.slide_no,
@@ -181,16 +258,42 @@ class SqlIngestionStore:
                         "token_count": len(chunk.text.split()),
                         "qdrant_point_id": str(chunk.id) if chunk.has_vector else None,
                         "has_vector": chunk.has_vector,
-                        "metadata": json.dumps(
-                            {
-                                **chunk.metadata,
-                                "content_hash": chunk_hash,
-                                "pipeline_version": pipeline_version,
-                            },
-                            ensure_ascii=False,
-                        ),
+                        "metadata": json.dumps(metadata, ensure_ascii=False),
                     },
                 )
+            if wiki_chunks is not None and not apply_wiki:
+                LOGGER.warning(
+                    " ".join(
+                        (
+                            "wiki_generation_not_applied project_id=%s expected_knowledge=%s",
+                            "actual_knowledge=%s actual_wiki=%s",
+                        )
+                    ),
+                    record.project_id,
+                    base_knowledge_generation,
+                    current_generation,
+                    current_wiki_generation,
+                )
+            connection.execute(
+                text(
+                    """
+                    update projects
+                    set knowledge_generation = :knowledge_generation,
+                        wiki_generation = case
+                          when :apply_wiki then :knowledge_generation
+                          else wiki_generation
+                        end,
+                        updated_at = now()
+                    where id = :project_id and user_id = :user_id
+                    """
+                ),
+                {
+                    "knowledge_generation": next_generation,
+                    "apply_wiki": apply_wiki,
+                    "project_id": record.project_id,
+                    "user_id": record.user_id,
+                },
+            )
             connection.execute(
                 text(
                     """
@@ -205,6 +308,74 @@ class SqlIngestionStore:
                 text("update jobs set progress = 75, updated_at = now() where id = :job_id"),
                 {"job_id": record.job_id},
             )
+
+    def load_wiki_state(self, record: IngestionRecord) -> WikiProjectState:
+        """Load the owner-scoped canonical Wiki and freshness counters."""
+        with self.engine.begin() as connection:
+            generation = (
+                connection.execute(
+                    text(
+                        """
+                    select knowledge_generation, wiki_generation
+                    from projects
+                    where id = :project_id and user_id = :user_id
+                      and status = 'active' and deleted_at is null
+                    for share
+                    """
+                    ),
+                    {"project_id": record.project_id, "user_id": record.user_id},
+                )
+                .mappings()
+                .one_or_none()
+            )
+            if generation is None:
+                raise IngestionFailure("DOCUMENT_NOT_RUNNABLE", retryable=False)
+            rows = connection.execute(
+                text(
+                    """
+                    select id, user_id, project_id, document_id, source_type, source_title,
+                           text, page_no, slide_no, url, section_title, section_path,
+                           chunk_index, char_start, char_end, has_vector, metadata, created_at
+                    from chunks
+                    where user_id = :user_id and project_id = :project_id
+                      and metadata ->> 'wiki_mode' = 'true'
+                    order by created_at, id
+                    """
+                ),
+                {"project_id": record.project_id, "user_id": record.user_id},
+            ).mappings()
+            chunks = [ChunkEntry(**dict(row)) for row in rows]
+            pending_rows = connection.execute(
+                text(
+                    """
+                    select c.* from chunks c
+                    join documents d on d.id = c.document_id and d.user_id = c.user_id
+                    where c.user_id = :user_id and c.project_id = :project_id
+                      and c.metadata ->> 'wiki_mode' is distinct from 'true'
+                      and d.deleted_at is null and d.status <> 'deleted'
+                      and coalesce((c.metadata ->> 'knowledge_generation')::bigint, 0)
+                          > :wiki_generation
+                    order by coalesce((c.metadata ->> 'knowledge_generation')::bigint, 0),
+                             c.document_id, c.chunk_index, c.id
+                    """
+                ),
+                {
+                    "user_id": record.user_id,
+                    "project_id": record.project_id,
+                    "wiki_generation": generation["wiki_generation"],
+                },
+            ).mappings()
+            chunk_fields = ChunkEntry.__dataclass_fields__
+            pending_chunks = [
+                ChunkEntry(**{key: value for key, value in row.items() if key in chunk_fields})
+                for row in pending_rows
+            ]
+        return WikiProjectState(
+            chunks=chunks,
+            knowledge_generation=int(generation["knowledge_generation"]),
+            wiki_generation=int(generation["wiki_generation"]),
+            pending_chunks=pending_chunks,
+        )
 
     def mark_ready(self, record: IngestionRecord, *, worker_id: str) -> None:
         """Commit ready status after projections are persisted and indexed."""

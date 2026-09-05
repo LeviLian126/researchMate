@@ -81,12 +81,22 @@ class ChunkPersistenceMixin:
                     select c.id, c.user_id, c.project_id, c.document_id, c.source_type,
                            c.source_title, c.text, c.page_no, c.slide_no, c.url,
                            c.section_title, c.section_path, c.chunk_index,
-                           c.char_start, c.char_end, c.has_vector, c.metadata, c.created_at
+                           c.char_start, c.char_end, c.has_vector,
+                           c.metadata || jsonb_build_object(
+                             'knowledge_generation', p.knowledge_generation
+                           ) || case
+                             when c.metadata ->> 'wiki_mode' = 'true'
+                             then jsonb_build_object('wiki_generation', p.wiki_generation)
+                             else '{}'::jsonb
+                           end as metadata,
+                           c.created_at
                     from chunks c
+                    join projects p on p.id=c.project_id and p.user_id=c.user_id
                     left join documents d on d.id=c.document_id and d.user_id=c.user_id
                     where c.user_id = :user_id and c.project_id = :project_id
                       and (
-                        c.source_type <> 'local_doc'
+                        c.metadata ->> 'wiki_mode' = 'true'
+                        or c.source_type <> 'local_doc'
                         or (d.status = 'ready' and d.deleted_at is null)
                       )
                     order by c.created_at, c.id

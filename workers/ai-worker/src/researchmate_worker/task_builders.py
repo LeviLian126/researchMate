@@ -16,7 +16,11 @@ from researchmate_api.services.qdrant_store import (
 )
 from researchmate_api.services.store import ChunkEntry
 from researchmate_api.services.web_search import TavilyWebSearchProvider
-from researchmate_api.services.wiki_compiler import WikiCompiler, wiki_pages_to_chunks
+from researchmate_api.services.wiki_compiler import (
+    WikiCompiler,
+    wiki_chunks_to_pages,
+    wiki_pages_to_chunks,
+)
 from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine
 
@@ -48,9 +52,8 @@ from researchmate_worker.workflow_runtime import (
 class WorkerWikiCompiler:
     """Adapt the API WikiCompiler to the worker WikiCompiler protocol.
 
-    The API-level WikiCompiler returns WikiPage objects; the worker protocol
-    returns ChunkEntry objects so the ingestion store can persist them via
-    the existing replace_content path without schema changes.
+    The API compiler owns extraction, document reduction, canonical resolution,
+    and mutation planning. This adapter only projects affected pages for storage.
     """
 
     def __init__(self, provider: NvidiaChatProvider) -> None:
@@ -64,16 +67,43 @@ class WorkerWikiCompiler:
         user_id: UUID,
         project_id: UUID,
         document_id: UUID,
+        existing_chunks: list[ChunkEntry] | None = None,
+        generation: int = 0,
     ) -> list[ChunkEntry]:
-        """Compile one document into non-vectorized Wiki index chunks."""
-        pages = self._compiler.compile_index(
+        """Compile one document delta into affected canonical Wiki chunks."""
+        if existing_chunks is None and generation == 0:
+            return wiki_pages_to_chunks(
+                self._compiler.compile_index(
+                    chunks,
+                    filename=filename,
+                    user_id=user_id,
+                    project_id=project_id,
+                    document_id=document_id,
+                )
+            )
+        result = self._compiler.compile_incremental(
             chunks,
             filename=filename,
             user_id=user_id,
             project_id=project_id,
             document_id=document_id,
+            existing_pages=wiki_chunks_to_pages(existing_chunks or []),
+            generation=generation,
         )
-        return wiki_pages_to_chunks(pages)
+        projected = wiki_pages_to_chunks(result.affected_pages)
+        actions_by_id = {
+            mutation.target_page_id: mutation.action.value
+            for mutation in result.mutations
+            if mutation.target_page_id is not None
+        }
+        for chunk, mutation in zip(projected, result.mutations, strict=True):
+            chunk.document_id = None
+            chunk.metadata = {
+                **chunk.metadata,
+                "wiki_mutation_action": actions_by_id.get(chunk.id, mutation.action.value),
+                "wiki_merged_page_ids": [str(page_id) for page_id in mutation.merged_page_ids],
+            }
+        return projected
 
 
 def _worker_engine(database_url: str) -> Engine:

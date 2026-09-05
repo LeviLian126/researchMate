@@ -6,6 +6,8 @@ import logging
 from hashlib import sha256
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from typing import cast
+from uuid import UUID
 
 from celery.exceptions import SoftTimeLimitExceeded
 from researchmate_api.services.object_storage import ObjectStorageRequestError
@@ -23,6 +25,7 @@ from researchmate_worker.ingestion_models import (
     ParserAdapterError,
     VectorProjection,
     WikiCompiler,
+    WikiProjectState,
 )
 from researchmate_worker.ingestion_projections import build_projections
 
@@ -138,8 +141,9 @@ class DocumentIngestionService:
                 for chunk in raw_chunks:
                     chunk.has_vector = True
 
-            wiki_chunks = self._compile_wiki_index(raw_chunks, record)
-            for chunk in wiki_chunks:
+            wiki_state = self._load_wiki_state(record)
+            wiki_chunks = self._compile_wiki_index(raw_chunks, record, wiki_state)
+            for chunk in wiki_chunks or []:
                 chunk.has_vector = False
                 chunk.metadata = {
                     **chunk.metadata,
@@ -153,19 +157,33 @@ class DocumentIngestionService:
                     "knowledge_role": "raw_evidence",
                     "retrieval_tier": "lightweight" if is_lightweight else "vector",
                 }
-            chunks = [*raw_chunks, *wiki_chunks]
+            chunks = raw_chunks
 
             LOGGER.info(
                 "ingestion_persist_started document_id=%s",
                 record.document_id,
             )
-            self.store.replace_content(
-                record,
-                worker_id=worker_id,
-                pages=pages,
-                chunks=chunks,
-                pipeline_version=self.pipeline_version,
-            )
+            if callable(getattr(self.store, "load_wiki_state", None)):
+                self.store.replace_content(
+                    record,
+                    worker_id=worker_id,
+                    pages=pages,
+                    chunks=chunks,
+                    pipeline_version=self.pipeline_version,
+                    wiki_chunks=wiki_chunks,
+                    base_knowledge_generation=wiki_state.knowledge_generation,
+                    recovered_wiki_generation=(
+                        wiki_state.wiki_generation if wiki_chunks is not None else None
+                    ),
+                )
+            else:
+                self.store.replace_content(
+                    record,
+                    worker_id=worker_id,
+                    pages=pages,
+                    chunks=[*chunks, *(wiki_chunks or [])],
+                    pipeline_version=self.pipeline_version,
+                )
             self.store.mark_ready(record, worker_id=worker_id)
             return "succeeded"
         except ObjectStorageRequestError as exc:
@@ -192,35 +210,96 @@ class DocumentIngestionService:
             self._record_failure(record, worker_id, "INGESTION_INTERNAL_ERROR", False)
             raise IngestionFailure("INGESTION_INTERNAL_ERROR", retryable=False) from exc
 
+    def _load_wiki_state(self, record: IngestionRecord) -> WikiProjectState:
+        """Load canonical project state when the store supports incremental Wiki writes."""
+        loader = getattr(self.store, "load_wiki_state", None)
+        if callable(loader):
+            return cast(WikiProjectState, loader(record))
+        return WikiProjectState()
+
     def _compile_wiki_index(
-        self, chunks: list[ChunkEntry], record: IngestionRecord
-    ) -> list[ChunkEntry]:
+        self,
+        chunks: list[ChunkEntry],
+        record: IngestionRecord,
+        wiki_state: WikiProjectState,
+    ) -> list[ChunkEntry] | None:
         """Build non-vector Wiki index entries without making ingestion depend on the LLM."""
         if self.wiki_compiler is None:
-            return []
+            return None
         try:
-            compiled = self.wiki_compiler.compile_index(
-                chunks,
-                filename=record.filename,
-                user_id=record.user_id,
-                project_id=record.project_id,
-                document_id=record.document_id,
-            )
-            if compiled:
+            compile_index = self.wiki_compiler.compile_index
+            if callable(getattr(self.store, "load_wiki_state", None)):
+                existing = {chunk.id: chunk for chunk in wiki_state.chunks}
+                affected: dict[UUID, ChunkEntry] = {}
+                pending: dict[UUID, list[ChunkEntry]] = {}
+                for chunk in wiki_state.pending_chunks:
+                    if chunk.document_id is not None and chunk.document_id != record.document_id:
+                        pending.setdefault(chunk.document_id, []).append(chunk)
+                for pending_document_id, pending_chunks in pending.items():
+                    recovered = compile_index(
+                        pending_chunks,
+                        filename=pending_chunks[0].source_title,
+                        user_id=record.user_id,
+                        project_id=record.project_id,
+                        document_id=pending_document_id,
+                        existing_chunks=list(existing.values()),
+                        generation=wiki_state.knowledge_generation + 1,
+                    )
+                    self._merge_compiled_chunks(existing, affected, recovered)
+                latest = compile_index(
+                    chunks,
+                    filename=record.filename,
+                    user_id=record.user_id,
+                    project_id=record.project_id,
+                    document_id=record.document_id,
+                    existing_chunks=list(existing.values()),
+                    generation=wiki_state.knowledge_generation + 1,
+                )
+                self._merge_compiled_chunks(existing, affected, latest)
+                compiled = list(affected.values())
+            else:
+                compiled = compile_index(
+                    chunks,
+                    filename=record.filename,
+                    user_id=record.user_id,
+                    project_id=record.project_id,
+                    document_id=record.document_id,
+                )
+            if compiled is not None:
                 LOGGER.info(
                     "ingestion_wiki_compiled document_id=%s pages=%s",
                     record.document_id,
                     len(compiled),
                 )
                 return compiled
-            LOGGER.warning("wiki_compiler_returned_empty document_id=%s", record.document_id)
         except Exception as exc:
             LOGGER.warning(
                 "wiki_compilation_failed document_id=%s error=%s",
                 record.document_id,
                 type(exc).__name__,
             )
-        return []
+        return None
+
+    @staticmethod
+    def _merge_compiled_chunks(
+        existing: dict[UUID, ChunkEntry],
+        affected: dict[UUID, ChunkEntry],
+        compiled: list[ChunkEntry],
+    ) -> None:
+        """Carry canonical updates and duplicate removals through compensation steps."""
+        for chunk in compiled:
+            prior = affected.get(chunk.id)
+            removed = chunk.metadata.get("wiki_merged_page_ids", [])
+            old_removed = prior.metadata.get("wiki_merged_page_ids", []) if prior else []
+            if not isinstance(removed, list) or not isinstance(old_removed, list):
+                raise ValueError("invalid canonical deletion metadata")
+            merged_ids = list(dict.fromkeys([*old_removed, *removed]))
+            chunk.metadata["wiki_merged_page_ids"] = merged_ids
+            for page_id in merged_ids:
+                existing.pop(UUID(str(page_id)), None)
+                affected.pop(UUID(str(page_id)), None)
+            existing[chunk.id] = chunk
+            affected[chunk.id] = chunk
 
     def _record_failure(
         self,

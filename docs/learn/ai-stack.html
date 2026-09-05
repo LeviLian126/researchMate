@@ -414,7 +414,7 @@
             <p>Why pass only 5 Wiki candidates to the judge?<br/>
             &rarr; Because judging every Wiki page wastes tokens and judge latency; BM25 selects the most relevant 5 (<code>wiki_gate_candidate_limit = 5</code>).<br/>
             &rarr; Why is Wiki judged separately from raw evidence?<br/>
-            &rarr; Wiki chunks carry <code>wiki_mode=True</code> and are synthetic index text, not answer evidence &mdash; they guide planning but cannot become the final answer.</p>
+            &rarr; Wiki chunks carry <code>wiki_mode=True</code>. When generations match, sufficient pages may answer directly; exact questions expand their raw <code>source_chunk_ids</code>. Stale pages are excluded from the shortcut.</p>
           </article>
         </div>
       </section>
