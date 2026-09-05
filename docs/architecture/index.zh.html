@@ -81,7 +81,7 @@
         <p class="eyebrow">本地验证边界</p><h2>仅封闭检查；集成在部署后运行</h2>
         <div class="notice warning"><strong>执行策略：</strong>本地机器仅可运行最小的相关单元、领域、schema、合约、导入、静态和构建检查，且不要求本地托管的应用或基础设施服务。不要在本地启动 Next.js、FastAPI、Celery、发件箱分发器、PostgreSQL、Redis、Qdrant、对象存储、提供商模拟器或 Docker。每个模块化或跨服务集成测试都在授权的部署/服务器环境中运行，使用受保护的配置和合成数据。</div>
         <div class="grid two">
-          <article class="fact"><b>工具链，而非本地运行时拓扑</b><p>Node.js 22.14.0、npm 11.6.0、Python 3.13.2、uv、Celery、Docling 2.111.0/core 2.86.0 和 Git 安装在 Windows 项目环境下。它们的存在允许封闭检查；但不授权本地托管的应用服务。</p></article>
+          <article class="fact"><b>本地工具链</b><p>Windows 项目环境使用 Node.js 22.14.0、npm 11.6.0、Python 3.13.2、uv、Celery、Docling 2.111.0/core 2.95.0、Transformers 5.10.4 和 Git。本次解析依赖升级针对 CI 33969723050 的 Transformers 镜像漏洞报告；本地检查不代表托管运行环境已验证。</p></article>
           <article class="fact"><b>历史有界证明</b><p>LangGraph 1.2.9、Postgres 检查点包、RAGAS 0.4.3、MCP 1.28.1、OpenTelemetry 和 Langfuse 已在本地安装。现有历史证据覆盖假域 LangGraph 扇出、RAGAS 导入、严格序列化器导入和 MCP 初始化。它不证明任何数据库、队列、提供商、遥测或部署集成，也不是启动本地服务的先例。</p></article>
           <article class="fact"><b>禁止的本地依赖</b><p>通过本地关卡不得要求本地 PostgreSQL、Redis、Qdrant、对象存储、提供商端点、Vercel/Render 运行时、Docker 守护进程或应用监听器。静默打开监听器或访问托管服务的测试应属于部署集成套件。</p></article>
           <article class="fact"><b>应用进程远程运行</b><p>Next.js 在 Vercel 上运行。FastAPI、Celery worker 和发件箱分发器在合并的 Render 服务中运行。它们与 Supabase、Upstash、Qdrant、存储、身份和提供商的真实交互仅从部署/服务器边界验证。</p></article>
